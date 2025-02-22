@@ -1,6 +1,6 @@
 ## Why not Microsoft TPL Dataflow?
 
-![Data Flow Diagram](docs/df.png)
+![Data Flow Diagram](/docs/df.png)
 
 Microsoft TPL Dataflow is a library that provides a way to build dataflow pipelines in .NET. It is a library that is part of the .NET framework and is available in the `System.Threading.Tasks.Dataflow` namespace.
 
