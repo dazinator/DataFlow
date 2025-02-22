@@ -1,0 +1,13 @@
+global using Microsoft.Extensions.DependencyInjection;
+global using Xunit;
+global using Xunit.Abstractions;
+global using Xunit.Categories;
+global using Uniun.DataFlow;
+global using Uniun.DataFlow.Actor;
+global using Uniun.DataFlow.Builder;
+global using Uniun.DataFlow.Blocks;
+global using Tests.DataFlow.Utils.Producers;
+global using Tests.DataFlow.Utils.Projectors;
+global using Tests.DataFlow.Utils.Processors;
+global using Tests.DataFlow.Utils;
+global using Tests.DataFlow.Utils.Transformers;

@@ -1,0 +1,20 @@
+  assembly-informational-format: '{FullSemVer}'
+  branches:
+    feature:
+      mode: ContinuousDeployment
+      regex: features?[/-]
+      tag: feature.{BranchName}
+    develop:
+      regex: dev(elop)?(ment)?$
+    master:
+      regex: master$
+    pull-request:
+      regex: (pull|pull\-requests|pr)[/-]
+      mode: ContinuousDelivery
+      tag: pr
+      increment: Inherit
+      prevent-increment-of-merged-branch-version: false
+      tag-number-pattern: '[/-](?<number>\d+)[-/]'
+      track-merge-target: false
+      tracks-release-branches: false
+      is-release-branch: false

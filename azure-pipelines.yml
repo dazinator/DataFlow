@@ -1,0 +1,263 @@
+# ASP.NET Core (.NET Framework)
+# Build and test ASP.NET Core projects targeting the full .NET Framework.
+# Add steps that publish symbols, save build artifacts, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/languages/dotnet-core
+
+trigger:
+- master
+- develop
+
+pr:
+  - feature/*
+
+pool:
+  vmImage: 'windows-latest'
+
+variables:
+  solution: '**/*.sln'
+  buildPlatform: 'Any CPU'
+  buildConfiguration: 'Release'
+  GitVersion.SemVer: ''
+
+stages:
+
+- stage: CalculateVariables
+  displayName: 'Calculate Variables'
+  jobs:
+    - job: 'semver'
+      displayName: 'Establish Semantic Version'
+      # pool:  
+      #   name: Default
+      steps:
+
+      - checkout: self        
+        clean: true
+        fetchDepth: 0
+      
+      - task: gitversion/setup@0
+        displayName: Install GitVersion
+        inputs:
+          versionSpec: '5.11.1'
+    
+      - task: gitversion/execute@0
+        displayName: Determine Version
+        name: Version
+        inputs:
+          # useConfigFile: true
+          # configFilePath: GitVersion.yml
+
+- stage: Build
+  displayName: 'Build' 
+  condition: succeeded('CalculateVariables')
+  dependsOn: ['CalculateVariables']
+  jobs:
+  - job: 'BuildSolution'
+    variables:         
+        SEMVER: $[ stageDependencies.CalculateVariables.semver.outputs['Version.GitVersion.SemVer'] ]
+  # pool:  
+  #   name: Default
+    steps:
+
+      - checkout: self
+        fetchDepth: 0
+
+      - task: UseDotNet@2
+        displayName: 'Use .NET Core sdk'
+        inputs:
+          packageType: sdk    
+          useGlobalJson: true
+          installationPath: $(Agent.ToolsDirectory)/dotnet     
+      
+      - task: NuGetToolInstaller@1
+        inputs:
+          versionSpec: '5.8.0' 
+      
+      - task: DotNetCoreCLI@2
+        displayName: Restore
+        inputs:
+          command: restore
+          projects: '$(solution)'
+      
+      - task: DotNetCoreCLI@2
+        displayName: Build
+        inputs:
+          command: build
+          projects: '$(solution)'
+          arguments: '--configuration $(buildConfiguration) --no-restore -p:ContinuousIntegrationBuild=true -p:InformationalVersion=$(SEMVER) -p:PackageVersion=$(SEMVER)'
+          configuration: '$(buildConfiguration)'
+          versioningScheme: off
+          #versioningScheme: byEnvVar
+          #versionEnvVar: 'SEMVER'
+        env:
+          SEMVER: $(SEMVER)  
+      
+      - task: DotNetCoreCLI@2
+        displayName: test
+        inputs:
+          command: test
+          projects: '$(solution)'
+          configuration: '$(buildConfiguration)'
+          publishTestResults: true
+          arguments: '--filter Category=UnitTest --configuration $(buildConfiguration) --no-build /p:SkipAutoProps=true'
+      
+      - task: DotNetCoreCLI@2
+        inputs: 
+          command: 'pack'    
+          versioningScheme: byEnvVar
+          versionEnvVar: 'SEMVER'
+        env:
+          SEMVER: $(SEMVER)  
+
+      # - task: NuGetCommand@2
+      #   inputs:
+      #     command: push
+      #     nuGetFeedType: external
+      #     publishFeedCredentials: 'NuGet'
+      #     versioningScheme: byEnvVar
+      #     versionEnvVar: 'SEMVER'
+      #   env:
+      #     SEMVER: $(SEMVER)
+
+- stage: Validation
+  displayName: "Validation" 
+  dependsOn: ['Build'] # if it doesn't build, the dev has bigger issues to attend to than this stage'
+  condition: succeeded('Build')  
+  jobs:
+  - job: prAssistant
+    displayName: Pull Request Assistant # tasks for assistants with prs such as auto dotnet format fixes etc.
+    condition: eq(variables['Build.Reason'], 'PullRequest')
+    # pool:  
+    #   name: Default
+    #   demands:
+    #   - docker     
+    #   - agent.os -equals Linux       
+    variables:          
+        SEMVER: $[ stageDependencies.CalculateVariables.semver.outputs['Version.GitVersion.SemVer'] ]  
+        
+    steps: 
+    - checkout: self      
+      # clean: true
+      persistCredentials: true   
+    
+    - task: NuGetToolInstaller@1
+      displayName: 'Install nuget'
+      inputs:
+        versionSpec: '5.8.0'    
+    
+    - task: NuGetAuthenticate@0
+      displayName: 'nuget authenticate'
+
+    - task: UseDotNet@2
+      displayName: 'Install dotnet sdk'
+      inputs:
+        packageType: sdk    
+        useGlobalJson: true
+        workingDirectory: src
+        installationPath: $(Agent.ToolsDirectory)/dotnet   
+   
+    - task: DotNetCoreCLI@2
+      displayName: Restore
+      inputs:
+        command: restore
+        projects: '$(solution)'
+    
+    - script: |       
+        git config --global user.name ci-bot
+        git config --global user.email ci-bot@dazinator.io
+        git config --global core.autocrlf true        
+      displayName: configure git    
+     
+    - task: PowerShell@2
+      displayName: Checkout source branch for formatting        
+      inputs:  
+        pwsh: true
+        targetType: 'inline'
+        script: |
+          Write-Host "Checking out PR source branch." -ForegroundColor Cyan
+          git checkout $("$(System.PullRequest.SourceBranch)".replace('refs/heads/', ''))
+          git reset --hard
+          git pull        
+
+    - task: DotNetCoreCLI@2       
+      displayName: 'dotnet format'
+      timeoutInMinutes: 6
+      inputs:
+        command: 'custom'
+        custom: 'format'
+        workingDirectory: '$(Build.SourcesDirectory)/src'
+        arguments: '--no-restore' # --verbosity diagnostic
+
+    - task: PowerShell@2
+      name: gitPushFormatFixes
+      displayName: 'Apply formatting fixes'         
+      inputs:  
+        pwsh: true       
+        targetType: 'inline'
+        script: |
+          cd "$(Build.SourcesDirectory)/src"        
+          git add -A
+          git commit -m "Formatting fixes."
+          git push              
+     
+  - job: assistant
+    condition: ne(variables['Build.Reason'], 'PullRequest') # should we run for pr's in future?
+    displayName: Run extensive tests and checks   
+    # pool:  
+    #   name: Default
+    #   demands:
+    #   - docker     
+    #   - agent.os -equals Linux   
+    steps: 
+    - checkout: self           
+    
+    - task: NuGetToolInstaller@1
+      displayName: 'Install nuget'
+      inputs:
+        versionSpec: '5.8.0'    
+    
+    - task: NuGetAuthenticate@0
+      displayName: 'nuget authenticate'
+
+    - task: UseDotNet@2
+      displayName: 'Install dotnet sdk'
+      inputs:
+        packageType: sdk    
+        useGlobalJson: true
+        workingDirectory: src
+        installationPath: $(Agent.ToolsDirectory)/dotnet   
+
+    - task: DotNetCoreCLI@2
+      displayName: Restore
+      inputs:
+        command: restore
+        projects: '$(solution)'
+
+     # Verify formatting but continue on error.
+    - task: DotNetCoreCLI@2            
+      continueOnError: true
+      displayName: 'dotnet format'
+      timeoutInMinutes: 6
+      inputs:
+        command: 'custom'
+        custom: 'format'
+        workingDirectory: '$(Build.SourcesDirectory)/src'
+        arguments: '--no-restore --verify-no-changes' # careful of verbosity flag see https://github.com/dotnet/format/issues/1648
+    
+    # We run longer running tests whilst also producing code coverage reports
+    - task: DotNetCoreCLI@2      
+      displayName: Tests with code coverage     
+      inputs:
+        command: test
+        projects: '**/*.Tests*.csproj'
+        #projects: |
+        #  **/*.Tests*.csproj
+        #  **/*.IntegrationTests.csproj
+        publishTestResults: true
+        arguments: '--filter Category!=Exploratory --configuration $(buildConfiguration) --collect "XPlat Code Coverage" /p:CoverletOutputFormat=""cobertura%2copencover"" /p:SkipAutoProps=true'
+   
+
+    - task: PublishCodeCoverageResults@1
+      displayName: Publish code coverage     
+      inputs:
+        codeCoverageTool: Cobertura
+        summaryFileLocation: $(Agent.TempDirectory)/**/coverage.cobertura.xml

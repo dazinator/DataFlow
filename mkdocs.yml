@@ -1,0 +1,64 @@
+site_name: DotNet Pipelines Docs
+site_url: !ENV [SITE_URL, 'http://localhost:8080/']
+theme:
+  name: 'material'
+  icon:
+    logo: material/library
+  #logo: img/logo.svg
+  palette:
+    scheme: slate
+    primary: deep orange
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - header.autohide
+    # - navigation.sections
+    # - navigation.tabs
+markdown_extensions:
+  admonition: {}
+  pymdownx.details: {}
+  pymdownx.superfences:
+    custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  pymdownx.tabbed:
+    alternate_style: true 
+    slugify: !!python/object/apply:pymdownx.slugs.slugify
+        kwds:
+          case: lower
+  toc: 
+    permalink: true
+  tables: {}
+nav:
+  - Welcome: index.md
+  - Developers:
+     - Pipeline: pipeline-events.md
+    
+extra:
+  version:
+    provider: mike
+    default: latest
+plugins:
+  - search:
+  - mike:
+      # these fields are all optional; the defaults are as below...
+      version_selector: true   # set to false to leave out the version selector
+      css_dir: css             # the directory to put the version selector's CSS
+      javascript_dir: js       # the directory to put the version selector's JS
+      canonical_version: null  # the version for <link rel="canonical">; `null`
+                               # uses the version specified via `mike deploy`
+  - include-markdown:
+      #opening_tag: "{!"
+      #closing_tag: "!}"
+      # encoding: ascii
+      # preserve_includer_indent: false
+      #dedent: false
+      #trailing_newlines: true
+      #comments: true
+      rewrite_relative_urls: true
+      heading_offset: 0
+      #start: <!--start-->
+      #end: <!--end-->
+     # exclude: LICENSE.md
+

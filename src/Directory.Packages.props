@@ -1,0 +1,56 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageVersionOverrideEnabled>false</CentralPackageVersionOverrideEnabled>
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+  <ItemGroup Label="Build">      
+    <PackageVersion Include="Microsoft.SourceLink.AzureRepos.Git" Version="8.0.0" />
+    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="8.0.0" />
+  </ItemGroup>
+  <ItemGroup Label="Tests">
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageVersion Include="Shouldly" Version="4.2.1" />
+    <PackageVersion Include="NSubstitute" Version="5.1.0" />
+    <PackageVersion Include="Bogus" Version="34.0.2" />
+    <PackageVersion Include="Testcontainers" Version="3.0.0" />
+    <PackageVersion Include="Verify.Xunit" Version="26.4.5" />
+    <PackageVersion Include="Verify.Bunit" Version="12.0.0" />
+    <PackageVersion Include="bunit.core" Version="1.36.0" />
+    <PackageVersion Include="bunit.web" Version="1.36.0" />
+    <PackageVersion Include="MartinCostello.Logging.XUnit" Version="0.3.0" />
+    <PackageVersion Include="MELT" Version="0.9.0" />
+    <PackageVersion Include="MELT.Xunit" Version="0.9.0" />
+    <PackageVersion Include="xunit" Version="2.9.0" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <PackageVersion Include="xunit.categories" Version="2.0.8" />
+    <PackageVersion Include="coverlet.collector" Version="3.2.0" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="6.0.33" />
+  </ItemGroup>
+  <ItemGroup>  
+    <PackageVersion Include="System.Reactive" Version="6.0.1" />
+    <PackageVersion Include="BlazorDeferredRemove" Version="0.2.5" />
+    <PackageVersion Include="Microsoft.Extensions.Caching.Abstractions" Version="8.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="8.0.1" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.2" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.2" />
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="8.0.2" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net6.0'">     
+    <PackageVersion Include="Microsoft.AspNetCore.Components.Web" Version="[6.0.33, 7)" />
+    <PackageVersion Include="Microsoft.Extensions.ObjectPool" Version="6.0.36" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">   
+    <PackageVersion Include="Microsoft.AspNetCore.Components.Web" Version="[8.0.10, 9)" />
+    <PackageVersion Include="Aspire.Hosting.AppHost" Version="[8, 9)" />
+    <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="[8.7.0, 9)" />
+    <PackageVersion Include="Microsoft.Extensions.ServiceDiscovery" Version="[8.1.0, 9)" />
+    <PackageVersion Include="Microsoft.Extensions.ObjectPool" Version="8.0.13" />
+    <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.9.0" />
+    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.9.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.9.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.9.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.9.0" />
+  </ItemGroup>
+</Project>

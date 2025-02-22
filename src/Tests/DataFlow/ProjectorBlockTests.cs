@@ -1,0 +1,186 @@
+namespace Tests.DataFlow;
+
+using System.Collections.Concurrent;
+using Microsoft.Extensions.DependencyInjection;
+
+public class ProjectorBlockTests
+{
+    public class ProcessedItems : ConcurrentBag<string> { }
+    private readonly ProcessedItems _processedItems = new();
+
+    [Fact]
+    public async Task ProjectorBlock_ProjectsItemsCorrectly()
+    {
+        // Arrange
+        var items = Enumerable.Range(1, 5);
+        var services = new ServiceCollection();
+        services.AddDataFlows(maxConcurrentFlows: 1)
+            .AddDataFlow<TestProjectorConfig>();
+
+        var producedItems = new ConcurrentBag<int>();
+        var processedItems = new ConcurrentBag<string>();
+
+        services.AddSingleton(new TestProducer<int>(items));
+        services.AddSingleton(new TestProjector<int, string>(
+            input => new[] { $"{input}_A", $"{input}_B", $"{input}_C" }));
+        services.AddSingleton(new TestProcessor<string>(
+            onProcessItem: item => processedItems.Add(item)));
+
+        await using var provider = services.BuildServiceProvider();
+        var executor = provider.GetRequiredService<FlowExecutor<TestProjectorConfig>>();
+
+        // Act
+        var context = CreateContext("test", Guid.NewGuid(), provider);
+        await executor.ExecuteAsync(context);
+
+        // Assert
+        Assert.Equal(15, processedItems.Count);
+        Assert.Equal(5, processedItems.Count(x => x.EndsWith("_A")));
+        Assert.Equal(5, processedItems.Count(x => x.EndsWith("_B")));
+        Assert.Equal(5, processedItems.Count(x => x.EndsWith("_C")));
+    }
+
+    private IDataFlowContext CreateContext(string v, Guid guid, ServiceProvider provider, CancellationToken ct = default)
+    {
+        return DataFlowContextTestUtils.GetContext(v, guid, provider, ct);
+    }
+
+    [Fact]
+    public async Task ProjectorBlock_HandlesEmptyProjections()
+    {
+        // Arrange
+        var items = Enumerable.Range(1, 5);
+        var services = new ServiceCollection();
+        services.AddDataFlows(maxConcurrentFlows: 1)
+            .AddDataFlow<TestProjectorConfig>();
+
+        var producedItems = new ConcurrentBag<int>();
+        var processedItems = new ConcurrentBag<string>();
+
+        //services.AddSingleton(_processedItems);
+        services.AddSingleton(new TestProducer<int>(items));
+        services.AddSingleton(new TestProjector<int, string>(
+            input => Enumerable.Empty<string>()));
+        services.AddSingleton(new TestProcessor<string>(
+            onProcessItem: item => processedItems.Add(item)));
+
+        await using var provider = services.BuildServiceProvider();
+        var executor = provider.GetRequiredService<FlowExecutor<TestProjectorConfig>>();
+
+        // Act
+        var context = CreateContext("test", Guid.NewGuid(), provider);
+        await executor.ExecuteAsync(context);
+
+        // Assert
+        Assert.Empty(processedItems);
+    }
+
+    [Fact]
+    public async Task ProjectorBlock_HandlesCancellation()
+    {
+        // Arrange
+        var items = Enumerable.Range(1, 5);
+
+        var services = new ServiceCollection();
+        services.AddDataFlows(maxConcurrentFlows: 1)
+            .AddDataFlow<TestProjectorConfig>();
+
+        var producedItems = new ConcurrentBag<int>();
+        var processedItems = new ConcurrentBag<string>();
+
+        services.AddSingleton(new TestProducer<int>(items));
+        services.AddSingleton(new TestProjector<int, string>(
+            input => new[] { $"{input}_A", $"{input}_B", $"{input}_C" },
+            delay: TimeSpan.FromMilliseconds(100)));
+        services.AddSingleton(new TestProcessor<string>(
+            onProcessItem: item => processedItems.Add(item)));
+
+
+        await using var provider = services.BuildServiceProvider();
+        var executor = provider.GetRequiredService<FlowExecutor<TestProjectorConfig>>();
+
+        using var cts = new CancellationTokenSource();
+        var context = CreateContext("test", Guid.NewGuid(), provider, cts.Token);
+
+        // Act & Assert
+        var executionTask = executor.ExecuteAsync(context);
+        await Task.Delay(100); // Let it start
+        cts.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => executionTask);
+    }
+
+
+
+
+    [Fact]
+    public async Task ProjectorBlock_RespectsMaxConcurrency()
+    {
+        // Arrange
+        var concurrentExecutions = 0;
+        var maxConcurrentExecutions = 0;
+        var maxAllowedConcurrency = 2;
+        var syncLock = new object();
+
+        var tracker = new ConcurrencyTracker(
+            onEnter: () =>
+            {
+                lock (syncLock)
+                {
+                    concurrentExecutions++;
+                    maxConcurrentExecutions = Math.Max(maxConcurrentExecutions, concurrentExecutions);
+                }
+            },
+            onExit: () =>
+            {
+                lock (syncLock)
+                {
+                    concurrentExecutions--;
+                }
+            });
+
+        var items = Enumerable.Range(1, 5);
+        var services = new ServiceCollection();
+        services.AddDataFlows(maxConcurrentFlows: 1)
+            .AddDataFlow<TestProjectorConfig>();
+
+        var producedItems = new ConcurrentBag<int>();
+        var processedItems = new ConcurrentBag<string>();
+
+        services.AddSingleton(tracker);
+        services.AddSingleton(new TestProducer<int>(items));
+        services.AddSingleton(new TestProjector<int, string>(
+            input => new[] { $"{input}_A", $"{input}_B", $"{input}_C" },
+            delay: TimeSpan.FromMilliseconds(50),
+            tracker: tracker));
+        services.AddSingleton(new TestProcessor<string>(
+            onProcessItem: item => processedItems.Add(item)));
+
+        await using var provider = services.BuildServiceProvider();
+        var executor = provider.GetRequiredService<FlowExecutor<TestProjectorConfig>>();
+
+        // Act
+        var context = CreateContext("test", Guid.NewGuid(), provider);
+        await executor.ExecuteAsync(context);
+
+        // Assert
+        Assert.True(maxConcurrentExecutions <= maxAllowedConcurrency);
+        Assert.Equal(15, processedItems.Count);
+    }
+
+    // Test Configurations
+    private class TestProjectorConfig : IDataFlowConfiguration
+    {
+        public void Configure(DataFlowBuilder builder)
+        {
+            builder
+                .AddProducer("source", sp => sp.GetRequiredService<TestProducer<int>>())
+                .AddTransform<int, string>("projector", sp => sp.GetRequiredService<TestProjector<int, string>>())
+                    .ReceiveFrom("source")
+                .AddProcessor<string, TestProcessor<string>>("processor",
+                    sp => sp.GetRequiredService<TestProcessor<string>>())
+                    .ReceiveFrom("projector");
+        }
+    }
+
+}

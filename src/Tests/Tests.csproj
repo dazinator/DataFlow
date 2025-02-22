@@ -1,0 +1,57 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>Preview</LangVersion>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Blazor\**" />
+    <Compile Remove="Obsolete\**" />
+    <Compile Remove="Reactive\**" />
+    <EmbeddedResource Remove="Blazor\**" />
+    <EmbeddedResource Remove="Obsolete\**" />
+    <EmbeddedResource Remove="Reactive\**" />
+    <None Remove="Blazor\**" />
+    <None Remove="Obsolete\**" />
+    <None Remove="Reactive\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Shouldly" />
+    <PackageReference Include="NSubstitute" />
+    <PackageReference Include="MartinCostello.Logging.XUnit" />
+    <PackageReference Include="System.Reactive" />
+    <PackageReference Include="Testcontainers" />
+    <PackageReference Include="Verify.Bunit" />
+    <PackageReference Include="bunit.core" />
+    <PackageReference Include="bunit.web" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.categories" />
+    <PackageReference Include="Verify.Xunit" />
+    <PackageReference Include="MELT.Xunit" />
+    <PackageReference Include="MELT" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" />
+    
+    <PackageReference Include="xunit.runner.visualstudio">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="coverlet.collector">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DataFlow\DataFlow.csproj" />
+  </ItemGroup>
+
+</Project>
