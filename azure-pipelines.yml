@@ -36,15 +36,17 @@ stages:
       
       - task: gitversion/setup@0
         displayName: Install GitVersion
+        retryCountOnTaskFailure: 10
         inputs:
-          versionSpec: '5.11.1'
+          versionSpec: '6.0.5'    
     
+      
       - task: gitversion/execute@0
         displayName: Determine Version
         name: Version
         inputs:
-          # useConfigFile: true
-          # configFilePath: GitVersion.yml
+          useConfigFile: true
+          configFilePath: GitVersion.yml
 
 - stage: Build
   displayName: 'Build' 
