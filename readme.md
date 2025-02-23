@@ -1,64 +1,140 @@
-## Why not Microsoft TPL Dataflow?
+﻿## DataFlow Library
 
-![Data Flow Diagram](docs/df.png)
+A high-performance, pull-based data processing pipeline library built on modern .NET features. This library provides a fluent API for building concurrent data processing pipelines using `System.Threading.Channels`, offering great performance and backpressure handling.
 
-Microsoft TPL Dataflow is a library that provides a way to build dataflow pipelines in .NET. It is a library that is part of the .NET framework and is available in the `System.Threading.Tasks.Dataflow` namespace.
+## Key Features
 
-Microsoft TPL Dataflow doesn't:-
-- doesn't use the modern System.Threading.Channels which have been better optimised for higher performance on more hardware.
-- doesn't have nay fluent API for building dataflows.
-- wasn't built with DI in mind, so blocks have to be constructed and wired up manually, often involving a lot of tedious boilerplate code.
-    - For example if you have concurrent Actions being executed in an Action block, and they need a scoped dependency, you have to manually manage dependency creation.
-- to add cross-cutting concerns, you have to typically derive from the base classes anyway and implement custom block types.
-- has some api's that aren't necessary for us such as
-    - Synchronously `Post` data or Receive data from a block.
-        - Synchronous API's are only relevent in a very specialised set of data flows like realtime stock / trading - where if you can't process an item immediately you want to fail immediately at the point of sending the item into the flow.
-            - For most use cases we only ever need Async producer / cosumer pattern - as this pattern scales better, and accomodates backpressure without failing the overall flow which is best for resiliency and most business use cases.
+- 🔄 **Pull-based Architecture** - Built on `System.Threading.Channels` for efficient backpressure handling
+- 🧱 **Modular Block System** - Compose pipelines from reusable blocks (Producer, Batch, Transform, Route, Process)
+- 💉 **First-class DI Support** - Full dependency injection support with proper scope management
+- 🔧 **Fluent Configuration** - Builder API for constructing pipelines
+- 📊 **Concurrency Control** - Fine-grained control over parallel processing (max concurrency settings)
+- 🎯 **Type Safety** - Strong typing throughout the pipeline
 
-## Data Flow Blocks
+- ## Architecture Overview
 
-- Source Block: supply data for downstream blocks.
-- Target Block: receive data from upstream blocks.
-    - Target blocks pull data from the source, and where they allow for concurrency, they respect the max concurrency settings on the block options passed to them.
-- Propagator Block: is a source block and a target block. It both receives data and supplies data for the next target block. Example: TransformBlock, ProjectorBlock.
+The following shows an example DataFlow constructed with this library.
 
-As data flow is a pipeline, the blocks are connected together in a chain, with the output of one block being the input of the next block.
-- All blocks are running concurrently
-- The blocks are designed to be able to handle backpressure
-    - Output data from a block sits in its output buffer - which is bounded by a max capacity. Once its full, the block will stop pulling new data until its output buffer has space.
-    - Target blocks are actively pulling data from the upstream source blocks output buffer - freeing up capacity.
-        - A processor block doesn't have an output buffer of its own its a terminal block in the flow.
-        - A propogator block does have an output buffer it will be pulling data from the upstream source block's output buffer and writing to its own output buffer for the next target block to pull.
-- The blocks can have concurrent actions running on the data.
-    - The max concurrency setting on the block options is used to control how many concurrent actions maximum can be running on the data.
-    - For example a Producer block can have multiple `IProducer<T>` implementations running concurrently to fill its output buffer.
-    - A Transform block can have multiple `ITransformer<TIn, TOut>` implementations running concurrently - all pulling data from the upstream source block adapting it to an output stream which is written to the blocks output buffer.
-    - A Projector block can have multiple `IProjector<TIn, TOut>` implementations running concurrently - all pulling data from the upstream source block and producing multiple TOut items for each TIn item, writing them to the blocks output buffer.
-    - A Processor block can have multiple `IProcessor<T>` implementations running concurrently - all pulling data from the upstream source block and processing it.
-    - This allows you to scale for example the number of concurrent producers, transformers, projectors or processors to tune throughput, with max concurrency settings to throttle things.
+```mermaid
+flowchart LR
+    subgraph Producer["Producer Block"]
+        P_Process["Process"]
+        P_Buffer[("Output Buffer")]
+        P_Process --> P_Buffer
+    end
 
-### Source Blocks
+    subgraph Batch["Batch Block"]
+        B_Buffer_In[("Input Buffer")]
+        B_Process["Batch Items"]
+        B_Buffer_Out[("Output Buffer")]
+        B_Buffer_In --> B_Process
+        B_Process --> B_Buffer_Out
+        note["Collects items into batches
+        based on size or time window"]
+    end
 
-Source blocks are blocks that:-
-- can be used to supply data to a dataflow.
-- implement the `ISourceBlock<T>` interface.
-- are a starting point for supplying data into a dataflow.
-    - A data flow without data flowing into it, isn't much good.
+    subgraph Router["Router Block"]
+        R_Buffer_In[("Input Buffer")]
+        R_Process{"Route"}
+        R_Buffer_A[("Route A Buffer")]
+        R_Buffer_B[("Route B Buffer")]
+        R_Buffer_In --> R_Process
+        R_Process --> R_Buffer_A
+        R_Process --> R_Buffer_B
+        note2["Routes based on
+        item properties"]
+    end
 
-### Target Blocks
+    subgraph Target_A["Target Block A"]
+        TA_Buffer[("Input Buffer")]
+        TA_Process["Process"]
+        TA_Buffer --> TA_Process
+    end
 
-Target blocks are blocks that:-
-- pull data from a source block upstream in the flow that you link them to.
-- implement ITargetBlock<T> interface.
+    subgraph Target_B["Target Block B"]
+        TB_Buffer[("Input Buffer")]
+        TB_Process["Process"]
+        TB_Buffer --> TB_Process
+    end
 
-### Propagator Blocks
+    P_Buffer --> B_Buffer_In
+    B_Buffer_Out --> R_Buffer_In
+    R_Buffer_A --> TA_Buffer
+    R_Buffer_B --> TB_Buffer
 
-Propagator blocks act as both source and target blocks.
-They:-
-- pull data from an upstream source block
-- presumably do something with data
-- output data to a buffer for a downstream target block to pull
-- implement `IPropagatorBlock<TInput, TOutput>` interface which derives from both `ISourceBlock<TOutput>` and `ITargetBlock<TInput>` interfaces.
+    %% Lighter colors with better contrast
+    classDef default fill:#fff,stroke:#333,stroke-width:1px
+    classDef buffer fill:#e1f5fe,stroke:#0288d1,stroke-width:2px
+    classDef process fill:#fff,stroke:#333,stroke-width:1px
+    classDef router fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    class P_Buffer,B_Buffer_In,B_Buffer_Out,R_Buffer_In,R_Buffer_A,R_Buffer_B,TA_Buffer,TB_Buffer buffer
+    class P_Process,B_Process,TA_Process,TB_Process process
+    class R_Process router
+```
+
+## How It Works
+The DataFlow library enables you to build efficient data processing pipelines by connecting specialized blocks. Each block acts as either a source of data for the next block, or a terminal block that only processes the data without passing it on.
+
+- Source Blocks (e.g., Producer) supply data to the flow, outputting it to their buffer. If their buffer is full, they asynchronously wait for space to become available when writing to their buffer, accomodating backpressure.
+- Propagator Blocks (e.g., Batch, Transform) pull data from upstream block, process it, and output to their buffer for the next target block to pull.
+- Target Blocks (e.g., Processor) pull and process data from upstream blocks - they are the terminal blocks in the flow and do not pass data on.
+
+Data flows through channels between blocks, with each block pulling data from its upstream source when ready. This pull-based model provides natural backpressure - if a downstream block is processing slowly, upstream blocks will automatically slow down.
+
+## Quick Start
+
+1. Install the package:
+
+```
+dotnet add package Uniun.DataFlow
+```
+
+2. Define a class that implements `IDataFlowConfiguration` and use it to define your data flow.
+
+```csharp
+public class NumberProcessingFlowConfig : IDataFlowConfiguration
+{
+    public void Configure(DataFlowBuilder builder)
+    {
+        builder
+            .AddProducer<int>("source", sp => new NumberProducer())
+            .AddBatch<int>("batcher", 
+                maxBatchSize: 100,            
+                windowPeriod: TimeSpan.FromSeconds(5))
+            .ReceiveFrom("source")
+            .AddProcessor<int[], DatabaseWriter>("writer")
+            .ReceiveFrom("batcher");
+    }
+}
+```
+
+3. Add the data flow to the services collection in `Startup.cs`.
+```csharp
+services.AddDataFlows(maxConcurrentFlows: 4); // called once to configure global options
+services.AddDataFlow<NumberProcessingFlowConfig>(); // called to register each particular data flow you have
+```
+
+4. Run the data flow.
+```csharp   
+var executor = serviceProvider.GetRequiredService<FlowExecutor<NumberProcessingFlowConfig>>();
+await executor.ExecuteAsync(context);
+
+```
+
+## Why Not TPL Dataflow?
+While TPL Dataflow is a mature library, this implementation offers several advantages:
+
+- Built on modern `System.Threading.Channels` for better performance
+- Uses a pull based model for simplfied backpressure handling, overall a simpler model than TPL.
+- Cleaner fluent API for building flows (TPL DataFlow doesn't have one)
+- First-class DI support with proper scope management
+  - TPL DataFlow is very awkward to try and use with depencencies it predates the modern DI system in .NET.
+  - This library adopts an "Actor" based model where each block can initiate a new scope for its `Actor` to run in, allowing for scoped depencencies to be used by actors, and allowing them to run concurrently without interfering with each other.
+    - For example, a Transform block can have multiple concurrent `ITransformer<TIn, TOut>` implementations running concurrently, each in their own scope. You can scale the number of concurrent transformers to tune throughput, with max concurrency settings to throttle things.
+- Better structured for typical ETL and data processing scenarios
+  - TPL Offers a lot of flexibility, but can be overkill for simple ETL scenarios. For example it offers a synchronous API for posting data to a block, which will fail immediately when buffers are full - which is not really appropriate for most ETL scenarios, but is more applicable for real-time stock trading scenarios. This library is more focused on reliable and efficient processing of data volumes ETL / data processing scenarios.
+- Simpler concurrency model focused on async/await patterns throughout.
+
 
 ## Specific Block Implementations
 
@@ -68,22 +144,21 @@ They:-
 | ProducerBlock     | Yes | No        | A source block that allows you to supply data via  `IProducer<T>` dependencies. You can supply an enumerable of these and they will be executed concurrently honouring max concurrency settings.                                                                                  |
 | ProcessorBlock    | No | Yes       | Perform some processing on each item received. No data is propogated onwards.                                                                                                                                                                                                     |
 | TransformBlock    | Yes | Yes       | Allows you to adapt the source / input stream to a new output stream utilising `ITransformer<TIn, TOut>` with concurrency options. |
-| ProjectorBlock    | Yes | Yes       | Allows you to supply an enumerable of `IProjector<TIn, TOut>` which will then be used concurrently (upto max concurrency settings) to pull data from the upstream source, project each TIn into multiple TOut items which are written to the blocks output buffer for the next target block to pull. |
 | BatchBlock        | Yes | Yes       | Collects incoming items into batches based on max batch size and/or time window criteria. Emits batches as arrays when either the max batch size is reached or the time window elapses. Useful for optimizing downstream processing efficiency. |
 | OutputBlock       | No | Yes       | A terminal block that allows the application to receive the output of the data flow (each item) via a supplied `Func<T>`. Similar to a Processor Block but does not require implementing an `IProcessor`.    |
 
 
-### Producer Block
+### Producer Block (Source Block)
 
 Producer blocks:-
 - are source blocks that supply data into the dataflow.
-- activates (using DI scope) a specified number of concurrent `IProducer<T>` implementations supply items concurrently.
-- Implements `ISourceBlock<T>` interface so that items can be propagated onwards to recipient blocks.
+- depends on you supplying one or many `IProducer<T>` to supply the data items. Each producer will be called in parallel with the others (honouring block max parallism) but a single producer will be called serially.
+- Implements `ISourceBlock<T>` interface so that downstream blocks can be linked to it.
 
-### Input Channel Block
+### Input Channel Block (Source Block)
 
-- can be used to supply data into the flow via a ChannelWriter<T>
-- Implements `ISourceBlock<T>` so that they can be connected to downstream target blocks like Processor, or Transform etc.
+- can be used to supply data into the flow via a `ChannelWriter<T>` which your application holds a reference to and writes items to as needed.
+- Implements `ISourceBlock<T>` interface so that downstream blocks can be linked to it.
 
 ### Projector Block
 
@@ -96,9 +171,11 @@ Projector blocks:-
 ## Transformer Bloc
 
 Transformer blocks:-
-- are propagator blocks that allow adapting the input stream into an output stream which is written to the blocks output buffer.
-- activates (using DI scope) a specified number of concurrent `ITransformer<TIn, TOut>` implementations to transform items concurrently.
-- Important Notes:
+- are propagator blocks that allows:-
+  - adapting the input stream into an output stream of a different type
+  - outputting 0, 1 or many items - e.g you could optionally filter data or change the cardinality.
+- activates concurrent `ITransformer<TIn, TOut>` implementations to transform items.
+- Important Notes
   - To preserve order, you should supply a single `ITransformer<TIn, TOut>`. If you supply multiple, they are competing consumers, and their results will be interleaved in the output channel - potentially losing the original order. Therefore only add concurrent transformes where
      - You don't need to preserve order of the stream.
      - Your transformation logic is expensive and expected to not "keep pace" with the input stream - in other words you want to add concurrent transformers to alleviate backpressure.
@@ -164,118 +241,3 @@ builder.AddProducer<string>("source", sp => new ItemProducer())
         }
     }
 ```
-
-In this example we
-- Produce the source stream
-- Transform the source stream to a new output stream
-- Process the transformed item stream.
-
-
-```csharp
-public class NumberProducer : IProducer<int>
-{
-    private readonly List<string> _testLog;
-
-    // supports dependency injection
-    public NumberProducer(List<string> testLog)
-    {
-        _testLog = testLog;
-    }   
-
-    public async IAsyncEnumerable<int> ProduceAsync(
-        [EnumeratorCancellation] CancellationToken cancellation)
-    {
-
-        for (int i = 0; i < 10; i++)
-        {
-            cancellation.ThrowIfCancellationRequested();
-            _testLog.Add($"Producing Number: {i}");
-            yield return i;
-            // Small delay to make tests more realistic
-            await Task.Delay(10, cancellation);
-        }
-    }
-}
-
-public class NumberToStringTransformer : ITransformer<int, string>
-{
-    private readonly List<string> _testLog;
-
-    public async IAsyncEnumerable<string> TransformAsync(
-            IAsyncEnumerable<int> input,
-            PipelineContext context)
-        {           
-            // could do any one time setup here before enumerating the source stream
-            // await LoadSettingsAsync();
-
-            await foreach (var item in input)
-            {               
-                yield return item.ToString();
-            }
-        }   
-}
-
-public class NumberProcessor : IProcessor<string>
-{
-    private readonly List<string> _testLog;
-
-     // supports dependency injection
-    public NumberProcessor(List<string> testLog)
-    {
-        _testLog = testLog;
-    }
-
-    public async Task ProcessAsync(IAsyncEnumerable<string> input, CancellationToken cancellationToken)
-    {
-        await foreach (var item in input)
-        {
-           _testLog.Add($"Processed Number: {item}");            
-        }
-    }   
-}
-
-```
-
-2. Add the data flow to the services collection in startup.
-
-```csharp
-
-        // Arrange
-        Services.AddDataFlow<NumberProcessingFlowConfig>();      
-
-```
-
-3. Run the data flow.
-
-```csharp
-
-        using var sp = GetServiceProvider();
-        var executor = sp.GetRequiredService<FlowExecutor<NumberProcessingFlowConfig>>();
-        var context = new PipelineContext("test", Guid.NewGuid(), sp);
-
-        // Act
-        await executor.ExecuteAsync(context);     
-
-```
-
-The `await executor.ExecuteAsync(context);` will run the data flow, and the blocks will be executed concurrently. The blocks will complete as they finish processing data.
-When all the blocks are finished, the `await` will complete and the data flow will have finished.
-
-### Use Case 1: Supplying data from outside the flow
-
-- Use `AddInputChannelBlock` then get that blocks `ChannelWriter<T>` and write to it to supply data to the flow.
-  - Important: don't forget to call .Complete() on the `ChannelWriter<T>` when you are done supplying data to the flow - so the downstream blocks know that the channel is complete and not to expect any more data. They will then be able to complete.
-
-### Use Case 2: Transforming data in the flow
-Connect any Source Block (such as a `ProducerBlock`) to a Transform Block (such as a `TranformBlock`) then connect that to a target block to continue the flow with the transformed data.
-
-1. The ProducerBlock will naturally buffer the produced data.
-2. The transform block will allow us to adapt the source input stream from the source block output to a new output stream, using a concurrent set of `ITransformer`s.
-3. The connected downstream target block will be consuming the transformed data from the transform block output buffer.
-
-
-### Use case 3 - Simple actions on data
-
-Use a single block flow - it just has a `ProcessorBlock` to receive data and act upon it.
-This block buffers the received data, and then acts on it with the specified max concurrency of `IProcessor<T>` implementations.
-If you just want a simple `Channel` for a single producer / consumer scenario this is the simplest option.
