@@ -5,7 +5,6 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <PackageId>Uniun.DataFlow</PackageId>
-    <PackageLicenseFile>LICENCE.md</PackageLicenseFile>
     <RootNamespace>Uniun.DataFlow</RootNamespace>
     <LangVersion>preview</LangVersion>
     <Title>Uniun DataFlow</Title>
