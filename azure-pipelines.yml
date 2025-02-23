@@ -110,6 +110,12 @@ stages:
         env:
           SEMVER: $(SEMVER)  
 
+      - task: DotNetCoreCLI@2
+        displayName: 'dotnet push'
+        inputs:
+          command: push
+          publishVstsFeed: '2776577c-a22b-427d-b0b5-59ad9e7bca42'
+
       # - task: NuGetCommand@2
       #   inputs:
       #     command: push
