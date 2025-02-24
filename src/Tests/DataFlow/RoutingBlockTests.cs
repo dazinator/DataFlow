@@ -106,4 +106,145 @@ public class RoutingBlockTests
     }
 
 
+    [Fact]
+    public async Task Routes_Create_And_Dispose_Scopes_Correctly()
+    {
+        // Arrange
+        // Add our scoped service for tracking
+        Services.AddScoped<IScopedProcessor, ScopedProcessor>();
+        Services.AddSingleton<ScopeTracker>();
+
+        var items = Enumerable.Range(1, 10).ToArray();
+        var scopeTracker = new ScopeTracker();
+
+        Services.AddSingleton(scopeTracker);
+        var sp = Services.BuildServiceProvider();
+
+        var builder = new DataFlowBuilder(sp);
+        var memoryCache = new MemoryCache(new MemoryCacheOptions());
+        var logger = sp.GetRequiredService<ILogger<RoutingBlockTests>>();
+
+        // Act
+        builder.AddProducer("source", sp => new TestProducer<int>(items))
+            .AddRouter<int>("router",
+                item => (item % 2 == 0) ? "even" : "odd",
+                context =>
+                {
+                    // Get scoped processor for this route
+                    var processor = context.ServiceProvider.GetRequiredService<IScopedProcessor>();
+                    var routeBuilder = new DataFlowBuilder(context.ServiceProvider);
+
+                    return routeBuilder.AddProcessor("processor", sp => new TestProcessor<int>(
+                        onProcessItem: number =>
+                        {
+                            // Process using the scoped processor
+                            processor.ProcessItem(number, context.RoutingKey);
+                        }))
+                        .Current;
+                },
+                options =>
+                {
+                    options.RouteCache = memoryCache;
+                    options.RouteExpiration = TimeSpan.FromSeconds(2); // Short expiration for testing
+                })
+            .ReceiveFrom("source");
+
+        var flow = builder.Build();
+        var context = new DataFlowContext() { CancellationToken = default, ServiceProvider = sp };
+
+        // Execute flow and wait for completion
+        await flow.ExecuteAsync(context);
+
+        // Wait a bit to ensure routes expire and are disposed
+        await Task.Delay(TimeSpan.FromSeconds(3));
+
+        // Assert
+        var evenProcessor = scopeTracker.GetProcessorForRoute("even");
+        var oddProcessor = scopeTracker.GetProcessorForRoute("odd");
+
+        // Verify different scopes were created
+        Assert.NotNull(evenProcessor);
+        Assert.NotNull(oddProcessor);
+        Assert.NotEqual(evenProcessor, oddProcessor);
+
+        // Verify items were processed by correct processors
+        Assert.Equal(new[] { 2, 4, 6, 8, 10 }, evenProcessor.ProcessedItems.OrderBy(x => x));
+        Assert.Equal(new[] { 1, 3, 5, 7, 9 }, oddProcessor.ProcessedItems.OrderBy(x => x));
+
+        // Verify scopes were disposed
+        Assert.True(evenProcessor.WasDisposed);
+        Assert.True(oddProcessor.WasDisposed);
+    }
 }
+
+public interface IScopedProcessor : IDisposable
+{
+    void ProcessItem(int item, string routeKey);
+    bool WasDisposed { get; }
+    IReadOnlyList<int> ProcessedItems { get; }
+}
+
+public class ScopedProcessor : IScopedProcessor
+{
+    private readonly List<int> _processedItems = new();
+    private readonly string _instanceId = Guid.NewGuid().ToString();
+    private readonly ScopeTracker _tracker;
+    private bool _disposed;
+
+    public ScopedProcessor(ScopeTracker tracker)
+    {
+        _tracker = tracker;
+        _tracker.RegisterProcessor(this);
+    }
+
+    public void ProcessItem(int item, string routeKey)
+    {
+        if (_disposed)
+            throw new ObjectDisposedException(_instanceId);
+        _processedItems.Add(item);
+        _tracker.TrackProcessing(_instanceId, routeKey, this);
+    }
+
+    public bool WasDisposed => _disposed;
+    public IReadOnlyList<int> ProcessedItems => _processedItems;
+
+    public void Dispose()
+    {
+        if (!_disposed)
+        {
+            _disposed = true;
+            _tracker.TrackDisposal(_instanceId);
+        }
+    }
+}
+
+public class ScopeTracker
+{
+    private readonly ConcurrentDictionary<string, IScopedProcessor> _routeProcessors = new();
+    private readonly ConcurrentDictionary<string, string> _processorRoutes = new();
+    private readonly ConcurrentDictionary<string, bool> _disposedProcessors = new();
+
+    public void RegisterProcessor(IScopedProcessor processor)
+    {
+        // Initial registration
+    }
+
+    public void TrackProcessing(string processorId, string routeKey, IScopedProcessor processor)
+    {
+        _routeProcessors.TryAdd(routeKey, processor);
+        _processorRoutes.TryAdd(processorId, routeKey);
+    }
+
+    public void TrackDisposal(string processorId)
+    {
+        _disposedProcessors.TryAdd(processorId, true);
+    }
+
+    public IScopedProcessor GetProcessorForRoute(string routeKey)
+    {
+        return _routeProcessors.TryGetValue(routeKey, out var processor) ? processor : null;
+    }
+}
+
+
+

@@ -3,6 +3,7 @@ using System;
 using System.Threading;
 using System.Threading.Channels;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Uniun.DataFlow;
 using Uniun.DataFlow.Blocks.InputChannel;
@@ -80,6 +81,12 @@ public class RoutingBlock<T> : BlockBase, ITargetBlock<T>
         try
         {
             await Task.WhenAll(_activeRouteCompletions.Select(a => a.Value.CompleteAsync()));
+            // Then dispose all routes to cleanup scopes
+            foreach (var route in _activeRouteCompletions.Values)
+            {
+                await route.DisposeAsync();
+            }
+
             _activeRouteCompletions.Clear();
         }
         finally
@@ -135,7 +142,8 @@ public class RoutingBlock<T> : BlockBase, ITargetBlock<T>
             // Add delay after dequeue as small safety net in case some weird issue where the route may have just been removed from the cache and sent to us for cleanup, but is actually still in use with a call to WriteAsync in progress.. we want to give it a chance to complete.
             // this should not happen and could be over-cautions, but lets do it anyway.
             await Task.Delay(TimeSpan.FromSeconds(cleanupDelay), cancellation);
-            _ = expiredRoute.CompleteAsync(); // allows downstream blocks to finsish by signalling completion.
+            await expiredRoute.CompleteAsync(); // allows downstream blocks to finsish by signalling completion.
+            await expiredRoute.DisposeAsync();
             _logger.LogInformation("Route cleanup completed: {routing-key}", expiredRoute.Context.RoutingKey);
         }
 
@@ -217,15 +225,17 @@ public class RoutingBlock<T> : BlockBase, ITargetBlock<T>
 
             }
 
+            // create a new scope for this route.
+            var routeScope = serviceProvider.CreateAsyncScope();
             var routingContext = new RoutingContext<T>()
             {
                 RoutingKey = routingKey,
                 Item = item,
-                ServiceProvider = serviceProvider
+                ServiceProvider = routeScope.ServiceProvider
             };
 
             var channelBlock = new InputChannelBlock<T>(Options);
-            routeInfo = new RouteInfo<T>(routingContext, channelBlock);
+            routeInfo = new RouteInfo<T>(routingContext, channelBlock, routeScope);
 
 
             try
@@ -248,7 +258,7 @@ public class RoutingBlock<T> : BlockBase, ITargetBlock<T>
             catch
             {
                 // Any problem with the new route setup we need to dispose it so any downstream consumers can complete immediately.
-                routeInfo.Dispose();
+                await routeInfo.DisposeAsync();
                 throw; // this is still a surfacable exception.
             }
         }

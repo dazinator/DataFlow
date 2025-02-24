@@ -1,15 +1,18 @@
 namespace Uniun.DataFlow.Blocks.Routing;
 using System;
+using Microsoft.Extensions.DependencyInjection;
 using Uniun.DataFlow;
 using Uniun.DataFlow.Blocks.InputChannel;
 
-public class RouteInfo<T> : IDisposable
+public class RouteInfo<T> : IAsyncDisposable
 {
+    private readonly AsyncServiceScope _routeScope;
 
-    public RouteInfo(RoutingContext<T> context, InputChannelBlock<T> channelBlock)
+    public RouteInfo(RoutingContext<T> context, InputChannelBlock<T> channelBlock, AsyncServiceScope routeScope)
     {
         Context = context;
         ChannelBlock = channelBlock;
+        _routeScope = routeScope;
     }
 
     public RoutingContext<T> Context { get; }
@@ -23,12 +26,13 @@ public class RouteInfo<T> : IDisposable
 
     internal RouteExecution BlockExecution { get; private set; }
 
-    public void Dispose()
-    {
-        // No more writes to this route its being disposed.
-        //ChannelBlock.Writer.TryComplete
-        ChannelBlock.Writer.TryComplete();
-    }
+    //public void Dispose()
+    //{
+    //    // No more writes to this route its being disposed.
+    //    //ChannelBlock.Writer.TryComplete
+    //    CompleteChannel();
+    //    _routeScope.Dispose();
+    //}
 
     /// <summary>
     /// Starts the downstream target block executing from the input channel for this route.
@@ -60,8 +64,19 @@ public class RouteInfo<T> : IDisposable
     public Task CompleteAsync()
     {
         // signals the block to stop executing because no more data on this route.
-        ChannelBlock.Writer.TryComplete();
+        CompleteChannel();        
         return BlockExecution.ExecutingTask;
+    }
+
+    private void CompleteChannel()
+    {
+        ChannelBlock.Writer.TryComplete();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        CompleteChannel();
+        await _routeScope.DisposeAsync();      
     }
 
     internal class RouteExecution
