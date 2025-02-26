@@ -3,6 +3,7 @@ namespace Uniun.DataFlow;
 public interface IDataFlowContext
 {
     Guid InvocationId { get; set; }
+
     CancellationToken CancellationToken { get; set; }
 
     IServiceProvider ServiceProvider { get; set; }

@@ -8,11 +8,14 @@ public class RouteInfo<T> : IAsyncDisposable
 {
     private readonly AsyncServiceScope _routeScope;
 
+    public DataFlow DataFlow { get; }
+
     public RouteInfo(RoutingContext<T> context, InputChannelBlock<T> channelBlock, AsyncServiceScope routeScope)
     {
         Context = context;
         ChannelBlock = channelBlock;
         _routeScope = routeScope;
+        DataFlow = context.DataFlow;
     }
 
     public RoutingContext<T> Context { get; }
@@ -22,9 +25,9 @@ public class RouteInfo<T> : IAsyncDisposable
     /// Can be used to wait for downstream consumers to complete before disposing this route.
     /// </summary>
     /// <remarks>Use to make sure the route is fully drained before disposing.</remarks>
-    public Task Completion => ChannelBlock.Reader.Completion;
+   // public Task Completion => ChannelBlock.Reader.Completion;
 
-    internal RouteExecution BlockExecution { get; private set; }
+    internal RouteExecution RouteExecuting { get; private set; }
 
     //public void Dispose()
     //{
@@ -53,8 +56,11 @@ public class RouteInfo<T> : IAsyncDisposable
         block.SetSource(ChannelBlock);
         // Start executing the block and track execution
         // _logger.LogDebug("Adding executing task for route {routingKey}", routingKey);
-        var executingTask = block.ExecuteAsync(context);
-        BlockExecution = new RouteExecution(executingTask);
+        // Start executing the sub DataFlow for the route.
+        var executingTask = DataFlow.ExecuteAsync(context, Context.RoutingKey);
+
+        //var executingTask = block.ExecuteAsync(context);
+        RouteExecuting = new RouteExecution(executingTask);
     }
 
     /// <summary>
@@ -64,19 +70,35 @@ public class RouteInfo<T> : IAsyncDisposable
     public Task CompleteAsync()
     {
         // signals the block to stop executing because no more data on this route.
-        CompleteChannel();        
-        return BlockExecution.ExecutingTask;
+        CompleteChannel();
+        return RouteExecuting.ExecutingTask;
     }
 
     private void CompleteChannel()
     {
-        ChannelBlock.Writer.TryComplete();
+        var complete = ChannelBlock.Writer.TryComplete();
+        if (!complete)
+        {
+            // Log warning
+        }
     }
 
     public async ValueTask DisposeAsync()
     {
-        CompleteChannel();
-        await _routeScope.DisposeAsync();      
+        try
+        {
+            CompleteChannel();
+        }
+        catch (Exception ex)
+        {
+            // Log but continue with disposal
+        }
+        finally
+        {
+            // Dispose the scope and other resources
+            await _routeScope.DisposeAsync();
+        }      
+       
     }
 
     internal class RouteExecution

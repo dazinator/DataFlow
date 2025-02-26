@@ -7,24 +7,25 @@ using Microsoft.Extensions.Logging;
 using Uniun.DataFlow.Blocks.Routing;
 
 public static class RoutingBlockExtensions
-{
+{   
+
     /// <summary>
-    /// Adds a router that routes incoming items based on a selector key, to a target block that is lazily created by the provided block factory.
-    /// The route is disposed after a period of inactivity as specified by the options. If the routing key is then seen again in the data stream, the route is re-created.
+    /// Adds a router that routes items based on a key selector. You provide a method to lazily build the sub data flow for a routing key. The route / sub data flow is disposed after a period of inactivity as specified by the options.
+    /// If the routing key is then seen again in the data stream, the route is re-created.
     /// </summary>
     /// <typeparam name="T"></typeparam>
     /// <param name="builder"></param>
     /// <param name="name"></param>
     /// <param name="routingKeySelector"></param>
-    /// <param name="blockFactory"></param>
-    /// <param name="options"></param>
+    /// <param name="routeResolver"></param>
+    /// <param name="configureOptions"></param>
     /// <returns></returns>
     public static ITargetBlockBuilder<T> AddRouter<T>(
-        this IDataFlowBuilder builder,
-        string name,
-        Func<T, string> routingKeySelector,
-        Func<RoutingContext<T>, ITargetBlock<T>> blockFactory,
-        Action<RoutingOptions>? configureOptions = null)
+    this IDataFlowBuilder builder,
+    string name,
+    Func<T, string> routingKeySelector,
+    Func<RoutingContext<T>, (DataFlow DataFlow, ITargetBlock<T> TargetBlock)> routeResolver,
+    Action<RoutingOptions>? configureOptions = null)
     {
         var options = new RoutingOptions();
         configureOptions?.Invoke(options);
@@ -32,7 +33,7 @@ public static class RoutingBlockExtensions
         var block = new RoutingBlock<T>(
             name,
             routingKeySelector,
-            blockFactory,
+            routeResolver,
             options,
             builder.ServiceProvider.GetRequiredService<ILogger<RoutingBlock<T>>>());
 

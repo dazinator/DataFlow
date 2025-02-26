@@ -11,7 +11,7 @@ using Uniun.DataFlow.Blocks.InputChannel;
 public class RoutingBlock<T> : BlockBase, ITargetBlock<T>
 {
     private readonly Func<T, string> _routingKeySelector;
-    private readonly Func<RoutingContext<T>, ITargetBlock<T>> _blockResolver;
+    private readonly Func<RoutingContext<T>, (DataFlow DataFlow, ITargetBlock<T> TargetBlock)> _routeResolver;
     private readonly IMemoryCache _routeCache;
     private readonly TimeSpan _routeExpiration;
     private readonly RoutingOptions _options;
@@ -28,17 +28,17 @@ public class RoutingBlock<T> : BlockBase, ITargetBlock<T>
     /// We need some lock on the route key, so that if there is a completion task active for that same route key (suppose the route expires, but is being drained, and meantime its initialised again - we don't want two overlapping routes for the same key)
     /// we wait for any existing one to complete before using the new route. This avoids accidentally introducing concurrency on the same route key.
     /// </summary>
-    private readonly Dictionary<string, RouteInfo<T>> _activeRouteCompletions = new();
+    private readonly Dictionary<string, RouteInfo<T>> _allRouteCompletions = new();
 
     public RoutingBlock(
         string name,
         Func<T, string> routingKeySelector,
-        Func<RoutingContext<T>, ITargetBlock<T>> blockResolver,
+        Func<RoutingContext<T>, (DataFlow DataFlow, ITargetBlock<T> TargetBlock)> routeResolver,
         RoutingOptions options,
         ILogger<RoutingBlock<T>> logger) : base(name, options)
     {
         _routingKeySelector = routingKeySelector;
-        _blockResolver = blockResolver;
+        _routeResolver = routeResolver;
         _routeCache = options.RouteCache;
         _options = options;
         _routeExpiration = options.RouteExpiration;
@@ -69,26 +69,54 @@ public class RoutingBlock<T> : BlockBase, ITargetBlock<T>
         }
         finally
         {
+            // We expect this to propagate all exceptions from execited routes - so it awaits their completions, and disposed of them.
             await CompleteAllActiveRoutes();
         }
     }
 
     private async Task CompleteAllActiveRoutes()
     {
-        // Wait for all active routes blocks to finish executing.
-        // We shouldn't need a lock because we are executing non concurrently after the main processing loop has finished.
-        // but lets be careful
         await _routeLocksLock.WaitAsync();
         try
         {
-            await Task.WhenAll(_activeRouteCompletions.Select(a => a.Value.CompleteAsync()));
-            // Then dispose all routes to cleanup scopes
-            foreach (var route in _activeRouteCompletions.Values)
+            // Create a list to track any exceptions
+            var exceptions = new List<Exception>();
+
+            // Try to complete each route, capturing any exceptions
+            foreach (var route in _allRouteCompletions.Values)
             {
-                await route.DisposeAsync();
+                try
+                {
+                    await route.CompleteAsync();
+                }
+                catch (Exception ex)
+                {
+                    exceptions.Add(ex);
+                    _logger.LogError(ex, "Error completing route {RoutingKey}", route.Context.RoutingKey);
+                }
             }
 
-            _activeRouteCompletions.Clear();
+            // Now dispose all routes regardless of completion success
+            foreach (var route in _allRouteCompletions.Values)
+            {
+                try
+                {
+                    await route.DisposeAsync();
+                }
+                catch (Exception ex)
+                {
+                    exceptions.Add(ex);
+                    _logger.LogError(ex, "Error disposing route {RoutingKey}", route.Context.RoutingKey);
+                }
+            }
+
+            _allRouteCompletions.Clear();
+
+            // If we caught any exceptions, throw an aggregate exception
+            if (exceptions.Count > 0)
+            {
+                throw new AggregateException("One or more routes failed to complete or dispose", exceptions);
+            }
         }
         finally
         {
@@ -105,13 +133,14 @@ public class RoutingBlock<T> : BlockBase, ITargetBlock<T>
                 await ExecuteStreamProcessorAsync(index, ctx);
             });
 
-            await _source!.Reader.Completion;
+            await _source!.Reader.Completion; // no more items to process.
         }
         finally
         {
             // Signal cleanup to expect no more routes from this source it can then finish cleaning up and exit.
-            await CompleteAllActiveRoutes(); // flush all active routes to cleanup.
             _pendingCleanup.Writer.Complete();
+            await CompleteAllActiveRoutes(); // flush all active routes to cleanup.
+
         }
     }
 
@@ -142,9 +171,11 @@ public class RoutingBlock<T> : BlockBase, ITargetBlock<T>
         {
             // Add delay after dequeue as small safety net in case some weird issue where the route may have just been removed from the cache and sent to us for cleanup, but is actually still in use with a call to WriteAsync in progress.. we want to give it a chance to complete.
             // this should not happen and could be over-cautions, but lets do it anyway.
-            await Task.Delay(TimeSpan.FromSeconds(cleanupDelay), cancellation);
-            await expiredRoute.CompleteAsync(); // allows downstream blocks to finsish by signalling completion.
-            await expiredRoute.DisposeAsync();
+            await Task.Delay(TimeSpan.FromSeconds(cleanupDelay), cancellation);         
+
+            // We don't need to await the completion of the route here, we just need to dispose it so that any downstream consumers can complete.
+            // The main ExecuteAsync method will await all routes Completions before exiting and this will ensure exceptions are propagated.
+            await expiredRoute.DisposeAsync(); // allows downstream blocks to finsish by signalling completion.
             _logger.LogInformation("Route cleanup completed: {routing-key}", expiredRoute.Context.RoutingKey);
         }
 
@@ -217,12 +248,24 @@ public class RoutingBlock<T> : BlockBase, ITargetBlock<T>
             // if there is possible an expired block that is still executing
             // Otherwise we might accidentally introduce concurrency on the same route key by putting this new route into usage whilst the old expired is still running.
 
-            if (_activeRouteCompletions.TryGetValue(routingKey, out var route))
+            if (_allRouteCompletions.TryGetValue(routingKey, out var route))
             {
-                // Wait for any active block for the same routing key to complete executing first before we start a new one.
-                await route.BlockExecution.ExecutingTask;
+                // Wait for any active subflow for this stale key to complete so we don't cause accidental parallelism.
+                // Need to think about what happens if the sub flow errors, how do we propagate these errors back to the main flow?
+                //try
+                //{
+                await route.RouteExecuting.ExecutingTask;
+
+                //}
+                //catch (Exception e)
+                //{
+                // we could add them to a bag, and then throw an aggregate exception at the end from this block execute method?
+                //    _logger.LogError(e, "Error in stale execution for routing key: {routingKey}", routingKey);
+                // throw;
+                // }
+
                 // also we've awaited it in line with the execution flow so we don't need to worry about propogating exceptions from it at the end of execution.
-                _activeRouteCompletions.Remove(routingKey, out _);
+                _allRouteCompletions.Remove(routingKey, out _);
 
             }
 
@@ -237,13 +280,16 @@ public class RoutingBlock<T> : BlockBase, ITargetBlock<T>
 
             try
             {
+                // Get both DataFlow and TargetBlock from resolver
+                var (dataFlow, targetBlock) = _routeResolver(routingContext);
 
-                var targetBlock = _blockResolver(routingContext);
+                routingContext.DataFlow = dataFlow;
+                routingContext.TargetBlock = targetBlock;
 
                 var channelBlock = new InputChannelBlock<T>($"{targetBlock.Name}-route", Options);
                 routeInfo = new RouteInfo<T>(routingContext, channelBlock, routeScope);
 
-                _logger.LogDebug("Starting block execution for route: {routingKey}", routingKey);
+                _logger.LogDebug("Starting DataFlow execution for route: {routingKey}", routingKey);
                 routeInfo.StartBlockExecution(targetBlock, context);
 
                 var cacheEntryOptions = new MemoryCacheEntryOptions()
@@ -252,17 +298,17 @@ public class RoutingBlock<T> : BlockBase, ITargetBlock<T>
                   OnRouteEvicted((string)key, value, reason));
                 _routeCache.Set(routingKey, routeInfo, cacheEntryOptions);
 
-                _activeRouteCompletions.TryAdd(routingKey, routeInfo);
+                _allRouteCompletions.TryAdd(routingKey, routeInfo);
 
                 return channelBlock;
             }
             catch
             {
                 // Any problem with the new route setup we need to dispose it so any downstream consumers can complete immediately.
-                if(routeInfo is not null)
+                if (routeInfo is not null)
                 {
                     await routeInfo.DisposeAsync();
-                }               
+                }
                 throw; // this is still a surfacable exception.
             }
         }

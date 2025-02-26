@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Tests.DataFlow.Utils.Transformers;
 
 [IntegrationTest]
 public class RoutingBlockTests
@@ -56,10 +57,11 @@ public class RoutingBlockTests
                 },
                 context =>
                 {
-                    logger.LogInformation("Creating processor for route {RouteKey}", context.RoutingKey);
+                    logger.LogInformation("Creating flow for route {RouteKey}", context.RoutingKey);
                     var routeBuilder = new DataFlowBuilder(context.ServiceProvider);
 
-                    return routeBuilder.AddProcessor("processor", sp => new TestProcessor<int>(
+                    // Create a simple flow with just a processor
+                    routeBuilder.AddProcessor<int>("processor", sp => new TestProcessor<int>(
                         onProcessItem: number =>
                         {
                             logger.LogInformation("Processing {Number} on route {Route}", number, context.RoutingKey);
@@ -74,8 +76,11 @@ public class RoutingBlockTests
                                         return list;
                                     }
                                 });
-                        }))
-                        .Current;
+                        }));
+
+                    var flow = routeBuilder.Build();
+                    var targetBlock = routeBuilder.GetTargetBlock<int>("processor");
+                    return (flow, targetBlock);
                 },
                 options =>
                 {
@@ -105,7 +110,6 @@ public class RoutingBlockTests
         return DataFlowContextTestUtils.GetContext(v, guid, provider, ct);
     }
 
-
     [Fact]
     public async Task Routes_Create_And_Dispose_Scopes_Correctly()
     {
@@ -134,13 +138,17 @@ public class RoutingBlockTests
                     var processor = context.ServiceProvider.GetRequiredService<IScopedProcessor>();
                     var routeBuilder = new DataFlowBuilder(context.ServiceProvider);
 
-                    return routeBuilder.AddProcessor("processor", sp => new TestProcessor<int>(
+                    // Create a simple flow with just a processor
+                    routeBuilder.AddProcessor<int>("processor", sp => new TestProcessor<int>(
                         onProcessItem: number =>
                         {
                             // Process using the scoped processor
                             processor.ProcessItem(number, context.RoutingKey);
-                        }))
-                        .Current;
+                        }));
+
+                    var flow = routeBuilder.Build();
+                    var targetBlock = routeBuilder.GetTargetBlock<int>("processor");
+                    return (flow, targetBlock);
                 },
                 options =>
                 {
@@ -175,6 +183,136 @@ public class RoutingBlockTests
         Assert.True(evenProcessor.WasDisposed);
         Assert.True(oddProcessor.WasDisposed);
     }
+
+    [Fact]
+    public async Task Routes_To_Complex_DataFlow_With_Multiple_Blocks()
+    {
+        // Arrange
+        var transformedItems = new ConcurrentDictionary<string, List<string>>();
+        var processedItems = new ConcurrentDictionary<string, List<string>>();
+        var items = Enumerable.Range(1, 10).ToArray();
+
+        var sp = Services.BuildServiceProvider();
+        var builder = new DataFlowBuilder(sp);
+        var memoryCache = new MemoryCache(new MemoryCacheOptions());
+        var logger = sp.GetRequiredService<ILogger<RoutingBlockTests>>();
+
+        // Act
+        builder.AddProducer("source", sp => new TestProducer<int>(items))
+            .AddRouter<int>("router",
+                item =>
+                {
+                    var routeKey = item % 2 == 0 ? "even" : "odd";
+                    logger.LogInformation("Routing item {Item} to {RouteKey}", item, routeKey);
+                    return routeKey;
+                },
+                context =>
+                {
+                    // Create a more complex flow with multiple blocks
+                    logger.LogInformation("Creating complex flow for route {RouteKey}", context.RoutingKey);
+                    var routeBuilder = new DataFlowBuilder(context.ServiceProvider);
+
+                    // First block: Transform int to string
+                    routeBuilder.AddTransform<int, string>("transformer",
+                        sp =>
+                        new NumberTransformer(
+                            prefix: context.RoutingKey,
+                            onTransform: result =>
+                            {
+                                transformedItems.AddOrUpdate(
+                                    context.RoutingKey,
+                                    key => new List<string> { result },
+                                    (key, list) =>
+                                    {
+                                        lock (list)
+                                        {
+                                            list.Add(result);
+                                            return list;
+                                        }
+                                    });
+                                logger.LogInformation("Transformed to {Result} on route {Route}",
+                                    result,
+                                    context.RoutingKey);
+                            }),
+                             new BlockOptions { MaxConcurrency = 1 });
+
+
+                    // Second block: Process the transformed strings
+                    routeBuilder.AddProcessor<string>("processor", sp =>
+                        new TestProcessor<string>(
+                            onProcessItem: str =>
+                            {
+                                processedItems.AddOrUpdate(
+                                    context.RoutingKey,
+                                    key => new List<string> { str },
+                                    (key, list) =>
+                                    {
+                                        lock (list)
+                                        {
+                                            list.Add(str);
+                                            return list;
+                                        }
+                                    });
+                                logger.LogInformation("Processing {String} on route {Route}", str, context.RoutingKey);
+                            }),
+                            options: new BlockOptions { MaxConcurrency = 1 })
+                        .ReceiveFrom("transformer");
+
+                    var flow = routeBuilder.Build();
+                    // Returning the first block in the flow (the transformer) as the target
+                    var targetBlock = routeBuilder.GetTargetBlock<int>("transformer");
+                    return (flow, targetBlock);
+                },
+                options =>
+                {
+                    options.RouteCache = memoryCache;
+                    options.RouteExpiration = TimeSpan.FromMinutes(5);
+                })
+            .ReceiveFrom("source");
+
+        var flow = builder.Build();
+        var context = CreateContext("test", Guid.NewGuid(), sp);
+
+        try
+        {
+            await flow.ExecuteAsync(context, "MyFlow");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Flow execution error");
+            throw; // Rethrow to fail the test
+        }
+       
+
+        // Assert
+        // Verify transformations
+        var evenTransformations = transformedItems.GetValueOrDefault("even", new List<string>());
+        var oddTransformations = transformedItems.GetValueOrDefault("odd", new List<string>());
+
+        Assert.Equal(5, evenTransformations.Count);
+        Assert.Equal(5, oddTransformations.Count);
+
+        foreach (var num in new[] { 2, 4, 6, 8, 10 })
+        {
+            Assert.Contains(evenTransformations, s => s == $"even-{num}");
+        }
+
+        foreach (var num in new[] { 1, 3, 5, 7, 9 })
+        {
+            Assert.Contains(oddTransformations, s => s == $"odd-{num}");
+        }
+
+        // Verify processing
+        var evenProcessed = processedItems.GetValueOrDefault("even", new List<string>());
+        var oddProcessed = processedItems.GetValueOrDefault("odd", new List<string>());
+
+        Assert.Equal(5, evenProcessed.Count);
+        Assert.Equal(5, oddProcessed.Count);
+        Assert.Equal(evenTransformations.OrderBy(x => x), evenProcessed.OrderBy(x => x));
+        Assert.Equal(oddTransformations.OrderBy(x => x), oddProcessed.OrderBy(x => x));
+    } 
+
+
 }
 
 public interface IScopedProcessor : IDisposable
