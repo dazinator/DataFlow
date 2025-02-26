@@ -2,7 +2,7 @@
   branches:
     feature:
       mode: ContinuousDeployment
-      regex: features?[/-]
+      regex: feature?[/-]
       label: feature.{BranchName}      
     develop:
       regex: dev(elop)?(ment)?$
