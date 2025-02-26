@@ -12,8 +12,9 @@ public class ObservableBlock<T> : BlockBase, ITargetBlock<T>
     private ISourceBlock<T>? _source;
 
     public ObservableBlock(
+        string name,
        IObserver<T> observer,
-        BlockOptions? options = null) : base(options)
+        BlockOptions? options = null) : base(name, options)
     {
         _observer = observer;
     }

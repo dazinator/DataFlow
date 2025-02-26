@@ -22,7 +22,7 @@ public static class ProducerExtensions
     )
         where TProducer : class, IStreamProducer<TOutput>
     {
-        var block = new ProducerBlock<TOutput>(
+        var block = new ProducerBlock<TOutput>(name,
             async (context, ct) => new[]
             {
                 ActivatorUtilities.CreateInstance<TProducer>(context.ServiceProvider)
@@ -50,7 +50,7 @@ public static class ProducerExtensions
     )
         where TProducer : class, IStreamProducer<TOutput>
     {
-        var block = new ProducerBlock<TOutput>(
+        var block = new ProducerBlock<TOutput>(name,
             async (context, ct) => new[]
             {
                 ActivatorUtilities.CreateInstance<TProducer>(context.ServiceProvider, args)
@@ -76,7 +76,7 @@ public static class ProducerExtensions
         BlockOptions? options = null
     )
     {
-        var block = new ProducerBlock<TOutput>(
+        var block = new ProducerBlock<TOutput>(name,
             async (context, ct) => new[]
             {
                 factory(context.ServiceProvider)
@@ -102,7 +102,7 @@ public static class ProducerExtensions
         BlockOptions? options = null)
         where TFactory : class, IProducerFactory<TOutput>
     {
-        var block = new ProducerBlock<TOutput>(async (context, ct) =>
+        var block = new ProducerBlock<TOutput>(name,async (context, ct) =>
         {
             var factory = ActivatorUtilities.CreateInstance<TFactory>(context.ServiceProvider);
             var producers = new List<IStreamProducer<TOutput>>();
@@ -134,7 +134,7 @@ public static class ProducerExtensions
         params object[] args)
         where TFactory : class, IProducerFactory<TOutput>
     {
-        var block = new ProducerBlock<TOutput>(async (context, ct) =>
+        var block = new ProducerBlock<TOutput>(name, async (context, ct) =>
         {
             var factory = ActivatorUtilities.CreateInstance<TFactory>(context.ServiceProvider, args);
             var producers = new List<IStreamProducer<TOutput>>();
@@ -164,7 +164,7 @@ public static class ProducerExtensions
         BlockOptions? options = null
     )
     {
-        var block = new ProducerBlock<TOutput>(async (context, ct) =>
+        var block = new ProducerBlock<TOutput>(name, async (context, ct) =>
         {
             var producers = new List<IStreamProducer<TOutput>>();
             await foreach (var producer in factory.CreateProducersAsync(context, ct))

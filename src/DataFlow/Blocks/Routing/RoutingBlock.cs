@@ -31,10 +31,11 @@ public class RoutingBlock<T> : BlockBase, ITargetBlock<T>
     private readonly Dictionary<string, RouteInfo<T>> _activeRouteCompletions = new();
 
     public RoutingBlock(
+        string name,
         Func<T, string> routingKeySelector,
         Func<RoutingContext<T>, ITargetBlock<T>> blockResolver,
         RoutingOptions options,
-        ILogger<RoutingBlock<T>> logger) : base(options)
+        ILogger<RoutingBlock<T>> logger) : base(name, options)
     {
         _routingKeySelector = routingKeySelector;
         _blockResolver = blockResolver;
@@ -123,7 +124,7 @@ public class RoutingBlock<T> : BlockBase, ITargetBlock<T>
             InputChannelBlock<T> channel;
             if (_routeCache.TryGetValue<RouteInfo<T>>(routingKey, out var routeInfo))
             {
-                channel = routeInfo.ChannelBlock;
+                channel = routeInfo!.ChannelBlock;
             }
             else
             {
@@ -234,14 +235,14 @@ public class RoutingBlock<T> : BlockBase, ITargetBlock<T>
                 ServiceProvider = routeScope.ServiceProvider
             };
 
-            var channelBlock = new InputChannelBlock<T>(Options);
-            routeInfo = new RouteInfo<T>(routingContext, channelBlock, routeScope);
-
-
             try
             {
 
                 var targetBlock = _blockResolver(routingContext);
+
+                var channelBlock = new InputChannelBlock<T>($"{targetBlock.Name}-route", Options);
+                routeInfo = new RouteInfo<T>(routingContext, channelBlock, routeScope);
+
                 _logger.LogDebug("Starting block execution for route: {routingKey}", routingKey);
                 routeInfo.StartBlockExecution(targetBlock, context);
 
@@ -258,7 +259,10 @@ public class RoutingBlock<T> : BlockBase, ITargetBlock<T>
             catch
             {
                 // Any problem with the new route setup we need to dispose it so any downstream consumers can complete immediately.
-                await routeInfo.DisposeAsync();
+                if(routeInfo is not null)
+                {
+                    await routeInfo.DisposeAsync();
+                }               
                 throw; // this is still a surfacable exception.
             }
         }

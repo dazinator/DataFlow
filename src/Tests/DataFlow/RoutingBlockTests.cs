@@ -86,7 +86,7 @@ public class RoutingBlockTests
 
         var flow = builder.Build();
         var context = CreateContext("test", Guid.NewGuid(), sp);
-        await flow.ExecuteAsync(context);
+        await flow.ExecuteAsync(context, "MyFlow");
 
         // Let's log what we got
         logger.LogInformation("Route1 items: {Items}", string.Join(",", processedItems.GetValueOrDefault("route1", new List<int>())));
@@ -153,7 +153,7 @@ public class RoutingBlockTests
         var context = new DataFlowContext() { CancellationToken = default, ServiceProvider = sp };
 
         // Execute flow and wait for completion
-        await flow.ExecuteAsync(context);
+        await flow.ExecuteAsync(context, "MyFlow");
 
         // Wait a bit to ensure routes expire and are disposed
         await Task.Delay(TimeSpan.FromSeconds(3));
@@ -245,6 +245,3 @@ public class ScopeTracker
         return _routeProcessors.TryGetValue(routeKey, out var processor) ? processor : null;
     }
 }
-
-
-

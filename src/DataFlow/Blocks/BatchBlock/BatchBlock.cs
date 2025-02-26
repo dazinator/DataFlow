@@ -21,9 +21,10 @@ public class BatchBlock<T> : BlockBase, IPropagatorBlock<T, T[]>
     private ISourceBlock<T>? _source;
 
     public BatchBlock(
+        string name,
         int maxBatchSize,
-        TimeSpan windowPeriod,
-        BlockOptions? options = null) : base(options)
+        TimeSpan windowPeriod,       
+        BlockOptions? options = null) : base(name, options)
     {
         if (maxBatchSize <= 0)
         {

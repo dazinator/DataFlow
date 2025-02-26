@@ -58,7 +58,7 @@ public class BatchBlockTests
         var flow = builder.Build();
         var context = CreateContext("test", Guid.NewGuid(), sp);
         // / var context = new PipelineContext("test", Guid.NewGuid(), _serviceProvider);
-        await flow.ExecuteAsync(context);
+        await flow.ExecuteAsync(context, "myblock");
 
         // Assert
         Assert.Equal(4, processedBatches.Count); // Should create 3 full batches and 1 partial
@@ -100,7 +100,7 @@ public class BatchBlockTests
 
         var flow = builder.Build();
         var context = CreateContext("test", Guid.NewGuid(), sp);
-        await flow.ExecuteAsync(context);
+        await flow.ExecuteAsync(context, "testflow");
 
         // Assert
         Assert.True(processedBatches.Count > 1, "Should have created multiple batches based on time");
@@ -132,7 +132,7 @@ public class BatchBlockTests
 
         var flow = builder.Build();
         var context = CreateContext("test", Guid.NewGuid(), sp);
-        await flow.ExecuteAsync(context);
+        await flow.ExecuteAsync(context, "testflow");
 
         // Assert
         Assert.Empty(processedBatches);
@@ -168,7 +168,7 @@ public class BatchBlockTests
         var context = CreateContext("test", Guid.NewGuid(), sp);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            flow.ExecuteAsync(context));
+            flow.ExecuteAsync(context, "testflow"));
 
         // Should have processed some batches before error
         Assert.True(processedBatches.Count > 0);
@@ -206,7 +206,7 @@ public class BatchBlockTests
 
         // Assert
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
-            flow.ExecuteAsync(context));
+            flow.ExecuteAsync(context, "testflow"));
 
         Assert.True(processedBatches.Count >= 3);
         Assert.True(processedBatches.All(batch => batch.Length > 0));
@@ -261,7 +261,7 @@ public class BatchBlockTests
 
         var flow = builder.Build();
         var context = CreateContext("test", Guid.NewGuid(), sp);
-        await flow.ExecuteAsync(context);
+        await flow.ExecuteAsync(context, "testflow");
 
         // Assert
         Assert.Equal(1, maxConcurrentOperations); // Verifies serial processing of items

@@ -14,9 +14,10 @@ public class TransformBlock<TIn, TOut> : BlockBase, IPropagatorBlock<TIn, TOut>
     private ISourceBlock<TIn>? _source;
 
     public TransformBlock(
+        string name,
         Func<IServiceProvider, IStreamTransformer<TIn, TOut>> transformerFactory,
         BlockOptions? options = null
-    ) : base(options)
+    ) : base(name, options)
     {
         _transformerFactory = transformerFactory;
         _output = Channel.CreateBounded<TOut>(Options.ChannelOptions ?? new BoundedChannelOptions(100));

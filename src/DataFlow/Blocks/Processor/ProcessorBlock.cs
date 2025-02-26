@@ -16,9 +16,10 @@ public class ProcessorBlock<TInput> : BlockBase, ITargetBlock<TInput>
     private ISourceBlock<TInput> _source;
 
     public ProcessorBlock(
+        string name,
         Func<IServiceProvider, IStreamProcessor<TInput>> processorFactory,
         BlockOptions? options = null
-    ) : base(options)
+    ) : base(name, options)
     {
         _processorFactory = processorFactory;
     }

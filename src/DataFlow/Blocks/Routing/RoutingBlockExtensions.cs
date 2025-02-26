@@ -30,6 +30,7 @@ public static class RoutingBlockExtensions
         configureOptions?.Invoke(options);
 
         var block = new RoutingBlock<T>(
+            name,
             routingKeySelector,
             blockFactory,
             options,

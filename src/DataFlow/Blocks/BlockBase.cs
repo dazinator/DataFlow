@@ -13,12 +13,14 @@ public abstract class BlockBase : IBlock
 {
     // private readonly List<IMiddleware> _middleware = new();
 
-    protected BlockBase(BlockOptions? blockOptions)
+    protected BlockBase(string name, BlockOptions? blockOptions)
     {
         Options = blockOptions ?? new BlockOptions();
+        Name = name;
     }
 
     public BlockOptions Options { get; }
+    public string Name { get; }
 
     //public void AddMiddleware(IMiddleware middleware)
     //{

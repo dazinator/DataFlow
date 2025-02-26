@@ -5,10 +5,31 @@ using System;
 
 public class DataFlowContext : IDataFlowContext
 {
-    public CancellationToken CancellationToken { get; set; }
+    public DataFlowContext()
+    {
+       
+    }
+
+    public Guid InvocationId { get; set; }
+    
     public IServiceProvider ServiceProvider { get; set; }
-    // public int Index { get; set; }
+    public CancellationToken CancellationToken { get; set; }
+    public IDictionary<string, string> Dimensions => new Dictionary<string,string>();
 
+    // Method to add dimensions during setup
+    public IDataFlowContext AddDimension(string key, string value)
+    {
+        Dimensions[key] = value;
+        return this;
+    }
 
+    // Method to add multiple dimensions
+    public IDataFlowContext AddDimensions(IDictionary<string, string> dimensions)
+    {
+        foreach (var pair in dimensions)
+        {
+            Dimensions[pair.Key] = pair.Value;
+        }
+        return this;
+    }
 }
-
