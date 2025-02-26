@@ -14,8 +14,9 @@ public class OutputBlock<T> : BlockBase, ITargetBlock<T>
     private ISourceBlock<T>? _source;
 
     public OutputBlock(
+        string name,
         Func<T, Task> output,
-        BlockOptions? options = null) : base(options)
+        BlockOptions? options = null) : base(name, options)
     {
         _output = output;
     }

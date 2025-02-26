@@ -12,6 +12,7 @@ public interface IBlock
     ///// <param name="middleware"></param>
     //void AddMiddleware(IMiddleware middleware);
 
+    string Name { get; }
     Task ExecuteAsync(IDataFlowContext context);
 }
 

@@ -15,6 +15,7 @@ public static class TransformExtensions
         where TTransformer : class, IStreamTransformer<TIn, TOut>
     {
         var block = new TransformBlock<TIn, TOut>(
+             name,
             sp => ActivatorUtilities.CreateInstance<TTransformer>(sp),
             options);
 
@@ -28,6 +29,7 @@ public static class TransformExtensions
         BlockOptions? options = null)
     {
         var block = new TransformBlock<TIn, TOut>(
+             name,
             factory,
             options);
 
@@ -55,6 +57,7 @@ public static class TransformExtensions
     {
         var currentBlock = builder.Current;
         var block = new TransformBlock<T, T>(
+             name,
             factory,
             options);
 

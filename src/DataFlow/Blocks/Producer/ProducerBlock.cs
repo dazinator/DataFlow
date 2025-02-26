@@ -15,8 +15,9 @@ public class ProducerBlock<TOutput> : BlockBase, ISourceBlock<TOutput>
     private readonly Channel<TOutput> _channel;
 
     public ProducerBlock(
+        string name,
         Func<IDataFlowContext, CancellationToken, Task<IEnumerable<IStreamProducer<TOutput>>>> producersFactory,
-        BlockOptions? options = null) : base(options)
+        BlockOptions? options = null) : base(name, options)
     {
         _producersFactory = producersFactory;
         _channel = Channel.CreateBounded<TOutput>(GetChannelOptions(Options));

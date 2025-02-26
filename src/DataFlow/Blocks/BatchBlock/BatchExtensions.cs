@@ -24,7 +24,7 @@ public static class BatchExtensions
         TimeSpan windowPeriod,
         BlockOptions? options = null)
     {
-        var block = new BatchBlock<T>(maxBatchSize, windowPeriod, options);
+        var block = new BatchBlock<T>(name, maxBatchSize, windowPeriod, options);
         return builder.AddPropagatorBlock(name, block);
     }
 }
