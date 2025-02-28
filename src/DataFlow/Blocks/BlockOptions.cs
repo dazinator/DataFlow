@@ -12,5 +12,5 @@ public class BlockOptions
     public BoundedChannelOptions? ChannelOptions { get; set; }
 
     // Whether the concurrent block operations should have their own scoped DI IServiceProvider to resolve services from.
-    public bool UseSeperateScopes { get; set; } = false;
+    public bool UseSeperateScopes { get; set; } = true;
 }
