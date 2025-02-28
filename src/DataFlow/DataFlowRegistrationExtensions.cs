@@ -1,6 +1,7 @@
 namespace Uniun.DataFlow;
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 
 public static class DataFlowRegistrationExtensions
@@ -9,9 +10,9 @@ public static class DataFlowRegistrationExtensions
         this IServiceCollection services,
         int maxConcurrentFlows)
     {
-        services.AddSingleton(new DataFlowThrottler(maxConcurrentFlows));
+        services.TryAddSingleton(new DataFlowThrottler(maxConcurrentFlows));
         // Register open generic executor once
-        services.AddTransient(typeof(FlowExecutor<>));
+        services.TryAddTransient(typeof(FlowExecutor<>));
         return services;
     }
 
