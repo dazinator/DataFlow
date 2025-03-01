@@ -1,54 +1,52 @@
 // ReSharper disable once CheckNamespace
 namespace Uniun.DataFlow.Metrics;
 
+using System.ComponentModel;
 using System.Diagnostics.Metrics;
 
-public static class DataFlowMetrics
-{
-    // Define a meter for all DataFlow metrics
-    private static readonly Meter DataFlowMeter = new("Uniun.DataFlow", "1.0.0");
-    internal static readonly ChannelRegistry ChannelRegistry = new ChannelRegistry();
 
-    // Define counters, histograms and gauges
-    // TODO:
-    //public static readonly Counter<long> ItemsProcessedCounter = DataFlowMeter.CreateCounter<long>(
-    //    "dataflow.items.processed",
-    //    description: "Number of items processed by DataFlow blocks");
+public class DataFlowMetrics
+{   
 
-    public static readonly Histogram<double> BlockProcessingDuration = DataFlowMeter.CreateHistogram<double>(
-        "dataflow.block.duration.ms",
-        unit: "ms",
-        description: "Time taken to process a block in DataFlow");
+    private readonly Histogram<double> _blockProcessingDuration;
+    private readonly Histogram<double> _flowExecutionDuration;
+    private readonly ObservableGauge<int> _channelBufferUtilization;
+ 
+    private readonly ChannelRegistry _channelRegistry;
 
-    // Histogram for flow execution duration
-    public static readonly Histogram<double> FlowExecutionDuration = DataFlowMeter.CreateHistogram<double>(
-        "dataflow.flow.duration.ms",
-        unit: "ms",
-        description: "Time taken to execute a DataFlow from start to completion");
-
-    //public static readonly ObservableGauge<int> ActiveDataFlowsGauge = DataFlowMeter.CreateObservableGauge<int>(
-    //    "dataflow.active.count",
-    //    () => new[] { new Measurement<int>(DataFlow.ActiveFlowCount) },
-    //    description: "Number of active DataFlows");
-
-    public const string ChannelBufferUtilizationMetricName = "dataflow.channel.buffer.utilization";
-    // Single observable gauge that reports all channel utilizations
-    public static readonly ObservableGauge<int> ChannelBufferUtilization = DataFlowMeter.CreateObservableGauge(
-        ChannelBufferUtilizationMetricName,
-        () => GetAllChannelUtilizations(),
-        unit: "%",
-        description: "Current utilization of channel buffer capacity between blocks");
-
-
-    public static void RegisterChannel(IMonitoredChannel channel)
+    public DataFlowMetrics(IMeterFactory meterFactory, ChannelRegistry channelRegistry)
     {
-        ChannelRegistry.RegisterChannel(channel);
+        _channelRegistry = channelRegistry;
+        var meter = meterFactory.Create("Uniun.DataFlow");
+
+        _blockProcessingDuration = meter.CreateHistogram<double>(InstrumentNames.BlockDurationMs,
+            unit: "ms",
+            description: "Time taken to process a block in DataFlow");
+
+        _flowExecutionDuration = meter.CreateHistogram<double>(InstrumentNames.FlowDurationMs,
+            unit: "ms",
+            description: "Time taken to execute a DataFlow from start to completion");
+
+        _channelBufferUtilization= meter.CreateObservableGauge<int>(InstrumentNames.ChannelBufferUtilizationMetricName,
+            () => GetAllChannelUtilizations(),
+            unit: "%",
+            description: "Current utilization of channel buffer capacity between blocks");
+       
     }
 
-    private static IEnumerable<Measurement<int>> GetAllChannelUtilizations()
+    /// <summary>
+    /// Registers a channel with the metrics system to be observed.
+    /// </summary>
+    /// <param name="channel"></param>
+    public void RegisterChannel(IMonitoredChannel channel)
+    {
+        _channelRegistry.RegisterChannel(channel);
+    }
+
+    private IEnumerable<Measurement<int>> GetAllChannelUtilizations()
     {
         // Get active channel count
-        var activeChannelCount = ChannelRegistry.GetActiveChannelCount();
+        var activeChannelCount = _channelRegistry.GetActiveChannelCount();
 
         // Report active channel count
         yield return new Measurement<int>(
@@ -56,7 +54,7 @@ public static class DataFlowMetrics
             new KeyValuePair<string, object?>("metric", "active_channel_count"));
 
         // Get all channel snapshots
-        var snapshots = ChannelRegistry.GetChannelSnapshots();
+        var snapshots = _channelRegistry.GetChannelSnapshots();
 
         // Process snapshots
         foreach (var snapshot in snapshots)
@@ -73,5 +71,28 @@ public static class DataFlowMetrics
                 yield return new Measurement<int>(utilization, tags);
             }
         }
-    }  
+    }
+
+    public static class InstrumentNames
+    {
+        /// <summary>
+        /// Time taken to process a block in DataFlow
+        /// </summary>
+        [Description("Time taken to process a block in DataFlow")]
+        public const string BlockDurationMs = "dataflow.block.duration.ms";
+        /// <summary>
+        /// Time taken to execute a DataFlow from start to completion
+        /// </summary>
+        [Description("Time taken to execute a DataFlow from start to completion")]
+        public const string FlowDurationMs = "dataflow.flow.duration.ms";
+        /// <summary>
+        /// Current utilization of channel buffer capacity between blocks
+        /// </summary>
+        [Description("Current utilization of channel buffer capacity between blocks")]
+        public const string ChannelBufferUtilizationMetricName = "dataflow.channel.buffer.utilization";
+    }
 }
+
+ 
+
+

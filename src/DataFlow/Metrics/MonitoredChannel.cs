@@ -8,7 +8,9 @@ public class MonitoredChannel<T> : IMonitoredChannel
     private readonly string _blockName;
     private readonly IReadOnlyDictionary<string, string> _dimensions;
     private readonly int _capacity;
-   // private readonly ReaderWriterLockSlim _registrationLock = new ReaderWriterLockSlim();
+    private readonly bool _ownsChannel;
+
+    // private readonly ReaderWriterLockSlim _registrationLock = new ReaderWriterLockSlim();
     private bool _isDisposed;
 
 
@@ -16,13 +18,14 @@ public class MonitoredChannel<T> : IMonitoredChannel
         Channel<T> channel,
         string blockName,
         IReadOnlyDictionary<string, string> dimensions,
-        int capacity)
+        int capacity,
+        bool ownsChannel = false)
     {
         _channel = channel;
         _blockName = blockName;
         _dimensions = dimensions;
         _capacity = capacity;
-
+        _ownsChannel = ownsChannel;
         if (!_channel.Reader.CanCount)
         {
             throw new ArgumentException("Channel must support counting for monitoring", nameof(channel));
@@ -70,10 +73,16 @@ public class MonitoredChannel<T> : IMonitoredChannel
     public void Dispose()
     {
         _isDisposed = true;
+
+        if (_ownsChannel)
+        {
+            _channel.Writer.TryComplete();
+        }
+
         // _registrationLock.Dispose();
     }
 
     // Channel operations delegated to inner channel
-    public ChannelReader<T> Reader => _channel.Reader;
+    // public ChannelReader<T> Reader => _channel.Reader;
     public ChannelWriter<T> Writer => _channel.Writer;
 }

@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.ObjectPool;
 using Uniun.DataFlow;
 using Uniun.DataFlow.Blocks;
+using Uniun.DataFlow.Metrics;
 
 /// <summary>
 /// The block will batch incoming items and emit them as arrays either when:
@@ -18,6 +19,7 @@ using Uniun.DataFlow.Blocks;
 public class BatchBlock<T> : BlockBase, IPropagatorBlock<T, T[]>
 {
     private readonly BatchProcessor<T> _batchProcessor;
+    private readonly BoundedChannelOptions _outputChannelOptions;
     private readonly Channel<T[]> _outputChannel;
     private ISourceBlock<T>? _source;
 
@@ -31,8 +33,8 @@ public class BatchBlock<T> : BlockBase, IPropagatorBlock<T, T[]>
         {
             throw new ArgumentException("Max batch size must be greater than 0", nameof(maxBatchSize));
         }
-
-        _outputChannel = Channel.CreateBounded<T[]>(Options.ChannelOptions ?? new BoundedChannelOptions(100));
+        _outputChannelOptions = Options.ChannelOptions ?? new BoundedChannelOptions(100);
+        _outputChannel = Channel.CreateBounded<T[]>(_outputChannelOptions);
         _batchProcessor = new BatchProcessor<T>(maxBatchSize, windowPeriod, _outputChannel.Writer);
     }
 
@@ -62,6 +64,7 @@ public class BatchBlock<T> : BlockBase, IPropagatorBlock<T, T[]>
         try
         {
             EnsureSourceReader();
+            using var monitoredChannel = this.CreateMonitoredChannel(_outputChannelOptions.Capacity, context, _outputChannel);
             await ReadAllAsync(context);
         }
         finally
