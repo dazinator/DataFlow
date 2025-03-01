@@ -2,6 +2,7 @@
 
 namespace Uniun.DataFlow.Blocks.Transform;
 
+using System.Resources;
 using System.Threading.Channels;
 using Uniun.DataFlow;
 using Uniun.DataFlow.Actor;
@@ -21,29 +22,43 @@ public class TransformBlock<TIn, TOut> : BlockBase, IPropagatorBlock<TIn, TOut>
     {
         _transformerFactory = transformerFactory;
         _output = Channel.CreateBounded<TOut>(Options.ChannelOptions ?? new BoundedChannelOptions(100));
-    }
+    }   
+
+    private ChannelReader<TOut> Reader => _output.Reader;
 
     public void SetSource(ISourceBlock<TIn> source)
     {
         _source = source;
+        SourceReader = _source.GetReader(this);
     }
-
-    public ChannelReader<TOut> Reader => _output.Reader;
-
-    protected override async Task CoreExecuteAsync(IDataFlowContext context)
+    public ChannelReader<TIn> SourceReader { get; private set; }
+    private void EnsureSourceReader()
     {
-        if (_source == null)
+        if (_source is null)
         {
             throw new InvalidOperationException("No source block configured");
         }
+        if (SourceReader is null)
+        {
+            throw new InvalidOperationException("No source reader configured");
+        }
+    }
+
+    public ChannelReader<TOut> GetReader(ITargetBlock<TOut> target)
+    {
+        return Reader;
+    }
+
+    protected override async Task CoreExecuteAsync(IDataFlowContext context)
+    {
+        EnsureSourceReader();
 
         try
-        {
-
+        {           
             await ExecuteParallelActivities(context, Options.MaxConcurrency, ExecuteStreamTransformerAsync);
-
+           
             // Source channel should be fully drained
-            await _source!.Reader.Completion;
+            await SourceReader.Completion;
         }
         finally
         {
@@ -56,7 +71,7 @@ public class TransformBlock<TIn, TOut> : BlockBase, IPropagatorBlock<TIn, TOut>
     protected async Task ExecuteStreamTransformerAsync(int index, IDataFlowContext context)
     {
         var transformer = _transformerFactory(context.ServiceProvider);
-        var input = _source!.Reader.ReadAllAsync(context.CancellationToken);
+        var input = SourceReader.ReadAllAsync(context.CancellationToken);
 
         await foreach (var result in transformer.TransformAsync(input, context.CancellationToken)
             .WithCancellation(context.CancellationToken))
@@ -65,4 +80,5 @@ public class TransformBlock<TIn, TOut> : BlockBase, IPropagatorBlock<TIn, TOut>
         }
     }
 
+  
 }

@@ -1,6 +1,7 @@
 namespace Uniun.DataFlow.Blocks.BatchBlock;
 using System;
 using System.Collections.Generic;
+using System.Resources;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Extensions.ObjectPool;
@@ -23,7 +24,7 @@ public class BatchBlock<T> : BlockBase, IPropagatorBlock<T, T[]>
     public BatchBlock(
         string name,
         int maxBatchSize,
-        TimeSpan windowPeriod,       
+        TimeSpan windowPeriod,
         BlockOptions? options = null) : base(name, options)
     {
         if (maxBatchSize <= 0)
@@ -38,19 +39,29 @@ public class BatchBlock<T> : BlockBase, IPropagatorBlock<T, T[]>
     public void SetSource(ISourceBlock<T> source)
     {
         _source = source;
+        SourceReader = _source.GetReader(this);
+    }
+    public ChannelReader<T> SourceReader { get; private set; }
+    private void EnsureSourceReader()
+    {
+        if (_source is null)
+        {
+            throw new InvalidOperationException("No source block configured");
+        }
+        if (SourceReader is null)
+        {
+            throw new InvalidOperationException("No source reader configured");
+        }
     }
 
     public ChannelReader<T[]> Reader => _outputChannel.Reader;
 
-    protected override async Task CoreExecuteAsync(IDataFlowContext context)
-    {
-        if (_source == null)
-        {
-            throw new InvalidOperationException("No source block configured");
-        }
 
+    protected override async Task CoreExecuteAsync(IDataFlowContext context)
+    {       
         try
         {
+            EnsureSourceReader();
             await ReadAllAsync(context);
         }
         finally
@@ -62,13 +73,18 @@ public class BatchBlock<T> : BlockBase, IPropagatorBlock<T, T[]>
 
     protected async Task ReadAllAsync(IDataFlowContext context)
     {
-        await foreach (var item in _source!.Reader.ReadAllAsync(context.CancellationToken))
+        await foreach (var item in SourceReader.ReadAllAsync(context.CancellationToken))
         {
             await _batchProcessor.AddAsync(item, context.CancellationToken);
         }
 
-        await _source.Reader.Completion;
+        await SourceReader.Completion;
 
+    }
+
+    public ChannelReader<T[]> GetReader(ITargetBlock<T[]> target)
+    {
+        return Reader;
     }
 
     private class BatchProcessor<TItem>
@@ -197,4 +213,7 @@ public class BatchBlock<T> : BlockBase, IPropagatorBlock<T, T[]>
             _timerCts.Dispose();
         }
     }
+
+   
+    
 }

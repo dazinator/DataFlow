@@ -2,6 +2,7 @@
 
 namespace Uniun.DataFlow.Blocks.Processor;
 
+using System.Threading.Channels;
 using Uniun.DataFlow;
 using Uniun.DataFlow.Actor;
 
@@ -9,44 +10,54 @@ using Uniun.DataFlow.Actor;
 /// Target block for terminal operations on data items.
 /// Actor based block that will instantiate concurrent <see cref="IStreamProcessor{TInput}"/> actors (upto max concurrency) to process items from the source block.
 /// </summary>
-/// <typeparam name="TInput"></typeparam>
-public class ProcessorBlock<TInput> : BlockBase, ITargetBlock<TInput>
+/// <typeparam name="T"></typeparam>
+public class ProcessorBlock<T> : BlockBase, ITargetBlock<T>
 {
-    private readonly Func<IServiceProvider, IStreamProcessor<TInput>> _processorFactory;
-    private ISourceBlock<TInput> _source;
+    private readonly Func<IServiceProvider, IStreamProcessor<T>> _processorFactory;
+    private ISourceBlock<T> _source;
 
     public ProcessorBlock(
         string name,
-        Func<IServiceProvider, IStreamProcessor<TInput>> processorFactory,
+        Func<IServiceProvider, IStreamProcessor<T>> processorFactory,
         BlockOptions? options = null
     ) : base(name, options)
     {
         _processorFactory = processorFactory;
     }
 
-
-    public void SetSource(ISourceBlock<TInput> source)
+    public void SetSource(ISourceBlock<T> source)
     {
         _source = source;
+        SourceReader = _source.GetReader(this);
     }
+    public ChannelReader<T> SourceReader { get; private set; }
+    private void EnsureSourceReader()
+    {
+        if (_source is null)
+        {
+            throw new InvalidOperationException("No source block configured");
+        }
+        if (SourceReader is null)
+        {
+            throw new InvalidOperationException("No source reader configured");
+        }
+    }
+
 
     protected override async Task CoreExecuteAsync(IDataFlowContext context)
     {
         // await base.CoreExecuteAsync(context);
+        EnsureSourceReader();
         await ExecuteParallelActivities(context, Options.MaxConcurrency, ExecuteStreamProcessorAsync);
-        await _source.Reader.Completion;
+        SourceReader = _source.GetReader(this);
+        await SourceReader.Completion;
     }
 
     protected async Task ExecuteStreamProcessorAsync(int index, IDataFlowContext context)
-    {
-        if (_source == null)
-        {
-            throw new InvalidOperationException("No source block configured");
-        }
-
+    {     
         // Will use scoped ServiceProvider if UseSeperateScopes=true
         var processor = _processorFactory(context.ServiceProvider);
-        var input = _source!.Reader.ReadAllAsync(context.CancellationToken);
+        var input = SourceReader.ReadAllAsync(context.CancellationToken);
         await processor.ProcessAsync(input, context.CancellationToken);
     }
 }

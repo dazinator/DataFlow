@@ -28,8 +28,9 @@ public static class DataFlowContextExtensions
         );
     }
 
-    public static MonitoredChannel<T> CreateMonitoredChannel<T>(this IBlock block,
-        BoundedChannelOptions options,
+    public static MonitoredChannel<T> CreateMonitoredChannel<T>(
+        this IBlock block,
+        int maxCapacity, 
     IDataFlowContext context,
     Channel<T> channel)
     {      
@@ -42,7 +43,7 @@ public static class DataFlowContextExtensions
             channel,
             block.Name,
             new ReadOnlyDictionary<string, string>(dimensions),
-            options.Capacity
+           maxCapacity
         );
     }
 

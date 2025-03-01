@@ -1,5 +1,6 @@
 namespace Uniun.DataFlow.Blocks.Output;
 
+using System.Threading.Channels;
 using Uniun.DataFlow;
 
 /// <summary>
@@ -21,18 +22,30 @@ public class OutputBlock<T> : BlockBase, ITargetBlock<T>
         _output = output;
     }
 
-    public void SetSource(ISourceBlock<T> source) => _source = source;
-
-    protected override async Task CoreExecuteAsync(IDataFlowContext context)
+    public void SetSource(ISourceBlock<T> source)
     {
-        if (_source == null)
+        _source = source;
+        SourceReader = _source.GetReader(this);
+    }
+    public ChannelReader<T> SourceReader { get; private set; }
+    private void EnsureSourceReader()
+    {
+        if (_source is null)
         {
             throw new InvalidOperationException("No source block configured");
         }
+        if (SourceReader is null)
+        {
+            throw new InvalidOperationException("No source reader configured");
+        }
+    }
 
+    protected override async Task CoreExecuteAsync(IDataFlowContext context)
+    {
+        EnsureSourceReader();
         await ExecuteParallelActivities(context, Options.MaxConcurrency, async (index, ctx) =>
         {
-            await foreach (var item in _source.Reader.ReadAllAsync(context.CancellationToken))
+            await foreach (var item in SourceReader.ReadAllAsync(context.CancellationToken))
             {
                 await _output(item);
             }

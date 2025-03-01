@@ -45,20 +45,28 @@ public class RoutingBlock<T> : BlockBase, ITargetBlock<T>
         _logger = logger;
     }
 
-
+    
     public void SetSource(ISourceBlock<T> source)
     {
         _source = source;
+        SourceReader = _source.GetReader(this);
     }
-
-
-    protected override async Task CoreExecuteAsync(IDataFlowContext context)
+    public ChannelReader<T> SourceReader { get; private set; }
+    private void EnsureSourceReader()
     {
-        if (_source == null)
+        if (_source is null)
         {
             throw new InvalidOperationException("No source block configured");
         }
+        if (SourceReader is null)
+        {
+            throw new InvalidOperationException("No source reader configured");
+        }
+    }
 
+    protected override async Task CoreExecuteAsync(IDataFlowContext context)
+    {
+        EnsureSourceReader();
         try
         {
             // Run the main processing and cleanup tasks
@@ -133,7 +141,7 @@ public class RoutingBlock<T> : BlockBase, ITargetBlock<T>
                 await ExecuteStreamProcessorAsync(index, ctx);
             });
 
-            await _source!.Reader.Completion; // no more items to process.
+            await SourceReader.Completion; // no more items to process.
         }
         finally
         {
@@ -146,7 +154,7 @@ public class RoutingBlock<T> : BlockBase, ITargetBlock<T>
 
     protected async Task ExecuteStreamProcessorAsync(int index, IDataFlowContext context)
     {
-        await foreach (var item in _source!.Reader.ReadAllAsync(context.CancellationToken))
+        await foreach (var item in SourceReader.ReadAllAsync(context.CancellationToken))
         {
             var routingKey = _routingKeySelector(item);
             // First check cache without any async or locks - hot path for an active route
@@ -171,7 +179,7 @@ public class RoutingBlock<T> : BlockBase, ITargetBlock<T>
         {
             // Add delay after dequeue as small safety net in case some weird issue where the route may have just been removed from the cache and sent to us for cleanup, but is actually still in use with a call to WriteAsync in progress.. we want to give it a chance to complete.
             // this should not happen and could be over-cautions, but lets do it anyway.
-            await Task.Delay(TimeSpan.FromSeconds(cleanupDelay), cancellation);         
+            await Task.Delay(TimeSpan.FromSeconds(cleanupDelay), cancellation);
 
             // We don't need to await the completion of the route here, we just need to dispose it so that any downstream consumers can complete.
             // The main ExecuteAsync method will await all routes Completions before exiting and this will ensure exceptions are propagated.

@@ -1,5 +1,6 @@
 namespace Uniun.DataFlow.Blocks.Observable;
 
+using System.Threading.Channels;
 using Uniun.DataFlow;
 
 /// <summary>
@@ -17,20 +18,33 @@ public class ObservableBlock<T> : BlockBase, ITargetBlock<T>
         BlockOptions? options = null) : base(name, options)
     {
         _observer = observer;
-    }
+    }  
 
-    public void SetSource(ISourceBlock<T> source) => _source = source;
-
-    protected override async Task CoreExecuteAsync(IDataFlowContext context)
+    public void SetSource(ISourceBlock<T> source)
     {
-        if (_source == null)
+        _source = source;
+        SourceReader = _source.GetReader(this);
+    }
+    public ChannelReader<T> SourceReader { get; private set; }
+    private void EnsureSourceReader()
+    {
+        if (_source is null)
         {
             throw new InvalidOperationException("No source block configured");
         }
+        if (SourceReader is null)
+        {
+            throw new InvalidOperationException("No source reader configured");
+        }
+    }
+
+    protected override async Task CoreExecuteAsync(IDataFlowContext context)
+    {      
 
         try
         {
-            await foreach (var item in _source.Reader.ReadAllAsync(context.CancellationToken))
+            EnsureSourceReader();
+            await foreach (var item in SourceReader.ReadAllAsync(context.CancellationToken))
             {
                 _observer.OnNext(item);
             }

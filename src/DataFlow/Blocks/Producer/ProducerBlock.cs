@@ -23,7 +23,12 @@ public class ProducerBlock<TOutput> : BlockBase, ISourceBlock<TOutput>
         _channel = Channel.CreateBounded<TOutput>(GetChannelOptions(Options));
     }
 
-    public ChannelReader<TOutput> Reader => _channel.Reader;
+    private ChannelReader<TOutput> Reader => _channel.Reader;
+
+    public ChannelReader<TOutput> GetReader(ITargetBlock<TOutput> target)
+    {
+        return Reader;
+    }
 
     private BoundedChannelOptions GetChannelOptions(BlockOptions? options)
     {
