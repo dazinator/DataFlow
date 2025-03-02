@@ -21,13 +21,15 @@ public class DataFlow<TConfig> : IDataFlow
 public class DataFlow
 {
     private readonly List<IBlock> _blocks;
+    private readonly IDataFlowMetrics _metrics;
 
     // Static fields shared across all DataFlow instances
     private static readonly ActivitySource ActivitySource = new ActivitySource("Uniun.DataFlow");
 
-    public DataFlow(List<IBlock> blocks)
+    public DataFlow(List<IBlock> blocks, IDataFlowMetrics metrics)
     {
         _blocks = blocks;
+        _metrics = metrics;
     }
 
     public async Task ExecuteAsync(IDataFlowContext context, string name)
@@ -64,10 +66,11 @@ public class DataFlow
                 //}
 
                 // Record total flow duration
-                DataFlowMetrics.FlowExecutionDuration.Record(
-                    flowActivity.Duration.TotalMilliseconds,
-                    new("flow.invocationid", context.InvocationId),
-                    new("flow.type", name));
+                _metrics.FlowCompleted(flowDuration, name, context);
+                    //.FlowExecutionDuration.Record(
+                    //flowActivity.Duration.TotalMilliseconds,
+                    //new("flow.invocationid", context.InvocationId),
+                    //new("flow.type", name));
 
                 // Add tag with total processed items
                 // flowActivity.SetTag("items.processed", totalItemsProcessed);

@@ -8,6 +8,7 @@ public static class DataFlowContextExtensions
 {
     public static MonitoredChannel<T> CreateMonitoredChannel<T>(
      this IDataFlowContext context,
+     IDataFlowMetrics metrics,
      string blockName,
      int capacity = 100)
     {
@@ -21,6 +22,7 @@ public static class DataFlowContextExtensions
             new ReadOnlyDictionary<string, string>(new Dictionary<string, string>());
 
         return new MonitoredChannel<T>(
+            metrics,
             channel,
             blockName,
             new ReadOnlyDictionary<string, string>(dimensions),
@@ -30,6 +32,7 @@ public static class DataFlowContextExtensions
 
     public static MonitoredChannel<T> CreateMonitoredChannel<T>(
         this IBlock block,
+         IDataFlowMetrics metrics,
         int maxCapacity, 
     IDataFlowContext context,
     Channel<T> channel)
@@ -40,6 +43,7 @@ public static class DataFlowContextExtensions
             new ReadOnlyDictionary<string, string>(new Dictionary<string, string>());
 
         return new MonitoredChannel<T>(
+            metrics,
             channel,
             block.Name,
             new ReadOnlyDictionary<string, string>(dimensions),

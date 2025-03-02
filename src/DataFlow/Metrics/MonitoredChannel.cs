@@ -4,6 +4,7 @@ using System.Threading.Channels;
 // Wrapper for a channel that provides metrics
 public class MonitoredChannel<T> : IMonitoredChannel
 {
+    private readonly IDataFlowMetrics _metrics;
     private readonly Channel<T> _channel;
     private readonly string _blockName;
     private readonly IReadOnlyDictionary<string, string> _dimensions;
@@ -15,12 +16,14 @@ public class MonitoredChannel<T> : IMonitoredChannel
 
 
     public MonitoredChannel(
+        IDataFlowMetrics metrics,
         Channel<T> channel,
         string blockName,
         IReadOnlyDictionary<string, string> dimensions,
         int capacity,
         bool ownsChannel = false)
     {
+        _metrics = metrics;
         _channel = channel;
         _blockName = blockName;
         _dimensions = dimensions;
@@ -32,7 +35,7 @@ public class MonitoredChannel<T> : IMonitoredChannel
         }
 
         // Register with metrics system
-        DataFlowMetrics.RegisterChannel(this);
+        _metrics.RegisterChannel(this);
     }
 
     public ChannelMetricSnapshot GetMetricSnapshot()
