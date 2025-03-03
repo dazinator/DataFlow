@@ -16,28 +16,38 @@ public static class DataFlowRegistrationExtensions
     /// <returns></returns>
     /// <remarks>In multitenant scenarios, you can register this in the "root" container to have a single metrics pipeline at root level to collect all dataflow metrics which may be added in seperate container (e.g per tenant) instances.
     /// </remarks>
-    public static IServiceCollection AddDataFlowMetricsMeter(this IServiceCollection services)
+    public static IServiceCollection AddDataFlowMetrics(this IServiceCollection services)
     {
-        services.TryAddSingleton<IMeterAccessor, MeterAccessor>();
+        services.AddMetrics();
+        services.TryAddSingleton<IMeterAccessor, MeterAccessor>();     
         return services;
     }
 
 
     public static IServiceCollection AddDataFlows(
         this IServiceCollection services,
-        int maxConcurrentFlows)
-    {
-        services.TryAddSingleton(new DataFlowThrottler(maxConcurrentFlows));
+        Action<DataFlowsOptions>? configure = null)
+    {      
+        var optionsBuilder = services.AddOptionsWithValidateOnStart<DataFlowsOptions>();
+        if(configure is not null)
+        {
+            optionsBuilder.Configure(configure);
+        }   
+
+        services.TryAddSingleton<DataFlowThrottler>();
+        services.TryAddSingleton<IBoundedChannelFactory, MonitoredChannelFactory>();
+        services.TryAddSingleton<ChannelRegistry>();
         // Register open generic executor once
         services.TryAddTransient(typeof(FlowExecutor<>));
+        services.TryAddTransient<IDataFlowMetrics, DataFlowMetrics>();
         return services;
     }
 
     public static IServiceCollection AddDataFlow<TConfig>(
         this IServiceCollection services,
-        Action<BlockOptions>? configureOptions = null)
+        string name)
         where TConfig : class, IDataFlowConfiguration, new()
-    {
+    {       
         services.AddTransient(sp =>
         {
             var builder = new DataFlowBuilder(sp);
@@ -52,8 +62,7 @@ public static class DataFlowRegistrationExtensions
 
     public static IServiceCollection AddDataFlow<TConfig>(
         this IServiceCollection services,
-        Func<IServiceProvider, IDataFlowConfiguration> factory,
-        Action<BlockOptions>? configureOptions = null)
+        Func<IServiceProvider, IDataFlowConfiguration> factory)
         where TConfig : class, IDataFlowConfiguration
     {
         services.AddTransient(sp =>

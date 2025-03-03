@@ -7,4 +7,6 @@ public interface IDataFlowBuilder
     /// </summary>
     public IServiceProvider ServiceProvider { get; }
     public Dictionary<string, IBlock> Blocks { get; }
+
+   // public IBoundedChannelFactory BoundedChannelFactory { get; }
 }

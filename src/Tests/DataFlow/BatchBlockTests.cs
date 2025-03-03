@@ -20,8 +20,9 @@ public class BatchBlockTests
 
     public void AddDefaultServices(IServiceCollection services)
     {
-        Services.AddLogging(builder => builder.AddXUnit(Output));
-        Services.AddDataFlows(maxConcurrentFlows: 1);
+        Services.AddLogging(builder => builder.AddXUnit(Output));       
+        Services.AddDataFlowMetrics();
+        Services.AddDataFlows();
     }
 
     /// <summary>
@@ -58,7 +59,7 @@ public class BatchBlockTests
         var flow = builder.Build();
         var context = CreateContext("test", Guid.NewGuid(), sp);
         // / var context = new PipelineContext("test", Guid.NewGuid(), _serviceProvider);
-        await flow.ExecuteAsync(context, "myblock");
+        await flow.ExecuteAsync(context);
 
         // Assert
         Assert.Equal(4, processedBatches.Count); // Should create 3 full batches and 1 partial
@@ -100,7 +101,7 @@ public class BatchBlockTests
 
         var flow = builder.Build();
         var context = CreateContext("test", Guid.NewGuid(), sp);
-        await flow.ExecuteAsync(context, "testflow");
+        await flow.ExecuteAsync(context);
 
         // Assert
         Assert.True(processedBatches.Count > 1, "Should have created multiple batches based on time");
@@ -132,7 +133,7 @@ public class BatchBlockTests
 
         var flow = builder.Build();
         var context = CreateContext("test", Guid.NewGuid(), sp);
-        await flow.ExecuteAsync(context, "testflow");
+        await flow.ExecuteAsync(context);
 
         // Assert
         Assert.Empty(processedBatches);
@@ -168,7 +169,7 @@ public class BatchBlockTests
         var context = CreateContext("test", Guid.NewGuid(), sp);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            flow.ExecuteAsync(context, "testflow"));
+            flow.ExecuteAsync(context));
 
         // Should have processed some batches before error
         Assert.True(processedBatches.Count > 0);
@@ -206,7 +207,7 @@ public class BatchBlockTests
 
         // Assert
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
-            flow.ExecuteAsync(context, "testflow"));
+            flow.ExecuteAsync(context));
 
         Assert.True(processedBatches.Count >= 3);
         Assert.True(processedBatches.All(batch => batch.Length > 0));
@@ -261,7 +262,7 @@ public class BatchBlockTests
 
         var flow = builder.Build();
         var context = CreateContext("test", Guid.NewGuid(), sp);
-        await flow.ExecuteAsync(context, "testflow");
+        await flow.ExecuteAsync(context);
 
         // Assert
         Assert.Equal(1, maxConcurrentOperations); // Verifies serial processing of items

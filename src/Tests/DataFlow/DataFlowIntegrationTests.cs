@@ -31,8 +31,9 @@ public class DataFlowIntegrationTests
 
     private void AddDefaultServices(IServiceCollection services)
     {
-        services.AddScoped(typeof(FlowExecutor<>));
-        services.AddDataFlows(maxConcurrentFlows: 2);
+        //services.AddScoped(typeof(FlowExecutor<>));
+        services.AddDataFlows((o)=> o.MaxConcurrentFlows = 2);
+        Services.AddDataFlowMetrics();
     }
 
     public ServiceProvider GetServiceProvider()
@@ -88,7 +89,7 @@ public class DataFlowIntegrationTests
         Services.AddSingleton(new TestProcessor<int>(
             onProcessItem: item => processedItems.Add(item)));
 
-        Services.AddDataFlow<SlowFlowConfig>();
+        Services.AddDataFlow<SlowFlowConfig>("test");
 
         using var sp = GetServiceProvider();
         var executor = sp.GetRequiredService<FlowExecutor<SlowFlowConfig>>();
@@ -111,21 +112,20 @@ public class DataFlowIntegrationTests
     {
         // Arrange
         var processedItems = new ConcurrentBag<int>();
-        var services = new ServiceCollection();
 
-        services.AddDataFlows(maxConcurrentFlows: 1)
-            .AddDataFlow<LargeDataFlowConfig>();
+        Services.AddDataFlows()
+            .AddDataFlow<LargeDataFlowConfig>("test");
 
         // Register test components
-        services.AddSingleton(new TestProducer<int>(
+        Services.AddSingleton(new TestProducer<int>(
             Enumerable.Range(0, 1000),
             delay: TimeSpan.FromMilliseconds(1))); // Fast production
 
-        services.AddSingleton(new TestProcessor<int>(
+        Services.AddSingleton(new TestProcessor<int>(
             onProcessItem: item => processedItems.Add(item),
             delay: TimeSpan.FromMilliseconds(10))); // Slower processing
 
-        await using var provider = services.BuildServiceProvider();
+        await using var provider = Services.BuildServiceProvider();
         var executor = provider.GetRequiredService<FlowExecutor<LargeDataFlowConfig>>();
 
         // Act
@@ -180,10 +180,7 @@ public class DataFlowIntegrationTests
             var options = new BlockOptions
             {
                 MaxConcurrency = 4,
-                ChannelOptions = new BoundedChannelOptions(10)
-                {
-                    FullMode = BoundedChannelFullMode.Wait
-                }
+                Capacity = 10,                
             };
 
             builder

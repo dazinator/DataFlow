@@ -2,29 +2,33 @@
 
 namespace Uniun.DataFlow.Blocks.Transform;
 
-using System.Resources;
 using System.Threading.Channels;
 using Uniun.DataFlow;
 using Uniun.DataFlow.Actor;
 using Uniun.DataFlow.Metrics;
 
 // Transform block for data transformation
+
+public class TransformBlockOptions<TIn, TOut> : BlockOptions
+{
+    public Func<IServiceProvider, IStreamTransformer<TIn, TOut>> TransformerFactory { get; set; }
+}
 public class TransformBlock<TIn, TOut> : BlockBase, IPropagatorBlock<TIn, TOut>
 {
     private readonly Func<IServiceProvider, IStreamTransformer<TIn, TOut>> _transformerFactory;
-    private readonly BoundedChannelOptions _outputChannelOptions;
-    private readonly Channel<TOut> _outputChannel;
+    private readonly IBoundedChannelFactory _channelFactory;   
+    private readonly MonitoredChannel<TOut> _outputChannel;
     private ISourceBlock<TIn>? _source;
 
     public TransformBlock(
         string name,
-        Func<IServiceProvider, IStreamTransformer<TIn, TOut>> transformerFactory,
-        BlockOptions? options = null
+        IBoundedChannelFactory channelFactory,
+        TransformBlockOptions<TIn, TOut> options
     ) : base(name, options)
     {
-        _transformerFactory = transformerFactory;
-        _outputChannelOptions = Options.ChannelOptions ?? new BoundedChannelOptions(100);
-        _outputChannel = Channel.CreateBounded<TOut>(_outputChannelOptions);
+        _transformerFactory = options.TransformerFactory;
+        _channelFactory = channelFactory;
+        _outputChannel = _channelFactory.CreateMonitoredChannel<TOut>(name, options?.Capacity);
     }   
 
    // private ChannelReader<TOut> Reader => _output.Reader;
@@ -58,7 +62,8 @@ public class TransformBlock<TIn, TOut> : BlockBase, IPropagatorBlock<TIn, TOut>
 
         try
         {
-            using var monitoredChannel = this.CreateMonitoredChannel(_outputChannelOptions.Capacity, context, _outputChannel);
+            _outputChannel.StartMonitoring(context);
+            // var monitoredChannel = this.CreateMonitoredChannel(_outputChannelOptions.Capacity, context, _outputChannel);
             await ExecuteParallelActivities(context, Options.MaxConcurrency, ExecuteStreamTransformerAsync);
            
             // Source channel should be fully drained

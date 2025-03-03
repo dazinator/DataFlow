@@ -13,9 +13,13 @@ public class DataFlow<TConfig> : IDataFlow
     public DataFlow(DataFlow flow)
     {
         _flow = flow;
+        if (string.IsNullOrWhiteSpace(flow.Name))
+        {
+            flow.Name = typeof(TConfig).Name;
+        }
     }
 
-    public Task ExecuteAsync(IDataFlowContext context) => _flow.ExecuteAsync(context, typeof(TConfig).Name);
+    public Task ExecuteAsync(IDataFlowContext context) => _flow.ExecuteAsync(context);
 }
 
 public class DataFlow
@@ -26,62 +30,87 @@ public class DataFlow
     // Static fields shared across all DataFlow instances
     private static readonly ActivitySource ActivitySource = new ActivitySource("Uniun.DataFlow");
 
-    public DataFlow(List<IBlock> blocks, IDataFlowMetrics metrics)
+    public DataFlow(
+        string name,
+        List<IBlock> blocks,
+        IDataFlowMetrics metrics)
     {
         _blocks = blocks;
         _metrics = metrics;
+        Name = name;
     }
 
-    public async Task ExecuteAsync(IDataFlowContext context, string name)
+    public string Name { get; set; }
+
+    public async Task ExecuteAsync(IDataFlowContext context)
     {
         // Create flow-level activity
-        context.AddDimension("flow.type", name)
-               .AddDimension("flow.invocationid", name);
-
-        using var flowActivity = ActivitySource.StartActivity($"DataFlow.Execute");
-        flowActivity?.AddDataFlowContextDimensions(context);
-
-
-        try
+        context.Name ??= Name;
+        using (var flowActivity = ActivitySource.StartActivity(ActivityNames.FlowExecute))
         {
-
-            var blockTasks = _blocks.Select(block =>
-            ExecuteBlockAsync(flowActivity, block, context, name));
-
-            await Task.WhenAll(blockTasks);
-            context.CancellationToken.ThrowIfCancellationRequested(); // becuse channel readers writers can gracefully exit from streams, lets ensure if we are cancelled we throw here.
-
-            // Record flow-level metrics
-            if (flowActivity != null)
+            if (flowActivity is not null)
             {
-                var flowDuration = flowActivity.Duration.TotalSeconds;
-                //if (flowDuration > 0)
-                //{
-                //    // Calculate throughput (items/second)
-                //    double throughput = totalItemsProcessed / flowDuration;
-                //    DataFlowMetrics.FlowThroughput.Record(
-                //        throughput,
-                //        new("flow.id", _flowInstanceId),
-                //        new("flow.type", typeof(T).Name));
-                //}
+                flowActivity.AddTags(_metrics.GlobalTags);
+                flowActivity.AddTag(DataFlowMetrics.TagNames.FlowInvocationId, context.InvocationId);
+                if (!string.IsNullOrWhiteSpace(context.Name))
+                {
+                    flowActivity.AddTag(DataFlowMetrics.TagNames.FlowName, context.Name);
+                    flowActivity.DisplayName = context.Name;
+                }
+            }
 
-                // Record total flow duration
-                _metrics.FlowCompleted(flowDuration, name, context);
+            try
+            {
+
+                var blockTasks = _blocks.Select(block =>
+                ExecuteBlockAsync(flowActivity, block, context));
+
+                await Task.WhenAll(blockTasks);
+                context.CancellationToken.ThrowIfCancellationRequested(); // becuse channel readers writers can gracefully exit from streams, lets ensure if we are cancelled we throw here.
+                flowActivity?.SetStatus(ActivityStatusCode.Ok);
+            }
+            catch (Exception ex)
+            {
+                // Record exception in activity
+                flowActivity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+                throw;
+            }
+            finally
+            {
+                // Record flow-level metrics
+                if (flowActivity != null)
+                {
+                    // flowActivity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+                    flowActivity.Stop();
+                    var flowDuration = flowActivity.Duration.TotalMilliseconds;
+                    //if (flowDuration > 0)
+                    //{
+                    //    // Calculate throughput (items/second)
+                    //    double throughput = totalItemsProcessed / flowDuration;
+                    //    DataFlowMetrics.FlowThroughput.Record(
+                    //        throughput,
+                    //        new("flow.id", _flowInstanceId),
+                    //        new("flow.type", typeof(T).Name));
+                    //}
+
+                    // Record total flow duration
+                    _metrics.FlowCompleted(flowDuration, context.Name, context, flowActivity.Status == ActivityStatusCode.Ok);
                     //.FlowExecutionDuration.Record(
                     //flowActivity.Duration.TotalMilliseconds,
                     //new("flow.invocationid", context.InvocationId),
                     //new("flow.type", name));
 
-                // Add tag with total processed items
-                // flowActivity.SetTag("items.processed", totalItemsProcessed);
+                    // Add tag with total processed items
+                    // flowActivity.SetTag("items.processed", totalItemsProcessed);
+                }
             }
+
+
         }
-        catch (Exception ex)
-        {
-            // Record exception in activity
-            flowActivity?.SetStatus(ActivityStatusCode.Error, ex.Message);
-            throw;
-        }
+
+
+
+
 
 
         //// Execute all blocks concurrently
@@ -93,35 +122,49 @@ public class DataFlow
     }
 
 
-    private async Task ExecuteBlockAsync(Activity parentActivity, IBlock block, IDataFlowContext context, string flowName)
+    private async Task ExecuteBlockAsync(Activity? parentActivity, IBlock block, IDataFlowContext context)
     {
-        // Create child activity for the block
-        using var blockActivity = ActivitySource.CreateActivity($"Block.{block.Name}", ActivityKind.Internal);
-        blockActivity?.SetParentId(parentActivity.TraceId, parentActivity.SpanId);
-        blockActivity?.SetTag("block.name", block.Name);
-        var dims = context.Dimensions.Select(d => new KeyValuePair<string, object>(d.Key, d.Value)).ToArray();
-
-        try
+        var name = context.Name;
+        using (var activity = ActivitySource.StartActivity(ActivityNames.BlockExecute))
         {
-            await block.ExecuteAsync(context);
-        }
-        catch (Exception ex)
-        {
-            blockActivity?.SetStatus(ActivityStatusCode.Error, ex.Message);
-            throw;
-        }
-        finally
-        {
-            // Record block duration
-            if (blockActivity != null)
+            if (activity is not null)
             {
-                var blockDuration = blockActivity.Duration.TotalMilliseconds;
-
-                
-                DataFlowMetrics.BlockProcessingDuration.Record(
-                    blockDuration,
-                    dims);
+                activity.AddTags(_metrics.GlobalTags);
+                if (parentActivity is not null)
+                {
+                    activity.SetParentId(parentActivity.TraceId, parentActivity.SpanId);
+                }
+                if (!string.IsNullOrWhiteSpace(name))
+                {
+                    activity.AddTag(DataFlowMetrics.TagNames.FlowName, name);
+                }
+                activity.AddTag(DataFlowMetrics.TagNames.BlockName, block.Name);
+                activity.DisplayName = block.Name;                
             }
-        }
+
+            // blockActivity?.AddTag(DataFlowMetrics.TagNames.FlowInvocationId, context.InvocationId);
+            try
+            {
+                await block.ExecuteAsync(context);
+                activity?.SetStatus(ActivityStatusCode.Ok);
+            }
+            catch (Exception ex)
+            {
+                activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+                throw;
+            }
+            finally
+            {
+                // Record block duration
+                if (activity != null)
+                {
+                    activity.Stop();
+                    var blockDuration = activity.Duration.TotalMilliseconds;
+
+                    _metrics.BlockCompleted(blockDuration, name, block.Name, context, activity.Status == ActivityStatusCode.Ok);
+                }
+            }
+        }      
+
     }
 }

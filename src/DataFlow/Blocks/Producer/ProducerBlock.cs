@@ -13,17 +13,15 @@ using Uniun.DataFlow.Metrics;
 public class ProducerBlock<TOutput> : BlockBase, ISourceBlock<TOutput>
 {
     private readonly Func<IDataFlowContext, CancellationToken, Task<IEnumerable<IStreamProducer<TOutput>>>> _producersFactory;
-    private readonly BoundedChannelOptions _outputChannelOptions;
-    private readonly Channel<TOutput> _outputChannel;
+    private readonly MonitoredChannel<TOutput> _outputChannel;
 
     public ProducerBlock(
         string name,
-        Func<IDataFlowContext, CancellationToken, Task<IEnumerable<IStreamProducer<TOutput>>>> producersFactory,
-        BlockOptions? options = null) : base(name, options)
+         IBoundedChannelFactory channelFactory,
+        ProducerBlockOptions<TOutput> options) : base(name, options)
     {
-        _producersFactory = producersFactory;
-        _outputChannelOptions = Options.ChannelOptions ?? new BoundedChannelOptions(100);
-        _outputChannel = Channel.CreateBounded<TOutput>(_outputChannelOptions);     
+        _producersFactory = options.ProducersFactory;
+        _outputChannel = channelFactory.CreateMonitoredChannel<TOutput>(name, options.Capacity);   
     }
 
    // private ChannelReader<TOutput> Reader => _outputChannel.Reader;
@@ -40,10 +38,11 @@ public class ProducerBlock<TOutput> : BlockBase, ISourceBlock<TOutput>
 
             // thought: if we wanted truly dynamic producers (instead of providing them upfront before the data is processed),
             // we could use a router block.
+            _outputChannel.StartMonitoring(context);
             var producers = await _producersFactory(context, context.CancellationToken);
             var producersArray = producers.ToArray();
 
-            using var monitoredChannel = this.CreateMonitoredChannel(_outputChannelOptions.Capacity, context, _outputChannel);
+          //  using var monitoredChannel = this.CreateMonitoredChannel(_outputChannel.Capacity, context, _outputChannel);
             await ExecuteParallelActivities(context, producers.Count(), async (index, ctx) =>
             {
                 // its safe to concurrently index into a list that isn't being modified.  

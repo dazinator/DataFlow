@@ -6,27 +6,40 @@ using Microsoft.Extensions.DependencyInjection;
 public class ProjectorBlockTests
 {
     public class ProcessedItems : ConcurrentBag<string> { }
-    private readonly ProcessedItems _processedItems = new();
+
+    public ProjectorBlockTests()
+    {
+        AddDefaultServices();
+    }
+
+    private void AddDefaultServices()
+    {
+        Services.AddDataFlows();
+        Services.AddDataFlowMetrics();
+    }
+
+    public IServiceCollection Services { get; set; } = new ServiceCollection();
+
 
     [Fact]
     public async Task ProjectorBlock_ProjectsItemsCorrectly()
     {
         // Arrange
         var items = Enumerable.Range(1, 5);
-        var services = new ServiceCollection();
-        services.AddDataFlows(maxConcurrentFlows: 1)
-            .AddDataFlow<TestProjectorConfig>();
+
+        Services
+             .AddDataFlow<TestProjectorConfig>("test");
 
         var producedItems = new ConcurrentBag<int>();
         var processedItems = new ConcurrentBag<string>();
 
-        services.AddSingleton(new TestProducer<int>(items));
-        services.AddSingleton(new TestProjector<int, string>(
+        Services.AddSingleton(new TestProducer<int>(items));
+        Services.AddSingleton(new TestProjector<int, string>(
             input => new[] { $"{input}_A", $"{input}_B", $"{input}_C" }));
-        services.AddSingleton(new TestProcessor<string>(
+        Services.AddSingleton(new TestProcessor<string>(
             onProcessItem: item => processedItems.Add(item)));
 
-        await using var provider = services.BuildServiceProvider();
+        await using var provider = Services.BuildServiceProvider();
         var executor = provider.GetRequiredService<FlowExecutor<TestProjectorConfig>>();
 
         // Act
@@ -50,21 +63,21 @@ public class ProjectorBlockTests
     {
         // Arrange
         var items = Enumerable.Range(1, 5);
-        var services = new ServiceCollection();
-        services.AddDataFlows(maxConcurrentFlows: 1)
-            .AddDataFlow<TestProjectorConfig>();
+
+        Services
+           .AddDataFlow<TestProjectorConfig>("test");
 
         var producedItems = new ConcurrentBag<int>();
         var processedItems = new ConcurrentBag<string>();
 
         //services.AddSingleton(_processedItems);
-        services.AddSingleton(new TestProducer<int>(items));
-        services.AddSingleton(new TestProjector<int, string>(
+        Services.AddSingleton(new TestProducer<int>(items));
+        Services.AddSingleton(new TestProjector<int, string>(
             input => Enumerable.Empty<string>()));
-        services.AddSingleton(new TestProcessor<string>(
+        Services.AddSingleton(new TestProcessor<string>(
             onProcessItem: item => processedItems.Add(item)));
 
-        await using var provider = services.BuildServiceProvider();
+        await using var provider = Services.BuildServiceProvider();
         var executor = provider.GetRequiredService<FlowExecutor<TestProjectorConfig>>();
 
         // Act
@@ -81,22 +94,22 @@ public class ProjectorBlockTests
         // Arrange
         var items = Enumerable.Range(1, 5);
 
-        var services = new ServiceCollection();
-        services.AddDataFlows(maxConcurrentFlows: 1)
-            .AddDataFlow<TestProjectorConfig>();
+
+        Services
+           .AddDataFlow<TestProjectorConfig>("test");
 
         var producedItems = new ConcurrentBag<int>();
         var processedItems = new ConcurrentBag<string>();
 
-        services.AddSingleton(new TestProducer<int>(items));
-        services.AddSingleton(new TestProjector<int, string>(
+        Services.AddSingleton(new TestProducer<int>(items));
+        Services.AddSingleton(new TestProjector<int, string>(
             input => new[] { $"{input}_A", $"{input}_B", $"{input}_C" },
             delay: TimeSpan.FromMilliseconds(100)));
-        services.AddSingleton(new TestProcessor<string>(
+        Services.AddSingleton(new TestProcessor<string>(
             onProcessItem: item => processedItems.Add(item)));
 
 
-        await using var provider = services.BuildServiceProvider();
+        await using var provider = Services.BuildServiceProvider();
         var executor = provider.GetRequiredService<FlowExecutor<TestProjectorConfig>>();
 
         using var cts = new CancellationTokenSource();
@@ -140,23 +153,23 @@ public class ProjectorBlockTests
             });
 
         var items = Enumerable.Range(1, 5);
-        var services = new ServiceCollection();
-        services.AddDataFlows(maxConcurrentFlows: 1)
-            .AddDataFlow<TestProjectorConfig>();
+
+        Services
+            .AddDataFlow<TestProjectorConfig>("test");
 
         var producedItems = new ConcurrentBag<int>();
         var processedItems = new ConcurrentBag<string>();
 
-        services.AddSingleton(tracker);
-        services.AddSingleton(new TestProducer<int>(items));
-        services.AddSingleton(new TestProjector<int, string>(
+        Services.AddSingleton(tracker);
+        Services.AddSingleton(new TestProducer<int>(items));
+        Services.AddSingleton(new TestProjector<int, string>(
             input => new[] { $"{input}_A", $"{input}_B", $"{input}_C" },
             delay: TimeSpan.FromMilliseconds(50),
             tracker: tracker));
-        services.AddSingleton(new TestProcessor<string>(
+        Services.AddSingleton(new TestProcessor<string>(
             onProcessItem: item => processedItems.Add(item)));
 
-        await using var provider = services.BuildServiceProvider();
+        await using var provider = Services.BuildServiceProvider();
         var executor = provider.GetRequiredService<FlowExecutor<TestProjectorConfig>>();
 
         // Act

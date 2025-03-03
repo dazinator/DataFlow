@@ -17,11 +17,13 @@ public class DataFlowBuilder : IDataFlowBuilder
 
     public IServiceProvider ServiceProvider { get; }
 
+    public string Name { get; set; }
+
     public DataFlow Build()
     {
         var blocks = Blocks.Values.ToList();
         var metrics = ServiceProvider.GetRequiredService<IDataFlowMetrics>();
-        return new DataFlow(blocks, metrics);       
+        return new DataFlow(Name, blocks, metrics);       
     }
 }
 

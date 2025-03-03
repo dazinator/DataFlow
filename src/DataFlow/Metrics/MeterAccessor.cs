@@ -1,5 +1,7 @@
 // ReSharper disable once CheckNamespace
 namespace Uniun.DataFlow.Metrics;
+
+using System.Diagnostics;
 using System.Diagnostics.Metrics;
 
 /// <summary>
@@ -22,7 +24,3 @@ public class MeterAccessor: IMeterAccessor
         Meter = meterFactory.Create(MeterName);
     }
 }
-
-
-
-

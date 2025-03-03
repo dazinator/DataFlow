@@ -2,23 +2,34 @@ namespace Tests.DataFlow;
 
 using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
-using System.Threading.Channels;
 using Tests.DataFlow.Utils;
 
 public class DataFlowComplexScenarioTests
 {
+    public DataFlowComplexScenarioTests()
+    {        
+        Services = new ServiceCollection();
+        AddDefaultServices();
+    }
+
+    private void AddDefaultServices()
+    {
+        Services.AddDataFlowMetrics();
+        Services.AddDataFlows();
+    }
+
+    public IServiceCollection Services { get; set; }
     [Fact]
     public async Task ProcessingLargeDataSet_WithBackpressure_WorksCorrectly()
     {
-        // Arrange
-        var services = new ServiceCollection();
+        // Arrange      
         var processedItems = new ConcurrentBag<int>();
 
-        services.AddDataFlows(maxConcurrentFlows: 1)
-            .AddDataFlow<LargeDataFlowConfig>()
+        Services
+            .AddDataFlow<LargeDataFlowConfig>("test")
             .AddSingleton(processedItems);
 
-        await using var provider = services.BuildServiceProvider();
+        await using var provider = Services.BuildServiceProvider();
         var executor = provider.GetRequiredService<FlowExecutor<LargeDataFlowConfig>>();
 
         // Act
@@ -37,10 +48,8 @@ public class DataFlowComplexScenarioTests
             var options = new BlockOptions
             {
                 MaxConcurrency = 4,
-                ChannelOptions = new BoundedChannelOptions(10)
-                {
-                    FullMode = BoundedChannelFullMode.Wait
-                }
+                Capacity = 10,
+
             };
 
             // Using the fluent API with type-safe linking

@@ -1,7 +1,6 @@
 namespace Uniun.DataFlow.Blocks.BatchBlock;
 using System;
 using System.Collections.Generic;
-using System.Resources;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Extensions.ObjectPool;
@@ -19,23 +18,22 @@ using Uniun.DataFlow.Metrics;
 public class BatchBlock<T> : BlockBase, IPropagatorBlock<T, T[]>
 {
     private readonly BatchProcessor<T> _batchProcessor;
-    private readonly BoundedChannelOptions _outputChannelOptions;
-    private readonly Channel<T[]> _outputChannel;
+    private readonly MonitoredChannel<T[]> _outputChannel;
+    private readonly IBoundedChannelFactory _channelFactory;
     private ISourceBlock<T>? _source;
 
     public BatchBlock(
         string name,
-        int maxBatchSize,
-        TimeSpan windowPeriod,
-        BlockOptions? options = null) : base(name, options)
+        IBoundedChannelFactory channelFactory,
+        BatchBlockOptions options) : base(name, options)
     {
-        if (maxBatchSize <= 0)
+        if (options.MaxBatchSize <= 0)
         {
-            throw new ArgumentException("Max batch size must be greater than 0", nameof(maxBatchSize));
+            throw new ArgumentException("Max batch size must be greater than 0", nameof(options.MaxBatchSize));
         }
-        _outputChannelOptions = Options.ChannelOptions ?? new BoundedChannelOptions(100);
-        _outputChannel = Channel.CreateBounded<T[]>(_outputChannelOptions);
-        _batchProcessor = new BatchProcessor<T>(maxBatchSize, windowPeriod, _outputChannel.Writer);
+        _channelFactory = channelFactory;        
+        _outputChannel = _channelFactory.CreateMonitoredChannel<T[]>(name, options?.Capacity);      
+        _batchProcessor = new BatchProcessor<T>(options.MaxBatchSize, options.WindowPeriod, _outputChannel.Writer);       
     }
 
     public void SetSource(ISourceBlock<T> source)
@@ -60,11 +58,12 @@ public class BatchBlock<T> : BlockBase, IPropagatorBlock<T, T[]>
 
 
     protected override async Task CoreExecuteAsync(IDataFlowContext context)
-    {       
+    {
         try
         {
+            _outputChannel.StartMonitoring(context);
             EnsureSourceReader();
-            using var monitoredChannel = this.CreateMonitoredChannel(_outputChannelOptions.Capacity, context, _outputChannel);
+            //using var monitoredChannel = this.CreateMonitoredChannel(_outputChannelOptions.Capacity, context, _outputChannel);
             await ReadAllAsync(context);
         }
         finally
@@ -217,6 +216,6 @@ public class BatchBlock<T> : BlockBase, IPropagatorBlock<T, T[]>
         }
     }
 
-   
-    
+
+
 }

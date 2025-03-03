@@ -13,23 +13,29 @@ public class MonitoredChannelTests
 
     public MonitoredChannelTests()
     {
-        Services = new ServiceCollection();      
+        Services = new ServiceCollection();
+        AddDefaultServices();
     }
 
     private void AddDefaultServices()
-    {      
-        Services.AddMetrics();
-        Services.AddDataFlowMetricsMeter();
-        Services.AddSingleton<DataFlowMetrics>();
+    {
+        Services.AddDataFlowMetrics();
+        Services.AddDataFlows();
+       // Services.AddSingleton<IDataFlowMetrics, DataFlowMetrics>();
     }
 
     [Fact]
-    public async Task Should_Capture_Metrics_From_Monitored_Channel()
+    public async Task Should_Capture_ChannelBufferUtilisation()
     {
         // Arrange
-        var testContext = new TestDataFlowContext();
-        testContext.AddDimension("tenant.id", "test-tenant-123");
-        testContext.AddDimension("flow.id", "test-flow-456");
+        Guid invocationId = Guid.NewGuid();
+        var testContext = new TestDataFlowContext()
+        {
+            InvocationId = invocationId,
+            Name = "test-flow"
+        };
+       // testContext.AddDimension("tenant.id", "test-tenant-123");
+      //  testContext.AddDimension(DataFlowMetrics.TagNames., "test-flow-456");
 
         var channelCapacity = 100;
         var testBlockName = "test-block";
@@ -38,13 +44,10 @@ public class MonitoredChannelTests
         var meterFactory = services.GetRequiredService<IMeterFactory>();
         var collector = new MetricCollector<int>(meterFactory, MeterAccessor.MeterName, DataFlowMetrics.InstrumentNames.ChannelBufferUtilizationMetricName);
 
-        var metrics = services.GetRequiredService<DataFlowMetrics>();
-
-        using var channel = testContext.CreateMonitoredChannel<string>(
-            metrics,
-            testBlockName,
-            channelCapacity);
-
+        var metrics = services.GetRequiredService<IDataFlowMetrics>();
+        var factory = new MonitoredChannelFactory(metrics);
+        var channel = factory.CreateMonitoredChannel<string>(testBlockName, channelCapacity);
+        channel.StartMonitoring(testContext);
         // Act - Write some items to the channel
         var itemsToWrite = 25; // 25% utilization
         for (var i = 0; i < itemsToWrite; i++)
@@ -52,14 +55,15 @@ public class MonitoredChannelTests
             await channel.Writer.WriteAsync($"Item-{i}");
         }
 
+        collector.RecordObservableInstruments();
+        await collector.WaitForMeasurementsAsync(2, TimeSpan.FromSeconds(10)); 
         var measurements = collector.GetMeasurementSnapshot();
         //Assert.Equal(1, measurements.Count);
         //Assert.Equal(15, measurements[0].Value);            
 
         // Find our specific channel's measurement
         var channelMeasurement = measurements.FirstOrDefault(m =>
-            m.Tags.Any(t => t.Key == "block.name" && t.Value.ToString() == testBlockName) &&
-            m.Tags.Any(t => t.Key == "tenant.id" && t.Value.ToString() == "test-tenant-123"));
+            m.Tags.Any(t => t.Key == DataFlowMetrics.TagNames.BlockName && t.Value.ToString() == testBlockName));
 
         Assert.NotNull(channelMeasurement);
 
@@ -67,23 +71,16 @@ public class MonitoredChannelTests
         Assert.Equal(25, channelMeasurement.Value);
 
         // Verify all dimensions were captured
+        //Assert.Contains(channelMeasurement.Tags,
+        //    t => t.Key == "tenant.id" && t.Value.ToString() == "test-tenant-123");
         Assert.Contains(channelMeasurement.Tags,
-            t => t.Key == "tenant.id" && t.Value.ToString() == "test-tenant-123");
+            t => t.Key == DataFlowMetrics.TagNames.FlowInvocationId && t.Value.ToString() == invocationId.ToString());
         Assert.Contains(channelMeasurement.Tags,
-            t => t.Key == "flow.id" && t.Value.ToString() == "test-flow-456");
-        Assert.Contains(channelMeasurement.Tags,
-            t => t.Key == "block.name" && t.Value.ToString() == testBlockName);
-
-        // Also check that the active channel count metric exists
-        var countMeasurements = measurements
-            .Where(m => m.Tags.Any(t => t.Key == "metric" && t.Value.ToString() == "active_channel_count")).ToList();
+            t => t.Key == DataFlowMetrics.TagNames.BlockName && t.Value.ToString() == testBlockName);
 
         //var countMeasurements = metricCollector.GetMeasurements(DataFlowMetrics.ChannelBufferUtilizationMetricName)
         //    .Where(m => m.Tags.Any(t => t.Key == "metric" && t.Value.ToString() == "active_channel_count"))
-        //    .ToList();
-
-        Assert.Single(countMeasurements);
-        Assert.Equal(1, countMeasurements[0].Value);
+        //    .ToList();     
     }
 
     public IServiceCollection Services { get; set; }
@@ -174,18 +171,18 @@ public class MonitoredChannelTests
 // Test implementation of IDataFlowContext
 public class TestDataFlowContext : IDataFlowContext
 {
-    private readonly Dictionary<string, string> _dimensionsInternal = new Dictionary<string, string>();
+    //private readonly Dictionary<string, string> _dimensionsInternal = new Dictionary<string, string>();
 
     public IServiceProvider ServiceProvider { get; set; } = new TestServiceProvider();
     public CancellationToken CancellationToken { get; set; } = CancellationToken.None;
-    public IDictionary<string, string> Dimensions => _dimensionsInternal;
+    //public IDictionary<string, string> Dimensions => _dimensionsInternal;
 
     public Guid InvocationId { get; set; }
-
-    public void AddDimension(string key, string value)
-    {
-        _dimensionsInternal[key] = value;
-    }
+    public string Name { get; set; }
+    //public void AddDimension(string key, string value)
+    //{
+    //    _dimensionsInternal[key] = value;
+    //}
 }
 
 // Simple service provider for testing

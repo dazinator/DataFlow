@@ -1,5 +1,8 @@
 // ReSharper disable once CheckNamespace
 namespace Uniun.DataFlow;
+
+using Microsoft.Extensions.Options;
+
 /// <summary>
 /// Global throttle for controlling concurrent flow executions across the application
 /// </summary>
@@ -7,15 +10,15 @@ public class DataFlowThrottler
 {
     private readonly SemaphoreSlim _semaphore;
 
-    public DataFlowThrottler(int maxConcurrentFlows)
+    public DataFlowThrottler(IOptions<DataFlowsOptions> options)
     {
+        var maxConcurrentFlows = options.Value.MaxConcurrentFlows;
         if (maxConcurrentFlows <= 0)
         {
             throw new ArgumentException("Max concurrent flows must be greater than 0", nameof(maxConcurrentFlows));
         }
-
         _semaphore = new SemaphoreSlim(maxConcurrentFlows);
-    }
+    }   
 
     public async Task ExecuteFlowAsync(IDataFlow flow, IDataFlowContext context)
     {

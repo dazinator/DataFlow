@@ -4,6 +4,6 @@ namespace Uniun.DataFlow.Metrics;
 public record ChannelMetricSnapshot(
     int CurrentCount,
     int Capacity,
-    IReadOnlyDictionary<string, string> Dimensions);
+    IReadOnlyList<KeyValuePair<string, object?>> Tags);
 
 
