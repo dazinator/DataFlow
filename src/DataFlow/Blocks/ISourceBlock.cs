@@ -2,7 +2,6 @@
 namespace Uniun.DataFlow.Blocks;
 
 using System.Threading.Channels;
-using System.Threading.Tasks.Dataflow;
 
 // Interface for blocks that have an output channel (source blocks)
 public interface ISourceBlock<T> : IBlock

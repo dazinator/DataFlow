@@ -18,6 +18,7 @@ public class ObservableBlock<T> : BlockBase, ITargetBlock<T>
         BlockOptions? options = null) : base(name, options)
     {
         _observer = observer;
+
     }  
 
     public void SetSource(ISourceBlock<T> source)

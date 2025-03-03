@@ -29,8 +29,10 @@ public class RoutingBlockTests
     public void AddDefaultServices(IServiceCollection services)
     {
         Services.AddLogging(builder => builder.AddXUnit(Output));
-        Services.AddDataFlows(maxConcurrentFlows: 1);
+        services.AddDataFlows();
 
+        Services.AddMetrics();
+        Services.AddDataFlowMetrics();
         Services.AddMemoryCache();
     }
 
@@ -91,7 +93,7 @@ public class RoutingBlockTests
 
         var flow = builder.Build();
         var context = CreateContext("test", Guid.NewGuid(), sp);
-        await flow.ExecuteAsync(context, "MyFlow");
+        await flow.ExecuteAsync(context);
 
         // Let's log what we got
         logger.LogInformation("Route1 items: {Items}", string.Join(",", processedItems.GetValueOrDefault("route1", new List<int>())));
@@ -161,7 +163,7 @@ public class RoutingBlockTests
         var context = new DataFlowContext() { CancellationToken = default, ServiceProvider = sp };
 
         // Execute flow and wait for completion
-        await flow.ExecuteAsync(context, "MyFlow");
+        await flow.ExecuteAsync(context);
 
         // Wait a bit to ensure routes expire and are disposed
         await Task.Delay(TimeSpan.FromSeconds(3));
@@ -234,7 +236,8 @@ public class RoutingBlockTests
                                     result,
                                     context.RoutingKey);
                             }),
-                             new BlockOptions { MaxConcurrency = 1 });
+                        (o) => { o.MaxConcurrency = 1; });
+
 
 
                     // Second block: Process the transformed strings
@@ -275,14 +278,14 @@ public class RoutingBlockTests
 
         try
         {
-            await flow.ExecuteAsync(context, "MyFlow");
+            await flow.ExecuteAsync(context);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Flow execution error");
             throw; // Rethrow to fail the test
         }
-       
+
 
         // Assert
         // Verify transformations
@@ -310,7 +313,7 @@ public class RoutingBlockTests
         Assert.Equal(5, oddProcessed.Count);
         Assert.Equal(evenTransformations.OrderBy(x => x), evenProcessed.OrderBy(x => x));
         Assert.Equal(oddTransformations.OrderBy(x => x), oddProcessed.OrderBy(x => x));
-    } 
+    }
 
 
 }

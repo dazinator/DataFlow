@@ -51,13 +51,13 @@ public class RouteInfo<T> : IAsyncDisposable
         public void StartBlockExecution(DataFlow.Core.ITargetBlock<T> block, IDataFlowContext context)
         {
     */
-    public void StartBlockExecution(ITargetBlock<T> block, IDataFlowContext context)
+    public void StartFlowExecution(ITargetBlock<T> block, IDataFlowContext context)
     {
         block.SetSource(ChannelBlock);
         // Start executing the block and track execution
         // _logger.LogDebug("Adding executing task for route {routingKey}", routingKey);
         // Start executing the sub DataFlow for the route.
-        var executingTask = DataFlow.ExecuteAsync(context, Context.RoutingKey);
+        var executingTask = DataFlow.ExecuteAsync(context);
 
         //var executingTask = block.ExecuteAsync(context);
         RouteExecuting = new RouteExecution(executingTask);

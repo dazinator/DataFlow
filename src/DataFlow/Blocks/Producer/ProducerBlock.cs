@@ -4,6 +4,7 @@ namespace Uniun.DataFlow.Blocks.Producer;
 
 using System.Threading.Channels;
 using Uniun.DataFlow;
+using Uniun.DataFlow.Metrics;
 
 /// <summary>
 /// A block that produces items for downstream blocks to consume.
@@ -12,29 +13,23 @@ using Uniun.DataFlow;
 public class ProducerBlock<TOutput> : BlockBase, ISourceBlock<TOutput>
 {
     private readonly Func<IDataFlowContext, CancellationToken, Task<IEnumerable<IStreamProducer<TOutput>>>> _producersFactory;
-    private readonly Channel<TOutput> _channel;
+    private readonly MonitoredChannel<TOutput> _outputChannel;
 
     public ProducerBlock(
         string name,
-        Func<IDataFlowContext, CancellationToken, Task<IEnumerable<IStreamProducer<TOutput>>>> producersFactory,
-        BlockOptions? options = null) : base(name, options)
+         IBoundedChannelFactory channelFactory,
+        ProducerBlockOptions<TOutput> options) : base(name, options)
     {
-        _producersFactory = producersFactory;
-        _channel = Channel.CreateBounded<TOutput>(GetChannelOptions(Options));
+        _producersFactory = options.ProducersFactory;
+        _outputChannel = channelFactory.CreateMonitoredChannel<TOutput>(name, options.Capacity);   
     }
 
-    private ChannelReader<TOutput> Reader => _channel.Reader;
+   // private ChannelReader<TOutput> Reader => _outputChannel.Reader;
 
     public ChannelReader<TOutput> GetReader(ITargetBlock<TOutput> target)
     {
-        return Reader;
-    }
-
-    private BoundedChannelOptions GetChannelOptions(BlockOptions? options)
-    {
-        var channelOptions = options?.ChannelOptions ?? new BoundedChannelOptions(100);
-        return channelOptions;
-    }
+        return _outputChannel.Reader;
+    }  
 
     protected override async Task CoreExecuteAsync(IDataFlowContext context)
     {
@@ -43,22 +38,24 @@ public class ProducerBlock<TOutput> : BlockBase, ISourceBlock<TOutput>
 
             // thought: if we wanted truly dynamic producers (instead of providing them upfront before the data is processed),
             // we could use a router block.
+            _outputChannel.StartMonitoring(context);
             var producers = await _producersFactory(context, context.CancellationToken);
             var producersArray = producers.ToArray();
 
+          //  using var monitoredChannel = this.CreateMonitoredChannel(_outputChannel.Capacity, context, _outputChannel);
             await ExecuteParallelActivities(context, producers.Count(), async (index, ctx) =>
             {
                 // its safe to concurrently index into a list that isn't being modified.  
                 var producer = producersArray[index];
                 await foreach (var item in producer.ProduceAsync(ctx.CancellationToken))
                 {
-                    await _channel.Writer.WriteAsync(item, ctx.CancellationToken);
+                    await _outputChannel.Writer.WriteAsync(item, ctx.CancellationToken);
                 }
             });
         }
         finally
         {
-            _channel.Writer.Complete();
+            _outputChannel.Writer.Complete();
         }
     }
 }

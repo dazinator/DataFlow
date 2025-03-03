@@ -14,7 +14,7 @@ public class RoutingBlock<T> : BlockBase, ITargetBlock<T>
     private readonly Func<RoutingContext<T>, (DataFlow DataFlow, ITargetBlock<T> TargetBlock)> _routeResolver;
     private readonly IMemoryCache _routeCache;
     private readonly TimeSpan _routeExpiration;
-    private readonly RoutingOptions _options;
+    private readonly IBoundedChannelFactory _channelFactory;
     private ISourceBlock<T>? _source;
     private readonly ILogger<RoutingBlock<T>> _logger;
 
@@ -32,20 +32,19 @@ public class RoutingBlock<T> : BlockBase, ITargetBlock<T>
 
     public RoutingBlock(
         string name,
-        Func<T, string> routingKeySelector,
-        Func<RoutingContext<T>, (DataFlow DataFlow, ITargetBlock<T> TargetBlock)> routeResolver,
-        RoutingOptions options,
-        ILogger<RoutingBlock<T>> logger) : base(name, options)
+           IBoundedChannelFactory channelFactory,
+           RoutingBlockOptions<T> options,
+           ILogger<RoutingBlock<T>> logger) : base(name, options)
     {
-        _routingKeySelector = routingKeySelector;
-        _routeResolver = routeResolver;
+        _routingKeySelector = options.RoutingKeySelector;
+        _routeResolver = options.RouteResolver;
         _routeCache = options.RouteCache;
-        _options = options;
+        _channelFactory = channelFactory;
         _routeExpiration = options.RouteExpiration;
         _logger = logger;
     }
 
-    
+
     public void SetSource(ISourceBlock<T> source)
     {
         _source = source;
@@ -294,11 +293,11 @@ public class RoutingBlock<T> : BlockBase, ITargetBlock<T>
                 routingContext.DataFlow = dataFlow;
                 routingContext.TargetBlock = targetBlock;
 
-                var channelBlock = new InputChannelBlock<T>($"{targetBlock.Name}-route", Options);
+                var channelBlock = new InputChannelBlock<T>($"{targetBlock.Name}-route", _channelFactory, Options);
                 routeInfo = new RouteInfo<T>(routingContext, channelBlock, routeScope);
 
                 _logger.LogDebug("Starting DataFlow execution for route: {routingKey}", routingKey);
-                routeInfo.StartBlockExecution(targetBlock, context);
+                routeInfo.StartFlowExecution(targetBlock, context);
 
                 var cacheEntryOptions = new MemoryCacheEntryOptions()
               .SetSlidingExpiration(_routeExpiration)

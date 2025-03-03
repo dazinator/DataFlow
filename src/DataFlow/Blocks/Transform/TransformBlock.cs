@@ -2,29 +2,36 @@
 
 namespace Uniun.DataFlow.Blocks.Transform;
 
-using System.Resources;
 using System.Threading.Channels;
 using Uniun.DataFlow;
 using Uniun.DataFlow.Actor;
+using Uniun.DataFlow.Metrics;
 
 // Transform block for data transformation
+
+public class TransformBlockOptions<TIn, TOut> : BlockOptions
+{
+    public Func<IServiceProvider, IStreamTransformer<TIn, TOut>> TransformerFactory { get; set; }
+}
 public class TransformBlock<TIn, TOut> : BlockBase, IPropagatorBlock<TIn, TOut>
 {
     private readonly Func<IServiceProvider, IStreamTransformer<TIn, TOut>> _transformerFactory;
-    private readonly Channel<TOut> _output;
+    private readonly IBoundedChannelFactory _channelFactory;   
+    private readonly MonitoredChannel<TOut> _outputChannel;
     private ISourceBlock<TIn>? _source;
 
     public TransformBlock(
         string name,
-        Func<IServiceProvider, IStreamTransformer<TIn, TOut>> transformerFactory,
-        BlockOptions? options = null
+        IBoundedChannelFactory channelFactory,
+        TransformBlockOptions<TIn, TOut> options
     ) : base(name, options)
     {
-        _transformerFactory = transformerFactory;
-        _output = Channel.CreateBounded<TOut>(Options.ChannelOptions ?? new BoundedChannelOptions(100));
+        _transformerFactory = options.TransformerFactory;
+        _channelFactory = channelFactory;
+        _outputChannel = _channelFactory.CreateMonitoredChannel<TOut>(name, options?.Capacity);
     }   
 
-    private ChannelReader<TOut> Reader => _output.Reader;
+   // private ChannelReader<TOut> Reader => _output.Reader;
 
     public void SetSource(ISourceBlock<TIn> source)
     {
@@ -46,7 +53,7 @@ public class TransformBlock<TIn, TOut> : BlockBase, IPropagatorBlock<TIn, TOut>
 
     public ChannelReader<TOut> GetReader(ITargetBlock<TOut> target)
     {
-        return Reader;
+        return _outputChannel.Reader;
     }
 
     protected override async Task CoreExecuteAsync(IDataFlowContext context)
@@ -54,7 +61,9 @@ public class TransformBlock<TIn, TOut> : BlockBase, IPropagatorBlock<TIn, TOut>
         EnsureSourceReader();
 
         try
-        {           
+        {
+            _outputChannel.StartMonitoring(context);
+            // var monitoredChannel = this.CreateMonitoredChannel(_outputChannelOptions.Capacity, context, _outputChannel);
             await ExecuteParallelActivities(context, Options.MaxConcurrency, ExecuteStreamTransformerAsync);
            
             // Source channel should be fully drained
@@ -63,7 +72,7 @@ public class TransformBlock<TIn, TOut> : BlockBase, IPropagatorBlock<TIn, TOut>
         finally
         {
             // ensure channel is completed so downstream blocks will know there is no more data expected.
-            _output.Writer.Complete();
+            _outputChannel.Writer.Complete();
         }
     }
 
@@ -76,7 +85,7 @@ public class TransformBlock<TIn, TOut> : BlockBase, IPropagatorBlock<TIn, TOut>
         await foreach (var result in transformer.TransformAsync(input, context.CancellationToken)
             .WithCancellation(context.CancellationToken))
         {
-            await _output.Writer.WriteAsync(result, context.CancellationToken);
+            await _outputChannel.Writer.WriteAsync(result, context.CancellationToken);
         }
     }
 

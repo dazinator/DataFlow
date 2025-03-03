@@ -4,6 +4,18 @@ using System.Collections.Concurrent;
 
 public class ProducerBlockTests
 {
+    public ProducerBlockTests()
+    {
+        AddDefaultServices();
+    }
+
+    private void AddDefaultServices()
+    {
+        Services.AddDataFlows();
+        Services.AddDataFlowMetrics();
+    }
+
+    public IServiceCollection Services { get; set; } = new ServiceCollection();
 
     [Fact]
     public async Task ProducerBlock_ProducesAllItems()
@@ -14,21 +26,20 @@ public class ProducerBlockTests
         var producedItems = new ConcurrentBag<int>();
         var processedItems = new ConcurrentBag<int>();
 
-        var services = new ServiceCollection();
-        services.AddDataFlows(maxConcurrentFlows: 1)
-            .AddDataFlow<TestProducerConfig>();
+        Services
+             .AddDataFlow<TestProducerConfig>("test");
 
         // services.AddSingleton(producedItems);
         // services.AddSingleton(processedItems);
         // Register other dependencies needed by the producers
-        services.AddSingleton(new TestProducer<int>(
+        Services.AddSingleton(new TestProducer<int>(
             items,
             onItemProduced: item => producedItems.Add(item),
             delay: TimeSpan.FromMilliseconds(10)));
-        services.AddSingleton(new TestProcessor<int>(
+        Services.AddSingleton(new TestProcessor<int>(
             onProcessItem: item => processedItems.Add(item)));
 
-        await using var provider = services.BuildServiceProvider();
+        await using var provider = Services.BuildServiceProvider();
         var executor = provider.GetRequiredService<FlowExecutor<TestProducerConfig>>();
 
         // Act
@@ -68,24 +79,24 @@ public class ProducerBlockTests
             });
 
         var items = Enumerable.Range(0, 10);
-        var services = new ServiceCollection();
-        services.AddDataFlows(maxConcurrentFlows: 1)
-            .AddDataFlow<ConcurrencyTestConfig>();
+
+        Services
+             .AddDataFlow<ConcurrencyTestConfig>("test");
 
         var producedItems = new ConcurrentBag<int>();
         var processedItems = new ConcurrentBag<int>();
         // services.AddSingleton(_producedItems);
         // services.AddSingleton(_processedItems);
-        services.AddSingleton(tracker);
-        services.AddSingleton(new ConcurrencyTestProducer<int>(
+        Services.AddSingleton(tracker);
+        Services.AddSingleton(new ConcurrencyTestProducer<int>(
             items,
             tracker,
             onItemProduced: item => producedItems.Add(item),
             workDelay: TimeSpan.FromMilliseconds(50)));
-        services.AddSingleton(new TestProcessor<int>(
+        Services.AddSingleton(new TestProcessor<int>(
             onProcessItem: item => processedItems.Add(item)));
 
-        await using var provider = services.BuildServiceProvider();
+        await using var provider = Services.BuildServiceProvider();
         var executor = provider.GetRequiredService<FlowExecutor<ConcurrencyTestConfig>>();
 
         // Act
@@ -103,24 +114,24 @@ public class ProducerBlockTests
     {
         // Arrange
         var items = Enumerable.Range(0, 10);
-        var services = new ServiceCollection();
-        services.AddDataFlows(maxConcurrentFlows: 1)
-            .AddDataFlow<SlowProducerConfig>();
+
+        Services
+            .AddDataFlow<SlowProducerConfig>("test");
 
         var producedItems = new ConcurrentBag<int>();
         var processedItems = new ConcurrentBag<int>();
 
         //  services.AddSingleton(_producedItems);
         //  services.AddSingleton(_processedItems);
-        services.AddSingleton(new TestProducer<int>(
+        Services.AddSingleton(new TestProducer<int>(
             items,
             onItemProduced: item => producedItems.Add(item),
             delay: TimeSpan.FromSeconds(5)));
-        services.AddSingleton(new TestProcessor<int>(
+        Services.AddSingleton(new TestProcessor<int>(
             delay: TimeSpan.FromSeconds(5),
             onProcessItem: item => processedItems.Add(item)));
 
-        await using var provider = services.BuildServiceProvider();
+        await using var provider = Services.BuildServiceProvider();
         var executor = provider.GetRequiredService<FlowExecutor<SlowProducerConfig>>();
 
         using var cts = new CancellationTokenSource();
@@ -138,21 +149,21 @@ public class ProducerBlockTests
     {
         // Arrange
         var items = Enumerable.Range(0, 5);
-        var services = new ServiceCollection();
-        services.AddDataFlows(maxConcurrentFlows: 1)
-            .AddDataFlow<ErrorProducerConfig>();
+
+        Services
+            .AddDataFlow<ErrorProducerConfig>("test");
 
         var producedItems = new ConcurrentBag<int>();
         var processedItems = new ConcurrentBag<int>();
 
-        services.AddSingleton(new ErrorProducer<int>(
+        Services.AddSingleton(new ErrorProducer<int>(
             items,
             shouldError: item => item == 3,
             onItemProduced: item => producedItems.Add(item)));
-        services.AddSingleton(new TestProcessor<int>(
+        Services.AddSingleton(new TestProcessor<int>(
             onProcessItem: item => processedItems.Add(item)));
 
-        await using var provider = services.BuildServiceProvider();
+        await using var provider = Services.BuildServiceProvider();
         var executor = provider.GetRequiredService<FlowExecutor<ErrorProducerConfig>>();
 
         // Act & Assert

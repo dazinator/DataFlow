@@ -25,19 +25,31 @@ public static class RoutingBlockExtensions
     string name,
     Func<T, string> routingKeySelector,
     Func<RoutingContext<T>, (DataFlow DataFlow, ITargetBlock<T> TargetBlock)> routeResolver,
-    Action<RoutingOptions>? configureOptions = null)
+    Action<RoutingBlockOptions<T>>? configureOptions = null)
     {
-        var options = new RoutingOptions();
+        return AddRouter<T>(builder, name, (options) =>
+        {
+            options.RoutingKeySelector = routingKeySelector;
+            options.RouteResolver = routeResolver;
+            configureOptions?.Invoke(options);
+        });           
+    }
+
+    /// <summary>
+    /// Adds a router block.
+    /// </summary>
+    public static ITargetBlockBuilder<T> AddRouter<T>(
+        this IDataFlowBuilder builder,
+        string name,
+        Action<RoutingBlockOptions<T>> configureOptions
+    )
+    {
+        var options = new RoutingBlockOptions<T>();
         configureOptions?.Invoke(options);
-
-        var block = new RoutingBlock<T>(
-            name,
-            routingKeySelector,
-            routeResolver,
-            options,
-            builder.ServiceProvider.GetRequiredService<ILogger<RoutingBlock<T>>>());
-
+        //  configureOptions?.Invoke(options);
+        var block = ActivatorUtilities.CreateInstance<RoutingBlock<T>>(builder.ServiceProvider, name, options);
         return builder.AddTargetBlock(name, block);
     }
+
 }
 

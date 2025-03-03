@@ -1,7 +1,10 @@
 #pragma warning disable IDE0130 // Namespace does not match folder structure
 namespace Uniun.DataFlow.Blocks;
+
+using System.Reflection.Metadata.Ecma335;
 #pragma warning restore IDE0130 // Namespace does not match folder structure
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Uniun.DataFlow.Blocks.Producer;
 
 public static class ProducerExtensions
@@ -18,22 +21,22 @@ public static class ProducerExtensions
     public static ISourceBlockBuilder<TOutput> AddProducer<TOutput, TProducer>(
         this IDataFlowBuilder builder,
         string name,
-        BlockOptions? options = null
+        Action<ProducerBlockOptions<TOutput>>? configureOptions = null
     )
         where TProducer : class, IStreamProducer<TOutput>
     {
-        var block = new ProducerBlock<TOutput>(name,
-            async (context, ct) => new[]
+        return AddProducer<TOutput>(builder, name, (options) =>
+        {
+            options.ProducersFactory = async (context, ct) => new[]
             {
                 ActivatorUtilities.CreateInstance<TProducer>(context.ServiceProvider)
-            },
-            options);
-
-        return builder.AddSourceBlock(name, block);
+            };
+            configureOptions?.Invoke(options);
+        });
     }
 
     /// <summary>
-    /// Create a single producer using ActivatorUtilities.
+    /// Create a single producer using ActivatorUtilities with args.
     /// </summary>
     /// <param name="builder"></param>
     /// <param name="name"></param>
@@ -43,25 +46,50 @@ public static class ProducerExtensions
     /// <typeparam name="TProducer"></typeparam>
     /// <returns></returns>
     public static ISourceBlockBuilder<TOutput> AddProducer<TOutput, TProducer>(
-        this IDataFlowBuilder builder,
+         this IDataFlowBuilder builder,
         string name,
-        BlockOptions? options = null,
+        Action<ProducerBlockOptions<TOutput>>? configureOptions = null,
         params object[] args
     )
         where TProducer : class, IStreamProducer<TOutput>
     {
-        var block = new ProducerBlock<TOutput>(name,
-            async (context, ct) => new[]
+        return AddProducer<TOutput>(builder, name, (options) =>
+        {
+            options.ProducersFactory = async (context, ct) => new[]
             {
                 ActivatorUtilities.CreateInstance<TProducer>(context.ServiceProvider, args)
-            },
-            options);
-
-        return builder.AddSourceBlock(name, block);
+            };
+            configureOptions?.Invoke(options);
+        });
     }
 
     /// <summary>
-    /// Create a single producer using factory.
+    /// Adds a producer block.
+    /// </summary>
+    /// <param name="builder"></param>
+    /// <param name="name"></param>
+    /// <param name="options"></param>
+    /// <typeparam name="TOutput"></typeparam>
+    /// <typeparam name="TProducer"></typeparam>
+    /// <returns></returns>
+    public static ISourceBlockBuilder<TOutput> AddProducer<TOutput>(
+        this IDataFlowBuilder builder,
+        string name,
+        Action<ProducerBlockOptions<TOutput>> configureOptions
+    )
+    {
+        var options = new ProducerBlockOptions<TOutput>();
+        configureOptions?.Invoke(options);
+        //  configureOptions?.Invoke(options);
+        var block = ActivatorUtilities.CreateInstance<ProducerBlock<TOutput>>(builder.ServiceProvider, name, options);
+        return builder.AddSourceBlock(name, block);
+    }
+
+
+
+
+    /// <summary>
+    /// Adds a producer block using a factory delegate to supply the <see cref="IStreamProducer{TOutput}"/> actors.
     /// </summary>
     /// <param name="builder"></param>
     /// <param name="name"></param>
@@ -73,17 +101,17 @@ public static class ProducerExtensions
         this IDataFlowBuilder builder,
         string name,
         Func<IServiceProvider, IStreamProducer<TOutput>> factory,
-        BlockOptions? options = null
+        Action<ProducerBlockOptions<TOutput>>? configureOptions = null
     )
     {
-        var block = new ProducerBlock<TOutput>(name,
-            async (context, ct) => new[]
+        return AddProducer<TOutput>(builder, name, (options) =>
+        {
+            options.ProducersFactory = async (context, ct) => new[]
             {
-                factory(context.ServiceProvider)
-            },
-            options);
-
-        return builder.AddSourceBlock(name, block);
+                 factory(context.ServiceProvider)
+            };
+            configureOptions?.Invoke(options);
+        });
     }
 
     /// <summary>
@@ -99,20 +127,24 @@ public static class ProducerExtensions
     public static ISourceBlockBuilder<TOutput> AddProducers<TOutput, TFactory>(
         this IDataFlowBuilder builder,
         string name,
-        BlockOptions? options = null)
+        Action<ProducerBlockOptions<TOutput>>? configureOptions = null)
         where TFactory : class, IProducerFactory<TOutput>
     {
-        var block = new ProducerBlock<TOutput>(name,async (context, ct) =>
+        return AddProducer<TOutput>(builder, name, (options) =>
         {
-            var factory = ActivatorUtilities.CreateInstance<TFactory>(context.ServiceProvider);
-            var producers = new List<IStreamProducer<TOutput>>();
-            await foreach (var producer in factory.CreateProducersAsync(context, ct))
+            options.ProducersFactory = async (context, ct) =>
             {
-                producers.Add(producer);
-            }
-            return producers;
-        }, options);
-        return builder.AddSourceBlock(name, block);
+                var factory = ActivatorUtilities.CreateInstance<TFactory>(context.ServiceProvider);
+                var producers = new List<IStreamProducer<TOutput>>();
+                await foreach (var producer in factory.CreateProducersAsync(context, ct))
+                {
+                    producers.Add(producer);
+                }
+                return producers;
+            };
+            configureOptions?.Invoke(options);
+        });
+
     }
 
 
@@ -130,21 +162,24 @@ public static class ProducerExtensions
     public static ISourceBlockBuilder<TOutput> AddProducers<TOutput, TFactory>(
         this IDataFlowBuilder builder,
         string name,
-        BlockOptions? options = null,
+         Action<ProducerBlockOptions<TOutput>>? configureOptions = null,
         params object[] args)
         where TFactory : class, IProducerFactory<TOutput>
     {
-        var block = new ProducerBlock<TOutput>(name, async (context, ct) =>
+        return AddProducer<TOutput>(builder, name, (options) =>
         {
-            var factory = ActivatorUtilities.CreateInstance<TFactory>(context.ServiceProvider, args);
-            var producers = new List<IStreamProducer<TOutput>>();
-            await foreach (var producer in factory.CreateProducersAsync(context, ct))
+            options.ProducersFactory = async (context, ct) =>
             {
-                producers.Add(producer);
-            }
-            return producers;
-        }, options);
-        return builder.AddSourceBlock(name, block);
+                var factory = ActivatorUtilities.CreateInstance<TFactory>(context.ServiceProvider, args);
+                var producers = new List<IStreamProducer<TOutput>>();
+                await foreach (var producer in factory.CreateProducersAsync(context, ct))
+                {
+                    producers.Add(producer);
+                }
+                return producers;
+            };
+            configureOptions?.Invoke(options);
+        });
     }
 
 
@@ -161,19 +196,22 @@ public static class ProducerExtensions
         this IDataFlowBuilder builder,
         string name,
         IProducerFactory<TOutput> factory,
-        BlockOptions? options = null
+        Action<ProducerBlockOptions<TOutput>>? configureOptions = null
     )
     {
-        var block = new ProducerBlock<TOutput>(name, async (context, ct) =>
+        return AddProducer<TOutput>(builder, name, (options) =>
         {
-            var producers = new List<IStreamProducer<TOutput>>();
-            await foreach (var producer in factory.CreateProducersAsync(context, ct))
+            options.ProducersFactory = async (context, ct) =>
             {
-                producers.Add(producer);
-            }
+                var producers = new List<IStreamProducer<TOutput>>();
+                await foreach (var producer in factory.CreateProducersAsync(context, ct))
+                {
+                    producers.Add(producer);
+                }
 
-            return producers;
-        }, options);
-        return builder.AddSourceBlock(name, block);
+                return producers;
+            };
+            configureOptions?.Invoke(options);
+        });
     }
 }
