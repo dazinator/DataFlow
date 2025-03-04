@@ -55,7 +55,7 @@ public class DataFlow
                 if (!string.IsNullOrWhiteSpace(context.Name))
                 {
                     flowActivity.AddTag(DataFlowMetrics.TagNames.FlowName, context.Name);
-                    flowActivity.DisplayName = context.Name;
+                    flowActivity.DisplayName = $"{ActivityNames.FlowExecute}: {context.Name}";                  
                 }
             }
 
@@ -141,7 +141,7 @@ public class DataFlow
                 activity.AddTag(DataFlowMetrics.TagNames.FlowName, name);
             }
             activity.AddTag(DataFlowMetrics.TagNames.BlockName, block.Name);
-            activity.DisplayName = block.Name;
+            activity.DisplayName = $"{ActivityNames.BlockExecute}: {block.Name}";           
 
             // Add extra contextual information
             activity.AddTag("block.type", block.GetType().Name);
