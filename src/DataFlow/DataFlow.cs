@@ -125,46 +125,51 @@ public class DataFlow
     private async Task ExecuteBlockAsync(Activity? parentActivity, IBlock block, IDataFlowContext context)
     {
         var name = context.Name;
-        using (var activity = ActivitySource.StartActivity(ActivityNames.BlockExecute))
+
+        // Create the activity within the current activity's context
+        using var activity = ActivitySource.StartActivity(
+            ActivityNames.BlockExecute,
+            ActivityKind.Internal,
+            parentActivity?.Context ?? default); // Use ActivityContext instead of manual ID setting
+
+
+        if (activity is not null)
         {
-            if (activity is not null)
+            activity.AddTags(_metrics.GlobalTags);
+            if (!string.IsNullOrWhiteSpace(name))
             {
-                activity.AddTags(_metrics.GlobalTags);
-                if (parentActivity is not null)
-                {
-                    activity.SetParentId(parentActivity.TraceId, parentActivity.SpanId);
-                }
-                if (!string.IsNullOrWhiteSpace(name))
-                {
-                    activity.AddTag(DataFlowMetrics.TagNames.FlowName, name);
-                }
-                activity.AddTag(DataFlowMetrics.TagNames.BlockName, block.Name);
-                activity.DisplayName = block.Name;                
+                activity.AddTag(DataFlowMetrics.TagNames.FlowName, name);
             }
+            activity.AddTag(DataFlowMetrics.TagNames.BlockName, block.Name);
+            activity.DisplayName = block.Name;
 
-            // blockActivity?.AddTag(DataFlowMetrics.TagNames.FlowInvocationId, context.InvocationId);
-            try
-            {
-                await block.ExecuteAsync(context);
-                activity?.SetStatus(ActivityStatusCode.Ok);
-            }
-            catch (Exception ex)
-            {
-                activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
-                throw;
-            }
-            finally
-            {
-                // Record block duration
-                if (activity != null)
-                {
-                    activity.Stop();
-                    var blockDuration = activity.Duration.TotalMilliseconds;
+            // Add extra contextual information
+            activity.AddTag("block.type", block.GetType().Name);
+        }
 
-                    _metrics.BlockCompleted(blockDuration, name, block.Name, context, activity.Status == ActivityStatusCode.Ok);
-                }
+        // blockActivity?.AddTag(DataFlowMetrics.TagNames.FlowInvocationId, context.InvocationId);
+        try
+        {
+            await block.ExecuteAsync(context);
+            activity?.SetStatus(ActivityStatusCode.Ok);
+        }
+        catch (Exception ex)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+            throw;
+        }
+        finally
+        {
+            // Record block duration
+            if (activity != null)
+            {
+                // Make sure all tags are set before stopping
+                activity.Stop();
+                var blockDuration = activity.Duration.TotalMilliseconds;
+                _metrics.BlockCompleted(blockDuration, name, block.Name, context, activity.Status == ActivityStatusCode.Ok);
             }
-        }      
+        }
+
 
     }
 }
