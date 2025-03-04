@@ -51,6 +51,7 @@ public static class DataFlowRegistrationExtensions
         services.AddTransient(sp =>
         {
             var builder = new DataFlowBuilder(sp);
+            builder.Name = name;
             var config = new TConfig();
             config.Configure(builder);
             return new DataFlow<TConfig>(builder.Build());
