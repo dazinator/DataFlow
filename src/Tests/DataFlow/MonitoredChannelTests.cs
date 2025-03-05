@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.Metrics.Testing;
 using Uniun.DataFlow.Metrics;
 
+[IntegrationTest]
 public class MonitoredChannelTests
 {
 
@@ -21,7 +22,7 @@ public class MonitoredChannelTests
     {
         Services.AddDataFlowMetrics();
         Services.AddDataFlows();
-       // Services.AddSingleton<IDataFlowMetrics, DataFlowMetrics>();
+        // Services.AddSingleton<IDataFlowMetrics, DataFlowMetrics>();
     }
 
     [Fact]
@@ -34,8 +35,8 @@ public class MonitoredChannelTests
             InvocationId = invocationId,
             Name = "test-flow"
         };
-       // testContext.AddDimension("tenant.id", "test-tenant-123");
-      //  testContext.AddDimension(DataFlowMetrics.TagNames., "test-flow-456");
+        // testContext.AddDimension("tenant.id", "test-tenant-123");
+        //  testContext.AddDimension(DataFlowMetrics.TagNames., "test-flow-456");
 
         var channelCapacity = 100;
         var testBlockName = "test-block";
@@ -56,7 +57,7 @@ public class MonitoredChannelTests
         }
 
         collector.RecordObservableInstruments();
-        await collector.WaitForMeasurementsAsync(2, TimeSpan.FromSeconds(10)); 
+        await collector.WaitForMeasurementsAsync(2, TimeSpan.FromSeconds(10));
         var measurements = collector.GetMeasurementSnapshot();
         //Assert.Equal(1, measurements.Count);
         //Assert.Equal(15, measurements[0].Value);            
@@ -86,88 +87,11 @@ public class MonitoredChannelTests
     public IServiceCollection Services { get; set; }
 
     private IServiceProvider CreateServiceProvider()
-    {       
+    {
         return Services.BuildServiceProvider();
     }
 
-    //[Fact]
-    //public async Task Should_Cleanup_Disposed_Channel_References()
-    //{
-    //    // Create a collection to hold references to channels
-    //    var channels = new List<MonitoredChannel<int>>();
-
-    //    try
-    //    {
-
-
-    //        // Arrange
-    //        var testContext = new TestDataFlowContext();
-    //        var metricCollector = new TestMetricCollector();
-    //        metricCollector.RegisterMeter("Uniun.DataFlow");
-
-          
-
-    //        // Create 5 channels
-    //        for (int i = 0; i < 5; i++)
-    //        {
-    //            channels.Add(testContext.CreateMonitoredChannel<int>($"block-{i}", 10));
-    //        }
-
-    //        // Fill each channel with different amounts
-    //        for (int i = 0; i < channels.Count; i++)
-    //        {
-    //            for (int j = 0; j <= i; j++)
-    //            {
-    //                await channels[i].Writer.WriteAsync(j);
-    //            }
-    //        }
-
-    //        // Collect metrics and verify we have 5 channels
-    //        metricCollector.CollectMetrics();
-    //        var countBeforeDispose = metricCollector.GetMeasurements(DataFlowMetrics.ChannelBufferUtilizationMetricName)
-    //            .FirstOrDefault(m => m.Tags.Any(t => t.Key == "metric" && t.Value.ToString() == "active_channel_count"))?.Value;
-
-    //        Assert.Equal(5, countBeforeDispose);
-
-    //        // Dispose 3 channels
-    //        for (int i = 0; i < 3; i++)
-    //        {
-    //            channels[i].Dispose();
-    //        }
-
-    //        // Force GC to clean up weak references
-    //        GC.Collect();
-    //        GC.WaitForPendingFinalizers();
-
-    //        // Trigger cleanup directly (in production this would happen on timer)
-    //        // We're using an internal method to trigger cleanup method for testing
-    //        DataFlowMetrics.ChannelRegistry.PerformFullCleanup();
-
-    //        // Collect metrics again
-    //        metricCollector.CollectMetrics();
-
-    //        // Should now have only 2 active channels
-    //        var countAfterDispose = metricCollector.GetMeasurements(DataFlowMetrics.ChannelBufferUtilizationMetricName)
-    //            .FirstOrDefault(m => m.Tags.Any(t => t.Key == "metric" && t.Value.ToString() == "active_channel_count"))?.Value;
-
-    //        Assert.Equal(2, countAfterDispose);
-    //    }
-    //    finally
-    //    {
-    //        // Dispose all channels otherwise they remain tracked and we throw off other tests.
-    //        foreach (var item in channels)
-    //        {
-    //            item.Dispose();
-    //        }
-    //        channels.Clear();
-    //        // Force GC to clean up weak references
-    //        GC.Collect();
-    //        GC.WaitForPendingFinalizers();
-    //        // throw;
-    //    }
-    //}
 }
-
 // Test implementation of IDataFlowContext
 public class TestDataFlowContext : IDataFlowContext
 {

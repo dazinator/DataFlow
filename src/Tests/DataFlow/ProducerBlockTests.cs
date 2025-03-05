@@ -2,6 +2,7 @@ namespace Tests.DataFlow;
 
 using System.Collections.Concurrent;
 
+[IntegrationTest]
 public class ProducerBlockTests
 {
     public ProducerBlockTests()

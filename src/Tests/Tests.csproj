@@ -24,6 +24,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Serilog.Sinks.TestCorrelator" />
     <PackageReference Include="Shouldly" />
     <PackageReference Include="NSubstitute" />
     <PackageReference Include="MartinCostello.Logging.XUnit" />
@@ -41,7 +42,11 @@
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" />
     <PackageReference Include="Microsoft.Extensions.Diagnostics" />
     <PackageReference Include="Microsoft.Extensions.Diagnostics.Testing" />
-    
+    <PackageReference Include="SerilogTracing" />
+    <PackageReference Include="SerilogTracing.Expressions" />
+    <PackageReference Include="Serilog.Sinks.Console" />
+    <PackageReference Include="Serilog.Sinks.XUnit" />
+
 
 
     <PackageReference Include="xunit.runner.visualstudio">

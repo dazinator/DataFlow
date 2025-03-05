@@ -3,6 +3,7 @@ namespace Tests.DataFlow;
 using System.Collections.Concurrent;
 using Microsoft.Extensions.DependencyInjection;
 
+[IntegrationTest]
 public class ProjectorBlockTests
 {
     public class ProcessedItems : ConcurrentBag<string> { }

@@ -1,7 +1,8 @@
 namespace Tests.DataFlow;
 
 using System.Collections.Concurrent;
-using System.Threading.Channels;
+
+[IntegrationTest]
 public class DataFlowIntegrationTests
 {
     // Create wrapper classes to make the types distinct

@@ -4,6 +4,7 @@ using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using Tests.DataFlow.Utils;
 
+[Xunit.Categories.IntegrationTest]
 public class DataFlowComplexScenarioTests
 {
     public DataFlowComplexScenarioTests()

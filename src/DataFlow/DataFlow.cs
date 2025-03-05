@@ -46,16 +46,17 @@ public class DataFlow
     {
         // Create flow-level activity
         context.Name ??= Name;
-        using (var flowActivity = ActivitySource.StartActivity(ActivityNames.FlowExecute))
+        using (var flowActivity = ActivitySource.StartActivity(ActivityNames.Flow))
         {
             if (flowActivity is not null)
             {
                 flowActivity.AddTags(_metrics.GlobalTags);
-                flowActivity.AddTag(DataFlowMetrics.TagNames.FlowInvocationId, context.InvocationId);
+                flowActivity.AddTag(ActivityNames.TagNames.FlowInvocationId, context.InvocationId);
                 if (!string.IsNullOrWhiteSpace(context.Name))
                 {
-                    flowActivity.AddTag(DataFlowMetrics.TagNames.FlowName, context.Name);
-                    flowActivity.DisplayName = $"{ActivityNames.FlowExecute}: {context.Name}";                  
+                    flowActivity.AddTag(ActivityNames.TagNames.FlowName, context.Name);
+                    flowActivity.DisplayName = $"{ActivityNames.Flow} {{FlowName}}";
+                    //flowActivity.OperationName
                 }
             }
 
@@ -128,7 +129,7 @@ public class DataFlow
 
         // Create the activity within the current activity's context
         using var activity = ActivitySource.StartActivity(
-            ActivityNames.BlockExecute,
+            ActivityNames.Block,
             ActivityKind.Internal,
             parentActivity?.Context ?? default); // Use ActivityContext instead of manual ID setting
 
@@ -138,13 +139,13 @@ public class DataFlow
             activity.AddTags(_metrics.GlobalTags);
             if (!string.IsNullOrWhiteSpace(name))
             {
-                activity.AddTag(DataFlowMetrics.TagNames.FlowName, name);
+                activity.AddTag(ActivityNames.TagNames.FlowName, name);
             }
-            activity.AddTag(DataFlowMetrics.TagNames.BlockName, block.Name);
-            activity.DisplayName = $"{ActivityNames.BlockExecute}: {block.Name}";           
+            activity.AddTag(ActivityNames.TagNames.BlockName, block.Name);
+            activity.DisplayName = $"{ActivityNames.Block} {{Operation}}";
 
             // Add extra contextual information
-            activity.AddTag("block.type", block.GetType().Name);
+            // activity.AddTag("block.type", block.GetType().Name);
         }
 
         // blockActivity?.AddTag(DataFlowMetrics.TagNames.FlowInvocationId, context.InvocationId);
