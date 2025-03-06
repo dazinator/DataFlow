@@ -47,7 +47,8 @@ public class Program
             .ConfigureServices((builder, services) =>
             {
                 // Add hosted service and DataFlow components
-                services.AddHostedService<Worker>();
+                services.AddHostedService<DataFlowWorker<ExampleFlowConfig>>();
+                services.AddHostedService<DataFlowWorker<OtherFlowConfig>>();
 
                 services.AddDataFlowMetrics();
                 services.AddDataFlows();
