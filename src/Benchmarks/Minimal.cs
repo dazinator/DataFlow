@@ -15,7 +15,7 @@ using Uniun.DataFlow.Blocks.InputChannel;
 /// <summary>
 /// A minimal benchmark to identify potential hanging issues
 /// </summary>
-public class MinimalBenchmark
+public partial class MinimalBenchmark
 {
     private const int ItemCount = 100; // Using a small number for quick testing
     private readonly int[] _items;
@@ -164,24 +164,6 @@ public class MinimalBenchmark
                 cancellation.ThrowIfCancellationRequested();
                 _onItem?.Invoke(item);
                 yield return item;
-            }
-        }
-    }
-
-    private class SimpleProcessor : IStreamProcessor<int>
-    {
-        private readonly Action<int> _onProcess;
-
-        public SimpleProcessor(Action<int> onProcess)
-        {
-            _onProcess = onProcess;
-        }
-
-        public async Task ProcessAsync(IAsyncEnumerable<int> input, CancellationToken cancellationToken)
-        {
-            await foreach (var item in input.WithCancellation(cancellationToken))
-            {
-                _onProcess(item);
             }
         }
     }

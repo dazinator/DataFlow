@@ -99,11 +99,10 @@ public class SimplePipelineBenchmarks
                        {
                            tcs.SetResult(true);
                        }
-                   },
-                   new BlockOptions
+                   }), new BlockOptions
                    {
                        MaxConcurrency = MaxDegreeOfParallelism
-                   }))
+                   })
                .ReceiveFrom("source");
 
         var flow = builder.Build();
@@ -148,33 +147,6 @@ public class SimplePipelineBenchmarks
     //    }
     //}
 
-    // Custom simple processor for Uniun DataFlow
-    private class SimpleProcessor : IStreamProcessor<int>
-    {
-        private readonly Action<int> _onProcess;
-        private readonly BlockOptions _options;
-
-        public SimpleProcessor(Action<int> onProcess, BlockOptions options)
-        {
-            _onProcess = onProcess;
-            _options = options;
-        }
-
-        public async Task ProcessAsync(IAsyncEnumerable<int> input, CancellationToken cancellationToken)
-        {
-            await Parallel.ForEachAsync(
-                input,
-                new ParallelOptions
-                {
-                    MaxDegreeOfParallelism = _options.MaxConcurrency,
-                    CancellationToken = cancellationToken
-                },
-                (item, ct) =>
-                {
-                    _onProcess(item);
-                    return ValueTask.CompletedTask;
-                });
-        }
-    }
+    // Custom simple processor for Uniun DataFlow   
 }
 
