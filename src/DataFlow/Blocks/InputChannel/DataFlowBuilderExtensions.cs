@@ -23,4 +23,15 @@ public static class DataFlowBuilderExtensions
         return builder.AddSourceBlock(name, block);
     }
 
+    public static ISourceBlockBuilder<T> AddInputChannel<T>(
+       this IDataFlowBuilder builder,
+       string name,
+       BlockOptions options
+   )
+    {            
+        //  configureOptions?.Invoke(options);
+        var block = ActivatorUtilities.CreateInstance<InputChannelBlock<T>>(builder.ServiceProvider, name, options);
+        return builder.AddSourceBlock(name, block);
+    }
+
 }

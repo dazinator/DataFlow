@@ -38,6 +38,9 @@ public class SimplePipelineBenchmarks
     [Params(1, 4, 8)] // Test with different degrees of parallelism
     public int MaxDegreeOfParallelism { get; set; }
 
+    [Params(100, 500, 5000)] // Test with different bounded capacity
+    public int BoundedCapacity { get; set; }
+
     [Benchmark(Baseline = true)]
     public async Task TPL_DataFlow_SimplePipeline()
     {
@@ -46,7 +49,8 @@ public class SimplePipelineBenchmarks
 
         var options = new ExecutionDataflowBlockOptions
         {
-            MaxDegreeOfParallelism = MaxDegreeOfParallelism
+            MaxDegreeOfParallelism = MaxDegreeOfParallelism,
+            BoundedCapacity = BoundedCapacity
         };
 
         var producer = new BufferBlock<int>(options);
@@ -83,11 +87,11 @@ public class SimplePipelineBenchmarks
 
         // Configure Uniun DataFlow
         var builder = new DataFlowBuilder(_serviceProvider);
-
+        var blockOptions = new BlockOptions() { MaxConcurrency = MaxDegreeOfParallelism, Capacity = BoundedCapacity };
         builder
             //.AddProducer<int>("source", sp => new SimpleProducer(_items))
             // Create the simplest possible pipeline
-            .AddInputChannel<int>("source", null);
+            .AddInputChannel<int>("source", blockOptions);
 
         var inputBlock = builder.GetSourceBlock<int>("source") as InputChannelBlock<int>;
 
@@ -99,10 +103,7 @@ public class SimplePipelineBenchmarks
                        {
                            tcs.SetResult(true);
                        }
-                   }), new BlockOptions
-                   {
-                       MaxConcurrency = MaxDegreeOfParallelism
-                   })
+                   }), blockOptions)
                .ReceiveFrom("source");
 
         var flow = builder.Build();

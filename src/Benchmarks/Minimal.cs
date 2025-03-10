@@ -60,7 +60,7 @@ public partial class MinimalBenchmark
                 Console.WriteLine("TPL complete");
                 tcs.SetResult(true);
             }
-        }, new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = 1 });
+        }, new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = 1, BoundedCapacity = 100}); // to match Uniun DataFlow.
 
         producer.LinkTo(processor, new DataflowLinkOptions { PropagateCompletion = true });
 
@@ -93,9 +93,9 @@ public partial class MinimalBenchmark
         var tcs = new TaskCompletionSource<bool>();
 
         var builder = new DataFlowBuilder(_serviceProvider);
-
+        var blockOptions = new BlockOptions() { MaxConcurrency = 1, Capacity = 100 };
         // Create the simplest possible pipeline
-        builder.AddInputChannel<int>("source", null);
+        builder.AddInputChannel<int>("source", blockOptions);
 
         var inputBlock = builder.GetSourceBlock<int>("source") as InputChannelBlock<int>;
         builder.AddProcessor<int>("processor", sp => new SimpleProcessor(
