@@ -142,7 +142,7 @@ public class DataFlow
                 activity.AddTag(ActivityNames.TagNames.FlowName, name);
             }
             activity.AddTag(ActivityNames.TagNames.BlockName, block.Name);
-            activity.DisplayName = $"{ActivityNames.Block} {{Operation}}";
+            activity.DisplayName = $"{ActivityNames.Block} {{BlockName}}";
 
             // Add extra contextual information
             // activity.AddTag("block.type", block.GetType().Name);

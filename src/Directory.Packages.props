@@ -29,10 +29,14 @@
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="6.0.33" />
     <PackageVersion Include="Microsoft.Extensions.Diagnostics.Testing" Version="8.10.0" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="8.0.1" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.UserSecrets" Version="8.0.1" />
     <PackageVersion Include="SerilogTracing" Version="2.3.1" />
     <PackageVersion Include="SerilogTracing.Expressions" Version="2.3.1" />
+    <PackageVersion Include="Serilog.Settings.Configuration" Version="8.0.4" />
     <PackageVersion Include="Serilog.Sinks.Console" Version="6.0.1-dev-00953" />
     <PackageVersion Include="Serilog.Sinks.XUnit" Version="3.0.19" />
+    <PackageVersion Include="Serilog.Sinks.Seq" Version="8.0.0" />
+    <PackageVersion Include="Serilog.Extensions.Logging" Version="8.0.0" />    
     <PackageVersion Include="BenchmarkDotNet" Version="0.13.12" />
     <PackageVersion Include="System.Threading.Tasks.Dataflow" Version="8.0.0" />
   </ItemGroup>

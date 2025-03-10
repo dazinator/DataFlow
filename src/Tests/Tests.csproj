@@ -7,6 +7,7 @@
     <LangVersion>Preview</LangVersion>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
+    <UserSecretsId>5c1160f9-85a5-40a3-85ac-92f00b27e1b4</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
@@ -25,6 +26,7 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="Serilog.Sinks.TestCorrelator" />
+    <PackageReference Include="Serilog.Settings.Configuration" />
     <PackageReference Include="Shouldly" />
     <PackageReference Include="NSubstitute" />
     <PackageReference Include="MartinCostello.Logging.XUnit" />
@@ -40,14 +42,15 @@
     <PackageReference Include="MELT" />
     <PackageReference Include="Microsoft.Extensions.Caching.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" />
     <PackageReference Include="Microsoft.Extensions.Diagnostics" />
     <PackageReference Include="Microsoft.Extensions.Diagnostics.Testing" />
     <PackageReference Include="SerilogTracing" />
     <PackageReference Include="SerilogTracing.Expressions" />
     <PackageReference Include="Serilog.Sinks.Console" />
     <PackageReference Include="Serilog.Sinks.XUnit" />
-
-
+    <PackageReference Include="Serilog.Sinks.Seq" />
+    <PackageReference Include="Serilog.Extensions.Logging" />
 
     <PackageReference Include="xunit.runner.visualstudio">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

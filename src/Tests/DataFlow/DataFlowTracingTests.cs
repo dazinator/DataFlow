@@ -4,12 +4,14 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.TestCorrelator;
 using SerilogTracing;
 using SerilogTracing.Expressions;
 using Uniun.DataFlow.Metrics;
+using Xunit.Sdk;
 
 [IntegrationTest]
 public class DataFlowTracingTests : IDisposable
@@ -24,22 +26,57 @@ public class DataFlowTracingTests : IDisposable
         _logEvents = new List<LogEvent>();
 
         // Set up Serilog for testing with SerilogTracing
-        Log.Logger = new LoggerConfiguration()
-            .MinimumLevel.Debug()
+
+        var configBuilder = new ConfigurationBuilder();
+        configBuilder.AddUserSecrets<DataFlowTracingTests>();
+
+        var config = configBuilder.Build();
+        //var apiKey = config["SeqApiKey"];           
+      
+
+        // Configure and create the logger
+        var loggerConfiguration = new LoggerConfiguration()
+             .MinimumLevel.Debug()
+            //.ReadFrom.Configuration(config)
             .Enrich.FromLogContext()
-            .WriteTo.Sink(new TestLogEventSink(_logEvents)) // Capture logs for verification           
-            .WriteTo.TestOutput(output, Formatters.CreateConsoleTextFormatter()) // Use SerilogTracing's formatter
-            .CreateLogger();
+           // .WriteTo.Seq("", apiKey: apiKey)
+                .WriteTo.Sink(new TestLogEventSink(_logEvents))
+               .WriteTo.TestOutput(output, Formatters.CreateConsoleTextFormatter());// Capture logs for verification      
+
+        var logger = loggerConfiguration.CreateLogger();
+
+        // Set as static logger
+        Log.Logger = logger;
+
+
+        //  LoggerProviderContext.LogLevelSwitch.MinimumLevel = LogLevel.Trace;
+        //  loggerProvider.LogLevelSwitch.MinimumLevel = LogLevel.Trace;
+        // var logger = loggerProvider.LoggerProvider.CreateLogger(nameof(SeqTests));
+        var testLogger = logger.ForContext<DataFlowTracingTests>();
+
+
+
+        //Log.Logger = new LoggerConfiguration()
+        //    .MinimumLevel.Debug()
+        //    .Enrich.FromLogContext()
+        //    .WriteTo.Sink(new TestLogEventSink(_logEvents)) // Capture logs for verification           
+        //    .WriteTo.TestOutput(output, Formatters.CreateConsoleTextFormatter()) // Use SerilogTracing's formatter
+        //    .CreateLogger();
 
         // Configure services
         var services = new ServiceCollection();
         ConfigureServices(services);
+        services.AddLogging(builder =>
+        {
+            builder.AddSerilog(logger);
+        });
         _serviceProvider = services.BuildServiceProvider();
 
         // Register Activity listener using SerilogTracing
         _activityListener = new ActivityListenerConfiguration()
             .InitialLevel.Override("Uniun.DataFlow", LogEventLevel.Debug)
             .TraceToSharedLogger();
+    
     }
 
     private readonly IDisposable _activityListener;
@@ -124,6 +161,13 @@ public class DataFlowTracingTests : IDisposable
             _output.WriteLine($"  Properties: {string.Join(", ", logEvent.Properties.Select(p => $"{p.Key}={p.Value}"))}");
             _output.WriteLine("---");
         }
+
+        var outputHelper = (TestOutputHelper)_output;
+        var output = outputHelper.Output;
+
+        await Task.Delay(2000); // give time for logs to be pushed to server in background by seq sink.      
+       await Log.CloseAndFlushAsync(); // ensures the provider has a chance to flush log events before shutdown.
+
     }
 
     public void Dispose()
