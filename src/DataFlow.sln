@@ -22,6 +22,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{8A743E4E-9
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Otel.Example", "..\sample\Otel.Example\Otel.Example.csproj", "{8C4052A3-E9FE-4CC7-ABA4-87C5B81ADAE0}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Benchmarks", "Benchmarks\Benchmarks.csproj", "{6745C933-70E9-4F02-98B3-5F1D617B77CD}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -40,6 +42,10 @@ Global
 		{8C4052A3-E9FE-4CC7-ABA4-87C5B81ADAE0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8C4052A3-E9FE-4CC7-ABA4-87C5B81ADAE0}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8C4052A3-E9FE-4CC7-ABA4-87C5B81ADAE0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6745C933-70E9-4F02-98B3-5F1D617B77CD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6745C933-70E9-4F02-98B3-5F1D617B77CD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6745C933-70E9-4F02-98B3-5F1D617B77CD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6745C933-70E9-4F02-98B3-5F1D617B77CD}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

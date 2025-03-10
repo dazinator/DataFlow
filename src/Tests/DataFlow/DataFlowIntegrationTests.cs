@@ -1,6 +1,7 @@
 namespace Tests.DataFlow;
 
 using System.Collections.Concurrent;
+using Microsoft.Extensions.Logging;
 
 [IntegrationTest]
 public class DataFlowIntegrationTests
@@ -21,18 +22,21 @@ public class DataFlowIntegrationTests
     private readonly ProducedItems _producedItems = new();
     private readonly ProcessedItems _processedItems = new();
     private readonly ExecutionTimes _executionTimes = new();
+    private readonly ITestOutputHelper _testOutputHelper;
 
     public IServiceCollection Services { get; set; }
 
-    public DataFlowIntegrationTests()
+    public DataFlowIntegrationTests(ITestOutputHelper testOutputHelper)
     {
+        _testOutputHelper = testOutputHelper;
         Services = new ServiceCollection();
-        AddDefaultServices(Services);
+        AddDefaultServices(Services);        
     }
 
     private void AddDefaultServices(IServiceCollection services)
     {
         //services.AddScoped(typeof(FlowExecutor<>));
+        Services.AddLogging(a => a.AddXUnit(_testOutputHelper));
         services.AddDataFlows((o)=> o.MaxConcurrentFlows = 2);
         Services.AddDataFlowMetrics();
     }

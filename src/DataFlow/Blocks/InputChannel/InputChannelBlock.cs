@@ -2,6 +2,7 @@
 namespace Uniun.DataFlow.Blocks.InputChannel;
 
 using System.Threading.Channels;
+using Microsoft.Extensions.Logging;
 using Uniun.DataFlow;
 using Uniun.DataFlow.Metrics;
 
@@ -12,10 +13,12 @@ public class InputChannelBlock<T> : BlockBase, ISourceBlock<T>
 {
     //private readonly BoundedChannelOptions _channelOptions;
     private readonly MonitoredChannel<T> _outputChannel;
+    private readonly ILogger<InputChannelBlock<T>> _logger;
 
-    public InputChannelBlock(string name, IBoundedChannelFactory channelFactory, BlockOptions? options = null) : base(name, options)
+    public InputChannelBlock(string name, ILogger<InputChannelBlock<T>> logger, IBoundedChannelFactory channelFactory, BlockOptions? options = null) : base(name, options, logger)
     {
         _outputChannel = channelFactory.CreateMonitoredChannel<T>(name, options?.Capacity);
+        _logger = logger;
     }
 
     // Public property to allow external code to write directly to blocks output buffer

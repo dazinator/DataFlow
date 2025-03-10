@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.ObjectPool;
 using Uniun.DataFlow;
 using Uniun.DataFlow.Blocks;
@@ -24,8 +25,9 @@ public class BatchBlock<T> : BlockBase, IPropagatorBlock<T, T[]>
 
     public BatchBlock(
         string name,
+        ILogger<BatchBlock<T>> logger,
         IBoundedChannelFactory channelFactory,
-        BatchBlockOptions options) : base(name, options)
+        BatchBlockOptions options) : base(name, options, logger)
     {
         if (options.MaxBatchSize <= 0)
         {

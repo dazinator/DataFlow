@@ -2,19 +2,25 @@ namespace Tests.DataFlow;
 
 using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
+using Microsoft.Extensions.Logging;
 using Tests.DataFlow.Utils;
 
 [Xunit.Categories.IntegrationTest]
 public class DataFlowComplexScenarioTests
 {
-    public DataFlowComplexScenarioTests()
-    {        
+    private readonly ITestOutputHelper _testOutputHelper;
+
+    public DataFlowComplexScenarioTests(ITestOutputHelper testOutputHelper)
+    {
+        _testOutputHelper = testOutputHelper;
         Services = new ServiceCollection();
         AddDefaultServices();
+      
     }
 
     private void AddDefaultServices()
     {
+        Services.AddLogging(a => a.AddXUnit(_testOutputHelper));
         Services.AddDataFlowMetrics();
         Services.AddDataFlows();
     }

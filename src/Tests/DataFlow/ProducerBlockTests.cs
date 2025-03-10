@@ -1,17 +1,23 @@
 namespace Tests.DataFlow;
 
 using System.Collections.Concurrent;
+using Microsoft.Extensions.Logging;
 
 [IntegrationTest]
 public class ProducerBlockTests
 {
-    public ProducerBlockTests()
+    private ITestOutputHelper _testOutputHelper;
+
+    public ProducerBlockTests(ITestOutputHelper testOutputHelper)
     {
+        _testOutputHelper = testOutputHelper;
         AddDefaultServices();
     }
 
     private void AddDefaultServices()
     {
+       
+        Services.AddLogging(a => a.AddXUnit(_testOutputHelper));
         Services.AddDataFlows();
         Services.AddDataFlowMetrics();
     }

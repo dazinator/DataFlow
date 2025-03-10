@@ -1,6 +1,7 @@
 namespace Uniun.DataFlow.Blocks.Output;
 
 using System.Threading.Channels;
+using Microsoft.Extensions.Logging;
 using Uniun.DataFlow;
 
 /// <summary>
@@ -16,8 +17,9 @@ public class OutputBlock<T> : BlockBase, ITargetBlock<T>
 
     public OutputBlock(
         string name,
+         ILogger<OutputBlock<T>> logger,
         Func<T, Task> output,
-        BlockOptions? options = null) : base(name, options)
+        BlockOptions? options = null) : base(name, options, logger)
     {
         _output = output;
     }

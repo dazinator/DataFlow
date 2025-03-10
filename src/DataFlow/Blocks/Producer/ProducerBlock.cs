@@ -3,6 +3,7 @@
 namespace Uniun.DataFlow.Blocks.Producer;
 
 using System.Threading.Channels;
+using Microsoft.Extensions.Logging;
 using Uniun.DataFlow;
 using Uniun.DataFlow.Metrics;
 
@@ -17,8 +18,9 @@ public class ProducerBlock<TOutput> : BlockBase, ISourceBlock<TOutput>
 
     public ProducerBlock(
         string name,
+        ILogger<ProducerBlock<TOutput>> logger,
          IBoundedChannelFactory channelFactory,
-        ProducerBlockOptions<TOutput> options) : base(name, options)
+        ProducerBlockOptions<TOutput> options) : base(name, options, logger)
     {
         _producersFactory = options.ProducersFactory;
         _outputChannel = channelFactory.CreateMonitoredChannel<TOutput>(name, options.Capacity);   

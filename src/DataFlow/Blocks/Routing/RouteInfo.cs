@@ -1,134 +1,185 @@
 namespace Uniun.DataFlow.Blocks.Routing;
 using System;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Uniun.DataFlow;
 using Uniun.DataFlow.Blocks.InputChannel;
 
 public class RouteInfo<T> : IAsyncDisposable
 {
+    private readonly ILogger _logger;
     private readonly AsyncServiceScope _routeScope;
+    private readonly IDisposable? _logScope;
+
+    // Lock for coordinating completion and disposal
+    private readonly object _lifecycleLock = new object();
+    private bool _isCompleted = false;
+    private bool _isDisposed = false;
 
     public DataFlow DataFlow { get; }
+    public RoutingContext<T> Context { get; }
+    public InputChannelBlock<T> ChannelBlock { get; }
+    internal RouteExecution RouteExecuting { get; private set; }
 
-    public RouteInfo(RoutingContext<T> context, InputChannelBlock<T> channelBlock, AsyncServiceScope routeScope)
+    public RouteInfo(ILogger logger, RoutingContext<T> context, InputChannelBlock<T> channelBlock, AsyncServiceScope routeScope)
     {
+        _logger = logger;
+        _logScope = _logger.BeginScope("Route {routingKey}", context.RoutingKey);
         Context = context;
         ChannelBlock = channelBlock;
         _routeScope = routeScope;
         DataFlow = context.DataFlow;
     }
 
-    public RoutingContext<T> Context { get; }
-    public InputChannelBlock<T> ChannelBlock { get; }
-
-    /// <summary>
-    /// Can be used to wait for downstream consumers to complete before disposing this route.
-    /// </summary>
-    /// <remarks>Use to make sure the route is fully drained before disposing.</remarks>
-   // public Task Completion => ChannelBlock.Reader.Completion;
-
-    internal RouteExecution RouteExecuting { get; private set; }
-
-    //public void Dispose()
-    //{
-    //    // No more writes to this route its being disposed.
-    //    //ChannelBlock.Writer.TryComplete
-    //    CompleteChannel();
-    //    _routeScope.Dispose();
-    //}
-
     /// <summary>
     /// Starts the downstream target block executing from the input channel for this route.
     /// </summary>
-    /// <param name="block"></param>
-    /// <param name="context"></param>
-
-    /* Unmerged change from project 'DataFlow (net6.0)'
-    Before:
-        public void StartBlockExecution(Pipelines.DataFlow.Core.ITargetBlock<T> block, IDataFlowContext context)
-        {
-    After:
-        public void StartBlockExecution(DataFlow.Core.ITargetBlock<T> block, IDataFlowContext context)
-        {
-    */
     public void StartFlowExecution(ITargetBlock<T> block, IDataFlowContext context)
     {
         block.SetSource(ChannelBlock);
-        // Start executing the block and track execution
-        // _logger.LogDebug("Adding executing task for route {routingKey}", routingKey);
-        // Start executing the sub DataFlow for the route.
-        var executingTask = DataFlow.ExecuteAsync(context);
 
-        //var executingTask = block.ExecuteAsync(context);
-        RouteExecuting = new RouteExecution(executingTask);
+        // Start executing the sub DataFlow for the route
+        var channelBlock = ChannelBlock.ExecuteAsync(context);
+        var executingTask = DataFlow.ExecuteAsync(context);
+        var allTasks = Task.WhenAll(channelBlock, executingTask);
+        RouteExecuting = new RouteExecution(_logger, allTasks);
     }
 
     /// <summary>
-    /// Signals completion of the route, and returns the downstream blocks completion task so you can wait for the downstream block to exit.
+    /// Signals completion of the route by completing the channel writer.
+    /// This stops the route from accepting new items.
     /// </summary>
-    /// <returns></returns>
-    public Task CompleteAsync()
+    public void Complete()
     {
-        // signals the block to stop executing because no more data on this route.
-        CompleteChannel();
-        return RouteExecuting.ExecutingTask;
+        lock (_lifecycleLock)
+        {
+            if (_isCompleted)
+            {
+                return;
+            }
+
+            _isCompleted = true;
+            CompleteChannel();
+        }
     }
 
+    /// <summary>
+    /// Completes the channel to signal no more items will be accepted.
+    /// </summary>
     private void CompleteChannel()
     {
-        var complete = ChannelBlock.Writer.TryComplete();
-        if (!complete)
+        try
         {
-            // Log warning
+            var complete = ChannelBlock.Writer.TryComplete();
+            if (!complete)
+            {
+                _logger.LogWarning("Failed to complete channel for route {routingKey}", Context.RoutingKey);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error completing channel for route {routingKey}", Context.RoutingKey);
         }
     }
 
     public async ValueTask DisposeAsync()
     {
+        bool shouldDispose;
+        lock (_lifecycleLock)
+        {
+            shouldDispose = !_isDisposed;
+            _isDisposed = true;
+        }
+
+        if (!shouldDispose)
+        {
+            // Log that we're starting disposal
+            _logger.LogWarning("DisposeAsync called on already disposed route {routingKey}", Context.RoutingKey);
+            return;
+        }
+
         try
         {
-            CompleteChannel();
+            // Ensure channel is completed
+            Complete();
+
+            // Log that we're starting disposal
+            _logger.LogDebug("Starting disposal of route {routingKey}", Context.RoutingKey);
+
+            // CRITICAL: Wait for flow execution to fully complete
+            // Including a reasonable buffer time after completion
+            if (RouteExecuting != null)
+            {
+                _logger.LogDebug("Waiting for route execution to complete: {routingKey}", Context.RoutingKey);
+                try
+                {
+                    // Wait for execution to complete with a reasonable timeout
+                    await RouteExecuting.ExecutingTask.WaitAsync(TimeSpan.FromSeconds(20));
+
+                    // After execution completes, add a buffer delay to ensure all operations finish
+                  //  _logger.LogDebug("Route execution completed, waiting buffer period: {routingKey}", Context.RoutingKey);
+                   // await Task.Delay(TimeSpan.FromSeconds(2));
+                }
+                catch (TimeoutException)
+                {
+                    _logger.LogWarning("Timeout waiting for route execution: {routingKey}", Context.RoutingKey);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error waiting for route execution: {routingKey}", Context.RoutingKey);
+                }
+            }
+
+            _logger.LogDebug("Disposing service scope for route {routingKey}", Context.RoutingKey);
+            await _routeScope.DisposeAsync();
+            _logScope?.Dispose();
+
+            _logger.LogDebug("Route resources disposed for {routingKey}", Context.RoutingKey);
         }
         catch (Exception ex)
         {
-            // Log but continue with disposal
+            _logger.LogError(ex, "Error during route disposal: {routingKey}", Context.RoutingKey);
+            throw;
         }
-        finally
-        {
-            // Dispose the scope and other resources
-            await _routeScope.DisposeAsync();
-        }      
-       
     }
 
+    /// <summary>
+    /// Class to track and manage the execution of a route's flow.
+    /// </summary>
     internal class RouteExecution
     {
+        private readonly ILogger _logger;
+
         public Task ExecutingTask { get; }
         public TaskCompletionSource<object> CompletionSource { get; }
 
-        public RouteExecution(Task executingTask)
+        public RouteExecution(ILogger logger, Task executingTask)
         {
+            _logger = logger;
             ExecutingTask = executingTask;
             CompletionSource = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
 
             // Wire up completion/error handling
             executingTask.ContinueWith(t =>
             {
+                _logger.LogDebug("Route flow execution finished, propagating completion result");
+
                 if (t.IsFaulted)
                 {
+                    _logger.LogDebug(t.Exception, "Propagating exception");
                     CompletionSource.SetException(t.Exception!.InnerExceptions);
                 }
                 else if (t.IsCanceled)
                 {
+                    _logger.LogDebug("Propagating cancellation");
                     CompletionSource.SetCanceled();
                 }
                 else
                 {
+                    _logger.LogDebug("Propagating successful completion");
                     CompletionSource.SetResult(null!);
                 }
             }, TaskContinuationOptions.ExecuteSynchronously);
         }
     }
-
 }
-

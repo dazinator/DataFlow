@@ -3,6 +3,7 @@
 namespace Uniun.DataFlow.Blocks.Processor;
 
 using System.Threading.Channels;
+using Microsoft.Extensions.Logging;
 using Uniun.DataFlow;
 using Uniun.DataFlow.Actor;
 
@@ -18,9 +19,10 @@ public class ProcessorBlock<T> : BlockBase, ITargetBlock<T>
 
     public ProcessorBlock(
         string name,
+         ILogger<ProcessorBlock<T>> logger,
         Func<IServiceProvider, IStreamProcessor<T>> processorFactory,
         BlockOptions? options = null
-    ) : base(name, options)
+    ) : base(name, options, logger)
     {
         _processorFactory = processorFactory;
     }
@@ -53,8 +55,10 @@ public class ProcessorBlock<T> : BlockBase, ITargetBlock<T>
         await SourceReader.Completion;
     }
 
+    // 1. Add detailed logging in ProcessorBlock.ExecuteStreamProcessorAsync
+    // This shows when actors are starting and ending in the processor block
     protected async Task ExecuteStreamProcessorAsync(int index, IDataFlowContext context)
-    {     
+    {
         // Will use scoped ServiceProvider if UseSeperateScopes=true
         var processor = _processorFactory(context.ServiceProvider);
         var input = SourceReader.ReadAllAsync(context.CancellationToken);

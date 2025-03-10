@@ -121,19 +121,41 @@ await executor.ExecuteAsync(context);
 
 ```
 
-## Why Not TPL Dataflow?
+## What about TPL Dataflow?
 While TPL Dataflow is a mature library, this implementation offers several advantages:
 
-- Built on modern `System.Threading.Channels` for better performance
-- Uses a pull based model for simplfied backpressure handling, overall a simpler model than TPL.
-- Cleaner fluent API for building flows (TPL DataFlow doesn't have one)
-- First-class DI support with proper scope management
+- Built on modern `System.Threading.Channels`.
+- Fluent builder for constructing data flows (TPL DataFlow doesn't have one).
+- Uses a pull based model for simplfied backpressure handling, overall a simpler model than TPL in many ways.
+- First-class DI support with proper scope management (don't underestimate this).
   - TPL DataFlow is very awkward to try and use with depencencies it predates the modern DI system in .NET.
   - This library adopts an "Actor" based model where each block can initiate a new scope for its `Actor` to run in, allowing for scoped depencencies to be used by actors, and allowing them to run concurrently without interfering with each other.
     - For example, a Transform block can have multiple concurrent `ITransformer<TIn, TOut>` implementations running concurrently, each in their own scope. You can scale the number of concurrent transformers to tune throughput, with max concurrency settings to throttle things.
 - Better structured for typical ETL and data processing scenarios
   - TPL Offers a lot of flexibility, but can be overkill for simple ETL scenarios. For example it offers a synchronous API for posting data to a block, which will fail immediately when buffers are full - which is not really appropriate for most ETL scenarios, but is more applicable for real-time stock trading scenarios. This library is more focused on reliable and efficient processing of data volumes ETL / data processing scenarios.
 - Simpler concurrency model focused on async/await patterns throughout.
+- Metrics out of the box.
+
+
+### Performance Comparison with Microsoft TPL DataFlow
+
+We have conducted some simple and early benchmarks, comparing **Uniun DataFlow** against **Microsoft TPL DataFlow** using **BenchmarkDotNet**. 
+The test involved a minimal pipeline with a **source block feeding data to a processor block**, measuring the time taken to process a fixed number of items asynchronously over many iterations.
+
+#### **Results**
+| Method                   | Mean Time | StdDev  | Ratio |
+|------------------------- |---------:|--------:|------:|
+| **TPL_DataFlow_BufferBlock** | **9.100 ms** | 0.1879 ms | **1.00x** |
+| **Uniun_DataFlow_Minimal**   | **9.974 ms** | 0.1779 ms | **1.10x** |
+
+#### **Analysis**
+- Uniun DataFlow performs **within ~10% of TPL DataFlow**, despite having additional features such as **fluent builder, dependency injection, structured flow management, and monitoring**.
+- `InputChannelBlock` plus a `Processor` block is very close to TPL's `BufferBlock` plus an `ActionBlock` for example, despite the fact that this library adds features.
+
+These early results confirm that **Uniun DataFlow maintains high performance while offering a more structured and modern API, and application level features like DI, actors, and metrics, out of the box**.
+
+#### **Next Steps**
+Further benchmarks for various scenarios will continue to be added.
 
 
 ## Specific Block Implementations

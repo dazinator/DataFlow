@@ -1,4 +1,4 @@
-namespace Tests.DataFlow.Utils.Projectors;
+namespace Tests.DataFlow.Utils.Transformers;
 public class TestProjector<TIn, TOut> : IStreamTransformer<TIn, TOut>
 {
     private readonly Func<TIn, IEnumerable<TOut>> _projection;

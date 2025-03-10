@@ -3,6 +3,7 @@
 namespace Uniun.DataFlow.Blocks.Transform;
 
 using System.Threading.Channels;
+using Microsoft.Extensions.Logging;
 using Uniun.DataFlow;
 using Uniun.DataFlow.Actor;
 using Uniun.DataFlow.Metrics;
@@ -22,9 +23,10 @@ public class TransformBlock<TIn, TOut> : BlockBase, IPropagatorBlock<TIn, TOut>
 
     public TransformBlock(
         string name,
+        ILogger<TransformBlock<TIn, TOut>> logger,
         IBoundedChannelFactory channelFactory,
         TransformBlockOptions<TIn, TOut> options
-    ) : base(name, options)
+    ) : base(name, options, logger)
     {
         _transformerFactory = options.TransformerFactory;
         _channelFactory = channelFactory;

@@ -2,19 +2,26 @@ namespace Tests.DataFlow;
 
 using System.Collections.Concurrent;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Tests.DataFlow.Utils.Transformers;
 
 [IntegrationTest]
 public class ProjectorBlockTests
 {
+    private readonly ITestOutputHelper _testOutputHelper;
+
     public class ProcessedItems : ConcurrentBag<string> { }
 
-    public ProjectorBlockTests()
+    public ProjectorBlockTests(ITestOutputHelper testOutputHelper)
     {
+        _testOutputHelper = testOutputHelper;
         AddDefaultServices();
+       
     }
 
     private void AddDefaultServices()
     {
+        Services.AddLogging(a => a.AddXUnit(_testOutputHelper));
         Services.AddDataFlows();
         Services.AddDataFlowMetrics();
     }

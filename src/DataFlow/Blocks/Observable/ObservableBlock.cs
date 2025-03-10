@@ -1,6 +1,7 @@
 namespace Uniun.DataFlow.Blocks.Observable;
 
 using System.Threading.Channels;
+using Microsoft.Extensions.Logging;
 using Uniun.DataFlow;
 
 /// <summary>
@@ -14,8 +15,9 @@ public class ObservableBlock<T> : BlockBase, ITargetBlock<T>
 
     public ObservableBlock(
         string name,
+        ILogger<ObservableBlock<T>> logger,
        IObserver<T> observer,
-        BlockOptions? options = null) : base(name, options)
+        BlockOptions? options = null) : base(name, options, logger)
     {
         _observer = observer;
 
