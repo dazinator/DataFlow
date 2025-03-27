@@ -48,10 +48,10 @@ public class DataFlowMetrics : IDataFlowMetrics
             unit: "%",
             description: "Current utilization of a channel buffer used by a block");
 
-        _channelBufferUtilization = meter.CreateObservableGauge<int>(InstrumentNames.ChannelBufferUtilizationMetricName,
-           () => GetAllChannelUtilizations(),
-           unit: "%",
-           description: "Current utilization of a channel buffer used by a block");
+        //_channelBufferUtilization = meter.CreateObservableGauge<int>(InstrumentNames.ChannelBufferUtilizationMetricName,
+        //   () => GetAllChannelUtilizations(),
+        //   unit: "%",
+        //   description: "Current utilization of a channel buffer used by a block");
 
         _activeChannelCount = meter.CreateObservableGauge<int>(InstrumentNames.ActiveChannelCount,
            () => GetActiveChannelCount(),
