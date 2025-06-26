@@ -1,12 +1,10 @@
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry;
-
 using Otel.Example.Flows;
-using System.Collections.Concurrent;
 using Uniun.DataFlow;
-using Uniun.DataFlow.Metrics;
 using System.Diagnostics.Metrics;
+using Uniun.DataFlow.OpenTelemetry;
 
 namespace Otel.Example;
 
@@ -64,7 +62,7 @@ public class Program
                     .WithMetrics(metrics =>
                     {
                         // Add custom meters and runtime metrics
-                        metrics.AddMeter(MeterAccessor.MeterName);
+                        metrics.AddDataFlows();
                         metrics.AddRuntimeInstrumentation();
                         metrics.AddProcessInstrumentation();
                     })
@@ -73,9 +71,9 @@ public class Program
                 // Add a test meter for verification
                 var meter = new Meter("TestMeter", "1.0.0");
                 var counter = meter.CreateCounter<int>("test_counter");
-
+                counter.Add(1, new KeyValuePair<string, object?>("test_tag", "test_value"));
                 // Background task to emit test metrics
-               // services.AddHostedService<MetricEmitterService>();
+                // services.AddHostedService<MetricEmitterService>();
             })
             .Build();
 

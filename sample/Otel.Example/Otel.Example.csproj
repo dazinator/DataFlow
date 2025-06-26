@@ -11,11 +11,12 @@
 		<PackageReference Include="Microsoft.Extensions.Hosting" Version="6.0.1" />
 		<PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.11.2" />
 		<PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.11.2" />
-		<PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.11.1"/>
+		<PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.11.1" />
 		<PackageReference Include="OpenTelemetry.AutoInstrumentation" Version="1.10.0" />
 	</ItemGroup>
 
 	<ItemGroup>
+		<ProjectReference Include="..\..\src\DataFlow.OpenTelemetry\DataFlow.OpenTelemetry.csproj" />
 		<ProjectReference Include="..\..\src\DataFlow\DataFlow.csproj" />
 	</ItemGroup>
 </Project>

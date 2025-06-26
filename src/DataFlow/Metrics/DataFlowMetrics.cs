@@ -4,6 +4,7 @@ namespace Uniun.DataFlow.Metrics;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 /// <summary>
@@ -16,7 +17,7 @@ public class DataFlowMetrics : IDataFlowMetrics
     private readonly Histogram<double> _flowExecutionDuration;
     private readonly ObservableGauge<int> _channelBufferUtilization;
     private readonly ObservableGauge<int> _activeChannelCount;
-
+    private readonly ILogger<DataFlowMetrics> _logger;
     private readonly IMeterAccessor _meterAccessor;
     private readonly ChannelRegistry _channelRegistry;
     private readonly IOptions<DataFlowsOptions> _options;
@@ -24,10 +25,12 @@ public class DataFlowMetrics : IDataFlowMetrics
     public TagList GlobalTags { get; }
 
     public DataFlowMetrics(
+        ILogger<DataFlowMetrics> logger,
         IMeterAccessor meterAccessor,
         ChannelRegistry channelRegistry,
         IOptions<DataFlowsOptions> options)
     {
+        _logger = logger;
         _meterAccessor = meterAccessor;
         _channelRegistry = channelRegistry;
         _options = options;

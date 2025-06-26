@@ -46,6 +46,11 @@ public class DataFlow
     {
         // Create flow-level activity
         context.Name ??= Name;
+        Stopwatch? stopwatch = null;
+
+
+        var isSuccessful = false; // Add this
+
         using (var flowActivity = ActivitySource.StartActivity(ActivityNames.Flow))
         {
             if (flowActivity is not null)
@@ -58,6 +63,10 @@ public class DataFlow
                     flowActivity.DisplayName = $"{ActivityNames.Flow} {{FlowName}}";
                     //flowActivity.OperationName
                 }
+            }
+            else
+            {
+                stopwatch = Stopwatch.StartNew(); //we need to resort to stopwatch for time metric as activity source is not available
             }
 
             try
@@ -103,6 +112,12 @@ public class DataFlow
 
                     // Add tag with total processed items
                     // flowActivity.SetTag("items.processed", totalItemsProcessed);
+                }
+                else
+                {
+                    stopwatch?.Stop(); // Add this
+                    var flowDuration = stopwatch?.Elapsed.TotalMilliseconds ?? 0;
+                    _metrics.FlowCompleted(flowDuration, context.Name, context, isSuccessful);
                 }
             }
 
