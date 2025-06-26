@@ -17,6 +17,8 @@ public class DataFlowMetrics : IDataFlowMetrics
     private readonly Histogram<double> _flowExecutionDuration;
     private readonly ObservableGauge<int> _channelBufferUtilization;
     private readonly ObservableGauge<int> _activeChannelCount;
+    private readonly Counter<long> _flowExecutionCount;  
+    private readonly Counter<long> _blockExecutionCount;
     private readonly ILogger<DataFlowMetrics> _logger;
     private readonly IMeterAccessor _meterAccessor;
     private readonly ChannelRegistry _channelRegistry;
@@ -45,6 +47,14 @@ public class DataFlowMetrics : IDataFlowMetrics
         _flowExecutionDuration = meter.CreateHistogram<double>(InstrumentNames.FlowDurationMs,
             unit: "ms",
             description: "Time taken to complete execution of a DataFlow.");
+
+        _flowExecutionCount = meter.CreateCounter<long>(InstrumentNames.FlowExecutionCount,
+            unit: "execution",
+            description: "Number of completed flow executions");
+
+        _blockExecutionCount = meter.CreateCounter<long>(InstrumentNames.BlockExecutionCount,
+            unit: "execution",
+            description: "Number of completed block executions");
 
         _channelBufferUtilization = meter.CreateObservableGauge<int>(InstrumentNames.ChannelBufferUtilizationMetricName,
             () => GetAllChannelUtilizations(),
@@ -91,9 +101,10 @@ public class DataFlowMetrics : IDataFlowMetrics
         allTags[GlobalTags.Count + 1] = new(TagNames.FlowName, name);
         allTags[GlobalTags.Count + 2] = outcomeIsSuccessful ? TagConstantValues.SuccessOutcomeTag : TagConstantValues.FailureOutcomeTag;
 
-
         // Record with the combined tags
         _flowExecutionDuration.Record(durationTotalMs, allTags);
+        // Record execution count with the same tags
+        _flowExecutionCount.Add(1, allTags);
     }
 
     public void BlockCompleted(double durationTotalMs, string flowName, string blockName, IDataFlowContext context, bool successful)
@@ -111,6 +122,8 @@ public class DataFlowMetrics : IDataFlowMetrics
         allTags[GlobalTags.Count + 3] = successful ? TagConstantValues.SuccessOutcomeTag : TagConstantValues.FailureOutcomeTag;
         // Record with the combined tags
         _blockProcessingDuration.Record(durationTotalMs, allTags);
+        // Record execution count with the same tags
+        _blockExecutionCount.Add(1, allTags);
     }
 
     /// <summary>
@@ -149,11 +162,25 @@ public class DataFlowMetrics : IDataFlowMetrics
         /// </summary>
         [Description("Time taken to process a block in DataFlow")]
         public const string BlockDurationMs = "dataflow.block.duration.ms";
+
         /// <summary>
         /// Time taken to execute a DataFlow from start to completion
         /// </summary>
         [Description("Time taken to execute a DataFlow from start to completion")]
         public const string FlowDurationMs = "dataflow.flow.duration.ms";
+
+        /// <summary>
+        /// Number of completed flow executions
+        /// </summary>
+        [Description("Number of completed flow executions")]
+        public const string FlowExecutionCount = "dataflow.flow.executions";
+
+        /// <summary>
+        /// Number of completed block executions
+        /// </summary>
+        [Description("Number of completed block executions")]
+        public const string BlockExecutionCount = "dataflow.block.executions";
+
         /// <summary>
         /// Current utilization of channel buffer capacity between blocks
         /// </summary>
