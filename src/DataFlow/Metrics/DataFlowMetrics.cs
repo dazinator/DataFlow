@@ -107,7 +107,7 @@ public class DataFlowMetrics : IDataFlowMetrics
         allTags[GlobalTags.Count + 2] = new(TagNames.BlockName, blockName);
         allTags[GlobalTags.Count + 3] = successful ? TagConstantValues.SuccessOutcomeTag : TagConstantValues.FailureOutcomeTag;
         // Record with the combined tags
-        _flowExecutionDuration.Record(durationTotalMs, allTags);
+        _blockProcessingDuration.Record(durationTotalMs, allTags);
     }
 
     /// <summary>
