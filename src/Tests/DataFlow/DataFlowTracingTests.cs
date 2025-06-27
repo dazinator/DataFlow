@@ -228,6 +228,15 @@ public class DataFlowTracingTests : IDisposable
         {
             // No-op for testing
         }
+
+        public void FlowStarted(string flowName)
+        {
+            // No-op for testing
+        }
+        public void BlockStarted(string flowName, string blockName)
+        {
+            // No-op for testing
+        }
     }
 
     private class TestDataFlowContext : IDataFlowContext
