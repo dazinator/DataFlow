@@ -1,10 +1,10 @@
 // ReSharper disable once CheckNamespace
 namespace Uniun.DataFlow.Metrics;
 
+using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
-using System.Xml.Linq;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -24,20 +24,18 @@ public class DataFlowMetrics : IDataFlowMetrics
     private readonly UpDownCounter<int> _activeBlockCount;
     private readonly ILogger<DataFlowMetrics> _logger;
     private readonly IMeterAccessor _meterAccessor;
-    private readonly ChannelRegistry _channelRegistry;
+    private readonly ChannelRegistry _channelRegistry = new ChannelRegistry();
     private readonly IOptions<DataFlowsOptions> _options;
 
     public TagList GlobalTags { get; }
 
     public DataFlowMetrics(
         ILogger<DataFlowMetrics> logger,
-        IMeterAccessor meterAccessor,
-        ChannelRegistry channelRegistry,
+        IMeterAccessor meterAccessor,      
         IOptions<DataFlowsOptions> options)
     {
         _logger = logger;
-        _meterAccessor = meterAccessor;
-        _channelRegistry = channelRegistry;
+        _meterAccessor = meterAccessor;      
         _options = options;
         GlobalTags = _options.Value.MetricTags;
 
@@ -106,9 +104,7 @@ public class DataFlowMetrics : IDataFlowMetrics
         tags[GlobalTags.Count] = new(TagNames.FlowName, flowName);
         _activeFlowCount.Add(1, tags);
     }
-
-
-    // SIMPLE: Just increment the counter  
+  
     public void BlockStarted(string flowName, string blockName)
     {
         var tags = new KeyValuePair<string, object?>[GlobalTags.Count + 2];
@@ -164,7 +160,7 @@ public class DataFlowMetrics : IDataFlowMetrics
         GlobalTags.CopyTo(tags, 0);
         tags[GlobalTags.Count] = new(TagNames.BlockName, blockName);
         tags[GlobalTags.Count + 1] = new(TagNames.FlowName, flowName);
-        _activeBlockCount.Add(-1, allTags);
+        _activeBlockCount.Add(-1, tags);
     }
 
     /// <summary>
@@ -289,5 +285,127 @@ public class DataFlowMetrics : IDataFlowMetrics
         internal const string OutcomeFailure = "failure";
     }
 
+    /// <summary>
+    /// Channel registry responsible for tracking and managing monitored channels.
+    /// </summary>
+    private class ChannelRegistry : IDisposable
+    {
+        // Thread-safe collection of all monitored channels
+        private ConcurrentBag<WeakReference<IMonitoredChannel>> _monitoredChannels =
+            new ConcurrentBag<WeakReference<IMonitoredChannel>>();
+
+        // ReaderWriterLock for registration operations
+        private readonly ReaderWriterLockSlim _registrationLock =
+            new ReaderWriterLockSlim(LockRecursionPolicy.NoRecursion);
+
+        // Background timer for cleanup
+        private readonly Timer _cleanupTimer;
+        private readonly TimeSpan _cleanupInterval = TimeSpan.FromMinutes(5);
+
+        public ChannelRegistry()
+        {
+            // Set up a timer to ensure cleanup happens even if metrics aren't collected
+            _cleanupTimer = new Timer(
+                _ => PerformFullCleanup(),
+                null,
+                _cleanupInterval,
+                _cleanupInterval);
+        }
+
+        public void RegisterChannel(IMonitoredChannel channel)
+        {
+            _registrationLock.EnterReadLock();
+            try
+            {
+                _monitoredChannels.Add(new WeakReference<IMonitoredChannel>(channel));
+            }
+            finally
+            {
+                _registrationLock.ExitReadLock();
+            }
+        }
+
+        public IEnumerable<ChannelMetricSnapshot> GetChannelSnapshots()
+        {
+            // Use reader lock to safely iterate
+            _registrationLock.EnterReadLock();
+            try
+            {
+                var snapshots = new List<ChannelMetricSnapshot>();
+
+                // Process all channels
+                foreach (var weakRef in _monitoredChannels)
+                {
+                    if (weakRef.TryGetTarget(out var channel))
+                    {
+                        var snapshot = channel.GetMetricSnapshot();
+                        if (snapshot != null)
+                        {
+                            snapshots.Add(snapshot);
+                        }
+                    }
+                }
+
+                return snapshots;
+            }
+            finally
+            {
+                _registrationLock.ExitReadLock();
+            }
+        }
+
+        public int GetActiveChannelCount()
+        {
+            _registrationLock.EnterReadLock();
+            try
+            {
+                int count = 0;
+                foreach (var weakRef in _monitoredChannels)
+                {
+                    if (weakRef.TryGetTarget(out var channel) && channel.GetMetricSnapshot() != null)
+                    {
+                        count++;
+                    }
+                }
+                return count;
+            }
+            finally
+            {
+                _registrationLock.ExitReadLock();
+            }
+        }
+
+        internal void PerformFullCleanup()
+        {
+            // Use TryEnterWriteLock to avoid deadlocks
+            if (_registrationLock.TryEnterWriteLock(1000))
+            {
+                try
+                {
+                    var newCollection = new ConcurrentBag<WeakReference<IMonitoredChannel>>();
+
+                    foreach (var weakRef in _monitoredChannels)
+                    {
+                        if (weakRef.TryGetTarget(out var channel) && channel.GetMetricSnapshot() != null)
+                        {
+                            newCollection.Add(weakRef);
+                        }
+                    }
+
+                    Interlocked.Exchange(ref _monitoredChannels, newCollection);
+                }
+                finally
+                {
+                    _registrationLock.ExitWriteLock();
+                }
+            }
+        }
+
+        public void Dispose()
+        {
+            _cleanupTimer.Dispose();
+            _registrationLock.Dispose();
+        }
+    }
 
 }

@@ -37,12 +37,10 @@ public static class DataFlowRegistrationExtensions
         services.TryAddSingleton<DataFlowThrottler>();
         services.TryAddTransient(typeof(FlowExecutor<>));
 
-        services.TryAddSingleton<IBoundedChannelFactory, MonitoredChannelFactory>();       
-        // Register open generic executor once
-      
-       
-        services.TryAddSingleton<IDataFlowMetrics, DataFlowMetrics>();
-        services.TryAddSingleton<ChannelRegistry>();
+        services.TryAddSingleton<IBoundedChannelFactory, MonitoredChannelFactory>();
+        // Register open generic executor once      
+
+        services.TryAddSingleton<IDataFlowMetrics, DataFlowMetrics>();      
         return services;
     }
 
