@@ -16,6 +16,7 @@ public abstract class BlockBase : IBlock
 {
 
     // private readonly List<IMiddleware> _middleware = new();
+    private BlockMetricsContext _blockMetricsContext;
 
     protected BlockBase(string name, BlockOptions? blockOptions, ILogger logger)
     {
@@ -27,6 +28,8 @@ public abstract class BlockBase : IBlock
     public BlockOptions Options { get; }
     public string Name { get; }
 
+    public BlockMetricsContext MetricsContext { get; set; }
+
     public ILogger Logger { get; }
 
     //public void AddMiddleware(IMiddleware middleware)
@@ -35,7 +38,7 @@ public abstract class BlockBase : IBlock
     //}
 
     public async Task ExecuteAsync(IDataFlowContext context)
-    {
+    {      
         // Build middleware pipeline
 
         // var branchContext = context.CreateBranch(Guid.NewGuid(), GetType().Name);
@@ -97,13 +100,7 @@ public abstract class BlockBase : IBlock
                         try
                         {
                             // Wrap scope creation in try-catch to handle disposed provider
-                            await using var scope = context.ServiceProvider.CreateAsyncScope();
-
-                            var branchContext = new DataFlowContext()
-                            {
-                                CancellationToken = context.CancellationToken,
-                                ServiceProvider = scope.ServiceProvider
-                            };
+                            await using var scope = context.CreateNewAsyncScope(out var branchContext);  
 
                             //string actorId = Guid.NewGuid().ToString().Substring(0, 8); // Generate unique ID for this actor
                             Logger.LogDebug(

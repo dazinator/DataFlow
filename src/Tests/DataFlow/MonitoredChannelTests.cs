@@ -1,5 +1,6 @@
 namespace Tests.DataFlow;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.Metrics;
 using System.Linq;
@@ -103,6 +104,8 @@ public class TestDataFlowContext : IDataFlowContext
 
     public Guid InvocationId { get; set; }
     public string Name { get; set; }
+    public DataFlowMetricsContext FlowMetricsContext { get; set; }
+    public ConcurrentDictionary<string, object> Items { get; }
     //public void AddDimension(string key, string value)
     //{
     //    _dimensionsInternal[key] = value;

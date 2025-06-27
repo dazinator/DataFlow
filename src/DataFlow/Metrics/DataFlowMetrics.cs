@@ -22,6 +22,10 @@ public class DataFlowMetrics : IDataFlowMetrics
     private readonly Counter<long> _blockExecutionCount;
     private readonly UpDownCounter<int> _activeFlowCount;
     private readonly UpDownCounter<int> _activeBlockCount;
+  
+    //private readonly Counter<long> _blockItemsProcessed;    
+    //private readonly Counter<long> _dataItemsProcessed;
+
     private readonly ILogger<DataFlowMetrics> _logger;
     private readonly IMeterAccessor _meterAccessor;
     private readonly ChannelRegistry _channelRegistry = new ChannelRegistry();
@@ -57,6 +61,15 @@ public class DataFlowMetrics : IDataFlowMetrics
             unit: "execution",
             description: "Number of completed block executions");
 
+        //// NEW: The two processing counters we're adding
+        //_blockItemsProcessed = meter.CreateCounter<long>(InstrumentNames.BlockItemsProcessed,
+        //    unit: "item",
+        //    description: "Number of stream items processed by a block (batches, records, etc.)");
+
+        //_dataItemsProcessed = meter.CreateCounter<long>(InstrumentNames.DataItemsProcessed,
+        //    unit: "item",
+        //    description: "Number of business data items processed within stream items");
+
         _activeFlowCount = meter.CreateUpDownCounter<int>(InstrumentNames.ActiveFlowCount,
            unit: "flow",
            description: "Number of currently executing flows");
@@ -69,11 +82,6 @@ public class DataFlowMetrics : IDataFlowMetrics
             () => GetAllChannelUtilizations(),
             unit: "%",
             description: "Current utilization of a channel buffer used by a block");
-
-        //_channelBufferUtilization = meter.CreateObservableGauge<int>(InstrumentNames.ChannelBufferUtilizationMetricName,
-        //   () => GetAllChannelUtilizations(),
-        //   unit: "%",
-        //   description: "Current utilization of a channel buffer used by a block");
 
         _activeChannelCount = meter.CreateObservableGauge<int>(InstrumentNames.ActiveChannelCount,
            () => GetActiveChannelCount(),
@@ -97,71 +105,44 @@ public class DataFlowMetrics : IDataFlowMetrics
             activeChannelCount, activeChannelCountTags);
     }
 
-    public void FlowStarted(string flowName)
+    public void FlowStarted(KeyValuePair<string, object?>[] tags)
     {
-        var tags = new KeyValuePair<string, object?>[GlobalTags.Count + 1];
-        GlobalTags.CopyTo(tags, 0);
-        tags[GlobalTags.Count] = new(TagNames.FlowName, flowName);
         _activeFlowCount.Add(1, tags);
     }
-  
-    public void BlockStarted(string flowName, string blockName)
+    public void FlowCompleted(double durationMs, KeyValuePair<string, object?>[] tags)
     {
-        var tags = new KeyValuePair<string, object?>[GlobalTags.Count + 2];
-        GlobalTags.CopyTo(tags, 0);
-        tags[GlobalTags.Count] = new(TagNames.BlockName, blockName);
-        tags[GlobalTags.Count + 1] = new(TagNames.FlowName, flowName);     
-        _activeBlockCount.Add(1, tags);
-    }
-
-    public void FlowCompleted(double durationTotalMs, string name, IDataFlowContext context, bool outcomeIsSuccessful)
-    {
-        // Create a tag array
-        var allTags = new KeyValuePair<string, object?>[GlobalTags.Count + 3];
-
-        // Copy global tags
-        GlobalTags.CopyTo(allTags, 0);
-
-        // Add specific tags
-        allTags[GlobalTags.Count] = new(TagNames.FlowInvocationId, context.InvocationId);
-        allTags[GlobalTags.Count + 1] = new(TagNames.FlowName, name);
-        allTags[GlobalTags.Count + 2] = outcomeIsSuccessful ? TagConstantValues.SuccessOutcomeTag : TagConstantValues.FailureOutcomeTag;
-
-        // Record with the combined tags
-        _flowExecutionDuration.Record(durationTotalMs, allTags);
-        // Record execution count with the same tags
-        _flowExecutionCount.Add(1, allTags);
-
-        var tags = new KeyValuePair<string, object?>[GlobalTags.Count + 1];
-        GlobalTags.CopyTo(tags, 0);
-        tags[GlobalTags.Count] = new(TagNames.FlowName, name);
+        _flowExecutionDuration.Record(durationMs, tags);
+        _flowExecutionCount.Add(1, tags);
         _activeFlowCount.Add(-1, tags);
     }
 
-    public void BlockCompleted(double durationTotalMs, string flowName, string blockName, IDataFlowContext context, bool successful)
-    {
-        // Create a tag array that has capacity for global tags + specific tags
-        var allTags = new KeyValuePair<string, object?>[GlobalTags.Count + 4];
+    public void BlockStarted(KeyValuePair<string, object?>[] tags)
+    {       
+        _activeBlockCount.Add(1, tags);
+    }
+         
 
-        // Copy global tags
-        GlobalTags.CopyTo(allTags, 0);
-
-        // Add specific tags at the end
-        allTags[GlobalTags.Count] = new(TagNames.FlowInvocationId, context.InvocationId);
-        allTags[GlobalTags.Count + 1] = new(TagNames.FlowName, flowName);
-        allTags[GlobalTags.Count + 2] = new(TagNames.BlockName, blockName);
-        allTags[GlobalTags.Count + 3] = successful ? TagConstantValues.SuccessOutcomeTag : TagConstantValues.FailureOutcomeTag;
+    public void BlockCompleted(double durationTotalMs, KeyValuePair<string, object?>[] tags)
+    {       
         // Record with the combined tags
-        _blockProcessingDuration.Record(durationTotalMs, allTags);
+        _blockProcessingDuration.Record(durationTotalMs, tags);
         // Record execution count with the same tags
-        _blockExecutionCount.Add(1, allTags);
-
-        var tags = new KeyValuePair<string, object?>[GlobalTags.Count + 2];
-        GlobalTags.CopyTo(tags, 0);
-        tags[GlobalTags.Count] = new(TagNames.BlockName, blockName);
-        tags[GlobalTags.Count + 1] = new(TagNames.FlowName, flowName);
+        _blockExecutionCount.Add(1, tags);     
         _activeBlockCount.Add(-1, tags);
     }
+
+    //// NEW: The two processing metrics methods
+    //public void BlockItemProcessed(string blockName, string flowName)
+    //{
+    //    var tags = CreateBlockProcessingTags(blockName, flowName);
+    //    _blockItemsProcessed.Add(1, tags);
+    //}
+
+    //public void RecordDataItemsProcessed(string blockName, string flowName, string dataType, long count)
+    //{
+    //    var tags = CreateDataProcessingTags(blockName, flowName, dataType);
+    //    _dataItemsProcessed.Add(count, tags);
+    //}
 
     /// <summary>
     /// Registers a channel with the metrics system to be observed.
@@ -191,6 +172,7 @@ public class DataFlowMetrics : IDataFlowMetrics
             }
         }
     }
+
 
     public static class InstrumentNames
     {
@@ -235,6 +217,18 @@ public class DataFlowMetrics : IDataFlowMetrics
 
         [Description("Number of currently executing blocks")]
         public const string ActiveBlockCount = "dataflow.block.active-count";
+
+        /// <summary>
+        /// Number of stream items processed by a block
+        /// </summary>
+        [Description("Number of stream items processed by a block (batches, records, etc.)")]
+        public const string BlockItemsProcessed = "dataflow.block.items.processed";
+
+        /// <summary>
+        /// Number of business data items processed within stream items
+        /// </summary>
+        [Description("Number of business data items processed within stream items")]
+        public const string DataItemsProcessed = "dataflow.data.items.processed";
     }
 
     public static class TagNames

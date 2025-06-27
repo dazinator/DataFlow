@@ -1,5 +1,6 @@
 namespace Tests.DataFlow;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -202,6 +203,7 @@ public class DataFlowTracingTests : IDisposable
         }
 
         public string Name { get; }
+        public BlockMetricsContext MetricsContext { get; set; }
 
         public Task ExecuteAsync(IDataFlowContext context)
         {
@@ -217,23 +219,21 @@ public class DataFlowTracingTests : IDisposable
         public void RegisterChannel(IMonitoredChannel channel)
         {
             // No-op for testing
-        }
+        }       
 
-        public void FlowCompleted(double duration, string flowName, IDataFlowContext context, bool success)
+        public void FlowStarted(KeyValuePair<string, object?>[] tags)
         {
             // No-op for testing
         }
-
-        public void BlockCompleted(double duration, string flowName, string blockName, IDataFlowContext context, bool success)
+        public void FlowCompleted(double durationMs, KeyValuePair<string, object?>[] tags)
         {
             // No-op for testing
         }
-
-        public void FlowStarted(string flowName)
+        public void BlockStarted(KeyValuePair<string, object?>[] tags)
         {
             // No-op for testing
         }
-        public void BlockStarted(string flowName, string blockName)
+        public void BlockCompleted(double durationTotalMs, KeyValuePair<string, object?>[] tags)
         {
             // No-op for testing
         }
@@ -249,6 +249,9 @@ public class DataFlowTracingTests : IDisposable
         public string Name { get; set; }
 
         public IDictionary<string, string> Dimensions => _dimensions;
+
+        public DataFlowMetricsContext FlowMetricsContext { get; set; }
+        public ConcurrentDictionary<string, object> Items { get; }
     }
 
     private class TestFlowConfiguration : IDataFlowConfiguration

@@ -47,7 +47,10 @@ public class DataFlow
         context.Name ??= Name;
         Stopwatch? stopwatch = null;
 
-        _metrics.FlowStarted(context.Name);
+        // establish the metrics context for this flow execution.
+        context.FlowMetricsContext = new DataFlowMetricsContext(Name, context.InvocationId, _metrics);
+        context.FlowMetricsContext.FlowStarted();
+       
         var isSuccessful = false;
 
         using (var flowActivity = ActivitySource.StartActivity(ActivityNames.Flow))
@@ -93,33 +96,14 @@ public class DataFlow
                 {
                     // flowActivity?.SetStatus(ActivityStatusCode.Error, ex.Message);
                     flowActivity.Stop();
-                    flowDuration = flowActivity.Duration.TotalMilliseconds;
-                    //if (flowDuration > 0)
-                    //{
-                    //    // Calculate throughput (items/second)
-                    //    double throughput = totalItemsProcessed / flowDuration;
-                    //    DataFlowMetrics.FlowThroughput.Record(
-                    //        throughput,
-                    //        new("flow.id", _flowInstanceId),
-                    //        new("flow.type", typeof(T).Name));
-                    //}
-
-                    // Record total flow duration
-                  
-                    //.FlowExecutionDuration.Record(
-                    //flowActivity.Duration.TotalMilliseconds,
-                    //new("flow.invocationid", context.InvocationId),
-                    //new("flow.type", name));
-
-                    // Add tag with total processed items
-                    // flowActivity.SetTag("items.processed", totalItemsProcessed);
+                    flowDuration = flowActivity.Duration.TotalMilliseconds;                   
                 }
                 else
                 {
                     stopwatch?.Stop(); // Add this
                     flowDuration = stopwatch?.Elapsed.TotalMilliseconds ?? 0;
                 }
-                _metrics.FlowCompleted(flowDuration, context.Name, context, isSuccessful);
+                context.FlowMetricsContext.FlowCompleted(flowDuration, isSuccessful);                
             }
         }      
     }
@@ -131,7 +115,8 @@ public class DataFlow
         Stopwatch? stopwatch = null;
         var isSuccessful = false;
 
-        _metrics.BlockStarted(name, block.Name);
+        block.MetricsContext ??= context.FlowMetricsContext.CreateBlockContext(block.Name);
+        block.MetricsContext.BlockStarted();      
 
         // Create the activity within the current activity's context
         using var activity = ActivitySource.StartActivity(
@@ -182,7 +167,7 @@ public class DataFlow
                 stopwatch?.Stop();
                 blockDuration = stopwatch?.Elapsed.TotalMilliseconds ?? 0;
             }
-            _metrics.BlockCompleted(blockDuration, name, block.Name, context, isSuccessful);
+            block.MetricsContext.BlockCompleted(blockDuration, isSuccessful);           
         }
     }
 }
