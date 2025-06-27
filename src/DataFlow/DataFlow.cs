@@ -4,7 +4,6 @@ using System.Diagnostics;
 using Uniun.DataFlow.Blocks;
 using Uniun.DataFlow.Metrics;
 
-// Generic wrapper that uses the config type as the type parameter
 public class DataFlow<TConfig> : IDataFlow
     where TConfig : IDataFlowConfiguration
 {
@@ -48,8 +47,8 @@ public class DataFlow
         context.Name ??= Name;
         Stopwatch? stopwatch = null;
 
-
-        var isSuccessful = false; // Add this
+        _metrics.FlowStarted(context.Name);
+        var isSuccessful = false;
 
         using (var flowActivity = ActivitySource.StartActivity(ActivityNames.Flow))
         {
@@ -78,6 +77,7 @@ public class DataFlow
                 await Task.WhenAll(blockTasks);
                 context.CancellationToken.ThrowIfCancellationRequested(); // becuse channel readers writers can gracefully exit from streams, lets ensure if we are cancelled we throw here.
                 flowActivity?.SetStatus(ActivityStatusCode.Ok);
+                isSuccessful = true;
             }
             catch (Exception ex)
             {
@@ -88,11 +88,12 @@ public class DataFlow
             finally
             {
                 // Record flow-level metrics
+                double flowDuration;
                 if (flowActivity != null)
                 {
                     // flowActivity?.SetStatus(ActivityStatusCode.Error, ex.Message);
                     flowActivity.Stop();
-                    var flowDuration = flowActivity.Duration.TotalMilliseconds;
+                    flowDuration = flowActivity.Duration.TotalMilliseconds;
                     //if (flowDuration > 0)
                     //{
                     //    // Calculate throughput (items/second)
@@ -104,7 +105,7 @@ public class DataFlow
                     //}
 
                     // Record total flow duration
-                    _metrics.FlowCompleted(flowDuration, context.Name, context, flowActivity.Status == ActivityStatusCode.Ok);
+                  
                     //.FlowExecutionDuration.Record(
                     //flowActivity.Duration.TotalMilliseconds,
                     //new("flow.invocationid", context.InvocationId),
@@ -116,31 +117,21 @@ public class DataFlow
                 else
                 {
                     stopwatch?.Stop(); // Add this
-                    var flowDuration = stopwatch?.Elapsed.TotalMilliseconds ?? 0;
-                    _metrics.FlowCompleted(flowDuration, context.Name, context, isSuccessful);
+                    flowDuration = stopwatch?.Elapsed.TotalMilliseconds ?? 0;
                 }
+                _metrics.FlowCompleted(flowDuration, context.Name, context, isSuccessful);
             }
-
-
-        }
-
-
-
-
-
-
-        //// Execute all blocks concurrently
-        //var blockTasks = _blocks.Select(block =>
-        //    ExecuteBlockAsync(block, context));
-
-        //await Task.WhenAll(blockTasks);
-        //context.CancellationToken.ThrowIfCancellationRequested(); // becuse channel readers writers can gracefully exit from streams, lets ensure if we are cancelled we throw here.
+        }      
     }
 
 
     private async Task ExecuteBlockAsync(Activity? parentActivity, IBlock block, IDataFlowContext context)
     {
         var name = context.Name;
+        Stopwatch? stopwatch = null;
+        var isSuccessful = false;
+
+        _metrics.BlockStarted(name, block.Name);
 
         // Create the activity within the current activity's context
         using var activity = ActivitySource.StartActivity(
@@ -158,34 +149,40 @@ public class DataFlow
             }
             activity.AddTag(ActivityNames.TagNames.BlockName, block.Name);
             activity.DisplayName = $"{ActivityNames.Block} {{BlockName}}";
-
-            // Add extra contextual information
-            // activity.AddTag("block.type", block.GetType().Name);
+           
         }
-
-        // blockActivity?.AddTag(DataFlowMetrics.TagNames.FlowInvocationId, context.InvocationId);
+        else
+        {
+            stopwatch = Stopwatch.StartNew(); //we need to resort to stopwatch for time metric as activity source is not available
+        }
+      
         try
         {
             await block.ExecuteAsync(context);
             activity?.SetStatus(ActivityStatusCode.Ok);
+            isSuccessful = true;
         }
         catch (Exception ex)
         {
-            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);           
             throw;
         }
         finally
         {
             // Record block duration
+            double blockDuration;
             if (activity != null)
             {
                 // Make sure all tags are set before stopping
                 activity.Stop();
-                var blockDuration = activity.Duration.TotalMilliseconds;
-                _metrics.BlockCompleted(blockDuration, name, block.Name, context, activity.Status == ActivityStatusCode.Ok);
+                blockDuration = activity.Duration.TotalMilliseconds;
             }
+            else
+            {
+                stopwatch?.Stop();
+                blockDuration = stopwatch?.Elapsed.TotalMilliseconds ?? 0;
+            }
+            _metrics.BlockCompleted(blockDuration, name, block.Name, context, isSuccessful);
         }
-
-
     }
 }

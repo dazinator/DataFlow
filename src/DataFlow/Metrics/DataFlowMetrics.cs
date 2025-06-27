@@ -4,6 +4,7 @@ namespace Uniun.DataFlow.Metrics;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
+using System.Xml.Linq;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -17,8 +18,10 @@ public class DataFlowMetrics : IDataFlowMetrics
     private readonly Histogram<double> _flowExecutionDuration;
     private readonly ObservableGauge<int> _channelBufferUtilization;
     private readonly ObservableGauge<int> _activeChannelCount;
-    private readonly Counter<long> _flowExecutionCount;  
+    private readonly Counter<long> _flowExecutionCount;
     private readonly Counter<long> _blockExecutionCount;
+    private readonly UpDownCounter<int> _activeFlowCount;
+    private readonly UpDownCounter<int> _activeBlockCount;
     private readonly ILogger<DataFlowMetrics> _logger;
     private readonly IMeterAccessor _meterAccessor;
     private readonly ChannelRegistry _channelRegistry;
@@ -56,6 +59,14 @@ public class DataFlowMetrics : IDataFlowMetrics
             unit: "execution",
             description: "Number of completed block executions");
 
+        _activeFlowCount = meter.CreateUpDownCounter<int>(InstrumentNames.ActiveFlowCount,
+           unit: "flow",
+           description: "Number of currently executing flows");
+
+        _activeBlockCount = meter.CreateUpDownCounter<int>(InstrumentNames.ActiveBlockCount,
+            unit: "block",
+            description: "Number of currently executing blocks");
+
         _channelBufferUtilization = meter.CreateObservableGauge<int>(InstrumentNames.ChannelBufferUtilizationMetricName,
             () => GetAllChannelUtilizations(),
             unit: "%",
@@ -88,6 +99,25 @@ public class DataFlowMetrics : IDataFlowMetrics
             activeChannelCount, activeChannelCountTags);
     }
 
+    public void FlowStarted(string flowName)
+    {
+        var tags = new KeyValuePair<string, object?>[GlobalTags.Count + 1];
+        GlobalTags.CopyTo(tags, 0);
+        tags[GlobalTags.Count] = new(TagNames.FlowName, flowName);
+        _activeFlowCount.Add(1, tags);
+    }
+
+
+    // SIMPLE: Just increment the counter  
+    public void BlockStarted(string flowName, string blockName)
+    {
+        var tags = new KeyValuePair<string, object?>[GlobalTags.Count + 2];
+        GlobalTags.CopyTo(tags, 0);
+        tags[GlobalTags.Count] = new(TagNames.BlockName, blockName);
+        tags[GlobalTags.Count + 1] = new(TagNames.FlowName, flowName);     
+        _activeBlockCount.Add(1, tags);
+    }
+
     public void FlowCompleted(double durationTotalMs, string name, IDataFlowContext context, bool outcomeIsSuccessful)
     {
         // Create a tag array
@@ -105,6 +135,11 @@ public class DataFlowMetrics : IDataFlowMetrics
         _flowExecutionDuration.Record(durationTotalMs, allTags);
         // Record execution count with the same tags
         _flowExecutionCount.Add(1, allTags);
+
+        var tags = new KeyValuePair<string, object?>[GlobalTags.Count + 1];
+        GlobalTags.CopyTo(tags, 0);
+        tags[GlobalTags.Count] = new(TagNames.FlowName, name);
+        _activeFlowCount.Add(-1, tags);
     }
 
     public void BlockCompleted(double durationTotalMs, string flowName, string blockName, IDataFlowContext context, bool successful)
@@ -124,6 +159,12 @@ public class DataFlowMetrics : IDataFlowMetrics
         _blockProcessingDuration.Record(durationTotalMs, allTags);
         // Record execution count with the same tags
         _blockExecutionCount.Add(1, allTags);
+
+        var tags = new KeyValuePair<string, object?>[GlobalTags.Count + 2];
+        GlobalTags.CopyTo(tags, 0);
+        tags[GlobalTags.Count] = new(TagNames.BlockName, blockName);
+        tags[GlobalTags.Count + 1] = new(TagNames.FlowName, flowName);
+        _activeBlockCount.Add(-1, allTags);
     }
 
     /// <summary>
@@ -192,6 +233,12 @@ public class DataFlowMetrics : IDataFlowMetrics
         /// </summary>
         [Description("Current number of active channels")]
         public const string ActiveChannelCount = "dataflow.channel.active-count";
+
+        [Description("Number of currently executing flows")]
+        public const string ActiveFlowCount = "dataflow.flow.active-count";
+
+        [Description("Number of currently executing blocks")]
+        public const string ActiveBlockCount = "dataflow.block.active-count";
     }
 
     public static class TagNames

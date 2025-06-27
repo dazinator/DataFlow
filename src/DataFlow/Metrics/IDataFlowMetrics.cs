@@ -6,6 +6,8 @@ using System.Diagnostics;
 public interface IDataFlowMetrics
 {
     void RegisterChannel(IMonitoredChannel channel);
+    void FlowStarted(string flowName);
+    void BlockStarted(string flowName, string blockName);
 
     void FlowCompleted(double durationTotalMs, string name, IDataFlowContext context, bool successful);
     void BlockCompleted(double durationTotalMs, string flowName, string blockName, IDataFlowContext context, bool successful);
