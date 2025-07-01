@@ -92,17 +92,9 @@ public class DataFlowMetrics : IDataFlowMetrics
     private Measurement<int> GetActiveChannelCount()
     {
         var activeChannelCount = _channelRegistry.GetActiveChannelCount();
-
-        var activeChannelCountTags = new TagList();
-        foreach (var tag in GlobalTags)
-        {
-            activeChannelCountTags.Add(tag.Key, tag.Value);
-        }
-        activeChannelCountTags.Add(TagNames.ActiveChannelCount, activeChannelCount);
-
         // Report active channel count
         return new Measurement<int>(
-            activeChannelCount, activeChannelCountTags);
+            activeChannelCount, GlobalTags);
     }
 
     public void FlowStarted(DataFlowMetricsContext metricsContext)
