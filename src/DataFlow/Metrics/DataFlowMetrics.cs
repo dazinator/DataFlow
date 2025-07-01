@@ -105,30 +105,34 @@ public class DataFlowMetrics : IDataFlowMetrics
             activeChannelCount, activeChannelCountTags);
     }
 
-    public void FlowStarted(KeyValuePair<string, object?>[] tags)
+    public void FlowStarted(DataFlowMetricsContext metricsContext)
     {
-        _activeFlowCount.Add(1, tags);
+        _activeFlowCount.Add(1, metricsContext.FlowTags);
     }
-    public void FlowCompleted(double durationMs, KeyValuePair<string, object?>[] tags)
+    public void FlowCompleted(DataFlowMetricsContext metricsContext, double durationMs, bool success)
     {
-        _flowExecutionDuration.Record(durationMs, tags);
-        _flowExecutionCount.Add(1, tags);
-        _activeFlowCount.Add(-1, tags);
+        metricsContext.SetCompletionOutcome(success);
+
+        _flowExecutionDuration.Record(durationMs, metricsContext.CompletionTags);    
+        _flowExecutionCount.Add(1, metricsContext.CompletionTags);
+        // for the active flow up down counter we want to maintain a single series so we don't use the completion tags here as they aren't availble when incrementing the counter.
+        _activeFlowCount.Add(-1, metricsContext.FlowTags);
     }
 
-    public void BlockStarted(KeyValuePair<string, object?>[] tags)
+    public void BlockStarted(BlockMetricsContext metricsContext)
     {       
-        _activeBlockCount.Add(1, tags);
-    }
-         
+        _activeBlockCount.Add(1, metricsContext.BlockTags);
+    }         
 
-    public void BlockCompleted(double durationTotalMs, KeyValuePair<string, object?>[] tags)
-    {       
+    public void BlockCompleted(BlockMetricsContext metricsContext, double durationTotalMs, bool success)
+    {
+        metricsContext.SetCompletionOutcome(success);
         // Record with the combined tags
-        _blockProcessingDuration.Record(durationTotalMs, tags);
-        // Record execution count with the same tags
-        _blockExecutionCount.Add(1, tags);     
-        _activeBlockCount.Add(-1, tags);
+        _blockProcessingDuration.Record(durationTotalMs, metricsContext.CompletionTags);      
+        _blockExecutionCount.Add(1, metricsContext.CompletionTags);
+
+        // for the active flow up down counter we want to maintain a single series so we don't use the completion tags here as they aren't availble when incrementing the counter.
+        _activeBlockCount.Add(-1, metricsContext.BlockTags);
     }
 
     //// NEW: The two processing metrics methods
@@ -233,38 +237,27 @@ public class DataFlowMetrics : IDataFlowMetrics
 
     public static class TagNames
     {
-        /// <summary>
-        /// The invocation id of the flow.
-        /// </summary>
+       
         [Description("The invocation id of the flow")]
         public const string FlowInvocationId = "dataflow.flow.invocationid";
-        /// <summary>
-        /// The name of the flow.
-        /// </summary>
+      
         [Description("Time name of the flow")]
         public const string FlowName = "dataflow.flow.name";
-        /// <summary>
-        /// The name of the flow.
-        /// </summary>
+      
         [Description("Indicator of success of failure in execution")]
         public const string Outcome = "dataflow.outcome";
-
-        /// <summary>
-        /// The name of the block.
-        /// </summary>
-        [Description("Time name of the block")]
+        
+        [Description("The name of the block")]
         public const string BlockName = "dataflow.block.name";
-        /// <summary>
-        /// The name of the block.
-        /// </summary>
+       
         [Description("The capacity of a block channel")]
         public const string ChannelCapacity = "dataflow.block.capacity";
-        /// <summary>
-        /// The name of the block.
-        /// </summary>
+       
         [Description("The total number of active channels")]
         public const string ActiveChannelCount = "dataflow.active-channel-count";
 
+        [Description("Developer-provided label for business data processing")]
+        public const string DataLabel = "dataflow.data.label";
 
     }
 

@@ -7,32 +7,39 @@ using Uniun.DataFlow.Metrics;
 public class BlockMetricsContext
 {
     private readonly string _blockName;
-    private readonly KeyValuePair<string, object?>[] _blockTags;
-    private readonly IDataFlowMetrics _metrics;
+    private readonly DataFlowMetricsContext _flowContext;
+    private KeyValuePair<string, object?>[] _completionTags = null;
 
-    internal BlockMetricsContext(string blockName, KeyValuePair<string, object?>[] blockTags, IDataFlowMetrics metrics)
+
+    public KeyValuePair<string, object?>[] BlockTags { get; }
+    public KeyValuePair<string, object?>[] CompletionTags { get => _completionTags; }
+
+    internal BlockMetricsContext(string blockName, DataFlowMetricsContext flowContext)
     {
         _blockName = blockName;
-        _blockTags = blockTags;
-        _metrics = metrics;
+        _flowContext = flowContext;
+        // Cache flow-level tags (global + flow info)
+        BlockTags = CreateBlockTags(_flowContext, blockName);
     }
 
-    /// <summary>
-    /// Records that this block started executing
-    /// </summary>
-    public void BlockStarted()
+    private static KeyValuePair<string, object?>[] CreateBlockTags(DataFlowMetricsContext flowContext, string blockName)
     {
-        _metrics.BlockStarted(_blockTags);
+        // we inherit flow level tags and add block name as an additional tag
+        var blockTags = new KeyValuePair<string, object?>[flowContext.FlowTags.Length + 1];
+        flowContext.FlowTags.CopyTo(blockTags, 0);
+        blockTags[flowContext.FlowTags.Length] = new(DataFlowMetrics.TagNames.BlockName, blockName);
+        return blockTags;
     }
 
-    /// <summary>
-    /// Records that this block completed executing
-    /// </summary>
-    public void BlockCompleted(double durationMs, bool successful)
+    public void SetCompletionOutcome(bool successful)
     {
-        var completionTags = CreateBlockCompletionTags(_blockTags, successful);
-        _metrics.BlockCompleted(durationMs, completionTags);
-    }
+        if (_completionTags is null)
+        {
+            // inherit the typical tags and add success/failure outcome tag.
+            _completionTags = CreateCompletionTags(BlockTags, successful);
+        }
+    }  
+
 
     ///// <summary>
     ///// Records that this block processed one stream item (automatic metric)
@@ -62,7 +69,7 @@ public class BlockMetricsContext
     //    return dataTags;
     //}
 
-    private static KeyValuePair<string, object?>[] CreateBlockCompletionTags(KeyValuePair<string, object?>[] blockTags, bool successful)
+    private static KeyValuePair<string, object?>[] CreateCompletionTags(KeyValuePair<string, object?>[] blockTags, bool successful)
     {
         var completionTags = new KeyValuePair<string, object?>[blockTags.Length + 1];
         blockTags.CopyTo(completionTags, 0);

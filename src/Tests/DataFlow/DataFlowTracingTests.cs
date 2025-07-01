@@ -216,27 +216,29 @@ public class DataFlowTracingTests : IDisposable
     {
         public TagList GlobalTags { get; } = new TagList();
 
+        public void BlockCompleted(BlockMetricsContext metricsContext, double durationTotalMs, bool success)
+        {
+            // No-op for testing
+        }  
+        public void BlockStarted(BlockMetricsContext metricsContext)
+        {
+            // No-op for testing
+        }
+        public void FlowCompleted(DataFlowMetricsContext metricsContext, double durationMs, bool success)
+        {
+            // No-op for testing
+        }
+        public void FlowStarted(DataFlowMetricsContext context)
+        {
+            // No-op for testing
+        }
+
         public void RegisterChannel(IMonitoredChannel channel)
         {
             // No-op for testing
         }       
 
-        public void FlowStarted(KeyValuePair<string, object?>[] tags)
-        {
-            // No-op for testing
-        }
-        public void FlowCompleted(double durationMs, KeyValuePair<string, object?>[] tags)
-        {
-            // No-op for testing
-        }
-        public void BlockStarted(KeyValuePair<string, object?>[] tags)
-        {
-            // No-op for testing
-        }
-        public void BlockCompleted(double durationTotalMs, KeyValuePair<string, object?>[] tags)
-        {
-            // No-op for testing
-        }
+     
     }
 
     private class TestDataFlowContext : IDataFlowContext

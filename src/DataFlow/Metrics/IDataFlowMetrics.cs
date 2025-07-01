@@ -9,11 +9,12 @@ public interface IDataFlowMetrics
     // void FlowStarted(string flowName);
     // void FlowCompleted(double durationTotalMs, string name, IDataFlowContext context, bool successful);
     
-    void FlowStarted(KeyValuePair<string, object?>[] tags);
-    void FlowCompleted(double durationMs, KeyValuePair<string, object?>[] tags);
+    void FlowStarted(DataFlowMetricsContext context);
+    void FlowCompleted(DataFlowMetricsContext metricsContext, double durationMs, bool success);
 
-    void BlockStarted(KeyValuePair<string, object?>[] tags);
-    void BlockCompleted(double durationTotalMs, KeyValuePair<string, object?>[] tags);   
+    void BlockStarted(BlockMetricsContext metricsContext);
+    void BlockCompleted(BlockMetricsContext metricsContext, double durationTotalMs, bool success);
+
     //void BlockItemProcessed(string flowName, string blockName);                                              // Automatic: +1 per stream item
     //void RecordDataItemsProcessed(string flowName, string blockName, string dataType, long count);
     /// <summary>
