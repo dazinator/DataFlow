@@ -6,9 +6,14 @@ using System.Collections.Concurrent;
 
 public class DataFlowContext : IDataFlowContext
 {
-    public DataFlowContext()
+    public DataFlowContext():this(Guid.NewGuid())
     {
 
+    }
+
+    public DataFlowContext(Guid invocationId)
+    {
+        InvocationId = invocationId;
     }
 
     public Guid InvocationId { get; set; }

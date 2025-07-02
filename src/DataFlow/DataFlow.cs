@@ -113,12 +113,11 @@ public class DataFlow
 
     private async Task ExecuteBlockAsync(Activity? parentActivity, IBlock block, IDataFlowContext context)
     {
+        //TODO: Move this thod to BlockBase.ExecuteAsync
+
         var name = context.Name;
         Stopwatch? stopwatch = null;
-        var isSuccessful = false;
-
-        var metricsContext = block.MetricsContext = context.FlowMetricsContext.CreateBlockContext(block.Name);
-        metricsContext.Started();           
+        var isSuccessful = false;              
 
         // Create the activity within the current activity's context
         using var activity = ActivitySource.StartActivity(
@@ -169,7 +168,7 @@ public class DataFlow
                 stopwatch?.Stop();
                 blockDuration = stopwatch?.Elapsed.TotalMilliseconds ?? 0;
             }
-            metricsContext.Completed(blockDuration, isSuccessful);
+            block.MetricsContext?.Completed(blockDuration, isSuccessful);
         }
     }
   
