@@ -50,7 +50,7 @@ public class ProcessorBlock<T> : BlockBase, ITargetBlock<T>
     {
         // await base.CoreExecuteAsync(context);
         EnsureSourceReader();
-        await ExecuteParallelActivities(context, Options.MaxConcurrency, ExecuteStreamProcessorAsync);     
+        await ExecuteParallelActivities(context, Options.MaxConcurrency, ExecuteStreamProcessorAsync);
     }
 
     // 1. Add detailed logging in ProcessorBlock.ExecuteStreamProcessorAsync
@@ -60,6 +60,15 @@ public class ProcessorBlock<T> : BlockBase, ITargetBlock<T>
         // Will use scoped ServiceProvider if UseSeperateScopes=true
         var processor = _processorFactory(context.ServiceProvider);
         var input = SourceReader.ReadAllAsync(context.CancellationToken);
+        if (Options.EnableFlowRateMetrics)
+        {
+            input = input.DecorateWithCallbackAfterEachItem(
+                this.RecordOperation,
+                context.CancellationToken
+            );
+        }
+
+
         await processor.ProcessAsync(input, context.CancellationToken);
     }
 }

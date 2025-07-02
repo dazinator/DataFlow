@@ -39,6 +39,11 @@ public class BlockMetricsTagsContext: IMetricsTagsContext
         _metrics.BlockStarted(this);
     }
 
+    public void OperationsComplete(long count)
+    {
+        _metrics.BlockOperationsCompleted(this, count);
+    }
+
     /// <summary>
     /// Marks the block as completed with the specified duration and optional outcome label.
     /// </summary>

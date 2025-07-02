@@ -31,12 +31,18 @@ public class InputChannelBlock<T> : BlockBase, ISourceBlock<T>
         return _outputChannel.Reader;
     }
 
+    public virtual async ValueTask WriteAsync(T item, CancellationToken cancellationToken = default)
+    {
+        await Writer.WriteAsync(item, cancellationToken);
+        RecordOperation();       
+    }
+
     /// <summary>
     /// Downstream blocks obtain the reader to read items from this blocks output channel.
     /// </summary>
     /// <param name="target"></param>
     /// <returns></returns>
-    public ChannelWriter<T> Writer { get { return _outputChannel.Writer; } }
+    protected ChannelWriter<T> Writer { get { return _outputChannel.Writer; } }
 
     public void Complete()
     {

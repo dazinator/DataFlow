@@ -85,6 +85,7 @@ public class TransformBlock<TIn, TOut> : BlockBase, IPropagatorBlock<TIn, TOut>
             .WithCancellation(context.CancellationToken))
         {
             await _outputChannel.Writer.WriteAsync(result, context.CancellationToken);
+            RecordOperation();
         }
     }  
 }

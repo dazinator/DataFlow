@@ -130,7 +130,7 @@ public partial class MinimalBenchmark
         // Push all items into the pipeline asynchronously
         foreach (var item in _items)
         {
-            await inputBlock.Writer.WriteAsync(item);
+            await inputBlock.WriteAsync(item);
         }
 
         var completionTask = tcs.Task;

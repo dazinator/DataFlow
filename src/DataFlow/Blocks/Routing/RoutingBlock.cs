@@ -144,7 +144,8 @@ public class RoutingBlock<T> : BlockBase, ITargetBlock<T>
             }
 
             // Write the item to the channel
-            await channel.Writer.WriteAsync(item, context.CancellationToken);
+            await channel.WriteAsync(item, context.CancellationToken);
+            RecordOperation();
         }
     }
 

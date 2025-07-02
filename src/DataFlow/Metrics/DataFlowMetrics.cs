@@ -22,6 +22,7 @@ public class DataFlowMetrics : IDataFlowMetrics
     private readonly Counter<long> _blockExecutionCount;
     private readonly UpDownCounter<int> _activeFlowCount;
     private readonly UpDownCounter<int> _activeBlockCount;
+    private readonly Counter<long> _blockOperationsCompleted;
     private readonly Counter<long> _dataItemsProcessed;
 
     //private readonly Counter<long> _blockItemsProcessed;    
@@ -35,11 +36,11 @@ public class DataFlowMetrics : IDataFlowMetrics
 
     public DataFlowMetrics(
         ILogger<DataFlowMetrics> logger,
-        IMeterAccessor meterAccessor,      
+        IMeterAccessor meterAccessor,
         IOptions<DataFlowsOptions> options)
     {
         _logger = logger;
-        _meterAccessor = meterAccessor;      
+        _meterAccessor = meterAccessor;
         _options = options;
         GlobalTags = _options.Value.MetricTags;
 
@@ -65,6 +66,10 @@ public class DataFlowMetrics : IDataFlowMetrics
         //_blockItemsProcessed = meter.CreateCounter<long>(InstrumentNames.BlockItemsProcessed,
         //    unit: "item",
         //    description: "Number of stream items processed by a block (batches, records, etc.)");
+
+        _blockOperationsCompleted = meter.CreateCounter<long>(InstrumentNames.BlockOperationsCompleted,
+           unit: "operation",
+           description: "Number of operations a block is completing");
 
         _dataItemsProcessed = meter.CreateCounter<long>(InstrumentNames.DataItemsProcessed,
             unit: "item",
@@ -102,22 +107,22 @@ public class DataFlowMetrics : IDataFlowMetrics
         _activeFlowCount.Add(1, metricsContext.Tags);
     }
     public void FlowCompleted(DataFlowMetricsTagsContext metricsContext, double durationMs)
-    {      
-        _flowExecutionDuration.Record(durationMs, metricsContext.CompletionTags ?? metricsContext.Tags);    
+    {
+        _flowExecutionDuration.Record(durationMs, metricsContext.CompletionTags ?? metricsContext.Tags);
         _flowExecutionCount.Add(1, metricsContext.CompletionTags ?? metricsContext.Tags);
         // for the active flow up down counter we want to maintain a single series so we don't use the completion tags here as they aren't availble when incrementing the counter.
         _activeFlowCount.Add(-1, metricsContext.Tags);
     }
 
     public void BlockStarted(BlockMetricsTagsContext metricsContext)
-    {       
+    {
         _activeBlockCount.Add(1, metricsContext.Tags);
-    }         
+    }
 
     public void BlockCompleted(BlockMetricsTagsContext metricsContext, double durationTotalMs)
-    {      
+    {
         // Record with the combined tags
-        _blockProcessingDuration.Record(durationTotalMs, metricsContext.CompletionTags);      
+        _blockProcessingDuration.Record(durationTotalMs, metricsContext.CompletionTags);
         _blockExecutionCount.Add(1, metricsContext.CompletionTags);
 
         // for the active flow up down counter we want to maintain a single series so we don't use the completion tags here as they aren't availble when incrementing the counter.
@@ -127,6 +132,10 @@ public class DataFlowMetrics : IDataFlowMetrics
     public void ItemsProcessed(DataItemMetricsContext context, long count)
     {
         _dataItemsProcessed.Add(count, context.Tags);
+    }
+    public void BlockOperationsCompleted(BlockMetricsTagsContext context, long count)
+    {
+        _blockOperationsCompleted.Add(count, context.Tags);
     }
 
     //// NEW: The two processing metrics methods
@@ -141,7 +150,7 @@ public class DataFlowMetrics : IDataFlowMetrics
     //    var tags = CreateDataProcessingTags(blockName, flowName, dataType);
     //    _dataItemsProcessed.Add(count, tags);
     //}   
-   
+
     /// <summary>
     /// Registers a channel with the metrics system to be observed.
     /// </summary>
@@ -169,7 +178,7 @@ public class DataFlowMetrics : IDataFlowMetrics
                 yield return new Measurement<int>(utilization, snapshot.Tags);
                 //if (snapshot.Tags.Count > 0)
                 //{
-                  
+
                 //}
                 //else
                 //{
@@ -227,33 +236,33 @@ public class DataFlowMetrics : IDataFlowMetrics
         /// <summary>
         /// Number of stream items processed by a block
         /// </summary>
-        [Description("Number of stream items processed by a block (batches, records, etc.)")]
-        public const string BlockItemsProcessed = "dataflow.block.items.processed";
+        [Description("Number of individual operations completed by a block (e.g batches, transforms etc)")]
+        public const string BlockOperationsCompleted = "dataflow.block.operations";
 
         /// <summary>
         /// Number of business data items processed within stream items
         /// </summary>
         [Description("Number of business data items processed within stream items")]
-        public const string DataItemsProcessed = "dataflow.data.items.processed";
+        public const string DataItemsProcessed = "dataflow.block.items.processed";
     }
 
     public static class TagNames
     {
-       
+
         [Description("The invocation id of the flow")]
         public const string FlowInvocationId = "dataflow.flow.invocationid";
-      
+
         [Description("Time name of the flow")]
         public const string FlowName = "dataflow.flow.name";
-      
+
         [Description("Indicator of success of failure in execution")]
         public const string Outcome = "dataflow.outcome";
-        
+
         [Description("The name of the block")]
         public const string BlockName = "dataflow.block.name";
-       
+
         [Description("The capacity of a block channel")]
-        public const string ChannelCapacity = "dataflow.block.capacity";       
+        public const string ChannelCapacity = "dataflow.block.capacity";
 
         [Description("Developer-provided label for business data processing")]
         public const string DataLabel = "dataflow.data.label";

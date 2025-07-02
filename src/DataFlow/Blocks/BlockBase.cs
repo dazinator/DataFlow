@@ -3,7 +3,7 @@ namespace Uniun.DataFlow.Blocks;
 using System;
 using Microsoft.Extensions.Logging;
 using Uniun.DataFlow;
-
+using Uniun.DataFlow.Metrics;
 
 public abstract class BlockBase : IBlock
 {
@@ -11,7 +11,7 @@ public abstract class BlockBase : IBlock
     {
         Options = blockOptions ?? new BlockOptions();
         Logger = logger;
-        Name = name;       
+        Name = name;
     }
 
     public BlockOptions Options { get; }
@@ -20,15 +20,66 @@ public abstract class BlockBase : IBlock
     public BlockMetricsTagsContext MetricsContext { get; set; }
 
     public ILogger Logger { get; }
+    public FlowRateMetricsCollector FlowRateMetricsCollector { get; private set; }
+
+    /// <summary>
+    /// Records a number of operations performed by the block which helps calculate its flow rate (i.e processing speed) metric.
+    /// </summary>
+    /// <param name="count"></param>
+    /// <remarks>This is about operations performed not data volumes. I.e a batch produced, or transform down. It should be called after the block operationally completes for an item in the stream.</remarks>
+    protected void RecordOperation(int count)
+    {
+        // We use a rate limiter to control how often we record metrics. This method is called for potentially every block for each item in the stream where their could be millions.
+        // We want to avoid producing millions of data item metrics.
+        FlowRateMetricsCollector?.RecordOperation(count);
+    }
+
+    /// <summary>
+    /// Records a number of operations performed by the block which helps calculate its flow rate (i.e processing speed) metric.
+    /// </summary>
+    /// <param name="count"></param>
+    /// <remarks>This is about operations performed not data volumes. I.e a batch produced, or transform down. It should be called after the block operationally completes for an item in the stream.</remarks>
+    protected void RecordOperation()
+    {
+        // We use a rate limiter to control how often we record metrics. This method is called for potentially every block for each item in the stream where their could be millions.
+        // We want to avoid producing millions of data item metrics.
+        FlowRateMetricsCollector?.RecordOperation(1);
+    }
     //public DataItemMetricsContext ItemsMetricContext { get; set; }
 
     public async Task ExecuteAsync(IDataFlowContext context)
     {
         using var logScope = Logger.BeginScope(new Dictionary<string, object> { { "BlockName", Name } });
         Logger.LogInformation("Executing");
+        if (Options.EnableFlowRateMetrics)
+        {
+            SetupFlowRateCollection();
+        }
         //ItemsMetricContext = MetricsContext.CreateItemsContext(Options.ItemsMetricLabel);
-        await CoreExecuteAsync(context);
-        Logger.LogInformation("Finished Executing");
+        try
+        {
+            await CoreExecuteAsync(context);
+        }
+        finally
+        {
+            if (FlowRateMetricsCollector != null)
+            {
+                var readStats = FlowRateMetricsCollector.GetStatistics();
+                Logger.LogInformation("{FlowStats}", readStats);
+                FlowRateMetricsCollector?.Dispose();
+            }           
+            Logger.LogInformation("Finished Executing");
+        }     
+       
+    }
+
+    private void SetupFlowRateCollection()
+    {
+        // Set up flow rate metrics if enabled
+        if (Options.EnableFlowRateMetrics)
+        {
+            FlowRateMetricsCollector = new FlowRateMetricsCollector(MetricsContext, Options.FlowRateMetricsSamplesPerSecond);
+        }
     }
 
     protected abstract Task CoreExecuteAsync(IDataFlowContext context);

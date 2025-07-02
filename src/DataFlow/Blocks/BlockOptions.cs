@@ -17,5 +17,15 @@ public class BlockOptions
     // Whether the concurrent block operations should have their own scoped DI IServiceProvider to resolve services from.
     public bool UseSeperateScopes { get; set; } = true;
 
-    public string ItemsMetricLabel { get; set; } = "Items";
+    /// <summary>
+    /// Enable flow rate metrics (how fast the block processes stream operations)
+    /// </summary>
+    public bool EnableFlowRateMetrics { get; set; } = true;
+
+    /// <summary>
+    /// How many flow operations to sample per second for metrics
+    /// </summary>
+    public int FlowRateMetricsSamplesPerSecond { get; set; } = 1;
 }
+
+

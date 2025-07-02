@@ -50,6 +50,7 @@ public class ObservableBlock<T> : BlockBase, ITargetBlock<T>
             await foreach (var item in SourceReader.ReadAllAsync(context.CancellationToken))
             {
                 _observer.OnNext(item);
+                this.RecordOperation();
             }
             _observer.OnCompleted();
         }

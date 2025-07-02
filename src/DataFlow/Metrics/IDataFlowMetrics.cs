@@ -18,7 +18,13 @@ public interface IDataFlowMetrics
 
     void BlockStarted(BlockMetricsTagsContext metricsContext);
     void BlockCompleted(BlockMetricsTagsContext metricsContext, double durationTotalMs);
-   
+    /// <summary>
+    /// Records the number of operations completed by a block. This is useful to track flow rate (processing speed) of blocks.
+    /// </summary>
+    /// <param name="context"></param>
+    /// <param name="count"></param>
+    void BlockOperationsCompleted(BlockMetricsTagsContext context, long count);
+
     void ItemsProcessed(DataItemMetricsContext context, long count);
     /// <summary>
     /// Tags that will be appended to all metrics and activities.

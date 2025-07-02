@@ -217,6 +217,9 @@ public class DataFlowTracingTests : IDisposable
         public TagList GlobalTags { get; } = new TagList();
 
         public void BlockCompleted(BlockMetricsTagsContext metricsContext, double durationTotalMs) { }
+
+        public void BlockOperationsCompleted(BlockMetricsTagsContext context, long count) { }
+
         public void BlockStarted(BlockMetricsTagsContext metricsContext) { }
         public void FlowCompleted(DataFlowMetricsTagsContext metricsContext, double durationMs) { }
         public void FlowStarted(DataFlowMetricsTagsContext context) { }

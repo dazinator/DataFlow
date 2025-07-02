@@ -50,6 +50,7 @@ public class OutputBlock<T> : BlockBase, ITargetBlock<T>
             await foreach (var item in SourceReader.ReadAllAsync(context.CancellationToken))
             {
                 await _output(item);
+                this.RecordOperation();
             }
         });
     }

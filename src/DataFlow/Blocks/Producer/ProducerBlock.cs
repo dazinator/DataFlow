@@ -52,6 +52,7 @@ public class ProducerBlock<TOutput> : BlockBase, ISourceBlock<TOutput>
                 await foreach (var item in producer.ProduceAsync(ctx.CancellationToken))
                 {                   
                     await _outputChannel.Writer.WriteAsync(item, ctx.CancellationToken);
+                    RecordOperation();
                 }
             });
         }

@@ -7,7 +7,7 @@ The Uniun DataFlow library automatically emits comprehensive metrics to monitor 
 ## Metric Collection Setup
 
 ### Prerequisites
-- .NET 6.0 or later
+- .NET 8.0 or later
 - OpenTelemetry metrics collection configured
 - Prometheus or compatible metrics backend
 

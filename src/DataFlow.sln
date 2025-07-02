@@ -18,7 +18,6 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{8A743E4E-9023-4FF8-A451-C4409DC1DDAE}"
 	ProjectSection(SolutionItems) = preProject
 		docs\dataflow_concurrency_guide.md = docs\dataflow_concurrency_guide.md
-		docs\dataflow_metrics_documentation.md = docs\dataflow_metrics_documentation.md
 		decisions.md = decisions.md
 	EndProjectSection
 EndProject

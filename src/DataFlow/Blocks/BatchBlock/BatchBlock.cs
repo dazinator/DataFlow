@@ -33,9 +33,9 @@ public class BatchBlock<T> : BlockBase, IPropagatorBlock<T, T[]>
         {
             throw new ArgumentException("Max batch size must be greater than 0", nameof(options.MaxBatchSize));
         }
-        _channelFactory = channelFactory;        
-        _outputChannel = _channelFactory.CreateMonitoredChannel<T[]>(name, options?.Capacity);      
-        _batchProcessor = new BatchProcessor<T>(options.MaxBatchSize, options.WindowPeriod, _outputChannel.Writer);       
+        _channelFactory = channelFactory;
+        _outputChannel = _channelFactory.CreateMonitoredChannel<T[]>(name, options?.Capacity);
+        _batchProcessor = new BatchProcessor<T>(options.MaxBatchSize, options.WindowPeriod, _outputChannel.Writer, this.RecordOperation);
     }
 
     public void SetSource(ISourceBlock<T> source)
@@ -64,7 +64,7 @@ public class BatchBlock<T> : BlockBase, IPropagatorBlock<T, T[]>
         using var monitoringLease = _outputChannel.StartMonitoring(context);
 
         try
-        {           
+        {
             EnsureSourceReader();
             //using var monitoredChannel = this.CreateMonitoredChannel(_outputChannelOptions.Capacity, context, _outputChannel);
             await ReadAllAsync(context);
@@ -78,7 +78,7 @@ public class BatchBlock<T> : BlockBase, IPropagatorBlock<T, T[]>
             finally
             {
                 _outputChannel.Writer.Complete(); // no more data to write.               
-            }     
+            }
         }
     }
 
@@ -100,6 +100,7 @@ public class BatchBlock<T> : BlockBase, IPropagatorBlock<T, T[]>
         private readonly int _maxBatchSize;
         private readonly TimeSpan _windowPeriod;
         private readonly ChannelWriter<TItem[]> _outputChannel;
+        private readonly Action _onBatchEmitted;
         private readonly CancellationTokenSource _timerCts;
         private volatile List<TItem> _currentBatch;
         private volatile bool _isFirstItem = true;
@@ -110,12 +111,13 @@ public class BatchBlock<T> : BlockBase, IPropagatorBlock<T, T[]>
         public BatchProcessor(
             int maxBatchSize,
             TimeSpan windowPeriod,
-            ChannelWriter<TItem[]> outputChannel)
+            ChannelWriter<TItem[]> outputChannel,
+            Action onBatchEmitted)
         {
             _maxBatchSize = maxBatchSize;
             _windowPeriod = windowPeriod;
             _outputChannel = outputChannel;
-
+            _onBatchEmitted = onBatchEmitted;
             var poolPolicy = new ListPoolPolicy<TItem>(maxBatchSize);
             _listPool = new DefaultObjectPool<List<TItem>>(poolPolicy);
 
@@ -201,6 +203,7 @@ public class BatchBlock<T> : BlockBase, IPropagatorBlock<T, T[]>
                 if (oldBatch.Count > 0)
                 {
                     await _outputChannel.WriteAsync(oldBatch.ToArray(), cancellationToken);
+                    _onBatchEmitted();
                 }
             }
             finally
