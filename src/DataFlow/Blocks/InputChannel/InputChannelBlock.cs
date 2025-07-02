@@ -11,22 +11,39 @@ using Uniun.DataFlow.Metrics;
 /// </summary>
 public class InputChannelBlock<T> : BlockBase, ISourceBlock<T>
 {
-    //private readonly BoundedChannelOptions _channelOptions;
     private readonly MonitoredChannel<T> _outputChannel;
     private readonly ILogger<InputChannelBlock<T>> _logger;
+    private TaskCompletionSource _writerCompletionSource;
 
     public InputChannelBlock(string name, ILogger<InputChannelBlock<T>> logger, IBoundedChannelFactory channelFactory, BlockOptions? options = null) : base(name, options, logger)
     {
         _outputChannel = channelFactory.CreateMonitoredChannel<T>(name, options?.Capacity);
         _logger = logger;
-    }
-
-    // Public property to allow external code to write directly to blocks output buffer
-    public ChannelWriter<T> Writer => _outputChannel.Writer;
-
+    }  
+   
+    /// <summary>
+    /// Downstream blocks obtain the reader to read items from this blocks output channel.
+    /// </summary>
+    /// <param name="target"></param>
+    /// <returns></returns>
     public ChannelReader<T> GetReader(ITargetBlock<T> target)
     {
         return _outputChannel.Reader;
+    }
+
+    /// <summary>
+    /// Downstream blocks obtain the reader to read items from this blocks output channel.
+    /// </summary>
+    /// <param name="target"></param>
+    /// <returns></returns>
+    public ChannelWriter<T> Writer { get { return _outputChannel.Writer; } }
+
+    public void Complete()
+    {
+        // complete the channel so downstream blocks can know there is no more data expected from this block.
+        _outputChannel.Writer.TryComplete();
+        _writerCompletionSource.SetResult(); // CoreExecuteAsync is awaiting this- the block will finish executing and return once we signal this.
+
     }
 
     protected override async Task CoreExecuteAsync(IDataFlowContext context)
@@ -37,8 +54,8 @@ public class InputChannelBlock<T> : BlockBase, ISourceBlock<T>
         // using var monitoredChannel = this.CreateMonitoredChannel(_channelOptions.Capacity, context, _channel);
         //  context.CreateMonitoredChannel(this.Name, _channel, Options.MaxConcurrency, _channelOptions.Capacity);
         // Just wait for completion since external code writes to the channel
-        _outputChannel.StartMonitoring(context);
-        await _outputChannel.Reader.Completion;
-
-    }
+        _writerCompletionSource = new TaskCompletionSource();
+        using var monitoringLease = _outputChannel.StartMonitoring(context);
+        await _writerCompletionSource.Task; // wait for the external code to signal completion that it has finished writing.  
+    }   
 }

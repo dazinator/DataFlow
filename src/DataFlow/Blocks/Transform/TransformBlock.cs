@@ -60,16 +60,13 @@ public class TransformBlock<TIn, TOut> : BlockBase, IPropagatorBlock<TIn, TOut>
 
     protected override async Task CoreExecuteAsync(IDataFlowContext context)
     {
+        using var monitoringLease = _outputChannel.StartMonitoring(context);
         EnsureSourceReader();
 
         try
-        {
-            _outputChannel.StartMonitoring(context);
+        {          
             // var monitoredChannel = this.CreateMonitoredChannel(_outputChannelOptions.Capacity, context, _outputChannel);
-            await ExecuteParallelActivities(context, Options.MaxConcurrency, ExecuteStreamTransformerAsync);
-           
-            // Source channel should be fully drained
-            await SourceReader.Completion;
+            await ExecuteParallelActivities(context, Options.MaxConcurrency, ExecuteStreamTransformerAsync);     
         }
         finally
         {
@@ -89,7 +86,5 @@ public class TransformBlock<TIn, TOut> : BlockBase, IPropagatorBlock<TIn, TOut>
         {
             await _outputChannel.Writer.WriteAsync(result, context.CancellationToken);
         }
-    }
-
-  
+    }  
 }

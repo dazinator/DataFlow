@@ -10,7 +10,7 @@ public interface ISourceBlock<T> : IBlock
     // ChannelReader<T> Reader { get; }
 
     /// <summary>
-    /// A downstream block calls this when it is executing concurrently, to get the reader for this block to supply data to it.
+    /// A downstream block calls this when it is executing concurrently, to get the reader for this blocks output channel so it can pull items from it.
     /// </summary>
     /// <param name="target"></param>
     /// <returns></returns>

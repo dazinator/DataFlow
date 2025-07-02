@@ -70,11 +70,7 @@ public class RouteInfo<T> : IAsyncDisposable
     {
         try
         {
-            var complete = ChannelBlock.Writer.TryComplete();
-            if (!complete)
-            {
-                _logger.LogWarning("Failed to complete channel for route {routingKey}", Context.RoutingKey);
-            }
+            ChannelBlock.Complete();           
         }
         catch (Exception ex)
         {

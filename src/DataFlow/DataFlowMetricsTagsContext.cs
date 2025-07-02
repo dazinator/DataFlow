@@ -6,47 +6,65 @@ using Uniun.DataFlow.Metrics;
 /// <summary>
 /// Comprehensive metrics context that handles both flow-level and block-level metrics with cached tags
 /// </summary>
-public class DataFlowMetricsContext
+public class DataFlowMetricsTagsContext : IMetricsTagsContext
 {
     private readonly IDataFlowMetrics _metrics;
     private readonly KeyValuePair<string, object?>[] _flowTags;
     private KeyValuePair<string, object?>[] _completionTags = null;
 
-    public DataFlowMetricsContext(string flowName, Guid invocationId, IDataFlowMetrics metrics)
+    public DataFlowMetricsTagsContext(string flowName, Guid invocationId, IDataFlowMetrics metrics)
     {
         _metrics = metrics;
-        FlowName = flowName;
+        Name = flowName;
         InvocationId = invocationId;
 
         // Cache flow-level tags (global + flow info)
         _flowTags = CreateFlowTags(flowName, invocationId, metrics.GlobalTags);
     }
 
-    public string FlowName { get; }
+    public string Name { get; }
     public Guid InvocationId { get; }
 
-    public KeyValuePair<string, object?>[] FlowTags => _flowTags;
+    public KeyValuePair<string, object?>[] Tags => _flowTags;
 
     public KeyValuePair<string, object?>[] CompletionTags { get => _completionTags; }
 
-    public void SetCompletionOutcome(bool successful)
-    {
-        if (_completionTags is null)
-        {
-
-            // inherit the typical flow tags and add success/failure outcome tag.
-
-            _completionTags = CreateFlowCompletionTags(FlowTags, successful);
-        }
-    }
+    public IDataFlowMetrics Metrics => _metrics;   
 
     /// <summary>
     /// Creates a BlockMetricsContext for a specific block (called by DataFlow)
     /// </summary>
-    internal BlockMetricsContext CreateBlockContext(string blockName)
+    internal BlockMetricsTagsContext CreateBlockContext(string blockName)
     {
-        return new BlockMetricsContext(blockName, this);
+        return new BlockMetricsTagsContext(blockName, this, _metrics);
     }
+
+    /// <summary>
+    /// Creates a DataItemMetricsContext to track metrics for specific data items within the flow.
+    /// </summary>
+    internal DataItemMetricsContext CreateItemsContext(string itemsName)
+    {
+        return new DataItemMetricsContext(itemsName, this, _metrics);
+    }
+
+    public void Started()
+    {
+        _metrics.FlowStarted(this);
+    }
+
+    /// <summary>
+    /// Marks the flow as completed with the specified duration and optional outcome label.
+    /// </summary>
+    /// <param name="duration"></param>
+    /// <param name="isSuccessful"></param>
+    public void Completed(double duration, bool? isSuccessful)
+    {
+        if (_completionTags is null && isSuccessful is not null)
+        {         
+            _completionTags = CreateCompletionTags(Tags, isSuccessful.Value);           
+        }
+        _metrics.FlowCompleted(this, duration);
+    }  
 
 
     #region Data-level Metrics (flow-scoped with developer labels)
@@ -76,7 +94,7 @@ public class DataFlowMetricsContext
         return tags;
     }
 
-    private static KeyValuePair<string, object?>[] CreateFlowCompletionTags(KeyValuePair<string, object?>[] flowTags, bool successful)
+    private static KeyValuePair<string, object?>[] CreateCompletionTags(KeyValuePair<string, object?>[] flowTags, bool successful)
     {
         var completionTags = new KeyValuePair<string, object?>[flowTags.Length + 1];
         flowTags.CopyTo(completionTags, 0);
@@ -84,15 +102,6 @@ public class DataFlowMetricsContext
             ? DataFlowMetrics.TagConstantValues.SuccessOutcomeTag
             : DataFlowMetrics.TagConstantValues.FailureOutcomeTag;
         return completionTags;
-    }
-
-
-    private static KeyValuePair<string, object?>[] CreateDataTags(KeyValuePair<string, object?>[] flowTags, string dataLabel)
-    {
-        var dataTags = new KeyValuePair<string, object?>[flowTags.Length + 1];
-        flowTags.CopyTo(dataTags, 0);
-        dataTags[flowTags.Length] = new(DataFlowMetrics.TagNames.DataLabel, dataLabel);
-        return dataTags;
     }
 
     #endregion

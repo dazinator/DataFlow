@@ -5,18 +5,21 @@ using System.Diagnostics;
 
 public interface IDataFlowMetrics
 {
-    void RegisterChannel(IMonitoredChannel channel);
+    //void RegisterChannel(IMonitoredChannel channel);
+    /// <summary>
+    /// Registers a channel for monitoring and returns a lease that should be disposed when monitoring is no longer needed
+    /// </summary>
+    IChannelMonitoringLease RegisterChannel(IMonitoredChannel channel);
     // void FlowStarted(string flowName);
     // void FlowCompleted(double durationTotalMs, string name, IDataFlowContext context, bool successful);
-    
-    void FlowStarted(DataFlowMetricsContext context);
-    void FlowCompleted(DataFlowMetricsContext metricsContext, double durationMs, bool success);
 
-    void BlockStarted(BlockMetricsContext metricsContext);
-    void BlockCompleted(BlockMetricsContext metricsContext, double durationTotalMs, bool success);
+    void FlowStarted(DataFlowMetricsTagsContext context);
+    void FlowCompleted(DataFlowMetricsTagsContext metricsContext, double durationMs);
 
-    //void BlockItemProcessed(string flowName, string blockName);                                              // Automatic: +1 per stream item
-    //void RecordDataItemsProcessed(string flowName, string blockName, string dataType, long count);
+    void BlockStarted(BlockMetricsTagsContext metricsContext);
+    void BlockCompleted(BlockMetricsTagsContext metricsContext, double durationTotalMs);
+   
+    void ItemsProcessed(DataItemMetricsContext context, long count);
     /// <summary>
     /// Tags that will be appended to all metrics and activities.
     /// </summary>

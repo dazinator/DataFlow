@@ -61,17 +61,24 @@ public class BatchBlock<T> : BlockBase, IPropagatorBlock<T, T[]>
 
     protected override async Task CoreExecuteAsync(IDataFlowContext context)
     {
+        using var monitoringLease = _outputChannel.StartMonitoring(context);
+
         try
-        {
-            _outputChannel.StartMonitoring(context);
+        {           
             EnsureSourceReader();
             //using var monitoredChannel = this.CreateMonitoredChannel(_outputChannelOptions.Capacity, context, _outputChannel);
             await ReadAllAsync(context);
         }
         finally
         {
-            await _batchProcessor.CompleteAsync();
-            _outputChannel.Writer.Complete();
+            try
+            {
+                await _batchProcessor.CompleteAsync(); // this can emit any remaining items in the current batch.
+            }
+            finally
+            {
+                _outputChannel.Writer.Complete(); // no more data to write.               
+            }     
         }
     }
 
@@ -81,9 +88,6 @@ public class BatchBlock<T> : BlockBase, IPropagatorBlock<T, T[]>
         {
             await _batchProcessor.AddAsync(item, context.CancellationToken);
         }
-
-        await SourceReader.Completion;
-
     }
 
     public ChannelReader<T[]> GetReader(ITargetBlock<T[]> target)
@@ -218,6 +222,6 @@ public class BatchBlock<T> : BlockBase, IPropagatorBlock<T, T[]>
         }
     }
 
-
-
 }
+
+

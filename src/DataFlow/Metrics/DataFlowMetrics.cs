@@ -22,9 +22,9 @@ public class DataFlowMetrics : IDataFlowMetrics
     private readonly Counter<long> _blockExecutionCount;
     private readonly UpDownCounter<int> _activeFlowCount;
     private readonly UpDownCounter<int> _activeBlockCount;
-  
+    private readonly Counter<long> _dataItemsProcessed;
+
     //private readonly Counter<long> _blockItemsProcessed;    
-    //private readonly Counter<long> _dataItemsProcessed;
 
     private readonly ILogger<DataFlowMetrics> _logger;
     private readonly IMeterAccessor _meterAccessor;
@@ -66,9 +66,9 @@ public class DataFlowMetrics : IDataFlowMetrics
         //    unit: "item",
         //    description: "Number of stream items processed by a block (batches, records, etc.)");
 
-        //_dataItemsProcessed = meter.CreateCounter<long>(InstrumentNames.DataItemsProcessed,
-        //    unit: "item",
-        //    description: "Number of business data items processed within stream items");
+        _dataItemsProcessed = meter.CreateCounter<long>(InstrumentNames.DataItemsProcessed,
+            unit: "item",
+            description: "Number of business data items processed within stream items");
 
         _activeFlowCount = meter.CreateUpDownCounter<int>(InstrumentNames.ActiveFlowCount,
            unit: "flow",
@@ -97,34 +97,36 @@ public class DataFlowMetrics : IDataFlowMetrics
             activeChannelCount, GlobalTags);
     }
 
-    public void FlowStarted(DataFlowMetricsContext metricsContext)
+    public void FlowStarted(DataFlowMetricsTagsContext metricsContext)
     {
-        _activeFlowCount.Add(1, metricsContext.FlowTags);
+        _activeFlowCount.Add(1, metricsContext.Tags);
     }
-    public void FlowCompleted(DataFlowMetricsContext metricsContext, double durationMs, bool success)
-    {
-        metricsContext.SetCompletionOutcome(success);
-
-        _flowExecutionDuration.Record(durationMs, metricsContext.CompletionTags);    
-        _flowExecutionCount.Add(1, metricsContext.CompletionTags);
+    public void FlowCompleted(DataFlowMetricsTagsContext metricsContext, double durationMs)
+    {      
+        _flowExecutionDuration.Record(durationMs, metricsContext.CompletionTags ?? metricsContext.Tags);    
+        _flowExecutionCount.Add(1, metricsContext.CompletionTags ?? metricsContext.Tags);
         // for the active flow up down counter we want to maintain a single series so we don't use the completion tags here as they aren't availble when incrementing the counter.
-        _activeFlowCount.Add(-1, metricsContext.FlowTags);
+        _activeFlowCount.Add(-1, metricsContext.Tags);
     }
 
-    public void BlockStarted(BlockMetricsContext metricsContext)
+    public void BlockStarted(BlockMetricsTagsContext metricsContext)
     {       
-        _activeBlockCount.Add(1, metricsContext.BlockTags);
+        _activeBlockCount.Add(1, metricsContext.Tags);
     }         
 
-    public void BlockCompleted(BlockMetricsContext metricsContext, double durationTotalMs, bool success)
-    {
-        metricsContext.SetCompletionOutcome(success);
+    public void BlockCompleted(BlockMetricsTagsContext metricsContext, double durationTotalMs)
+    {      
         // Record with the combined tags
         _blockProcessingDuration.Record(durationTotalMs, metricsContext.CompletionTags);      
         _blockExecutionCount.Add(1, metricsContext.CompletionTags);
 
         // for the active flow up down counter we want to maintain a single series so we don't use the completion tags here as they aren't availble when incrementing the counter.
-        _activeBlockCount.Add(-1, metricsContext.BlockTags);
+        _activeBlockCount.Add(-1, metricsContext.Tags);
+    }
+
+    public void ItemsProcessed(DataItemMetricsContext context, long count)
+    {
+        _dataItemsProcessed.Add(count, context.Tags);
     }
 
     //// NEW: The two processing metrics methods
@@ -138,15 +140,15 @@ public class DataFlowMetrics : IDataFlowMetrics
     //{
     //    var tags = CreateDataProcessingTags(blockName, flowName, dataType);
     //    _dataItemsProcessed.Add(count, tags);
-    //}
-
+    //}   
+   
     /// <summary>
     /// Registers a channel with the metrics system to be observed.
     /// </summary>
     /// <param name="channel"></param>
-    public void RegisterChannel(IMonitoredChannel channel)
+    public IChannelMonitoringLease RegisterChannel(IMonitoredChannel channel)
     {
-        _channelRegistry.RegisterChannel(channel);
+        return _channelRegistry.RegisterChannel(channel);
     }
 
     private IEnumerable<Measurement<int>> GetAllChannelUtilizations()
@@ -165,10 +167,18 @@ public class DataFlowMetrics : IDataFlowMetrics
             {
                 var utilization = (int)((double)snapshot.CurrentCount / snapshot.Capacity * 100);
                 yield return new Measurement<int>(utilization, snapshot.Tags);
+                //if (snapshot.Tags.Count > 0)
+                //{
+                  
+                //}
+                //else
+                //{
+                //    // Handle empty tags case
+                //    yield return new Measurement<int>(utilization);
+                //}             
             }
         }
     }
-
 
     public static class InstrumentNames
     {
@@ -243,10 +253,7 @@ public class DataFlowMetrics : IDataFlowMetrics
         public const string BlockName = "dataflow.block.name";
        
         [Description("The capacity of a block channel")]
-        public const string ChannelCapacity = "dataflow.block.capacity";
-       
-        [Description("The total number of active channels")]
-        public const string ActiveChannelCount = "dataflow.active-channel-count";
+        public const string ChannelCapacity = "dataflow.block.capacity";       
 
         [Description("Developer-provided label for business data processing")]
         public const string DataLabel = "dataflow.data.label";
@@ -269,13 +276,8 @@ public class DataFlowMetrics : IDataFlowMetrics
     /// </summary>
     private class ChannelRegistry : IDisposable
     {
-        // Thread-safe collection of all monitored channels
-        private ConcurrentBag<WeakReference<IMonitoredChannel>> _monitoredChannels =
-            new ConcurrentBag<WeakReference<IMonitoredChannel>>();
-
-        // ReaderWriterLock for registration operations
-        private readonly ReaderWriterLockSlim _registrationLock =
-            new ReaderWriterLockSlim(LockRecursionPolicy.NoRecursion);
+        private readonly ConcurrentDictionary<IMonitoredChannel, WeakReference<IMonitoredChannel>> _monitoredChannels =
+      new ConcurrentDictionary<IMonitoredChannel, WeakReference<IMonitoredChannel>>();
 
         // Background timer for cleanup
         private readonly Timer _cleanupTimer;
@@ -291,100 +293,98 @@ public class DataFlowMetrics : IDataFlowMetrics
                 _cleanupInterval);
         }
 
-        public void RegisterChannel(IMonitoredChannel channel)
+        public IChannelMonitoringLease RegisterChannel(IMonitoredChannel channel)
         {
-            _registrationLock.EnterReadLock();
-            try
-            {
-                _monitoredChannels.Add(new WeakReference<IMonitoredChannel>(channel));
-            }
-            finally
-            {
-                _registrationLock.ExitReadLock();
-            }
+            var weakRef = new WeakReference<IMonitoredChannel>(channel);
+            _monitoredChannels.TryAdd(channel, weakRef);
+            return new ChannelMonitoringLease(this, channel);
+        }
+
+        internal void UnregisterChannel(IMonitoredChannel channel)
+        {
+            _monitoredChannels.TryRemove(channel, out _);
         }
 
         public IEnumerable<ChannelMetricSnapshot> GetChannelSnapshots()
         {
-            // Use reader lock to safely iterate
-            _registrationLock.EnterReadLock();
-            try
-            {
-                var snapshots = new List<ChannelMetricSnapshot>();
+            var snapshots = new List<ChannelMetricSnapshot>();
 
-                // Process all channels
-                foreach (var weakRef in _monitoredChannels)
+            foreach (var kvp in _monitoredChannels)
+            {
+                if (kvp.Value.TryGetTarget(out var channel))
                 {
-                    if (weakRef.TryGetTarget(out var channel))
+                    var snapshot = channel.GetMetricSnapshot();
+                    if (snapshot != null)
                     {
-                        var snapshot = channel.GetMetricSnapshot();
-                        if (snapshot != null)
-                        {
-                            snapshots.Add(snapshot);
-                        }
+                        snapshots.Add(snapshot);
                     }
                 }
+            }
 
-                return snapshots;
-            }
-            finally
-            {
-                _registrationLock.ExitReadLock();
-            }
+            return snapshots;
         }
 
         public int GetActiveChannelCount()
         {
-            _registrationLock.EnterReadLock();
-            try
+            int count = 0;
+            foreach (var kvp in _monitoredChannels)
             {
-                int count = 0;
-                foreach (var weakRef in _monitoredChannels)
+                if (kvp.Value.TryGetTarget(out var channel) && channel.GetMetricSnapshot() != null)
                 {
-                    if (weakRef.TryGetTarget(out var channel) && channel.GetMetricSnapshot() != null)
-                    {
-                        count++;
-                    }
+                    count++;
                 }
-                return count;
             }
-            finally
-            {
-                _registrationLock.ExitReadLock();
-            }
+            return count;
         }
 
         internal void PerformFullCleanup()
         {
-            // Use TryEnterWriteLock to avoid deadlocks
-            if (_registrationLock.TryEnterWriteLock(1000))
+            var toRemove = new List<IMonitoredChannel>();
+
+            foreach (var kvp in _monitoredChannels)
             {
-                try
+                if (!kvp.Value.TryGetTarget(out var channel) || channel.GetMetricSnapshot() == null)
                 {
-                    var newCollection = new ConcurrentBag<WeakReference<IMonitoredChannel>>();
-
-                    foreach (var weakRef in _monitoredChannels)
-                    {
-                        if (weakRef.TryGetTarget(out var channel) && channel.GetMetricSnapshot() != null)
-                        {
-                            newCollection.Add(weakRef);
-                        }
-                    }
-
-                    Interlocked.Exchange(ref _monitoredChannels, newCollection);
+                    toRemove.Add(kvp.Key);
                 }
-                finally
-                {
-                    _registrationLock.ExitWriteLock();
-                }
+            }
+
+            foreach (var channel in toRemove)
+            {
+                _monitoredChannels.TryRemove(channel, out _);
             }
         }
 
         public void Dispose()
         {
             _cleanupTimer.Dispose();
-            _registrationLock.Dispose();
         }
     }
 
+    /// <summary>
+    /// Private implementation of the monitoring lease for this registry
+    /// </summary>
+    private class ChannelMonitoringLease : IChannelMonitoringLease
+    {
+        private readonly ChannelRegistry _registry;
+        private readonly IMonitoredChannel _channel;
+        private bool _disposed = false;
+
+        public ChannelMonitoringLease(ChannelRegistry registry, IMonitoredChannel channel)
+        {
+            _registry = registry;
+            _channel = channel;
+        }
+
+        public IMonitoredChannel Channel => _channel;
+
+        public void Dispose()
+        {
+            if (!_disposed)
+            {
+                _registry.UnregisterChannel(_channel);
+                _disposed = true;
+            }
+        }
+    }
 }

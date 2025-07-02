@@ -33,14 +33,14 @@ public class DataFlowTracingTests : IDisposable
 
         var config = configBuilder.Build();
         //var apiKey = config["SeqApiKey"];           
-      
+
 
         // Configure and create the logger
         var loggerConfiguration = new LoggerConfiguration()
              .MinimumLevel.Debug()
             //.ReadFrom.Configuration(config)
             .Enrich.FromLogContext()
-           // .WriteTo.Seq("", apiKey: apiKey)
+                // .WriteTo.Seq("", apiKey: apiKey)
                 .WriteTo.Sink(new TestLogEventSink(_logEvents))
                .WriteTo.TestOutput(output, Formatters.CreateConsoleTextFormatter());// Capture logs for verification      
 
@@ -77,7 +77,7 @@ public class DataFlowTracingTests : IDisposable
         _activityListener = new ActivityListenerConfiguration()
             .InitialLevel.Override("Uniun.DataFlow", LogEventLevel.Debug)
             .TraceToSharedLogger();
-    
+
     }
 
     private readonly IDisposable _activityListener;
@@ -143,7 +143,7 @@ public class DataFlowTracingTests : IDisposable
         {
             var message = item.RenderMessage();
         }
-      
+
 
         // Output all captured logs for debugging
         _output.WriteLine("--- All Captured Log Events ---");
@@ -167,7 +167,7 @@ public class DataFlowTracingTests : IDisposable
         var output = outputHelper.Output;
 
         await Task.Delay(2000); // give time for logs to be pushed to server in background by seq sink.      
-       await Log.CloseAndFlushAsync(); // ensures the provider has a chance to flush log events before shutdown.
+        await Log.CloseAndFlushAsync(); // ensures the provider has a chance to flush log events before shutdown.
 
     }
 
@@ -203,7 +203,7 @@ public class DataFlowTracingTests : IDisposable
         }
 
         public string Name { get; }
-        public BlockMetricsContext MetricsContext { get; set; }
+        public BlockMetricsTagsContext MetricsContext { get; set; }
 
         public Task ExecuteAsync(IDataFlowContext context)
         {
@@ -216,29 +216,25 @@ public class DataFlowTracingTests : IDisposable
     {
         public TagList GlobalTags { get; } = new TagList();
 
-        public void BlockCompleted(BlockMetricsContext metricsContext, double durationTotalMs, bool success)
+        public void BlockCompleted(BlockMetricsTagsContext metricsContext, double durationTotalMs) { }
+        public void BlockStarted(BlockMetricsTagsContext metricsContext) { }
+        public void FlowCompleted(DataFlowMetricsTagsContext metricsContext, double durationMs) { }
+        public void FlowStarted(DataFlowMetricsTagsContext context) { }
+        public void ItemsProcessed(DataItemMetricsContext context, long count) { }
+        public IChannelMonitoringLease RegisterChannel(IMonitoredChannel channel)
         {
-            // No-op for testing
-        }  
-        public void BlockStarted(BlockMetricsContext metricsContext)
-        {
-            // No-op for testing
+            return new TestChannelMonitoringLease() { Channel = channel };
         }
-        public void FlowCompleted(DataFlowMetricsContext metricsContext, double durationMs, bool success)
-        {
-            // No-op for testing
-        }
-        public void FlowStarted(DataFlowMetricsContext context)
-        {
-            // No-op for testing
-        }
+    }
 
-        public void RegisterChannel(IMonitoredChannel channel)
-        {
-            // No-op for testing
-        }       
+    public class TestChannelMonitoringLease() : IChannelMonitoringLease
+    {
+        public IMonitoredChannel Channel { get; set; }
 
-     
+        public void Dispose()
+        {
+            
+        }
     }
 
     private class TestDataFlowContext : IDataFlowContext
@@ -252,7 +248,7 @@ public class DataFlowTracingTests : IDisposable
 
         public IDictionary<string, string> Dimensions => _dimensions;
 
-        public DataFlowMetricsContext FlowMetricsContext { get; set; }
+        public DataFlowMetricsTagsContext FlowMetricsContext { get; set; }
         public ConcurrentDictionary<string, object> Items { get; }
     }
 

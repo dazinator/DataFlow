@@ -48,9 +48,8 @@ public class DataFlow
         Stopwatch? stopwatch = null;
 
         // establish the metrics context for this flow execution.
-        context.FlowMetricsContext = new DataFlowMetricsContext(Name, context.InvocationId, _metrics);
-        _metrics.FlowStarted(context.FlowMetricsContext);
-      
+        var flowMetrics = context.FlowMetricsContext = new DataFlowMetricsTagsContext(Name, context.InvocationId, _metrics);
+        flowMetrics.Started();      
        
         var isSuccessful = false;
 
@@ -105,7 +104,7 @@ public class DataFlow
                     flowDuration = stopwatch?.Elapsed.TotalMilliseconds ?? 0;
                 }
                 // Set completion outcome
-                _metrics.FlowCompleted(context.FlowMetricsContext, flowDuration, isSuccessful);
+                flowMetrics.Completed(flowDuration, isSuccessful);
                          
             }
         }      
@@ -118,8 +117,8 @@ public class DataFlow
         Stopwatch? stopwatch = null;
         var isSuccessful = false;
 
-        block.MetricsContext ??= context.FlowMetricsContext.CreateBlockContext(block.Name);
-        _metrics.BlockStarted(block.MetricsContext);           
+        var metricsContext = block.MetricsContext = context.FlowMetricsContext.CreateBlockContext(block.Name);
+        metricsContext.Started();           
 
         // Create the activity within the current activity's context
         using var activity = ActivitySource.StartActivity(
@@ -170,7 +169,7 @@ public class DataFlow
                 stopwatch?.Stop();
                 blockDuration = stopwatch?.Elapsed.TotalMilliseconds ?? 0;
             }
-            _metrics.BlockCompleted(block.MetricsContext, blockDuration, isSuccessful);
+            metricsContext.Completed(blockDuration, isSuccessful);
         }
     }
   

@@ -16,7 +16,7 @@ public class DataFlowContext : IDataFlowContext
     public IServiceProvider ServiceProvider { get; set; }
     public CancellationToken CancellationToken { get; set; }
 
-    public DataFlowMetricsContext FlowMetricsContext { get; set; }
+    public DataFlowMetricsTagsContext FlowMetricsContext { get; set; }
     /// <summary>
     /// Items that can be used to pass additional data between blocks in the flow. Stuff stored here could be accessed concurrently by multiple blocks, so use with care.
     /// </summary>

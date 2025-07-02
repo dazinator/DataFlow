@@ -16,4 +16,6 @@ public class BlockOptions
     public int? Capacity { get; set; } = null;
     // Whether the concurrent block operations should have their own scoped DI IServiceProvider to resolve services from.
     public bool UseSeperateScopes { get; set; } = true;
+
+    public string ItemsMetricLabel { get; set; } = "Items";
 }

@@ -15,6 +15,6 @@ public interface IBlock
     string Name { get; }
     Task ExecuteAsync(IDataFlowContext context);
 
-    BlockMetricsContext MetricsContext { get; set; }
+    BlockMetricsTagsContext MetricsContext { get; set; }
 }
 

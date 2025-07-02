@@ -3,14 +3,13 @@ namespace Uniun.DataFlow.Metrics;
 using System.Diagnostics;
 using System.Threading.Channels;
 
-// Wrapper for a channel that provides metrics
 public class MonitoredChannel<T> : IMonitoredChannel
 {
     private readonly IDataFlowMetrics _metrics;
     private readonly Channel<T> _channel;
     private readonly string _blockName;
     private TagList _tags;
-
+    private bool isMonitoringStarted = false;
 
     public MonitoredChannel(      
         IDataFlowMetrics metrics,
@@ -22,66 +21,54 @@ public class MonitoredChannel<T> : IMonitoredChannel
         _metrics = metrics;
         _channel = channel;
         _blockName = blockName;
-        //_additionalTags = additionalTags;
-        //_dimensions = dimensions;
         Capacity = capacity;
-        //_ownsChannel = ownsChannel;
         if (!_channel.Reader.CanCount)
         {
             throw new ArgumentException("Channel must support counting for monitoring", nameof(channel));
-        }
-        // Or initialize with initial tags
-       
+        }      
 
         // Register with metrics system
-        _metrics.RegisterChannel(this);
-    }
+        _metrics.RegisterChannel(this);       
+    }  
 
-    public void StartMonitoring(IDataFlowContext context)
-    {       
-        _tags = new TagList
+    /// <summary>
+    /// Starts monitoring this channel and returns a lease that should be disposed when monitoring is no longer needed
+    /// </summary>
+    /// <param name="context">The data flow context containing flow information</param>
+    /// <returns>A disposable lease that unregisters the channel when disposed</returns>
+    public IChannelMonitoringLease StartMonitoring(IDataFlowContext context)
+    {
+        isMonitoringStarted = true;
+        _tags = new TagList();       
+        // Add global tags first
+        foreach (var tag in _metrics.GlobalTags)
         {
-            { DataFlowMetrics.TagNames.BlockName, _blockName },
-            { DataFlowMetrics.TagNames.ChannelCapacity, Capacity.ToString() },
-            { DataFlowMetrics.TagNames.FlowName, context.Name },
-            { DataFlowMetrics.TagNames.FlowInvocationId, context.InvocationId }
-        };
+            _tags.Add(tag.Key, tag.Value);
+        }
 
-        //foreach (var item in context.CustomTags)
-        //{
-        //    _tags.Add(item.Key, item.Value);
-        //}
-        _metrics.RegisterChannel(this);
+        // Add channel-specific tags
+        _tags.Add(DataFlowMetrics.TagNames.BlockName, _blockName);
+        _tags.Add(DataFlowMetrics.TagNames.ChannelCapacity, Capacity.ToString());
+        _tags.Add(DataFlowMetrics.TagNames.FlowName, context.Name);
+        _tags.Add(DataFlowMetrics.TagNames.FlowInvocationId, context.InvocationId);
        
+        // Register with metrics - return lease
+        return _metrics.RegisterChannel(this); 
     }
 
     public ChannelMetricSnapshot? GetMetricSnapshot()
     {
-        // _registrationLock.EnterReadLock();
-        //try
-        //{
-        //if (_isDisposed)
-        //{
-        //    return null;
-        //}
-
-        // Create a copy of current dimensions and add block-specific ones
-        //var allDimensions = new Dictionary<string, string>(_dimensions)
-        //{
-        //    ["block.name"] = _blockName,
-        //    ["channel.capacity"] = _capacity.ToString()
-        //};
+        // Only return snapshot if monitoring has been started (tags exist)
+        if (!isMonitoringStarted)
+        {
+            return null;
+        }
 
         return new ChannelMetricSnapshot(
             GetCurrentCount(),
             Capacity,
-            _tags
+            _tags.ToArray()
         );
-        //}
-        //finally
-        //{
-        //    _registrationLock.ExitReadLock();
-        //}
     }
 
     private int GetCurrentCount()
@@ -89,18 +76,6 @@ public class MonitoredChannel<T> : IMonitoredChannel
         // We've already validated in the constructor that counting is supported
         return _channel.Reader.Count;
     }
-
-    //public void Dispose()
-    //{
-    //    _isDisposed = true;
-
-    //    if (_ownsChannel)
-    //    {
-    //        _channel.Writer.TryComplete();
-    //    }
-
-    //    // _registrationLock.Dispose();
-    //}
 
     // Channel operations delegated to inner channel
     public ChannelReader<T> Reader => _channel.Reader;

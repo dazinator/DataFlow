@@ -112,9 +112,7 @@ public class RoutingBlock<T> : BlockBase, ITargetBlock<T>
             await ExecuteParallelActivities(context, Options.MaxConcurrency, async (index, ctx) =>
             {
                 await ExecuteStreamProcessorAsync(index, ctx);
-            });
-
-            await SourceReader.Completion; // no more items to process.
+            });           
         }
         finally
         {
@@ -185,13 +183,13 @@ public class RoutingBlock<T> : BlockBase, ITargetBlock<T>
 
             try
             {
-                // Wait for execution with timeout
+                // Wait for downstream flow to finish processing routed information before disposing.
                 var executingTask = route.RouteExecuting.ExecutingTask;
 
                 try
                 {
                     // Use a longer timeout for stressed environments
-                    await executingTask.WaitAsync(TimeSpan.FromSeconds(20), cancellation);
+                    await executingTask.WaitAsync(TimeSpan.FromMinutes(1), cancellation);
                     _logger.LogInformation("Route execution completed: {routingKey}", routingKey);
 
                     // Add a buffer delay to ensure all activities finish
@@ -215,7 +213,6 @@ public class RoutingBlock<T> : BlockBase, ITargetBlock<T>
 
             // Now dispose
             await route.DisposeAsync();
-
             _logger.LogInformation("Route disposal completed: {routingKey}", routingKey);
         }
     }

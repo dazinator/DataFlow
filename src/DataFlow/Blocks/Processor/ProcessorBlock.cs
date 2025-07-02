@@ -50,9 +50,7 @@ public class ProcessorBlock<T> : BlockBase, ITargetBlock<T>
     {
         // await base.CoreExecuteAsync(context);
         EnsureSourceReader();
-        await ExecuteParallelActivities(context, Options.MaxConcurrency, ExecuteStreamProcessorAsync);
-        SourceReader = _source.GetReader(this);
-        await SourceReader.Completion;
+        await ExecuteParallelActivities(context, Options.MaxConcurrency, ExecuteStreamProcessorAsync);     
     }
 
     // 1. Add detailed logging in ProcessorBlock.ExecuteStreamProcessorAsync
