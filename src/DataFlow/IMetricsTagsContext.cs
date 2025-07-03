@@ -4,8 +4,8 @@ using System.Collections.Generic;
 
 public interface IMetricsTagsContext
 {
-    KeyValuePair<string, object?>[] CompletionTags { get; }
+    KeyValuePair<string, object?>[] FlowLevelCompletionTags { get; }
     string Name { get; }
-    KeyValuePair<string, object?>[] Tags { get; } 
+    KeyValuePair<string, object?>[] FlowWideTags { get; } 
    
 }

@@ -15,10 +15,12 @@ public class DataFlowMetrics : IDataFlowMetrics
 {
 
     private readonly Histogram<double> _blockProcessingDuration;
-    private readonly Histogram<double> _flowExecutionDuration;
+    private readonly Histogram<double> _flowExecutionDuration;   
+ 
     private readonly ObservableGauge<int> _channelBufferUtilization;
     private readonly ObservableGauge<int> _activeChannelCount;
-    private readonly Counter<long> _flowExecutionCount;
+    private readonly Counter<long> _flowExecutionStartedCount;
+    private readonly Counter<long> _flowExecutionCompletionCount;
     private readonly Counter<long> _blockExecutionCount;
     private readonly UpDownCounter<int> _activeFlowCount;
     private readonly UpDownCounter<int> _activeBlockCount;
@@ -52,11 +54,15 @@ public class DataFlowMetrics : IDataFlowMetrics
 
         _flowExecutionDuration = meter.CreateHistogram<double>(InstrumentNames.FlowDurationMs,
             unit: "ms",
-            description: "Time taken to complete execution of a DataFlow.");
+            description: "DataFlow execution time histogram for performance analysis. Provides percentiles, averages, and trends across flow executions of a given flow name.");
 
-        _flowExecutionCount = meter.CreateCounter<long>(InstrumentNames.FlowExecutionCount,
+        _flowExecutionCompletionCount = meter.CreateCounter<long>(InstrumentNames.FlowExecutionCount,
+             unit: "execution",
+             description: "Number of completed flow executions");
+
+        _flowExecutionStartedCount = meter.CreateCounter<long>(InstrumentNames.FlowExecutionStartedCount,
             unit: "execution",
-            description: "Number of completed flow executions");
+            description: "Number of started flow executions");
 
         _blockExecutionCount = meter.CreateCounter<long>(InstrumentNames.BlockExecutionCount,
             unit: "execution",
@@ -75,6 +81,7 @@ public class DataFlowMetrics : IDataFlowMetrics
             unit: "item",
             description: "Number of business data items processed within stream items");
 
+       
         _activeFlowCount = meter.CreateUpDownCounter<int>(InstrumentNames.ActiveFlowCount,
            unit: "flow",
            description: "Number of currently executing flows");
@@ -104,38 +111,39 @@ public class DataFlowMetrics : IDataFlowMetrics
 
     public void FlowStarted(DataFlowMetricsTagsContext metricsContext)
     {
-        _activeFlowCount.Add(1, metricsContext.Tags);
+        _activeFlowCount.Add(1, metricsContext.FlowWideTags); // up down counter for active flows, can miss activity if not sampled frequently enough as a quick flow can start and complete between samples.
+        _flowExecutionStartedCount.Add(1, metricsContext.FlowWideTags);
     }
     public void FlowCompleted(DataFlowMetricsTagsContext metricsContext, double durationMs)
     {
-        _flowExecutionDuration.Record(durationMs, metricsContext.CompletionTags ?? metricsContext.Tags);
-        _flowExecutionCount.Add(1, metricsContext.CompletionTags ?? metricsContext.Tags);
-        // for the active flow up down counter we want to maintain a single series so we don't use the completion tags here as they aren't availble when incrementing the counter.
-        _activeFlowCount.Add(-1, metricsContext.Tags);
+        _flowExecutionDuration.Record(durationMs, metricsContext.FlowLevelCompletionTags ?? metricsContext.FlowWideTags);
+        _flowExecutionCompletionCount.Add(1, metricsContext.FlowLevelCompletionTags ?? metricsContext.FlowWideTags);
+        // up down counter for active flows, can miss activity if not sampled frequently enough as a quick flow can start and complete between samples.
+        _activeFlowCount.Add(-1, metricsContext.FlowWideTags);
     }
 
     public void BlockStarted(BlockMetricsTagsContext metricsContext)
     {
-        _activeBlockCount.Add(1, metricsContext.Tags);
+        _activeBlockCount.Add(1, metricsContext.FlowWideTags);
     }
 
     public void BlockCompleted(BlockMetricsTagsContext metricsContext, double durationTotalMs)
     {
         // Record with the combined tags
-        _blockProcessingDuration.Record(durationTotalMs, metricsContext.CompletionTags);
-        _blockExecutionCount.Add(1, metricsContext.CompletionTags);
+        _blockProcessingDuration.Record(durationTotalMs, metricsContext.FlowLevelCompletionTags);
+        _blockExecutionCount.Add(1, metricsContext.FlowLevelCompletionTags);
 
         // for the active flow up down counter we want to maintain a single series so we don't use the completion tags here as they aren't availble when incrementing the counter.
-        _activeBlockCount.Add(-1, metricsContext.Tags);
+        _activeBlockCount.Add(-1, metricsContext.FlowWideTags);
     }
 
     public void ItemsProcessed(DataItemMetricsContext context, long count)
     {
-        _dataItemsProcessed.Add(count, context.Tags);
+        _dataItemsProcessed.Add(count, context.FlowWideTags);
     }
     public void BlockOperationsCompleted(BlockMetricsTagsContext context, long count)
     {
-        _blockOperationsCompleted.Add(count, context.Tags);
+        _blockOperationsCompleted.Add(count, context.FlowWideTags);
     }
 
     //// NEW: The two processing metrics methods
@@ -206,8 +214,14 @@ public class DataFlowMetrics : IDataFlowMetrics
         /// <summary>
         /// Number of completed flow executions
         /// </summary>
-        [Description("Number of completed flow executions")]
+        [Description("Counter that increments with each flow execution completion")]
         public const string FlowExecutionCount = "dataflow.flow.executions";
+
+        /// <summary>
+        /// Number of flows that have started execution
+        /// </summary>
+        [Description("Counter that increments with each flow execution started")]
+        public const string FlowExecutionStartedCount = "dataflow.flow.executions.start";
 
         /// <summary>
         /// Number of completed block executions
@@ -257,6 +271,11 @@ public class DataFlowMetrics : IDataFlowMetrics
 
         [Description("Indicator of success of failure in execution")]
         public const string Outcome = "dataflow.outcome";
+        /// <summary>
+        /// Duration of completed flow instance
+        /// </summary>
+        [Description("The execution duration for a specific execution")]
+        public const string ExecutionDuration = "dataflow.flow.execution.duration.ms";
 
         [Description("The name of the block")]
         public const string BlockName = "dataflow.block.name";

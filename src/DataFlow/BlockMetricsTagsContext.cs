@@ -12,8 +12,8 @@ public class BlockMetricsTagsContext: IMetricsTagsContext
     private KeyValuePair<string, object?>[] _completionTags = null;
 
 
-    public KeyValuePair<string, object?>[] Tags { get; }
-    public KeyValuePair<string, object?>[] CompletionTags { get => _completionTags; }
+    public KeyValuePair<string, object?>[] FlowWideTags { get; }
+    public KeyValuePair<string, object?>[] FlowLevelCompletionTags { get => _completionTags; }
     public string Name => _Name;
 
     internal BlockMetricsTagsContext(string blockName, IMetricsTagsContext parentContext, IDataFlowMetrics metrics)
@@ -22,15 +22,15 @@ public class BlockMetricsTagsContext: IMetricsTagsContext
         _parentContext = parentContext;
         _metrics = metrics;
         // Cache flow-level tags (global + flow info)
-        Tags = CreateDefaultTags(_parentContext, blockName);
+        FlowWideTags = CreateDefaultTags(_parentContext, blockName);
     }
 
     private static KeyValuePair<string, object?>[] CreateDefaultTags(IMetricsTagsContext flowContext, string blockName)
     {
         // we inherit flow level tags and add block name as an additional tag
-        var blockTags = new KeyValuePair<string, object?>[flowContext.Tags.Length + 1];
-        flowContext.Tags.CopyTo(blockTags, 0);
-        blockTags[flowContext.Tags.Length] = new(DataFlowMetrics.TagNames.BlockName, blockName);
+        var blockTags = new KeyValuePair<string, object?>[flowContext.FlowWideTags.Length + 1];
+        flowContext.FlowWideTags.CopyTo(blockTags, 0);
+        blockTags[flowContext.FlowWideTags.Length] = new(DataFlowMetrics.TagNames.BlockName, blockName);
         return blockTags;
     }  
 
@@ -53,7 +53,7 @@ public class BlockMetricsTagsContext: IMetricsTagsContext
     {
         if (_completionTags is null && isSuccessful is not null)
         {
-            _completionTags = CreateCompletionTags(Tags, isSuccessful.Value);
+            _completionTags = CreateCompletionTags(FlowWideTags, isSuccessful.Value);
         }
         _metrics.BlockCompleted(this, duration);
     }

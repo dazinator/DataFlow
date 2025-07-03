@@ -63,9 +63,10 @@ public abstract class BlockBase : IBlock
         {
             if (FlowRateMetricsCollector != null)
             {
-                var readStats = FlowRateMetricsCollector.GetStatistics();
-                Logger.LogInformation("{FlowStats}", readStats);
+                FlowRateMetricsCollector.FlushPendingOperations();
+                var readStats = FlowRateMetricsCollector.GetStatistics();             
                 FlowRateMetricsCollector?.Dispose();
+                Logger.LogInformation("{FlowStats}", readStats);
             }           
             Logger.LogInformation("Finished Executing");
         }     

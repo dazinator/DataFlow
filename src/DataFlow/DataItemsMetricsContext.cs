@@ -12,8 +12,8 @@ public class DataItemMetricsContext: IMetricsTagsContext
     private KeyValuePair<string, object?>[] _completionTags = null;
 
 
-    public KeyValuePair<string, object?>[] Tags { get; }
-    public KeyValuePair<string, object?>[] CompletionTags { get => _completionTags; }
+    public KeyValuePair<string, object?>[] FlowWideTags { get; }
+    public KeyValuePair<string, object?>[] FlowLevelCompletionTags { get => _completionTags; }
 
     public string Name => _name;
 
@@ -23,15 +23,15 @@ public class DataItemMetricsContext: IMetricsTagsContext
         _parentContext = parentContext;
         _metrics = metrics;
         // Cache flow-level tags (global + flow info)
-        Tags = CreateDefaultTags(_parentContext, name);
+        FlowWideTags = CreateDefaultTags(_parentContext, name);
     }
 
     private static KeyValuePair<string, object?>[] CreateDefaultTags(IMetricsTagsContext parentContext, string name)
     {
         // we inherit flow level tags and add block name as an additional tag
-        var blockTags = new KeyValuePair<string, object?>[parentContext.Tags.Length + 1];
-        parentContext.Tags.CopyTo(blockTags, 0);
-        blockTags[parentContext.Tags.Length] = new(DataFlowMetrics.TagNames.DataLabel, name);
+        var blockTags = new KeyValuePair<string, object?>[parentContext.FlowWideTags.Length + 1];
+        parentContext.FlowWideTags.CopyTo(blockTags, 0);
+        blockTags[parentContext.FlowWideTags.Length] = new(DataFlowMetrics.TagNames.DataLabel, name);
         return blockTags;
     }
 
@@ -40,7 +40,7 @@ public class DataItemMetricsContext: IMetricsTagsContext
         if (_completionTags is null)
         {
             // inherit the typical tags and add success/failure outcome tag.
-            _completionTags = CreateCompletionTags(Tags, successful);
+            _completionTags = CreateCompletionTags(FlowWideTags, successful);
         }
     }
 

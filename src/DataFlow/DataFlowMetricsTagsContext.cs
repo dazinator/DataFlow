@@ -9,8 +9,10 @@ using Uniun.DataFlow.Metrics;
 public class DataFlowMetricsTagsContext : IMetricsTagsContext
 {
     private readonly IDataFlowMetrics _metrics;
-    private readonly KeyValuePair<string, object?>[] _flowTags;
-    private KeyValuePair<string, object?>[] _completionTags = null;
+    private readonly KeyValuePair<string, object?>[] _flowWideTags;
+    private readonly KeyValuePair<string, object?>[] _flowInstanceTags;
+    private KeyValuePair<string, object?>[] _flowInstanceCompletionTags = null;
+    private KeyValuePair<string, object?>[] _flowWideCompletionTags = null;
 
     public DataFlowMetricsTagsContext(string flowName, Guid invocationId, IDataFlowMetrics metrics)
     {
@@ -19,15 +21,32 @@ public class DataFlowMetricsTagsContext : IMetricsTagsContext
         InvocationId = invocationId;
 
         // Cache flow-level tags (global + flow info)
-        _flowTags = CreateFlowTags(flowName, invocationId, metrics.GlobalTags);
+        _flowWideTags = CreateFlowLevelTags(flowName, metrics.GlobalTags);
+        _flowInstanceTags = AddInstanceLevelTags(_flowWideTags, invocationId, metrics.GlobalTags);        
     }
 
     public string Name { get; }
     public Guid InvocationId { get; }
 
-    public KeyValuePair<string, object?>[] Tags => _flowTags;
+    /// <summary>
+    ///  Flow-level tags that are applicable for metrics that aggregate accross all instances / executions of this flow.
+    /// </summary>
+    public KeyValuePair<string, object?>[] FlowWideTags => _flowWideTags;
 
-    public KeyValuePair<string, object?>[] CompletionTags { get => _completionTags; }
+    /// <summary>
+    ///  Flow-instance level tags that are applicable for this specific execution / invocation of the flow (by invoicationId).
+    /// </summary>
+    public KeyValuePair<string, object?>[] FlowInstanceTags => _flowInstanceTags;
+
+    /// <summary>
+    /// Flow-level tabs that are applicable for metrics that aggregate across all instances / executions of a flow name (i.e not labelled to specific instance / invoication)
+    /// </summary>
+    public KeyValuePair<string, object?>[] FlowLevelCompletionTags { get => _flowWideCompletionTags; }
+
+    /// <summary>
+    /// Flow-instance tabs level tags that are applicable for completion of this specific execution / invocation of the flow (by invoicationId).
+    /// </summary>
+    public KeyValuePair<string, object?>[] FlowInstanceCompletionTags { get => _flowWideCompletionTags; }
 
     public IDataFlowMetrics Metrics => _metrics;   
 
@@ -59,9 +78,10 @@ public class DataFlowMetricsTagsContext : IMetricsTagsContext
     /// <param name="isSuccessful"></param>
     public void Completed(double duration, bool? isSuccessful)
     {
-        if (_completionTags is null && isSuccessful is not null)
+        if (_flowWideCompletionTags is null && isSuccessful is not null)
         {         
-            _completionTags = CreateCompletionTags(Tags, isSuccessful.Value);           
+            _flowWideCompletionTags = AddFlowLevelCompletionTags(FlowWideTags, isSuccessful.Value);
+            _flowInstanceCompletionTags = AddFlowInstanceLevelCompletionTags(_flowWideCompletionTags, duration);
         }
         _metrics.FlowCompleted(this, duration);
     }  
@@ -85,22 +105,37 @@ public class DataFlowMetricsTagsContext : IMetricsTagsContext
 
     #region Tag Creation Methods
 
-    private static KeyValuePair<string, object?>[] CreateFlowTags(string flowName, Guid invocationId, TagList globalTags)
+    private static KeyValuePair<string, object?>[] CreateFlowLevelTags(string flowName, TagList globalTags)
     {
-        var tags = new KeyValuePair<string, object?>[globalTags.Count + 2];
+        var tags = new KeyValuePair<string, object?>[globalTags.Count + 1];
         globalTags.CopyTo(tags, 0);
-        tags[globalTags.Count] = new(DataFlowMetrics.TagNames.FlowName, flowName);
-        tags[globalTags.Count + 1] = new(DataFlowMetrics.TagNames.FlowInvocationId, invocationId);
+        tags[globalTags.Count] = new(DataFlowMetrics.TagNames.FlowName, flowName);       
         return tags;
     }
 
-    private static KeyValuePair<string, object?>[] CreateCompletionTags(KeyValuePair<string, object?>[] flowTags, bool successful)
+    private static KeyValuePair<string, object?>[] AddInstanceLevelTags(KeyValuePair<string, object?>[] flowTags, Guid invocationId, TagList globalTags)
     {
-        var completionTags = new KeyValuePair<string, object?>[flowTags.Length + 1];
-        flowTags.CopyTo(completionTags, 0);
-        completionTags[flowTags.Length] = successful
+        var tags = new KeyValuePair<string, object?>[flowTags.Count() + 1];
+        flowTags.CopyTo(tags, 0);
+        tags[globalTags.Count] = new(DataFlowMetrics.TagNames.FlowInvocationId, invocationId);
+        return tags;
+    }   
+
+    private static KeyValuePair<string, object?>[] AddFlowLevelCompletionTags(KeyValuePair<string, object?>[] originalTags, bool successful)
+    {
+        var completionTags = new KeyValuePair<string, object?>[originalTags.Length + 1];
+        originalTags.CopyTo(completionTags, 0);
+        completionTags[originalTags.Length] = successful
             ? DataFlowMetrics.TagConstantValues.SuccessOutcomeTag
-            : DataFlowMetrics.TagConstantValues.FailureOutcomeTag;
+            : DataFlowMetrics.TagConstantValues.FailureOutcomeTag;       
+        return completionTags;
+    }
+
+    private static KeyValuePair<string, object?>[] AddFlowInstanceLevelCompletionTags(KeyValuePair<string, object?>[] originalTags, double durationMs)
+    {
+        var completionTags = new KeyValuePair<string, object?>[originalTags.Length + 1];
+        originalTags.CopyTo(completionTags, 0);       
+        completionTags[originalTags.Length] = new(DataFlowMetrics.TagNames.ExecutionDuration, durationMs);
         return completionTags;
     }
 
