@@ -48,9 +48,9 @@ public class MonitoredChannel<T> : IMonitoredChannel
 
         // Add channel-specific tags
         _tags.Add(DataFlowMetrics.TagNames.BlockName, _blockName);
-        _tags.Add(DataFlowMetrics.TagNames.ChannelCapacity, Capacity.ToString());
+        // _tags.Add(DataFlowMetrics.TagNames.ChannelCapacity, Capacity.ToString());
         _tags.Add(DataFlowMetrics.TagNames.FlowName, context.Name);
-        _tags.Add(DataFlowMetrics.TagNames.FlowInvocationId, context.InvocationId);
+        // _tags.Add(DataFlowMetrics.TagNames.FlowInvocationId, context.InvocationId);
        
         // Register with metrics - return lease
         return _metrics.RegisterChannel(this); 

@@ -280,8 +280,8 @@ public class DataFlowMetrics : IDataFlowMetrics
         [Description("The name of the block")]
         public const string BlockName = "dataflow.block.name";
 
-        [Description("The capacity of a block channel")]
-        public const string ChannelCapacity = "dataflow.block.capacity";
+        //[Description("The capacity of a block channel")]
+        //public const string ChannelCapacity = "dataflow.block.capacity";
 
         [Description("Developer-provided label for business data processing")]
         public const string DataLabel = "dataflow.data.label";

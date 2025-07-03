@@ -46,7 +46,7 @@ public class DataFlowMetricsTagsContext : IMetricsTagsContext
     /// <summary>
     /// Flow-instance tabs level tags that are applicable for completion of this specific execution / invocation of the flow (by invoicationId).
     /// </summary>
-    public KeyValuePair<string, object?>[] FlowInstanceCompletionTags { get => _flowWideCompletionTags; }
+    public KeyValuePair<string, object?>[] FlowInstanceCompletionTags { get => _flowInstanceCompletionTags; }
 
     public IDataFlowMetrics Metrics => _metrics;   
 
