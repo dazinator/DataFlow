@@ -7,21 +7,24 @@ using Uniun.DataFlow.Metrics;
 public class DataFlow<TConfig> : IDataFlow
     where TConfig : IDataFlowConfiguration
 {
-    private readonly DataFlow _flow;
+    private readonly IDataFlow _flow;
 
-    public DataFlow(DataFlow flow)
+    public DataFlow(IDataFlow flow)
     {
         _flow = flow;
+        this.Name = flow.Name ?? typeof(TConfig).Name;
         if (string.IsNullOrWhiteSpace(flow.Name))
         {
             flow.Name = typeof(TConfig).Name;
         }
     }
 
+    public string Name { get; set; }
+
     public Task ExecuteAsync(IDataFlowContext context) => _flow.ExecuteAsync(context);
 }
 
-public class DataFlow
+public class DataFlow: IDataFlow
 {
     private readonly List<IBlock> _blocks;
     private readonly IDataFlowMetrics _metrics;

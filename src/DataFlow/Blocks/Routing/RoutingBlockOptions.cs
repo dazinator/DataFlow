@@ -1,4 +1,4 @@
-﻿namespace Uniun.DataFlow.Blocks.Routing;
+namespace Uniun.DataFlow.Blocks.Routing;
 using System;
 using Microsoft.Extensions.Caching.Memory;
 using Uniun.DataFlow;
@@ -13,7 +13,7 @@ public class RoutingBlockOptions<T> : BlockOptions
     /// <summary>
     /// A function used to resolve the route for a routing key.
     /// </summary>
-    public Func<RoutingContext<T>, (DataFlow DataFlow, ITargetBlock<T> TargetBlock)> RouteResolver { get; set; }
+    public Func<RoutingContext<T>, (IDataFlow DataFlow, ITargetBlock<T> TargetBlock)> RouteResolver { get; set; }
 
     /// <summary>
     /// The cache used to store routes. If not provided, an error will be thrown.

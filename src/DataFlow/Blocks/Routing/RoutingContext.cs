@@ -9,7 +9,7 @@ public class RoutingContext<TItem>
     /// <summary>
     /// The sub dataflow built to handle items for this route.
     /// </summary>
-    public DataFlow DataFlow { get; set; }
+    public IDataFlow DataFlow { get; set; }
     /// <summary>
     /// The target block in the sub dataflow that will receive items for this route.
     /// </summary>

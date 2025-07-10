@@ -1,9 +1,8 @@
 namespace Uniun.DataFlow.Blocks.Routing;
 using System;
+using global::Uniun.DataFlow.Blocks.InputChannel;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Uniun.DataFlow;
-using Uniun.DataFlow.Blocks.InputChannel;
 
 public class RouteInfo<T> : IAsyncDisposable
 {
@@ -16,7 +15,7 @@ public class RouteInfo<T> : IAsyncDisposable
     private bool _isCompleted = false;
     private bool _isDisposed = false;
 
-    public DataFlow DataFlow { get; }
+    public IDataFlow DataFlow { get; }
     public RoutingContext<T> Context { get; }
     public InputChannelBlock<T> ChannelBlock { get; }
     internal RouteExecution RouteExecuting { get; private set; }

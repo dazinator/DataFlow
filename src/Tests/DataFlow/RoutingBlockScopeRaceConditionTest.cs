@@ -151,7 +151,7 @@ public class RoutingBlockScopeRaceConditionTest
 
 
             builder.AddRouter<TestItem>("router",
-                 item => item.RouteKey,
+                 routingKeySelector: item => item.RouteKey,
                  (context) =>
                  {
                      // Create a new processor for each route

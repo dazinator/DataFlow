@@ -19,7 +19,7 @@ public class DataFlowBuilder : IDataFlowBuilder
 
     public string Name { get; set; }
 
-    public DataFlow Build()
+    public IDataFlow Build()
     {
         var blocks = Blocks.Values.ToList();
         var metrics = ServiceProvider.GetRequiredService<IDataFlowMetrics>();

@@ -3,16 +3,15 @@ using System;
 using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Channels;
+using global::Uniun.DataFlow.Blocks.InputChannel;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Uniun.DataFlow;
-using Uniun.DataFlow.Blocks.InputChannel;
 
 public class RoutingBlock<T> : BlockBase, ITargetBlock<T>
 {
     private readonly Func<T, string> _routingKeySelector;
-    private readonly Func<RoutingContext<T>, (DataFlow DataFlow, ITargetBlock<T> TargetBlock)> _routeResolver;
+    private readonly Func<RoutingContext<T>, (IDataFlow DataFlow, ITargetBlock<T> TargetBlock)> _routeResolver;
     private readonly IMemoryCache _routeCache;
     private readonly TimeSpan _routeExpiration;
     private readonly IServiceScopeFactory _scopeFactory;
@@ -122,6 +121,7 @@ public class RoutingBlock<T> : BlockBase, ITargetBlock<T>
             {
                 _routesToDispose.Writer.TryWrite(routeKey);
             }
+
         }
     }
 
@@ -190,7 +190,8 @@ public class RoutingBlock<T> : BlockBase, ITargetBlock<T>
                 try
                 {
                     // Use a longer timeout for stressed environments
-                    await executingTask.WaitAsync(TimeSpan.FromMinutes(1), cancellation);
+                    await executingTask;
+                   // await executingTask.WaitAsync(TimeSpan.FromMinutes(1), cancellation);
                     _logger.LogInformation("Route execution completed: {routingKey}", routingKey);
 
                     // Add a buffer delay to ensure all activities finish

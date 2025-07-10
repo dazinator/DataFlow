@@ -66,4 +66,8 @@
     <ProjectReference Include="..\DataFlow\DataFlow.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="DataFlow\docs\" />
+  </ItemGroup>
+
 </Project>

@@ -24,7 +24,7 @@ public static class RoutingBlockExtensions
     this IDataFlowBuilder builder,
     string name,
     Func<T, string> routingKeySelector,
-    Func<RoutingContext<T>, (DataFlow DataFlow, ITargetBlock<T> TargetBlock)> routeResolver,
+    Func<RoutingContext<T>, (IDataFlow DataFlow, ITargetBlock<T> TargetBlock)> routeResolver,
     Action<RoutingBlockOptions<T>>? configureOptions = null)
     {
         return AddRouter<T>(builder, name, (options) =>
