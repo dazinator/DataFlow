@@ -27,8 +27,9 @@ public static class ProducerExtensions
     {
         return AddProducer<TOutput>(builder, name, (options) =>
         {
+           
             options.ProducersFactory = async (context, ct) => new[]
-            {
+            {              
                 ActivatorUtilities.CreateInstance<TProducer>(context.ServiceProvider)
             };
             configureOptions?.Invoke(options);
@@ -55,9 +56,10 @@ public static class ProducerExtensions
     {
         return AddProducer<TOutput>(builder, name, (options) =>
         {
-            options.ProducersFactory = async (context, ct) => new[]
-            {
-                ActivatorUtilities.CreateInstance<TProducer>(context.ServiceProvider, args)
+            options.ProducersFactory = async (context, ct) =>
+            {              
+                var producer = ActivatorUtilities.CreateInstance<TProducer>(context.ServiceProvider, args);
+                return new[] { producer };
             };
             configureOptions?.Invoke(options);
         });
@@ -100,7 +102,7 @@ public static class ProducerExtensions
     public static ISourceBlockBuilder<TOutput> AddProducer<TOutput>(
         this IDataFlowBuilder builder,
         string name,
-        Func<IServiceProvider, IStreamProducer<TOutput>> factory,
+        Func<IDataFlowContext, IStreamProducer<TOutput>> factory,
         Action<ProducerBlockOptions<TOutput>>? configureOptions = null
     )
     {
@@ -108,7 +110,7 @@ public static class ProducerExtensions
         {
             options.ProducersFactory = async (context, ct) => new[]
             {
-                 factory(context.ServiceProvider)
+                 factory(context)
             };
             configureOptions?.Invoke(options);
         });
@@ -134,7 +136,7 @@ public static class ProducerExtensions
         {
             options.ProducersFactory = async (context, ct) =>
             {
-                var factory = ActivatorUtilities.CreateInstance<TFactory>(context.ServiceProvider);
+                var factory = ActivatorUtilities.CreateInstance<TFactory>(context.ServiceProvider, context);
                 var producers = new List<IStreamProducer<TOutput>>();
                 await foreach (var producer in factory.CreateProducersAsync(context, ct))
                 {

@@ -46,7 +46,7 @@ internal class ExampleFlowConfig : IDataFlowConfiguration
 
     internal class LargeDataProducer : IStreamProducer<int>
     {
-        public async IAsyncEnumerable<int> ProduceAsync(
+        public async IAsyncEnumerable<int> ProduceAsync(IDataFlowContext context,
             [EnumeratorCancellation] CancellationToken cancellation)
         {
             foreach (var i in Enumerable.Range(0, 1000))
@@ -61,6 +61,7 @@ internal class ExampleFlowConfig : IDataFlowConfiguration
     internal class SlowTransformer : IStreamTransformer<int, int>
     {
         public async IAsyncEnumerable<int> TransformAsync(
+            IDataFlowContext context,
             IAsyncEnumerable<int> input,
             CancellationToken cancellationToken)
         {

@@ -15,7 +15,7 @@ public class NumberTransformer : IStreamTransformer<int, string>
         _onTransform = onTransform;
     }   
 
-    public async IAsyncEnumerable<string> TransformAsync(IAsyncEnumerable<int> input, CancellationToken cancellationToken)
+    public async IAsyncEnumerable<string> TransformAsync(IDataFlowContext context, IAsyncEnumerable<int> input, CancellationToken cancellationToken)
     {
         await foreach (var inputItem in input.WithCancellation(cancellationToken))
         {

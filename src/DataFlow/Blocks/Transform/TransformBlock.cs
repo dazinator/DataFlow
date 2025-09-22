@@ -81,7 +81,7 @@ public class TransformBlock<TIn, TOut> : BlockBase, IPropagatorBlock<TIn, TOut>
         var transformer = _transformerFactory(context.ServiceProvider);
         var input = SourceReader.ReadAllAsync(context.CancellationToken);
 
-        await foreach (var result in transformer.TransformAsync(input, context.CancellationToken)
+        await foreach (var result in transformer.TransformAsync(context, input, context.CancellationToken)
             .WithCancellation(context.CancellationToken))
         {
             await _outputChannel.Writer.WriteAsync(result, context.CancellationToken);

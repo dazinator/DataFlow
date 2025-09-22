@@ -267,7 +267,7 @@ public class RoutingBlockScopeRaceConditionTest
             _routeProcessingCycles = routeProcessingCycles;
         }
 
-        public async IAsyncEnumerable<TestItem> ProduceAsync(
+        public async IAsyncEnumerable<TestItem> ProduceAsync(IDataFlowContext context,
             [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellation)
         {
             // Send items in batches to each route
@@ -395,7 +395,7 @@ public class RoutingBlockScopeRaceConditionTest
             _scopedService.RegisterForDisposal(_metrics);
         }
 
-        public async Task ProcessAsync(IAsyncEnumerable<TestItem> input, CancellationToken cancellationToken)
+        public async Task ProcessAsync(IDataFlowContext context, IAsyncEnumerable<TestItem> input, CancellationToken cancellationToken)
         {
             try
             {

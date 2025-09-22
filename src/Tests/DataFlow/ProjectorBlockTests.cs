@@ -195,7 +195,7 @@ public class ProjectorBlockTests
         public void Configure(DataFlowBuilder builder)
         {
             builder
-                .AddProducer("source", sp => sp.GetRequiredService<TestProducer<int>>())
+                .AddProducer("source", ctx => ctx.ServiceProvider.GetRequiredService<TestProducer<int>>())
                 .AddTransform<int, string>("projector", sp => sp.GetRequiredService<TestProjector<int, string>>())
                     .ReceiveFrom("source")
                 .AddProcessor<string, TestProcessor<string>>("processor",

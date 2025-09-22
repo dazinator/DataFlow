@@ -43,7 +43,7 @@ public class PersistentRoutingBlockTests
         var logger = sp.GetRequiredService<ILogger<PersistentRoutingBlockTests>>();
 
         // Act
-        builder.AddProducer("source", sp => new TestProducer<int>(items))
+        builder.AddProducer("source", ctx => new TestProducer<int>(items))
             .AddPersistentRouter<int>("router",
                 item =>
                 {
@@ -685,7 +685,7 @@ public class StressTestProducer : IStreamProducer<TestItem>
         _itemsPerRoute = itemsPerRoute;
     }
 
-    public async IAsyncEnumerable<TestItem> ProduceAsync(
+    public async IAsyncEnumerable<TestItem> ProduceAsync(IDataFlowContext context,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellation)
     {
         for (int i = 0; i < _totalItems; i++)
@@ -727,7 +727,7 @@ public class TestItemProcessor : IStreamProcessor<TestItem>
         _metrics = metrics;
     }
 
-    public async Task ProcessAsync(IAsyncEnumerable<TestItem> input, CancellationToken cancellationToken)
+    public async Task ProcessAsync(IDataFlowContext context, IAsyncEnumerable<TestItem> input, CancellationToken cancellationToken)
     {
         await foreach (var item in input.WithCancellation(cancellationToken))
         {

@@ -1,4 +1,5 @@
-﻿using Uniun.DataFlow.Actor;
+﻿using Uniun.DataFlow;
+using Uniun.DataFlow.Actor;
 
 namespace Otel.Example.Flows;
 
@@ -21,7 +22,7 @@ public class TestProcessor<T> : IStreamProcessor<T>
         _errorMessage = errorMessage ?? "Simulated error in processor";
     }
 
-    public async Task ProcessAsync(IAsyncEnumerable<T> input, CancellationToken cancellationToken)
+    public async Task ProcessAsync(IDataFlowContext context, IAsyncEnumerable<T> input, CancellationToken cancellationToken)
     {
         await foreach (var item in input)
         {

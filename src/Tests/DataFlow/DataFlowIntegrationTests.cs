@@ -171,7 +171,7 @@ public class DataFlowIntegrationTests
         public void Configure(DataFlowBuilder builder)
         {
             builder
-                .AddProducer("source", sp => sp.GetRequiredService<TestProducer<int>>())
+                .AddProducer("source", ctx => ctx.ServiceProvider.GetRequiredService<TestProducer<int>>())
                 .AddProcessor<int, TestProcessor<int>>("processor",
                     sp => sp.GetRequiredService<TestProcessor<int>>())
                     .ReceiveFrom("source");
@@ -189,7 +189,7 @@ public class DataFlowIntegrationTests
             };
 
             builder
-                .AddProducer("source", sp => sp.GetRequiredService<TestProducer<int>>())
+                .AddProducer("source", ctx => ctx.ServiceProvider.GetRequiredService<TestProducer<int>>())
                     .ThenTransform("transform", sp => ActivatorUtilities.CreateInstance<PassthroughTransformer<int>>(sp))
                 //.AddTransform<int, int, PassthroughTransformer<int>>("transform")
                 //    .ReceiveFrom("source")

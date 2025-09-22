@@ -192,7 +192,7 @@ public class ProducerBlockTests
         {
             // Add producer block and link to processor block
             builder
-                .AddProducer("source", sp => sp.GetRequiredService<TestProducer<int>>())
+                .AddProducer("source", ctx => ctx.ServiceProvider.GetRequiredService<TestProducer<int>>())
                 .AddProcessor<int, TestProcessor<int>>("processor",
                     sp => sp.GetRequiredService<TestProcessor<int>>())
                 .ReceiveFrom("source");
@@ -207,7 +207,7 @@ public class ProducerBlockTests
 
             // Add producer block and link to processor block
             builder
-                .AddProducer("source", sp => sp.GetRequiredService<ConcurrencyTestProducer<int>>())
+                .AddProducer("source", ctx => ctx.ServiceProvider.GetRequiredService<ConcurrencyTestProducer<int>>())
                 .AddProcessor<int, TestProcessor<int>>("processor",
                     sp => sp.GetRequiredService<TestProcessor<int>>())
                 .ReceiveFrom("source");
@@ -220,7 +220,7 @@ public class ProducerBlockTests
         {
             // Add producer block and link to processor block
             builder
-                .AddProducer("source", sp => sp.GetRequiredService<TestProducer<int>>())
+                .AddProducer("source", ctx => ctx.ServiceProvider.GetRequiredService<TestProducer<int>>())
                 .AddProcessor<int, TestProcessor<int>>("processor",
                     sp => sp.GetRequiredService<TestProcessor<int>>())
                 .ReceiveFrom("source");
@@ -232,7 +232,7 @@ public class ProducerBlockTests
         public void Configure(DataFlowBuilder builder)
         {
             builder
-                .AddProducer("source", sp => sp.GetRequiredService<ErrorProducer<int>>())
+                .AddProducer("source", ctx => ctx.ServiceProvider.GetRequiredService<ErrorProducer<int>>())
                 .AddProcessor<int, TestProcessor<int>>("processor",
                     sp => sp.GetRequiredService<TestProcessor<int>>())
                 .ReceiveFrom("source");

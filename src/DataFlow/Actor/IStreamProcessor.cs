@@ -2,5 +2,5 @@ namespace Uniun.DataFlow.Actor;
 
 public interface IStreamProcessor<TInput>
 {
-    Task ProcessAsync(IAsyncEnumerable<TInput> input, CancellationToken cancellationToken);
+    Task ProcessAsync(IDataFlowContext context, IAsyncEnumerable<TInput> input, CancellationToken cancellationToken);
 }

@@ -3,5 +3,5 @@ namespace Uniun.DataFlow.Actor;
 
 public interface IStreamTransformer<TInput, TOutput>
 {
-    IAsyncEnumerable<TOutput> TransformAsync(IAsyncEnumerable<TInput> input, CancellationToken cancellationToken);
+    IAsyncEnumerable<TOutput> TransformAsync(IDataFlowContext context, IAsyncEnumerable<TInput> input, CancellationToken cancellationToken);
 }

@@ -6,6 +6,15 @@ using System.Collections.Concurrent;
 
 public class DataFlowContext : IDataFlowContext
 {
+
+    private static readonly AsyncLocal<DataFlowContext?> _current = new();
+
+    public static DataFlowContext? Current
+    {
+        get => _current.Value;
+        set => _current.Value = value;
+    }
+
     public DataFlowContext():this(Guid.NewGuid())
     {
 
@@ -27,3 +36,35 @@ public class DataFlowContext : IDataFlowContext
     /// </summary>
     public ConcurrentDictionary<string,object> Items { get; set; } = new ConcurrentDictionary<string, object>();  
 }
+
+
+public class DataFlowContext<T> : DataFlowContext
+{
+    public T? InputParamaters { get; }  
+
+    public static new DataFlowContext<T>? Current
+    {
+        get
+        {
+            var current = DataFlowContext.Current;
+            return current is DataFlowContext<T> typed ? typed : null;
+        }
+        set
+        {
+            DataFlowContext.Current = value;
+        }
+    }
+
+    public DataFlowContext(T? inputParamaters)
+        : base()
+    {
+        InputParamaters = inputParamaters;
+    }
+
+    public DataFlowContext(Guid invocationId, T? inputParamaters)
+        : base(invocationId)
+    {
+        InputParamaters = inputParamaters;
+    }
+}
+

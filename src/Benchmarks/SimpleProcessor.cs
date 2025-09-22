@@ -14,7 +14,7 @@ internal class SimpleProcessor : IStreamProcessor<int>
         _onProcess = onProcess;
     }
 
-    public async Task ProcessAsync(IAsyncEnumerable<int> input, CancellationToken cancellationToken)
+    public async Task ProcessAsync(IDataFlowContext context, IAsyncEnumerable<int> input, CancellationToken cancellationToken)
     {
         await foreach (var item in input.WithCancellation(cancellationToken))
         {

@@ -49,7 +49,7 @@ public class ProducerBlock<TOutput> : BlockBase, ISourceBlock<TOutput>
             {
                 // its safe to concurrently index into a list that isn't being modified.  
                 var producer = producersArray[index];
-                await foreach (var item in producer.ProduceAsync(ctx.CancellationToken))
+                await foreach (var item in producer.ProduceAsync(ctx, ctx.CancellationToken))
                 {                   
                     await _outputChannel.Writer.WriteAsync(item, ctx.CancellationToken);
                     RecordOperation();

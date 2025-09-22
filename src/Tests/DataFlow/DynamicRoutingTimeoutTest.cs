@@ -175,7 +175,7 @@ public class DynamicRoutingTimeoutTest
             _metrics = metrics;
         }
 
-        public async IAsyncEnumerable<TimeoutTestItem> ProduceAsync(
+        public async IAsyncEnumerable<TimeoutTestItem> ProduceAsync(IDataFlowContext context,
             [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellation)
         {
             // Send items quickly to multiple routes
@@ -220,7 +220,7 @@ public class DynamicRoutingTimeoutTest
             _logger = logger;
         }
 
-        public async Task ProcessAsync(IAsyncEnumerable<TimeoutTestItem> input, CancellationToken cancellationToken)
+        public async Task ProcessAsync(IDataFlowContext context, IAsyncEnumerable<TimeoutTestItem> input, CancellationToken cancellationToken)
         {
             await foreach (var item in input.WithCancellation(cancellationToken))
             {

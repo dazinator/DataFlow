@@ -279,7 +279,7 @@ public class RoutingBlockScopeDisposalTest
             _itemsPerRoute = Math.Max(1, itemsPerRoute);
         }
 
-        public async IAsyncEnumerable<TestItem> ProduceAsync(
+        public async IAsyncEnumerable<TestItem> ProduceAsync(IDataFlowContext context,
             [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellation)
         {
             // Series of production phases to create stress on the routing system
@@ -490,7 +490,7 @@ public class RoutingBlockScopeDisposalTest
             _scopedService.RegisterForDisposal(_metrics);
         }
 
-        public async Task ProcessAsync(IAsyncEnumerable<TestItem> input, CancellationToken cancellationToken)
+        public async Task ProcessAsync(IDataFlowContext context, IAsyncEnumerable<TestItem> input, CancellationToken cancellationToken)
         {
             try
             {

@@ -84,7 +84,7 @@ public class DataFlowComplexScenarioTests
 
     private class LargeDataProducer : IStreamProducer<int>
     {
-        public async IAsyncEnumerable<int> ProduceAsync(
+        public async IAsyncEnumerable<int> ProduceAsync(IDataFlowContext context,
             [EnumeratorCancellation] CancellationToken cancellation)
         {
             foreach (var i in Enumerable.Range(0, 1000))
@@ -99,6 +99,7 @@ public class DataFlowComplexScenarioTests
     private class SlowTransformer : IStreamTransformer<int, int>
     {
         public async IAsyncEnumerable<int> TransformAsync(
+            IDataFlowContext context,
             IAsyncEnumerable<int> input,
             CancellationToken cancellationToken)
         {
@@ -119,7 +120,7 @@ public class DataFlowComplexScenarioTests
             _items = items;
         }
 
-        public async Task ProcessAsync(IAsyncEnumerable<int> input, CancellationToken cancellationToken)
+        public async Task ProcessAsync(IDataFlowContext context, IAsyncEnumerable<int> input, CancellationToken cancellationToken)
         {
             await foreach (var item in input)
             {

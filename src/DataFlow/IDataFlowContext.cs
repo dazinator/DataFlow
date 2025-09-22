@@ -20,17 +20,26 @@ public interface IDataFlowContext
 
     public AsyncServiceScope CreateNewAsyncScope(out IDataFlowContext branchContext)
     {
-        var scope = ServiceProvider.CreateAsyncScope();
-        branchContext = new DataFlowContext()
+        try
         {
-            CancellationToken = CancellationToken,
-            ServiceProvider = scope.ServiceProvider,
-            InvocationId = InvocationId,
-            FlowMetricsContext = FlowMetricsContext, // safe to share as it's immutable
-            Name = Name, // safe to share
-            Items = Items // thread-safe concurrent dictionary
-        };
-        return scope;
+            var scope = ServiceProvider.CreateAsyncScope();
+            branchContext = new DataFlowContext()
+            {
+                CancellationToken = CancellationToken,
+                ServiceProvider = scope.ServiceProvider,
+                InvocationId = InvocationId,
+                FlowMetricsContext = FlowMetricsContext, // safe to share as it's immutable
+                Name = Name, // safe to share
+                Items = Items // thread-safe concurrent dictionary
+            };
+            return scope;
+        }
+        catch (Exception)
+        {
+
+            throw;
+        }
+       
     }   
 }
 

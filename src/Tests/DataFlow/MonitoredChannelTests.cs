@@ -86,7 +86,7 @@ public class MonitoredChannelTests
         Output.WriteLine("7. RecordObservableInstruments called");
 
         // Give it a moment to process
-        await Task.Delay(100);
+        await Task.Delay(200);
 
         // Check what measurements we got immediately
         var immediateSnapshot = collector.GetMeasurementSnapshot();

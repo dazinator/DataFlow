@@ -22,6 +22,7 @@ public class TestProjector<TIn, TOut> : IStreamTransformer<TIn, TOut>
     }
 
     public async IAsyncEnumerable<TOut> TransformAsync(
+        IDataFlowContext context,
         IAsyncEnumerable<TIn> input,
         CancellationToken cancellationToken)
     {

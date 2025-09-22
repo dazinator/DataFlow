@@ -157,7 +157,7 @@ public partial class MinimalBenchmark
             _onItem = onItem;
         }
 
-        public async IAsyncEnumerable<int> ProduceAsync([EnumeratorCancellation] CancellationToken cancellation)
+        public async IAsyncEnumerable<int> ProduceAsync(IDataFlowContext context,[EnumeratorCancellation] CancellationToken cancellation)
         {
             foreach (var item in _items)
             {

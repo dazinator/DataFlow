@@ -69,6 +69,6 @@ public class ProcessorBlock<T> : BlockBase, ITargetBlock<T>
         }
 
 
-        await processor.ProcessAsync(input, context.CancellationToken);
+        await processor.ProcessAsync(context, input, context.CancellationToken);
     }
 }

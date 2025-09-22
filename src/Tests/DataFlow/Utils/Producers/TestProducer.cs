@@ -1,6 +1,7 @@
 namespace Tests.DataFlow.Utils.Producers;
 
 using System.Runtime.CompilerServices;
+using Uniun.DataFlow;
 
 // Generic test producer classes (can go in a shared Utils/TestHelpers folder)
 public class TestProducer<T> : IStreamProducer<T>
@@ -16,7 +17,7 @@ public class TestProducer<T> : IStreamProducer<T>
         _delay = delay ?? TimeSpan.FromMilliseconds(10);
     }
 
-    public async IAsyncEnumerable<T> ProduceAsync(
+    public async IAsyncEnumerable<T> ProduceAsync(IDataFlowContext context,
         [EnumeratorCancellation] CancellationToken cancellation)
     {
         foreach (var item in _items)
@@ -27,4 +28,6 @@ public class TestProducer<T> : IStreamProducer<T>
             await Task.Delay(_delay, cancellation);
         }
     }
+
+  
 }

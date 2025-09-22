@@ -21,7 +21,7 @@ public class ConcurrencyTestProducer<T> : IStreamProducer<T>
         _workDelay = workDelay ?? TimeSpan.FromMilliseconds(50);
     }
 
-    public async IAsyncEnumerable<T> ProduceAsync(
+    public async IAsyncEnumerable<T> ProduceAsync(IDataFlowContext context,
         [EnumeratorCancellation] CancellationToken cancellation)
     {
         _tracker.Enter();

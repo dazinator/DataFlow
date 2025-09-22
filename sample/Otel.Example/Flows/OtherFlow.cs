@@ -59,7 +59,7 @@ internal class OtherFlowConfig : IDataFlowConfiguration
             _delay = delay ?? TimeSpan.FromMilliseconds(10);
         }
 
-        public async IAsyncEnumerable<T> ProduceAsync(
+        public async IAsyncEnumerable<T> ProduceAsync(IDataFlowContext context,
             [EnumeratorCancellation] CancellationToken cancellation)
         {
             foreach (var item in _items)

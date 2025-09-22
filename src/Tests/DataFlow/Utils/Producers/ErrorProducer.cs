@@ -21,7 +21,7 @@ public class ErrorProducer<T> : IStreamProducer<T>
         _errorMessage = errorMessage ?? "Simulated error in producer";
     }
 
-    public async IAsyncEnumerable<T> ProduceAsync(
+    public async IAsyncEnumerable<T> ProduceAsync(IDataFlowContext context,
         [EnumeratorCancellation] CancellationToken cancellation)
     {
         foreach (var item in _items)

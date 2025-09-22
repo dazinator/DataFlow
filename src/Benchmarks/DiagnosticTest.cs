@@ -143,7 +143,7 @@ public static class DiagnosticTest
             _items = items;
         }
 
-        public async IAsyncEnumerable<int> ProduceAsync([EnumeratorCancellation] CancellationToken cancellation)
+        public async IAsyncEnumerable<int> ProduceAsync(IDataFlowContext context, [EnumeratorCancellation] CancellationToken cancellation)
         {
             Console.WriteLine("Producer starting");
 
@@ -170,7 +170,7 @@ public static class DiagnosticTest
             _onProcess = onProcess;
         }
 
-        public async Task ProcessAsync(IAsyncEnumerable<int> input, CancellationToken cancellationToken)
+        public async Task ProcessAsync(IDataFlowContext context, IAsyncEnumerable<int> input, CancellationToken cancellationToken)
         {
             Console.WriteLine("Processor starting");
 
