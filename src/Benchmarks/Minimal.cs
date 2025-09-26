@@ -1,9 +1,6 @@
 namespace Benchmarks;
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using Microsoft.Extensions.DependencyInjection;
@@ -145,27 +142,6 @@ public partial class MinimalBenchmark
         Console.WriteLine("Uniun benchmark complete");
     }
 
-    // Custom implementations for Uniun DataFlow
-    private class SimpleProducer : IStreamProducer<int>
-    {
-        private readonly int[] _items;
-        private readonly Action<int>? _onItem;
-
-        public SimpleProducer(int[] items, Action<int>? onItem = null)
-        {
-            _items = items;
-            _onItem = onItem;
-        }
-
-        public async IAsyncEnumerable<int> ProduceAsync(IDataFlowContext context,[EnumeratorCancellation] CancellationToken cancellation)
-        {
-            foreach (var item in _items)
-            {
-                cancellation.ThrowIfCancellationRequested();
-                _onItem?.Invoke(item);
-                yield return item;
-            }
-        }
-    }
+   
 }
 

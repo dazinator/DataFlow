@@ -26,4 +26,7 @@
     <Folder Include="BenchmarkDotNet.Artifacts\results\" />
   </ItemGroup>
 
+
+  <Import Project="..\Tests.Shared\Tests.Shared.projitems" Label="Shared" />
+
 </Project>

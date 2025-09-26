@@ -1,0 +1,25 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <MSBuildAllProjects Condition="'$(MSBuildVersion)' == '' Or '$(MSBuildVersion)' &lt; '16.0'">$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+    <HasSharedItems>true</HasSharedItems>
+    <SharedGUID>317141e8-315a-4501-bfe2-dbb7fea44777</SharedGUID>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration">
+    <Import_RootNamespace>Tests.Shared</Import_RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)Processors\SimpleProcessor.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Producers\ConcurrencyTestProducer.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Producers\ErrorProducer.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Processors\TestProcessor.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Producers\TestProducer.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Transformers\NumberTransformer.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Transformers\PassthroughTransformer.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Transformers\TestProjector.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Utils\ConcurrencyTracker.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Utils\IConcurrencyTracker.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Utils\MemoryCsvSampler.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Utils\PipelineContextTestUtils.cs" />
+  </ItemGroup>
+</Project>

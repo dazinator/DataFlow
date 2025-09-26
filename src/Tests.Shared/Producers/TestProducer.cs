@@ -8,7 +8,7 @@ public class TestProducer<T> : IStreamProducer<T>
 {
     private readonly IEnumerable<T> _items;
     private readonly Action<T>? _onItemProduced;
-    private readonly TimeSpan _delay;
+    private readonly TimeSpan? _delay;
 
     public TestProducer(IEnumerable<T> items, Action<T>? onItemProduced = null, TimeSpan? delay = null)
     {
@@ -20,13 +20,26 @@ public class TestProducer<T> : IStreamProducer<T>
     public async IAsyncEnumerable<T> ProduceAsync(IDataFlowContext context,
         [EnumeratorCancellation] CancellationToken cancellation)
     {
-        foreach (var item in _items)
+        if(_delay is null)
         {
-            cancellation.ThrowIfCancellationRequested();
-            _onItemProduced?.Invoke(item);
-            yield return item;
-            await Task.Delay(_delay, cancellation);
+            foreach (var item in _items)
+            {
+                cancellation.ThrowIfCancellationRequested();
+                _onItemProduced?.Invoke(item);
+                yield return item;
+            }
         }
+        else
+        {
+            foreach (var item in _items)
+            {
+                cancellation.ThrowIfCancellationRequested();
+                await Task.Delay(_delay.Value, cancellation);
+                _onItemProduced?.Invoke(item);
+                yield return item;
+            }
+        }
+       
     }
 
   

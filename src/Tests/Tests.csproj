@@ -70,4 +70,6 @@
     <Folder Include="DataFlow\docs\" />
   </ItemGroup>
 
+  <Import Project="..\Tests.Shared\Tests.Shared.projitems" Label="Shared" />
+
 </Project>

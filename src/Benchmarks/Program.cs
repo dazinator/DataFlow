@@ -34,6 +34,19 @@ public partial class Program
                     BenchmarkRunner.Run<SimplePipelineBenchmarks>();
                     break;
 
+                case "memory-rate":
+                    Console.WriteLine("Starting simple pipeline benchmark...");
+                    var isDebug = true;
+                    var config  = isDebug
+                        ? new DebugInProcessConfig()                       
+                        : DefaultConfig.Instance;
+
+                    BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly)
+                        .Run(new[] { "RateLimitBlockMemoryBenchmarks" }, config);
+
+                 //   BenchmarkRunner.Run<RateLimitBlockMemoryBenchmarks>(config);
+                    break;
+
                 //case "test":
                 //    Console.WriteLine("Running super simple test...");
                 //    await SuperSimpleTest.RunTest();

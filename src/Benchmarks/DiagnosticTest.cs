@@ -1,12 +1,12 @@
 namespace Benchmarks;
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Uniun.DataFlow.Builder;
 using Microsoft.Extensions.Logging;
+using Tests.DataFlow.Utils.Producers;
+using Tests.DataFlow.Utils.Processors;
 
 public static class DiagnosticTest
 {
@@ -42,8 +42,8 @@ public static class DiagnosticTest
 
         // Build a very simple pipeline
         var builder = new DataFlowBuilder(serviceProvider);
-        builder.AddProducer<int>("source", sp => new TestProducer(items))
-               .AddProcessor<int>("processor", sp => new TestProcessor(item => {
+        builder.AddProducer<int>("source", sp => new TestProducer<int>(items, onItemProduced: null, delay: TimeSpan.FromMilliseconds(100)))
+               .AddProcessor<int>("processor", sp => new TestProcessor<int>(item => {
                    var processed = Interlocked.Increment(ref count);
                    Console.WriteLine($"Processed item {item} ({processed}/{ItemCount})");
 
@@ -132,69 +132,8 @@ public static class DiagnosticTest
         Console.WriteLine("===============================================");
         Console.WriteLine("Diagnostic Test Complete");
         Console.WriteLine("===============================================");
-    }
+    } 
 
-    private class TestProducer : IStreamProducer<int>
-    {
-        private readonly int[] _items;
-
-        public TestProducer(int[] items)
-        {
-            _items = items;
-        }
-
-        public async IAsyncEnumerable<int> ProduceAsync(IDataFlowContext context, [EnumeratorCancellation] CancellationToken cancellation)
-        {
-            Console.WriteLine("Producer starting");
-
-            foreach (var item in _items)
-            {
-                cancellation.ThrowIfCancellationRequested();
-                Console.WriteLine($"Producing item {item}");
-                yield return item;
-
-                // Small delay to make output easier to follow
-                await Task.Delay(100, cancellation);
-            }
-
-            Console.WriteLine("Producer completed");
-        }
-    }
-
-    private class TestProcessor : IStreamProcessor<int>
-    {
-        private readonly Action<int> _onProcess;
-
-        public TestProcessor(Action<int> onProcess)
-        {
-            _onProcess = onProcess;
-        }
-
-        public async Task ProcessAsync(IDataFlowContext context, IAsyncEnumerable<int> input, CancellationToken cancellationToken)
-        {
-            Console.WriteLine("Processor starting");
-
-            try
-            {
-                await foreach (var item in input.WithCancellation(cancellationToken))
-                {
-                    Console.WriteLine($"Processing item {item}");
-                    _onProcess(item);
-                }
-
-                Console.WriteLine("Processor completed normally");
-            }
-            catch (OperationCanceledException)
-            {
-                Console.WriteLine("Processor was canceled");
-                throw;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Processor error: {ex.Message}");
-                throw;
-            }
-        }
-    }
+   
 }
 
