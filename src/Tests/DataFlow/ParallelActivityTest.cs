@@ -93,6 +93,7 @@ public class BlockBaseTests
         Assert.Equal(10, taskCompleted.Count);
     }
 
+    [UnitTest]
     [Fact]
     public async Task ExecuteParallelActivities_ShouldNotCompleteBeforeActivities()
     {
