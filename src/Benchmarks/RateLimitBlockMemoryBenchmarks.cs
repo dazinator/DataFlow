@@ -15,7 +15,8 @@ using Uniun.DataFlow.Builder;
 public class RateLimitBlockMemoryBenchmarks
 {
     private ServiceProvider _sp;
-    private byte[][] _data;
+    private ILogger<RateLimitBlockMemoryBenchmarks> _logger;
+    private ByteArrayProducer _producer;
 
     private MemoryCsvSampler _memorySampler;
 
@@ -36,22 +37,22 @@ public class RateLimitBlockMemoryBenchmarks
         services.AddDataFlowMetrics();
         services.AddDataFlows();
         _sp = services.BuildServiceProvider();
-
+        _logger = _sp.GetRequiredService<ILogger<RateLimitBlockMemoryBenchmarks>>();
         // Each item is a 1MB byte array
-        _data = Enumerable.Range(0, ItemCount)
-            .Select(_ => new byte[1024 * 1024])
-            .ToArray();        
+        _producer = new ByteArrayProducer(ItemCount, 1024 * 1024);
         // Start memory sampling to CSV
         var outputPath = Path.Combine(
             Path.GetTempPath(),
-           // Directory.GetParent(Environment.CurrentDirectory).FullName, // One level up from temp
+            // Directory.GetParent(Environment.CurrentDirectory).FullName, // One level up from temp
             "artifacts",
             $"memory_{ItemCount}_{DateTime.Now:yyyyMMdd_HHmmss}.csv"
         );
         Console.WriteLine($"Memory profile will be saved to: {outputPath}");
         Directory.CreateDirectory(Path.GetDirectoryName(outputPath));
-        _memorySampler = new MemoryCsvSampler(outputPath);
+        _memorySampler = new MemoryCsvSampler(outputPath, _logger);
     }
+
+    private byte[][] GenerateLargeBlobsStream(int itemCount) => throw new NotImplementedException();
 
     [Benchmark(Baseline = true)]
     public void UnrestrictedThroughput()
@@ -59,7 +60,7 @@ public class RateLimitBlockMemoryBenchmarks
         var processed = new ConcurrentBag<byte[]>();
         var builder = new DataFlowBuilder(_sp);
 
-        builder.AddProducer("source", sp => new TestProducer<byte[]>(_data, delay: TimeSpan.Zero))
+        builder.AddProducer("source", sp => _producer, a => a.Capacity = 1)
             .AddProcessor<byte[]>("processor", sp => new TestProcessor<byte[]>(onProcessItem: processed.Add))
             .ReceiveFrom("source");
 
@@ -80,7 +81,7 @@ public class RateLimitBlockMemoryBenchmarks
         var processed = new ConcurrentBag<byte[]>();
         var builder = new DataFlowBuilder(_sp);
 
-        builder.AddProducer("source", sp => new TestProducer<byte[]>(_data, delay: TimeSpan.Zero))
+        builder.AddProducer("source", sp => _producer, a=>a.Capacity = 1)
             .AddRateLimit<byte[]>(
                 "rateLimiter",
                 () => new TokenBucketRateLimiter(new TokenBucketRateLimiterOptions

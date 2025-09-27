@@ -7,6 +7,7 @@ using Uniun.DataFlow.Blocks;
 using Microsoft.Extensions.Logging;
 using System.Runtime.CompilerServices;
 
+[IntegrationTest]
 public class DataFlowComplexScenarioTests
 {
     private readonly ITestOutputHelper _testOutputHelper;
@@ -60,26 +61,12 @@ public class DataFlowComplexScenarioTests
 
             };
 
-            // Using the fluent API with type-safe linking
             builder
                 .AddProducer<int, LargeDataProducer>("source")
                 .AddTransform<int, int, SlowTransformer>("transform")
                     .ReceiveFrom("source")
                 .AddProcessor<int, DataCollector>("collector")
-                .ReceiveFrom("transform");
-
-            //(builder.AddTransform<int, int, SlowTransformer>("transform"))
-            //  .LinkTo();
-
-            // Or if you prefer step by step:
-            /*
-            var source = builder.AddSource<int, LargeDataProducer>("source");
-            var transform = builder.AddTransform<int, int, SlowTransformer>("transform");
-            var collector = builder.AddProcessor<int, DataCollector>("collector");
-
-            source.LinkTo(transform);
-            transform.LinkTo(collector);
-            */
+                .ReceiveFrom("transform");         
         }
     }
 

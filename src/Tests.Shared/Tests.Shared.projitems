@@ -10,6 +10,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)Processors\SimpleProcessor.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Producers\ByteArrayProducer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Producers\ConcurrencyTestProducer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Producers\ErrorProducer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Processors\TestProcessor.cs" />

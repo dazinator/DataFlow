@@ -20,6 +20,7 @@ public static class RateLimitExtensions
         Action<BlockOptions>? configureOptions = null)
     {
         var blockOptions = new BlockOptions();
+        blockOptions.Capacity = 1;
         configureOptions?.Invoke(blockOptions);
 
         var block = new RateLimitBlock<T>(

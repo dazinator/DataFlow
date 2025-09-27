@@ -1,4 +1,4 @@
-﻿namespace Tests.DataFlow;
+namespace Tests.DataFlow;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -6,15 +6,16 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-public class ParallelActivityTest
+public class BlockBaseTests
 {
     private readonly ITestOutputHelper _output;
 
-    public ParallelActivityTest(ITestOutputHelper output)
+    public BlockBaseTests(ITestOutputHelper output)
     {
         _output = output;
     }
 
+    [Exploratory]
     [Fact]
     public async Task Parallel_ForEachAsync_CompletesBefore_AllTasksComplete()
     {
@@ -22,7 +23,7 @@ public class ParallelActivityTest
         var serviceCollection = new ServiceCollection();
         serviceCollection.AddLogging(builder => builder.AddXUnit(_output));
         var serviceProvider = serviceCollection.BuildServiceProvider();
-        var logger = serviceProvider.GetRequiredService<ILogger<ParallelActivityTest>>();
+        var logger = serviceProvider.GetRequiredService<ILogger<BlockBaseTests>>();
 
         var taskCompletionSource = new TaskCompletionSource();
         var taskStarted = new List<int>();
@@ -93,13 +94,13 @@ public class ParallelActivityTest
     }
 
     [Fact]
-    public async Task ExecuteParallelActivities_WithDelayedCompletion()
+    public async Task ExecuteParallelActivities_ShouldNotCompleteBeforeActivities()
     {
         // Arrange
         var serviceCollection = new ServiceCollection();
         serviceCollection.AddLogging(builder => builder.AddXUnit(_output));
         var serviceProvider = serviceCollection.BuildServiceProvider();
-        var logger = serviceProvider.GetRequiredService<ILogger<ParallelActivityTest>>();
+        var logger = serviceProvider.GetRequiredService<ILogger<BlockBaseTests>>();
 
         // Create a mock DataFlowContext
         var context = new DataFlowContext

@@ -35,7 +35,7 @@ public class MemoryCsvSampler : IDisposable
             _writer.WriteLine($"{timestamp},{value}");
         });
         _listener.Start();
-
+        _listener.RecordObservableInstruments();
         // Call RecordObservableInstruments every second
         _timer = new Timer(_ => _listener.RecordObservableInstruments(), null, 0, 1000);
     }
