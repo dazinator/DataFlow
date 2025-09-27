@@ -1,11 +1,9 @@
 namespace Tests.DataFlow;
 
 using System.Collections.Concurrent;
-using System.Threading.Channels;
 using Xunit;
 using Uniun.DataFlow;
 using Uniun.DataFlow.Blocks;
-using Uniun.DataFlow.Blocks.Processor;
 using Microsoft.Extensions.Logging;
 using System.Runtime.CompilerServices;
 
