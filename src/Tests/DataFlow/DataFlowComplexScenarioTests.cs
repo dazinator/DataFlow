@@ -176,10 +176,16 @@ public class DataFlowComplexScenarioTests
             Name = "ExceptionInMiddleBlock"
         };
 
-        var ex = await Assert.ThrowsAsync<AggregateException>(() => flow.ExecuteAsync(context));
+        // Act and Assert
+        // Prior to fix, this would hang indefinitely (or for full 10 seconds of the outer cancellation token we are supplying in this test)
+        // because A would be blocked trying to write to its output buffer, because B hits an exception is no longer pulling items from it. A is unaware that B is no longer running
+        // and is just waiting to write to its output buffer indefinately (based on cancellation token).
+        // With the fix, the cancellation token (10s) we pass in here is joined with another that is signalled on block exception.
+        // causing A to stop producing and exit gracefully as the cancellation token is signalled as soon as block B throws the uncaught exception.
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => flow.ExecuteAsync(context));
 
-        // B should have processed at least the first item, then thrown
-        Assert.Contains(1, processedB);
+        // B should have processed some items, but not item 3 because it throws on 2.
+        Assert.NotEmpty(processedB);
         Assert.DoesNotContain(3, processedB);
 
         // C should complete normally (may process 1 item, depending on timing)

@@ -24,12 +24,11 @@ public class DataFlow<TConfig> : IDataFlow
     public Task ExecuteAsync(IDataFlowContext context) => _flow.ExecuteAsync(context);
 }
 
-public class DataFlow: IDataFlow
+public class DataFlow : IDataFlow
 {
     private readonly List<IBlock> _blocks;
     private readonly IDataFlowMetrics _metrics;
 
-    // Static fields shared across all DataFlow instances
     private static readonly ActivitySource ActivitySource = new ActivitySource("Uniun.DataFlow");
 
     public DataFlow(
@@ -46,15 +45,22 @@ public class DataFlow: IDataFlow
 
     public async Task ExecuteAsync(IDataFlowContext context)
     {
-        // Create flow-level activity
         context.Name ??= Name;
         Stopwatch? stopwatch = null;
 
-        // establish the metrics context for this flow execution.
         var flowMetrics = context.FlowMetricsContext = new DataFlowMetricsTagsContext(Name, context.InvocationId, _metrics);
-        flowMetrics.Started();      
-       
+        flowMetrics.Started();
+
         var isSuccessful = false;
+
+        // --- Begin error-driven cancellation integration ---
+        var userToken = context.CancellationToken;
+        using var errorCts = new CancellationTokenSource();
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(userToken, errorCts.Token);
+
+        // Replace context's token with the linked token for this execution
+        context.CancellationToken = linkedCts.Token;
+        // --- End error-driven cancellation integration ---
 
         using (var flowActivity = ActivitySource.StartActivity(ActivityNames.Flow))
         {
@@ -66,19 +72,18 @@ public class DataFlow: IDataFlow
                 {
                     flowActivity.AddTag(ActivityNames.TagNames.FlowName, context.Name);
                     flowActivity.DisplayName = $"{ActivityNames.Flow} {{FlowName}}";
-                    //flowActivity.OperationName
                 }
             }
             else
             {
-                stopwatch = Stopwatch.StartNew(); //we need to resort to stopwatch for time metric as activity source is not available
+                stopwatch = Stopwatch.StartNew();
             }
 
             try
             {
 
                 var blockTasks = _blocks.Select(block =>
-                ExecuteBlockAsync(flowActivity, block, context));
+                ExecuteBlockAsync(flowActivity, block, context, errorCts));
 
                 await Task.WhenAll(blockTasks);
                 context.CancellationToken.ThrowIfCancellationRequested(); // becuse channel readers writers can gracefully exit from streams, lets ensure if we are cancelled we throw here.
@@ -87,47 +92,40 @@ public class DataFlow: IDataFlow
             }
             catch (Exception ex)
             {
-                // Record exception in activity
+                // Signal cancellation to all blocks if any block fails
+                errorCts.Cancel();
+
                 flowActivity?.SetStatus(ActivityStatusCode.Error, ex.Message);
                 throw;
             }
             finally
             {
-                // Record flow-level metrics
                 double flowDuration;
                 if (flowActivity != null)
                 {
-                    // flowActivity?.SetStatus(ActivityStatusCode.Error, ex.Message);
                     flowActivity.Stop();
-                    flowDuration = flowActivity.Duration.TotalMilliseconds;                   
+                    flowDuration = flowActivity.Duration.TotalMilliseconds;
                 }
                 else
                 {
-                    stopwatch?.Stop(); // Add this
+                    stopwatch?.Stop();
                     flowDuration = stopwatch?.Elapsed.TotalMilliseconds ?? 0;
                 }
-                // Set completion outcome
                 flowMetrics.Completed(flowDuration, isSuccessful);
-                         
             }
-        }      
+        }
     }
 
-
-    private async Task ExecuteBlockAsync(Activity? parentActivity, IBlock block, IDataFlowContext context)
+    private async Task ExecuteBlockAsync(Activity? parentActivity, IBlock block, IDataFlowContext context, CancellationTokenSource errorCts)
     {
-        //TODO: Move this thod to BlockBase.ExecuteAsync
-
         var name = context.Name;
         Stopwatch? stopwatch = null;
-        var isSuccessful = false;              
+        var isSuccessful = false;
 
-        // Create the activity within the current activity's context
         using var activity = ActivitySource.StartActivity(
             ActivityNames.Block,
             ActivityKind.Internal,
-            parentActivity?.Context ?? default); // Use ActivityContext instead of manual ID setting
-
+            parentActivity?.Context ?? default);
 
         if (activity is not null)
         {
@@ -153,16 +151,15 @@ public class DataFlow: IDataFlow
         }
         catch (Exception ex)
         {
-            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);           
+            errorCts.Cancel(); // Signal cancellation flow-wide
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
             throw;
         }
         finally
         {
-            // Record block duration
             double blockDuration;
             if (activity != null)
             {
-                // Make sure all tags are set before stopping
                 activity.Stop();
                 blockDuration = activity.Duration.TotalMilliseconds;
             }
@@ -174,5 +171,4 @@ public class DataFlow: IDataFlow
             block.MetricsContext?.Completed(blockDuration, isSuccessful);
         }
     }
-  
 }
