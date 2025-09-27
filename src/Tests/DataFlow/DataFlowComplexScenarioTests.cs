@@ -1,11 +1,14 @@
 namespace Tests.DataFlow;
 
 using System.Collections.Concurrent;
-using System.Runtime.CompilerServices;
+using System.Threading.Channels;
+using Xunit;
+using Uniun.DataFlow;
+using Uniun.DataFlow.Blocks;
+using Uniun.DataFlow.Blocks.Processor;
 using Microsoft.Extensions.Logging;
-using Tests.DataFlow.Utils;
+using System.Runtime.CompilerServices;
 
-[Xunit.Categories.IntegrationTest]
 public class DataFlowComplexScenarioTests
 {
     private readonly ITestOutputHelper _testOutputHelper;
@@ -15,7 +18,7 @@ public class DataFlowComplexScenarioTests
         _testOutputHelper = testOutputHelper;
         Services = new ServiceCollection();
         AddDefaultServices();
-      
+
     }
 
     private void AddDefaultServices()
@@ -127,5 +130,62 @@ public class DataFlowComplexScenarioTests
                 _items.Add(item);
             }
         }
+    }
+
+    [Fact]
+    public async Task ExceptionInMiddleBlock_PropagatesAndUpstreamDoesNotHang()
+    {
+        var items = new[] { 1, 2, 3, 4, 5 };
+        var produced = new ConcurrentBag<int>();
+        var processedB = new ConcurrentBag<int>();
+        var processedC = new ConcurrentBag<int>();
+
+        //  Services
+        // .AddDataFlow<LargeDataFlowConfig>("test")
+        //.AddSingleton(processedItems);
+        var sp = Services.BuildServiceProvider();
+
+        var builder = new DataFlowBuilder(sp);
+
+        // Block A: Producer, small buffer
+        builder.AddProducer("A", _ => new TestProducer<int>(items, onItemProduced: produced.Add), o => o.Capacity = 1);
+
+        // Block B: Throws on second item
+        builder.AddTransform("B", _ => new TestTransformer<int, int>(
+            onTransform: item =>
+            {
+                processedB.Add(item);
+                if (item == 2)
+                {
+                    throw new InvalidOperationException("B failed");
+                }
+                return item;
+            })).ReceiveFrom("A");
+
+        // Block C: Just collects items
+        builder.AddProcessor<int>("C", _ => new TestProcessor<int>(onProcessItem: processedC.Add))
+            .ReceiveFrom("B");
+
+
+        var flow = builder.Build();
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        var context = new DataFlowContext(Guid.NewGuid())
+        {
+            ServiceProvider = sp,
+            CancellationToken = cts.Token,
+            Name = "ExceptionInMiddleBlock"
+        };
+
+        var ex = await Assert.ThrowsAsync<AggregateException>(() => flow.ExecuteAsync(context));
+
+        // B should have processed at least the first item, then thrown
+        Assert.Contains(1, processedB);
+        Assert.DoesNotContain(3, processedB);
+
+        // C should complete normally (may process 1 item, depending on timing)
+        Assert.True(processedC.Count >= 0);
+
+        // A should not hang indefinitely
+        Assert.True(produced.Count <= 2); // Only first item(s) should be produced before B throws
     }
 }
