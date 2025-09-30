@@ -136,7 +136,7 @@ public static class ProducerExtensions
         {
             options.ProducersFactory = async (context, ct) =>
             {
-                var factory = ActivatorUtilities.CreateInstance<TFactory>(context.ServiceProvider, context);
+                var factory = ActivatorUtilities.CreateInstance<TFactory>(context.ServiceProvider);
                 var producers = new List<IStreamProducer<TOutput>>();
                 await foreach (var producer in factory.CreateProducersAsync(context, ct))
                 {
