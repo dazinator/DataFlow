@@ -5,18 +5,24 @@ using Uniun.DataFlow.Blocks;
 
 public class TargetBlockBuilder<T> : ITargetBlockBuilder<T>
 {
-    public TargetBlockBuilder(Dictionary<string, IBlock> _blocks, ITargetBlock<T> currentBlock, IServiceProvider serviceProvider)
+    private readonly DataFlowBuilderState _state;
+
+    public TargetBlockBuilder(DataFlowBuilderState state, ITargetBlock<T> currentBlock)
     {
-        Blocks = _blocks;
+        _state = state;
         Current = currentBlock;
         CurrentBuilder = this;
-        ServiceProvider = serviceProvider;
     }
 
-    public Dictionary<string, IBlock> Blocks { get; }
+    public DataFlowBuilderState State => _state;
 
     public ITargetBlockBuilder<T> CurrentBuilder { get; set; }
 
     public ITargetBlock<T> Current { get; }
-    public IServiceProvider ServiceProvider { get; }
+
+    public ISourceBlock<T>? LastBlock
+    {
+        get => _state.LastSourceBlock as ISourceBlock<T>;
+        set => _state.LastSourceBlock = value;
+    }
 }

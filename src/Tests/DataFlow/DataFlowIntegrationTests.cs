@@ -190,9 +190,8 @@ public class DataFlowIntegrationTests
 
             builder
                 .AddProducer("source", ctx => ctx.ServiceProvider.GetRequiredService<TestProducer<int>>())
-                    .ThenTransform("transform", sp => ActivatorUtilities.CreateInstance<PassthroughTransformer<int>>(sp))
-                //.AddTransform<int, int, PassthroughTransformer<int>>("transform")
-                //    .ReceiveFrom("source")
+                .AddTransform<int, int, PassthroughTransformer<int>>("transform")
+                    .ReceiveFromLast()
                 .AddProcessor<int, TestProcessor<int>>("collector",
                     sp => sp.GetRequiredService<TestProcessor<int>>())
                     .ReceiveFrom("transform");

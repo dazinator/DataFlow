@@ -5,15 +5,22 @@ using Uniun.DataFlow.Blocks;
 
 public class PropagatingBlockBuilder<TIn, TOut> : IPropagatingBlockBuilder<TIn, TOut>
 {
-    public PropagatingBlockBuilder(Dictionary<string, IBlock> _blocks, IPropagatorBlock<TIn, TOut> currentBlock, IServiceProvider serviceProvider)
+    private readonly DataFlowBuilderState _state;
+
+    public PropagatingBlockBuilder(DataFlowBuilderState state, IPropagatorBlock<TIn, TOut> currentBlock)
     {
-        Blocks = _blocks;
+        _state = state;
         Current = currentBlock;
         CurrentBuilder = this;
-        ServiceProvider = serviceProvider;
     }
-    public Dictionary<string, IBlock> Blocks { get; }
+
+    public DataFlowBuilderState State => _state;
     public IPropagatorBlock<TIn, TOut> Current { get; }
     public IPropagatingBlockBuilder<TIn, TOut> CurrentBuilder { get; set; }
-    public IServiceProvider ServiceProvider { get; }
+
+    public ISourceBlock<TIn>? LastBlock
+    {
+        get => _state.LastSourceBlock as ISourceBlock<TIn>;
+        set => _state.LastSourceBlock = value;
+    }
 }
