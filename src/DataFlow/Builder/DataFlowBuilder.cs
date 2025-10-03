@@ -9,20 +9,19 @@ public class DataFlowBuilder : IDataFlowBuilder
 {
     public DataFlowBuilder(IServiceProvider serviceProvider)
     {
-        Blocks = new();
-        ServiceProvider = serviceProvider;
+        State = new DataFlowBuilderState(serviceProvider);
     }
 
-    public Dictionary<string, IBlock> Blocks { get; }
+    public DataFlowBuilderState State { get; }
 
-    public IServiceProvider ServiceProvider { get; }
+    public IServiceProvider ServiceProvider => State.ServiceProvider;
 
     public string Name { get; set; }
 
     public IDataFlow Build()
     {
-        var blocks = Blocks.Values.ToList();
-        var metrics = ServiceProvider.GetRequiredService<IDataFlowMetrics>();
+        var blocks = State.Blocks.Values.ToList();
+        var metrics = State.ServiceProvider.GetRequiredService<IDataFlowMetrics>();
         return new DataFlow(Name, blocks, metrics);       
     }
 }

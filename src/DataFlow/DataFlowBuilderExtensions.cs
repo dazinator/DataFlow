@@ -1,5 +1,7 @@
 namespace Uniun.DataFlow;
 
+using Uniun.DataFlow.Builder;
+
 public static class DataFlowBuilderExtensions
 {
     public static void AddBlock(this IDataFlowBuilder builder, string name, IBlock block)
@@ -52,7 +54,8 @@ public static class DataFlowBuilderExtensions
     public static ISourceBlockBuilder<T> AddSourceBlock<T>(this IDataFlowBuilder builder, string name, ISourceBlock<T> block)
     {
         builder.AddBlock(name, (IBlock)block);
-        return new SourceBlockBuilder<T>(builder.Blocks, block, builder.ServiceProvider);
+        builder.State.LastSourceBlock = block;
+        return new SourceBlockBuilder<T>(builder.State, block);
     }
 
     public static ISourceBlock<T> GetSourceBlock<T>(this IDataFlowBuilder builder, string name)
@@ -73,7 +76,7 @@ public static class DataFlowBuilderExtensions
     public static ISourceBlockBuilder<T> WithSourceBlock<T>(this IDataFlowBuilder builder, string name)
     {
         var sourceBlock = builder.GetSourceBlock<T>(name);
-        return new SourceBlockBuilder<T>(builder.Blocks, sourceBlock, builder.ServiceProvider);
+        return new SourceBlockBuilder<T>(builder.State, sourceBlock);
     }
 
     #endregion
@@ -83,7 +86,7 @@ public static class DataFlowBuilderExtensions
     public static ITargetBlockBuilder<T> AddTargetBlock<T>(this IDataFlowBuilder builder, string name, ITargetBlock<T> block)
     {
         builder.AddBlock(name, (IBlock)block);
-        return new TargetBlockBuilder<T>(builder.Blocks, block, builder.ServiceProvider);
+        return new TargetBlockBuilder<T>(builder.State, block);
     }
 
     public static ITargetBlock<T> GetTargetBlock<T>(this IDataFlowBuilder builder, string name)
@@ -104,7 +107,7 @@ public static class DataFlowBuilderExtensions
     public static ITargetBlockBuilder<T> WithTargetBlock<T>(this IDataFlowBuilder builder, string name)
     {
         var block = builder.GetTargetBlock<T>(name);
-        return new TargetBlockBuilder<T>(builder.Blocks, block, builder.ServiceProvider);
+        return new TargetBlockBuilder<T>(builder.State, block);
     }
 
     #endregion
@@ -114,7 +117,8 @@ public static class DataFlowBuilderExtensions
     public static IPropagatingBlockBuilder<TIn, TOut> AddPropagatorBlock<TIn, TOut>(this IDataFlowBuilder builder, string name, IPropagatorBlock<TIn, TOut> block)
     {
         builder.AddBlock(name, (IBlock)block);
-        return new PropagatingBlockBuilder<TIn, TOut>(builder.Blocks, block, builder.ServiceProvider);
+        builder.State.LastSourceBlock = block;
+        return new PropagatingBlockBuilder<TIn, TOut>(builder.State, block);
     }
 
 
@@ -136,7 +140,7 @@ public static class DataFlowBuilderExtensions
     public static IPropagatingBlockBuilder<TIn, TOut> WithPropagatorBlock<TIn, TOut>(this IDataFlowBuilder builder, string name)
     {
         var block = builder.GetPropagatorBlock<TIn, TOut>(name);
-        return new PropagatingBlockBuilder<TIn, TOut>(builder.Blocks, block, builder.ServiceProvider);
+        return new PropagatingBlockBuilder<TIn, TOut>(builder.State, block);
     }
 
     #endregion
