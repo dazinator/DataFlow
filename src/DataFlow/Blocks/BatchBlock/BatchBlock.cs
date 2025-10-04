@@ -46,18 +46,13 @@ public class BatchBlock<T> : BlockBase, IPropagatorBlock<T, T[]>
     public void SetSource(ISourceBlock<T> source)
     {
         _source = source;
-        SourceReader = _source.GetReader(this);
     }
-    public ChannelReader<T> SourceReader { get; private set; }
-    private void EnsureSourceReader()
+    
+    private void EnsureSource()
     {
         if (_source is null)
         {
             throw new InvalidOperationException("No source block configured");
-        }
-        if (SourceReader is null)
-        {
-            throw new InvalidOperationException("No source reader configured");
         }
     }
 
@@ -70,7 +65,7 @@ public class BatchBlock<T> : BlockBase, IPropagatorBlock<T, T[]>
 
         try
         {
-            EnsureSourceReader();
+            EnsureSource();
             //using var monitoredChannel = this.CreateMonitoredChannel(_outputChannelOptions.Capacity, context, _outputChannel);
             await ReadAllAsync(context);
         }
@@ -89,7 +84,7 @@ public class BatchBlock<T> : BlockBase, IPropagatorBlock<T, T[]>
 
     protected async Task ReadAllAsync(IDataFlowContext context)
     {
-        await foreach (var item in SourceReader.ReadAllAsync(context.CancellationToken))
+        await foreach (var item in _source!.GetAsyncEnumerable(this, context.CancellationToken))
         {
             await _batchProcessor.AddAsync(item, context.CancellationToken);
         }

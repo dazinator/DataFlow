@@ -2,7 +2,6 @@
 
 namespace Uniun.DataFlow.Blocks.Processor;
 
-using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
 using Uniun.DataFlow;
 using Uniun.DataFlow.Actor;
@@ -30,18 +29,13 @@ public class ProcessorBlock<T> : BlockBase, ITargetBlock<T>
     public void SetSource(ISourceBlock<T> source)
     {
         _source = source;
-        SourceReader = _source.GetReader(this);
     }
-    public ChannelReader<T> SourceReader { get; private set; }
-    private void EnsureSourceReader()
+
+    private void EnsureSource()
     {
         if (_source is null)
         {
             throw new InvalidOperationException("No source block configured");
-        }
-        if (SourceReader is null)
-        {
-            throw new InvalidOperationException("No source reader configured");
         }
     }
 
@@ -49,7 +43,7 @@ public class ProcessorBlock<T> : BlockBase, ITargetBlock<T>
     protected override async Task CoreExecuteAsync(IDataFlowContext context)
     {
         // await base.CoreExecuteAsync(context);
-        EnsureSourceReader();
+        EnsureSource();
         await ExecuteParallelActivities(context, Options.MaxConcurrency, ExecuteStreamProcessorAsync);
     }
 
@@ -59,7 +53,7 @@ public class ProcessorBlock<T> : BlockBase, ITargetBlock<T>
     {
         // Will use scoped ServiceProvider if UseSeperateScopes=true
         var processor = _processorFactory(context.ServiceProvider);
-        var input = SourceReader.ReadAllAsync(context.CancellationToken);
+        var input = _source.GetAsyncEnumerable(this, context.CancellationToken);
         if (Options.EnableFlowRateMetrics)
         {
             input = input.DecorateWithCallbackAfterEachItem(

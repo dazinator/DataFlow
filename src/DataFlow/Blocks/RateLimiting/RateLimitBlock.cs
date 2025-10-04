@@ -62,14 +62,11 @@ public class RateLimitBlock<T> : BlockBase, IPropagatorBlock<T, T>, IDisposable
     public void SetSource(ISourceBlock<T> source)
     {
         _source = source;
-        SourceReader = _source.GetReader(this);
     }
 
-    public ChannelReader<T> SourceReader { get; private set; }
-
-    private void EnsureSourceReader()
+    private void EnsureSource()
     {
-        if (_source is null || SourceReader is null)
+        if (_source is null)
         {
             throw new InvalidOperationException("No source block configured");
         }
@@ -96,7 +93,7 @@ public class RateLimitBlock<T> : BlockBase, IPropagatorBlock<T, T>, IDisposable
         try
         {
             _outputChannel.StartMonitoring(context);
-            EnsureSourceReader();
+            EnsureSource();
 
             await ProcessItemsSeriallyAsync(context);
             //await SourceReader.Completion; seems redundant as ReadAllAsync will complete when the source completes or cancellation token signals,
@@ -110,7 +107,7 @@ public class RateLimitBlock<T> : BlockBase, IPropagatorBlock<T, T>, IDisposable
 
     private async Task ProcessItemsSeriallyAsync(IDataFlowContext context)
     {
-        await foreach (var item in SourceReader.ReadAllAsync(context.CancellationToken))
+        await foreach (var item in _source!.GetAsyncEnumerable(this, context.CancellationToken))
         {
             using var lease = await _rateLimiter.AcquireAsync(permitCount: 1, context.CancellationToken);
 

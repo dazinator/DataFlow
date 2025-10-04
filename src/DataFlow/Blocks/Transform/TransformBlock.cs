@@ -38,18 +38,13 @@ public class TransformBlock<TIn, TOut> : BlockBase, IPropagatorBlock<TIn, TOut>
     public void SetSource(ISourceBlock<TIn> source)
     {
         _source = source;
-        SourceReader = _source.GetReader(this);
     }
-    public ChannelReader<TIn> SourceReader { get; private set; }
-    private void EnsureSourceReader()
+    
+    private void EnsureSource()
     {
         if (_source is null)
         {
             throw new InvalidOperationException("No source block configured");
-        }
-        if (SourceReader is null)
-        {
-            throw new InvalidOperationException("No source reader configured");
         }
     }
 
@@ -72,7 +67,7 @@ public class TransformBlock<TIn, TOut> : BlockBase, IPropagatorBlock<TIn, TOut>
     protected override async Task CoreExecuteAsync(IDataFlowContext context)
     {
         using var monitoringLease = _outputChannel.StartMonitoring(context);
-        EnsureSourceReader();
+        EnsureSource();
 
         try
         {          
@@ -90,7 +85,7 @@ public class TransformBlock<TIn, TOut> : BlockBase, IPropagatorBlock<TIn, TOut>
     protected async Task ExecuteStreamTransformerAsync(int index, IDataFlowContext context)
     {
         var transformer = _transformerFactory(context.ServiceProvider);
-        var input = SourceReader.ReadAllAsync(context.CancellationToken);
+        var input = _source!.GetAsyncEnumerable(this, context.CancellationToken);
 
         await foreach (var result in transformer.TransformAsync(context, input, context.CancellationToken)
             .WithCancellation(context.CancellationToken))
