@@ -96,6 +96,17 @@ public class OldBatchBlock<T> : BlockBase, IPropagatorBlock<T, T[]>
         return Reader;
     }
 
+    public async IAsyncEnumerable<T[]> GetAsyncEnumerable(
+        ITargetBlock<T[]> target,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var reader = Reader;
+        await foreach (var item in reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+        {
+            yield return item;
+        }
+    }
+
     private class BatchProcessor<TItem>
     {
         private readonly int _maxBatchSize;

@@ -32,6 +32,17 @@ public class ProducerBlock<TOutput> : BlockBase, ISourceBlock<TOutput>
     public ChannelReader<TOutput> GetReader(ITargetBlock<TOutput> target)
     {
         return _outputChannel.Reader;
+    }
+
+    public async IAsyncEnumerable<TOutput> GetAsyncEnumerable(
+        ITargetBlock<TOutput> target,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var reader = _outputChannel.Reader;
+        await foreach (var item in reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+        {
+            yield return item;
+        }
     }  
 
     protected override async Task CoreExecuteAsync(IDataFlowContext context)

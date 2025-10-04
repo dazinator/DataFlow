@@ -58,6 +58,17 @@ public class TransformBlock<TIn, TOut> : BlockBase, IPropagatorBlock<TIn, TOut>
         return _outputChannel.Reader;
     }
 
+    public async IAsyncEnumerable<TOut> GetAsyncEnumerable(
+        ITargetBlock<TOut> target,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var reader = _outputChannel.Reader;
+        await foreach (var item in reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+        {
+            yield return item;
+        }
+    }
+
     protected override async Task CoreExecuteAsync(IDataFlowContext context)
     {
         using var monitoringLease = _outputChannel.StartMonitoring(context);

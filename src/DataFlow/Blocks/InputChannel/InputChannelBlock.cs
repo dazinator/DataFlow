@@ -31,6 +31,17 @@ public class InputChannelBlock<T> : BlockBase, ISourceBlock<T>
         return _outputChannel.Reader;
     }
 
+    public async IAsyncEnumerable<T> GetAsyncEnumerable(
+        ITargetBlock<T> target,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var reader = _outputChannel.Reader;
+        await foreach (var item in reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+        {
+            yield return item;
+        }
+    }
+
     public virtual async ValueTask WriteAsync(T item, CancellationToken cancellationToken = default)
     {
         await Writer.WriteAsync(item, cancellationToken);

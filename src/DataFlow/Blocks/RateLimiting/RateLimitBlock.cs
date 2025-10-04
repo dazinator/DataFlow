@@ -80,6 +80,17 @@ public class RateLimitBlock<T> : BlockBase, IPropagatorBlock<T, T>, IDisposable
         return _outputChannel.Reader;
     }
 
+    public async IAsyncEnumerable<T> GetAsyncEnumerable(
+        ITargetBlock<T> target,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var reader = _outputChannel.Reader;
+        await foreach (var item in reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+        {
+            yield return item;
+        }
+    }
+
     protected override async Task CoreExecuteAsync(IDataFlowContext context)
     {
         try
