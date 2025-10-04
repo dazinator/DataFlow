@@ -88,13 +88,18 @@ Example:
 builder.AddProcessor<Data, MyProcessor>("processor")
     .WithBlock(b => b.UseSeperateScopes = true); // each concurrent activity that uses the MyProcessor, gets its own scope to resolve MyProcessor from
 
-public class MyProcessor : IProcessor<Data> 
+public class MyProcessor : IStreamProcessor<Data> 
 {
     private readonly IMyService _service;
     public MyProcessor(IMyService service) => _service = service; // scoped service
     
-    public Task ExecuteAsync(Data item, PipelineContext context) => 
-        _service.ProcessAsync(item);
+    public async Task ProcessAsync(IDataFlowContext context, IAsyncEnumerable<Data> input, CancellationToken cancellationToken)
+    {
+        await foreach (var item in input.WithCancellation(cancellationToken))
+        {
+            await _service.ProcessAsync(item);
+        }
+    }
 }
 ```
 

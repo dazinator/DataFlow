@@ -75,11 +75,11 @@ flowchart LR
 ## How It Works
 The DataFlow library enables you to build efficient data processing pipelines by connecting specialized blocks. Each block acts as either a source of data for the next block, or a terminal block that only processes the data without passing it on.
 
-- Source Blocks (e.g., Producer) supply data to the flow, outputting it to their buffer. If their buffer is full, they asynchronously wait for space to become available when writing to their buffer, accomodating backpressure.
-- Propagator Blocks (e.g., Batch, Transform) pull data from upstream block, process it, and output to their buffer for the next target block to pull.
-- Target Blocks (e.g., Processor) pull and process data from upstream blocks - they are the terminal blocks in the flow and do not pass data on.
+- Source Blocks (e.g., Producer, InputChannel) supply data to the flow, outputting it to their buffer. If their buffer is full, they asynchronously wait for space to become available when writing to their buffer, accommodating backpressure.
+- Propagator Blocks (e.g., Batch, Transform) **pull data from upstream blocks**, process it, and write results to their own output buffer for downstream blocks to pull from.
+- Target Blocks (e.g., Processor, Output) **pull and process data from upstream blocks** - they are the terminal blocks in the flow and do not pass data on.
 
-Data flows through channels between blocks, with each block pulling data from its upstream source when ready. This pull-based model provides natural backpressure - if a downstream block is processing slowly, upstream blocks will automatically slow down.
+**Pull-Based Architecture**: Downstream blocks pull data from upstream blocks using `GetAsyncEnumerable()`. This provides natural backpressure - if a downstream block is processing slowly, upstream blocks automatically slow down because their output buffers fill up.
 
 ## Quick Start
 
@@ -165,8 +165,11 @@ Further benchmarks for various scenarios will continue to be added.
 | InputChannelBlock | Yes | No        | Allows you to directly supply input data into the flow, by acting as a source block over which you can supply data by writing to its ChannelWriter<T>. Data is then bufferred in the channel, for downstream target blocks to consume.                                            | 
 | ProducerBlock     | Yes | No        | A source block that allows you to supply data via  `IProducer<T>` dependencies. You can supply an enumerable of these and they will be executed concurrently honouring max concurrency settings.                                                                                  |
 | ProcessorBlock    | No | Yes       | Perform some processing on each item received. No data is propogated onwards.                                                                                                                                                                                                     |
-| TransformBlock    | Yes | Yes       | Allows you to adapt the source / input stream to a new output stream utilising `ITransformer<TIn, TOut>` with concurrency options. |
+| TransformBlock    | Yes | Yes       | Allows you to adapt the source / input stream to a new output stream utilising `IStreamTransformer<TIn, TOut>` with concurrency options. Can spawn multiple concurrent transformer actors for CPU-intensive work. |
+| InlineTransformBlock | Yes | Yes    | Lightweight inline transformation with zero output buffering. Work happens inline during downstream enumeration. Best for simple 1-to-1 transforms. |
 | BatchBlock        | Yes | Yes       | Collects incoming items into batches based on max batch size and/or time window criteria. Emits batches as arrays when either the max batch size is reached or the time window elapses. Useful for optimizing downstream processing efficiency. |
+| RateLimitBlock    | Yes | Yes       | Propagator block that rate-limits the flow of items using a token bucket algorithm. Controls throughput to prevent overwhelming downstream systems. |
+| PersistentRoutingBlock | No | Yes  | Routes items to dynamically created target data flows based on routing keys. Manages persistent routes with automatic cleanup. |
 | OutputBlock       | No | Yes       | A terminal block that allows the application to receive the output of the data flow (each item) via a supplied `Func<T>`. Similar to a Processor Block but does not require implementing an `IProcessor`.    |
 
 
@@ -182,23 +185,17 @@ Producer blocks:-
 - can be used to supply data into the flow via a `ChannelWriter<T>` which your application holds a reference to and writes items to as needed.
 - Implements `ISourceBlock<T>` interface so that downstream blocks can be linked to it.
 
-### Projector Block
+## Transform Block
 
-Projector blocks:-
-- are propagator blocks that allow projecting one input item into multiple output items.
-- activates (using DI scope) a specified number of concurrent `IProjector<TIn, TOut>` implementations to project items concurrently.
-- Uses IAsyncEnumerable for efficient streaming of output items.
-- Implements `IPropagatorBlock<TIn, TOut>` interface so it can receive input and supply output items in the flow.
-
-## Transformer Bloc
-
-Transformer blocks:-
-- are propagator blocks that allows:-
+Transform blocks:-
+- are propagator blocks that allow:-
   - adapting the input stream into an output stream of a different type
   - outputting 0, 1 or many items - e.g you could optionally filter data or change the cardinality.
-- activates concurrent `ITransformer<TIn, TOut>` implementations to transform items.
+- **pull items from upstream** source blocks via GetAsyncEnumerable()
+- activate concurrent `IStreamTransformer<TIn, TOut>` actors to transform items in parallel
+- write transformed results to an output channel buffer (default capacity: 100)
 - Important Notes
-  - To preserve order, you should supply a single `ITransformer<TIn, TOut>`. If you supply multiple, they are competing consumers, and their results will be interleaved in the output channel - potentially losing the original order. Therefore only add concurrent transformes where
+  - To preserve order, you should use a single `IStreamTransformer<TIn, TOut>` (MaxConcurrency=1). If you use multiple concurrent transformers, they are competing consumers, and their results will be interleaved in the output channel - potentially losing the original order. Therefore only add concurrent transformers where:
      - You don't need to preserve order of the stream.
      - Your transformation logic is expensive and expected to not "keep pace" with the input stream - in other words you want to add concurrent transformers to alleviate backpressure.
 
@@ -206,8 +203,9 @@ Transformer blocks:-
 
 Processor blocks:-
 - are terminal blocks in the data flow, used to process items that do not flow onwards.
-- activates (using DI scope) a specified number of concurrent `IProcessor<T>` implementations to processed received items concurrently.
-- Implements `IRecipientBlock<T>` interface so that items can be passed to it in the flow.
+- **pull items from upstream** source blocks via GetAsyncEnumerable()
+- activate (using DI scope) a specified number of concurrent `IStreamProcessor<T>` actors to process received items concurrently.
+- Implements `ITargetBlock<T>` interface so that items can be passed to it in the flow.
 
 ### Batch Block
 

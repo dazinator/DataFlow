@@ -75,33 +75,40 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
-    participant Producer
-    participant Channel as Transform Channel<br/>(Capacity=100)
-    participant Transform
+    participant Producer as Producer<br/>(Output Channel)
+    participant Transform as Transform Block<br/>(Actors + Output Channel)
     participant Processor
     
-    Producer->>Channel: Write items 1-100 ✅
-    Note over Channel: Buffer has space
+    Note over Transform: ExecuteAsync starts actors
     
-    Producer->>Channel: Write item 101 ❌
-    Note over Producer: Blocked until space available
+    loop Each Actor pulls & transforms
+        Transform->>Producer: Pull item (GetAsyncEnumerable)
+        Producer-->>Transform: Item data
+        Note over Transform: IStreamTransformer<br/>processes item
+        Transform->>Transform: Write to output channel (capacity=100)
+    end
     
-    Transform->>Channel: Read & Transform items
-    Channel->>Processor: Forward transformed items
+    Note over Transform: Output channel filling up...
+    Transform->>Transform: Try write item 101 to output ❌
+    Note over Transform: Blocked until downstream reads
     
-    Note over Channel: Space freed up
-    Producer->>Channel: Write item 101 ✅
+    Processor->>Transform: Pull transformed item
+    Transform-->>Processor: Transformed item
     
-    Note right of Transform: Bounded Channel<br/>Capacity = 100<br/>⚖️ Moderate Blocking
+    Note over Transform: Space freed in output channel
+    Transform->>Transform: Write item 101 ✅
+    
+    Note right of Transform: Pull-Based Model<br/>Transform pulls from upstream<br/>Downstream pulls from Transform<br/>Capacity = 100 (output buffer)
 ```
 
 **Characteristics:**
-- ⚖️ **Balanced**: Blocks only when buffer full (after 100 items)
-- 🎯 **Good Default**: Works well for most scenarios
-- 💼 **Moderate Memory**: Buffers up to 100 items (default capacity)
-- 🔧 **Configurable**: Can adjust capacity
-- 🔀 **Actor-Based Concurrency**: Can spawn multiple concurrent IStreamTransformer instances
+- 🔄 **Pull-Based**: Transform block pulls items from upstream source via GetAsyncEnumerable
+- 🔀 **Actor-Based Concurrency**: Can spawn multiple concurrent IStreamTransformer actors
 - ⚡ **Concurrent Processing**: Increase MaxConcurrency for parallel transform execution
+- 📤 **Output Buffering**: Transformed items written to output channel (capacity=100)
+- ⚖️ **Balanced Backpressure**: Blocks when output buffer full, naturally slows upstream
+- 🎯 **Good Default**: Works well for most scenarios
+- 🔧 **Configurable**: Can adjust output capacity and MaxConcurrency
 
 **Performance**: ~14,000 items/sec (7ms for 100 items)
 
@@ -160,12 +167,14 @@ This eliminates:
 **Use when**: Transformation is lightweight (simple mapping, formatting) and doesn't need concurrency.
 
 ### TransformBlock
-> **Provides actor-based concurrency with multiple IStreamTransformer instances working in parallel, all outputting to a shared buffered channel.**
+> **Provides actor-based concurrency with multiple IStreamTransformer instances working in parallel, all outputting to a shared buffered channel. Uses pull-based architecture where actors pull from upstream.**
 
 Key capabilities:
-- **Buffer**: Default 100-item channel capacity (configurable)
+- **Pull-Based**: Actors pull items from upstream source via GetAsyncEnumerable()
+- **Output Buffer**: Default 100-item channel capacity (configurable) for transformed items
 - **Concurrency**: Set `MaxConcurrency` to spawn multiple concurrent actors
 - **Parallelism**: Multiple `IStreamTransformer` instances can process items simultaneously
+- **Natural Backpressure**: When output buffer fills, actors slow down, which propagates upstream
 
 **Use when**: Transformation is CPU-intensive or I/O-bound and would benefit from parallel processing.
 

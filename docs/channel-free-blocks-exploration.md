@@ -7,42 +7,58 @@ This document describes the exploration and implementation of an approach for co
 ## Visual Overview
 
 ### Before: Channel-Based Connection
-```
-┌─────────────────┐        ┌─────────────────┐
-│  Source Block   │        │  Target Block   │
-│                 │        │                 │
-│  ┌───────────┐  │        │                 │
-│  │ Channel   │  │        │                 │
-│  │ Buffer    │──┼────────┼──> Read Items   │
-│  │ (100+)    │  │        │                 │
-│  └───────────┘  │        │                 │
-└─────────────────┘        └─────────────────┘
-    Every block has its own buffer
+```mermaid
+flowchart LR
+    subgraph SourceBlock["Source Block"]
+        SB_Channel[("Channel<br/>Buffer<br/>(100+)")]
+    end
+    
+    subgraph TargetBlock["Target Block"]
+        TB_Read["Read Items"]
+    end
+    
+    SB_Channel -->|Pull via GetAsyncEnumerable| TB_Read
+    
+    note["Every block has its own buffer"]
+    
+    classDef buffer fill:#e1f5fe,stroke:#0288d1,stroke-width:2px
+    class SB_Channel buffer
 ```
 
 ### After: Minimal Buffer Pattern
+```mermaid
+flowchart LR
+    subgraph SourceBlock1["Source Block (Minimal Buffer)"]
+        SB1_Channel[("Channel<br/>Buffer<br/>(1 item)")]
+    end
+    
+    subgraph TargetBlock1["Target Block"]
+        TB1_Read["Read Items"]
+    end
+    
+    SB1_Channel -->|Pull via GetAsyncEnumerable| TB1_Read
+    
+    note1["Tight backpressure with minimal memory"]
+    
+    classDef buffer fill:#e1f5fe,stroke:#0288d1,stroke-width:2px
+    class SB1_Channel buffer
 ```
-┌─────────────────┐        ┌─────────────────┐
-│  Source Block   │        │  Target Block   │
-│                 │        │                 │
-│  ┌───────────┐  │        │                 │
-│  │ Channel   │  │        │                 │
-│  │ Buffer    │──┼────────┼──> Read Items   │
-│  │ (1 item)  │  │        │                 │
-│  └───────────┘  │        │                 │
-└─────────────────┘        └─────────────────┘
-    Tight backpressure with minimal memory
 
-OR
+**OR**
 
-┌─────────────────┐        ┌─────────────────┐
-│  Source Block   │        │  Target Block   │
-│                 │        │                 │
-│  GetAsyncEnum() ├────────┼──> Enumerate    │
-│  (no buffer)    │        │                 │
-│                 │        │                 │
-└─────────────────┘        └─────────────────┘
-    Future: Pure async enumerable relay
+```mermaid
+flowchart LR
+    subgraph SourceBlock2["Source Block (Channel-Free)"]
+        SB2_Enum["GetAsyncEnumerable()<br/>(no buffer)"]
+    end
+    
+    subgraph TargetBlock2["Target Block"]
+        TB2_Enum["Enumerate"]
+    end
+    
+    SB2_Enum -->|Direct async enumerable| TB2_Enum
+    
+    note2["Future: Pure async enumerable relay"]
 ```
 
 ## Problem Statement
