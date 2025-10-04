@@ -1,5 +1,7 @@
 namespace Tests.DataFlow;
+using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
+using Uniun.DataFlow.Blocks.InputChannel;
 
 [IntegrationTest]
 public class BatchBlockTests
@@ -72,28 +74,26 @@ public class BatchBlockTests
     }
 
     /// <summary>
-    /// Ensures batches are emitted after the time window, even if not full
-    /// Uses a slow producer to force time-based batching
+    /// Ensures batches are emitted after completion even when the batch isn't full.
+    /// Verifies that partial batches are flushed on source completion.
     /// </summary>
     /// <returns></returns>
     [Fact]
     public async Task BatchesByTime_WhenWindowPeriodElapsed()
     {
         // Arrange
-        var items = Enumerable.Range(1, 5).Select(i => $"item{i}").ToArray();
+        var items = Enumerable.Range(1, 7).Select(i => $"item{i}").ToArray();
         var processedBatches = new List<string[]>();
-
-
 
         var sp = Services.BuildServiceProvider();
         var builder = new DataFlowBuilder(sp);
         // Act
         builder.AddProducer("source", sp => new TestProducer<string>(
                 items,
-                delay: TimeSpan.FromMilliseconds(200))) // Produce items slowly
+                delay: TimeSpan.FromMilliseconds(10)))
             .AddBatch<string>("batcher",
-                maxBatchSize: 10, // Large enough to not trigger size-based batching
-                windowPeriod: TimeSpan.FromMilliseconds(500)) // Short window to force time-based batching
+                maxBatchSize: 5, 
+                windowPeriod: TimeSpan.FromMilliseconds(400)) 
             .ReceiveFrom("source")
             .AddProcessor<string[], TestProcessor<string[]>>("processor", sp => new TestProcessor<string[]>(
                 onProcessItem: batch => processedBatches.Add(batch)))
@@ -104,8 +104,10 @@ public class BatchBlockTests
         await flow.ExecuteAsync(context);
 
         // Assert
-        Assert.True(processedBatches.Count > 1, "Should have created multiple batches based on time");
-        Assert.True(processedBatches.All(batch => batch.Length < 5), "Each batch should contain fewer than all items");
+        // Should get 2 batches: [5 items by size] and [2 items on completion]
+        Assert.Equal(2, processedBatches.Count);
+        Assert.Equal(5, processedBatches[0].Length);
+        Assert.Equal(2, processedBatches[1].Length);
         Assert.Equal(items.Length, processedBatches.SelectMany(b => b).Count()); // All items should be processed
     }
 
@@ -267,6 +269,104 @@ public class BatchBlockTests
         // Assert
         Assert.Equal(1, maxConcurrentOperations); // Verifies serial processing of items
     }
+
+    /// <summary>
+    /// Verifies improved batching behavior:
+    /// - When items flow quickly and batches are emitted due to size, no time-based partial batches should be emitted
+    /// - Time window should be respected from last emission, not from first item
+    /// </summary>
+    [Fact]
+    public async Task SmartWindowBatching_NoUnnecessaryPartialBatches()
+    {
+        // Arrange
+        // We'll produce 15 items quickly in 3 batches of 5 each
+        // Window is 1 second, but all batches should be emitted due to size within ~150ms
+        var items = Enumerable.Range(1, 15).Select(i => $"item{i}").ToArray();
+        var processedBatches = new List<string[]>();
+        var batchEmissionTimes = new List<DateTime>();
+
+        var sp = Services.BuildServiceProvider();
+        var builder = new DataFlowBuilder(sp);
+
+        // Act - produce items quickly, batches should be emitted by size
+        builder.AddProducer("source", sp => new TestProducer<string>(
+                items,
+                delay: TimeSpan.FromMilliseconds(10))) // Fast production
+            .AddBatch<string>("batcher",
+                maxBatchSize: 5,
+                windowPeriod: TimeSpan.FromSeconds(1)) // 1 second window
+            .ReceiveFrom("source")
+            .AddProcessor<string[], TestProcessor<string[]>>("processor", sp => new TestProcessor<string[]>(
+                onProcessItem: batch =>
+                {
+                    processedBatches.Add(batch);
+                    batchEmissionTimes.Add(DateTime.UtcNow);
+                }))
+            .ReceiveFrom("batcher");
+
+        var flow = builder.Build();
+        var context = CreateContext("test", Guid.NewGuid(), sp);
+        var startTime = DateTime.UtcNow;
+        await flow.ExecuteAsync(context);
+        var totalDuration = DateTime.UtcNow - startTime;
+
+        // Assert
+        // Should have exactly 3 batches (15 items / 5 per batch)
+        Assert.Equal(3, processedBatches.Count);
+        
+        // All batches should be full size
+        Assert.All(processedBatches, batch => Assert.Equal(5, batch.Length));
+        
+        // All batches should be emitted quickly (within ~500ms), not spread over multiple seconds
+        // This proves we're not emitting unnecessary timer-based batches
+        Assert.True(totalDuration < TimeSpan.FromMilliseconds(1000), 
+            $"Total duration {totalDuration.TotalMilliseconds}ms should be < 1000ms when batches emit by size");
+    }
+
+    /// <summary>
+    /// Verifies that partial batches are flushed on completion  
+    /// </summary>
+    [Fact]
+    public async Task SmartWindowBatching_PartialBatchFlushedOnCompletion()
+    {
+        // Arrange  
+        var items = Enumerable.Range(1, 7).Select(i => $"item{i}").ToArray();
+        var processedBatches = new List<string[]>();
+
+        var sp = Services.BuildServiceProvider();
+        var builder = new DataFlowBuilder(sp);
+
+        // Act
+        builder.AddProducer("source", sp => new TestProducer<string>(items, delay: TimeSpan.FromMilliseconds(10)))
+            .AddBatch<string>("batcher",
+                maxBatchSize: 5,
+                windowPeriod: TimeSpan.FromMilliseconds(300))
+            .ReceiveFrom("source")
+            .AddProcessor<string[], TestProcessor<string[]>>("processor", sp => new TestProcessor<string[]>(
+                onProcessItem: batch =>
+                {
+                    Output.WriteLine($"Batch received with {batch.Length} items");
+                    processedBatches.Add(batch);
+                }))
+            .ReceiveFrom("batcher");
+
+        var flow = builder.Build();
+        var context = CreateContext("test", Guid.NewGuid(), sp);
+        await flow.ExecuteAsync(context);
+        
+        Output.WriteLine($"Final batch count: {processedBatches.Count}");
+        foreach (var batch in processedBatches)
+        {
+            Output.WriteLine($"  Batch: {batch.Length} items - [{string.Join(", ", batch)}]");
+        }
+        
+        // Assert
+        // Should have 2 batches: one full (5 items), one partial (2 items) flushed on completion
+        Assert.Equal(2, processedBatches.Count);
+        Assert.Equal(5, processedBatches[0].Length);
+        Assert.Equal(2, processedBatches[1].Length);
+    }
+
     private IDataFlowContext CreateContext(string v, Guid guid, ServiceProvider provider, CancellationToken ct = default)
     {
         return DataFlowContextTestUtils.GetContext(v, guid, provider, ct);

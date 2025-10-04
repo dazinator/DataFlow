@@ -34,6 +34,11 @@ public partial class Program
                     BenchmarkRunner.Run<SimplePipelineBenchmarks>();
                     break;
 
+                case "batch":
+                    Console.WriteLine("Starting BatchBlock comparison benchmark...");
+                    BenchmarkRunner.Run<BatchBlockBenchmark>();
+                    break;
+
                 case "memory-rate":
                     Console.WriteLine("Starting simple pipeline benchmark...");
                     var isDebug = true;
@@ -71,6 +76,7 @@ public partial class Program
         Console.WriteLine("  diagnose - Run diagnostic test with detailed console output");
         Console.WriteLine("  minimal  - Run minimal benchmark");
         Console.WriteLine("  simple   - Run simple pipeline benchmark");
+        Console.WriteLine("  batch    - Run BatchBlock comparison benchmark (old vs new implementation)");
         Console.WriteLine("  test     - Run super simple test (no benchmarking)");
 
     }

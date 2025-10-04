@@ -10,27 +10,24 @@ using Uniun.DataFlow.Blocks;
 using Uniun.DataFlow.Metrics;
 
 /// <summary>
-/// The block will batch incoming items and emit them as arrays either when:
-/// - The batch size is reached (size-based emission)
-/// - The window period has elapsed since the first item in the current batch (time-based emission)
-/// - The source completes (remaining items are flushed)
+/// OLD IMPLEMENTATION: The block will batch incoming items and emit them as arrays either when:
+/// - The batch size is reached
+/// - The window period has elapsed since the first item in the current batch
+/// - The source completes(remaining items are flushed)
 /// 
-/// The timer-based emission strategy has been optimized to avoid unnecessary partial batch emissions:
-/// - Timer starts only when the first item arrives in a new batch
-/// - Timer is cancelled if the batch is emitted due to reaching max size
-/// - This prevents partial batches from being emitted unnecessarily when items are flowing quickly
+/// This is the original implementation with continuous background timer for benchmarking purposes.
 /// </summary>
 /// <typeparam name="T"></typeparam>
-public class BatchBlock<T> : BlockBase, IPropagatorBlock<T, T[]>
+public class OldBatchBlock<T> : BlockBase, IPropagatorBlock<T, T[]>
 {
     private readonly BatchProcessor<T> _batchProcessor;
     private readonly MonitoredChannel<T[]> _outputChannel;
     private readonly IBoundedChannelFactory _channelFactory;
     private ISourceBlock<T>? _source;
 
-    public BatchBlock(
+    public OldBatchBlock(
         string name,
-        ILogger<BatchBlock<T>> logger,
+        ILogger<OldBatchBlock<T>> logger,
         IBoundedChannelFactory channelFactory,
         BatchBlockOptions options) : base(name, options, logger)
     {
@@ -71,18 +68,17 @@ public class BatchBlock<T> : BlockBase, IPropagatorBlock<T, T[]>
         try
         {
             EnsureSourceReader();
-            //using var monitoredChannel = this.CreateMonitoredChannel(_outputChannelOptions.Capacity, context, _outputChannel);
             await ReadAllAsync(context);
         }
         finally
         {
             try
             {
-                await _batchProcessor.CompleteAsync(); // this can emit any remaining items in the current batch.
+                await _batchProcessor.CompleteAsync();
             }
             finally
             {
-                _outputChannel.Writer.Complete(); // no more data to write.               
+                _outputChannel.Writer.Complete();
             }
         }
     }
@@ -106,14 +102,12 @@ public class BatchBlock<T> : BlockBase, IPropagatorBlock<T, T[]>
         private readonly TimeSpan _windowPeriod;
         private readonly ChannelWriter<TItem[]> _outputChannel;
         private readonly Action _onBatchEmitted;
-        private volatile List<TItem> _currentBatch;
         private readonly CancellationTokenSource _timerCts;
-        private readonly Task _timerTask;
-        private readonly ObjectPool<List<TItem>> _listPool;
-        
-        // Lightweight signaling: 0 = no batch, 1 = batch waiting
-        private int _hasBatch;
+        private volatile List<TItem> _currentBatch;
         private volatile bool _isFirstItem = true;
+        private readonly object _timerLock = new object();
+        private Task? _timerTask;
+        private readonly ObjectPool<List<TItem>> _listPool;
 
         public BatchProcessor(
             int maxBatchSize,
@@ -130,9 +124,6 @@ public class BatchBlock<T> : BlockBase, IPropagatorBlock<T, T[]>
 
             _currentBatch = _listPool.Get();
             _timerCts = new CancellationTokenSource();
-            
-            // Start single long-running timer task (like old implementation)
-            _timerTask = RunTimerAsync(_timerCts.Token);
         }
 
         private class ListPoolPolicy<TMember> : IPooledObjectPolicy<List<TMember>>
@@ -158,20 +149,32 @@ public class BatchBlock<T> : BlockBase, IPropagatorBlock<T, T[]>
 
         public async ValueTask AddAsync(TItem item, CancellationToken cancellationToken = default)
         {
-            var isFirst = _isFirstItem;
-            _currentBatch.Add(item);
-            var count = _currentBatch.Count;
+            StartTimerIfNeeded();
 
-            if (count >= _maxBatchSize)
+            _currentBatch.Add(item);
+
+            if (_currentBatch.Count >= _maxBatchSize)
             {
-                // Size-based emission
                 await EmitBatchIfNotEmptyAsync(cancellationToken);
             }
-            else if (isFirst && count == 1)
+        }
+
+        private void StartTimerIfNeeded()
+        {
+            if (!_isFirstItem)
             {
-                // Signal timer that we have a batch waiting (no lock needed!)
+                return;
+            }
+
+            lock (_timerLock)
+            {
+                if (!_isFirstItem)
+                {
+                    return;
+                }
+
                 _isFirstItem = false;
-                Interlocked.Exchange(ref _hasBatch, 1);
+                _timerTask = RunTimerAsync(_timerCts.Token);
             }
         }
 
@@ -182,12 +185,7 @@ public class BatchBlock<T> : BlockBase, IPropagatorBlock<T, T[]>
                 try
                 {
                     await Task.Delay(_windowPeriod, cancellationToken);
-                    
-                    // Only emit if we have a batch waiting (lightweight check)
-                    if (Interlocked.CompareExchange(ref _hasBatch, 0, 1) == 1)
-                    {
-                        await EmitBatchIfNotEmptyAsync(cancellationToken);
-                    }
+                    await EmitBatchIfNotEmptyAsync(cancellationToken);
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
@@ -205,10 +203,6 @@ public class BatchBlock<T> : BlockBase, IPropagatorBlock<T, T[]>
             {
                 if (oldBatch.Count > 0)
                 {
-                    // Clear the signal and reset for next batch
-                    Interlocked.Exchange(ref _hasBatch, 0);
-                    _isFirstItem = true;
-                    
                     await _outputChannel.WriteAsync(oldBatch.ToArray(), cancellationToken);
                     _onBatchEmitted();
                 }
@@ -222,14 +216,9 @@ public class BatchBlock<T> : BlockBase, IPropagatorBlock<T, T[]>
         public async ValueTask CompleteAsync()
         {
             _timerCts.Cancel();
-            
-            try
+            if (_timerTask != null)
             {
                 await _timerTask;
-            }
-            catch (OperationCanceledException)
-            {
-                // Expected
             }
 
             await EmitBatchIfNotEmptyAsync(CancellationToken.None);
@@ -238,5 +227,3 @@ public class BatchBlock<T> : BlockBase, IPropagatorBlock<T, T[]>
     }
 
 }
-
-
