@@ -10,6 +10,64 @@ A high-performance, pull-based data processing pipeline library built on modern 
 - 🔧 **Fluent Configuration** - Builder API for constructing pipelines
 - 📊 **Concurrency Control** - Fine-grained control over parallel processing (max concurrency settings)
 - 🎯 **Type Safety** - Strong typing throughout the pipeline
+- 📈 **Structured Builder** - NEW: Graph-based builder for defining flows with visualization and inspection capabilities
+
+## Building DataFlows
+
+DataFlow supports two approaches for building pipelines:
+
+### Traditional Builder (Immediate Instantiation)
+The traditional approach creates blocks immediately as you build:
+
+```csharp
+public class NumberProcessingFlowConfig : IDataFlowConfiguration
+{
+    public void Configure(DataFlowBuilder builder)
+    {
+        builder
+            .AddProducer<int>("source", sp => new NumberProducer())
+            .AddBatch<int>("batcher", maxBatchSize: 100, windowPeriod: TimeSpan.FromSeconds(5))
+            .ReceiveFrom("source")
+            .AddProcessor<int[], DatabaseWriter>("writer")
+            .ReceiveFrom("batcher");
+    }
+}
+```
+
+### Structured Builder (Graph-First Approach)
+The new structured builder creates a graph representation first, allowing you to inspect, validate, and visualize the flow before building:
+
+```csharp
+var builder = new StructuredDataFlowBuilder(serviceProvider, "MyFlow");
+
+// Define the flow (creates graph metadata)
+builder.AddProducer("source", sp => new NumberProducer())
+    .AddBatch("batcher", maxBatchSize: 100, windowPeriod: TimeSpan.FromSeconds(5))
+    .AddProcessor("writer", sp => new DatabaseWriter());
+
+// Inspect the graph structure
+Console.WriteLine($"Blocks: {builder.Graph.BlockDefinitions.Count}");
+Console.WriteLine($"Connections: {builder.Graph.Connections.Count}");
+
+// Generate Mermaid diagram for documentation
+var mermaid = builder.Graph.ToMermaidDiagram();
+File.WriteAllText("flow-diagram.md", mermaid);
+
+// Validate and build the actual flow
+var dataflow = builder.Build();
+
+// Execute
+await dataflow.ExecuteAsync(context);
+```
+
+**Benefits of Structured Builder:**
+- 📊 Generate diagrams (Mermaid, text) for documentation
+- 🔍 Inspect flow topology before execution
+- ✅ Validate graph structure at build time
+- 🔧 Foundation for future features (interceptors, decorators)
+- 📋 Export/import flow definitions
+
+See [Structured Builder Documentation](./docs/structured-builder.md) for detailed examples.
 
 - ## Architecture Overview
 

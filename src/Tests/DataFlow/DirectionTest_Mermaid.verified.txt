@@ -1,0 +1,38 @@
+﻿{
+  LR:
+flowchart LR
+    %% DataFlow: DirectionTestFlow
+
+    source(["source<br/>→ Int32"])
+    processor["processor<br/>Int32 →"]
+
+    source -->|Int32| processor
+,
+  TB:
+flowchart TB
+    %% DataFlow: DirectionTestFlow
+
+    source(["source<br/>→ Int32"])
+    processor["processor<br/>Int32 →"]
+
+    source -->|Int32| processor
+,
+  RL:
+flowchart RL
+    %% DataFlow: DirectionTestFlow
+
+    source(["source<br/>→ Int32"])
+    processor["processor<br/>Int32 →"]
+
+    source -->|Int32| processor
+,
+  BT:
+flowchart BT
+    %% DataFlow: DirectionTestFlow
+
+    source(["source<br/>→ Int32"])
+    processor["processor<br/>Int32 →"]
+
+    source -->|Int32| processor
+
+}

@@ -1,0 +1,19 @@
+﻿DataFlow: TestFlow
+Blocks: 3
+Connections: 2
+
+Block Definitions:
+  - source
+      Type: ProducerBlock`1
+      Output: Int32
+  - transform
+      Type: TransformBlock`2
+      Input: Int32
+      Output: String
+  - processor
+      Type: ProcessorBlock`1
+      Input: String
+
+Connections:
+  source --(Int32)--> transform
+  transform --(String)--> processor
