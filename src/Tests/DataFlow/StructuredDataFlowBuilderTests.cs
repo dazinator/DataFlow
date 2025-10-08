@@ -341,7 +341,7 @@ public class StructuredDataFlowBuilderTests
         sourceBlocks[0].Name.ShouldBe("source");
         // Verify it actually implements ISourceBlock
         sourceBlocks[0].BlockType.GetInterfaces()
-            .Any(i => i.IsGenericType && i.GetGenericTypeDefinition().Name.Contains("ISourceBlock"))
+            .Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(ISourceBlock<>))
             .ShouldBeTrue();
     }
 
@@ -363,7 +363,7 @@ public class StructuredDataFlowBuilderTests
         targetBlocks[0].Name.ShouldBe("processor");
         // Verify it actually implements ITargetBlock
         targetBlocks[0].BlockType.GetInterfaces()
-            .Any(i => i.IsGenericType && i.GetGenericTypeDefinition().Name.Contains("ITargetBlock"))
+            .Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(ITargetBlock<>))
             .ShouldBeTrue();
     }
 }
