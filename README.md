@@ -60,10 +60,10 @@ flowchart TB
     ProcessorB -->|Pulls low priority| Router
 
     %% Styling
-    classDef source fill:#e1f5fe,stroke:#0288d1,stroke-width:2px
-    classDef propagator fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-    classDef target fill:#e8f5e9,stroke:#43a047,stroke-width:2px
-    classDef buffer fill:#f3e5f5,stroke:#8e24aa,stroke-width:1px
+    classDef source fill:#b3e5fc,stroke:#01579b,stroke-width:2px,color:#000
+    classDef propagator fill:#ffe082,stroke:#f57f17,stroke-width:2px,color:#000
+    classDef target fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px,color:#000
+    classDef buffer fill:#e1bee7,stroke:#6a1b9a,stroke-width:2px,color:#000
     
     class Producer source
     class Transform,Batch,Router propagator
