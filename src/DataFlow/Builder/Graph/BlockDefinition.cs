@@ -49,6 +49,12 @@ public class BlockDefinition
     public Dictionary<string, object> Metadata { get; init; } = new();
 
     /// <summary>
+    /// Indicates whether this block is marked as an entry block (for routes).
+    /// Entry blocks are where routed items enter a sub-dataflow.
+    /// </summary>
+    public bool IsEntryBlock { get; set; }
+
+    /// <summary>
     /// Determines if this block implements ISourceBlock interface.
     /// Result is cached after first call.
     /// </summary>

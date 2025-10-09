@@ -39,6 +39,25 @@ public class StructuredTargetBlockBuilder<TIn>
     }
 
     /// <summary>
+    /// Marks this target block as an entry block.
+    /// Entry blocks are used by routing blocks to identify where to send routed items.
+    /// </summary>
+    public StructuredTargetBlockBuilder<TIn> AsEntry()
+    {
+        // Get the block definition and mark it as an entry block
+        var blockDef = _builder.Graph.GetBlockDefinition(_blockName);
+        blockDef.IsEntryBlock = true;
+
+        // If this is a route builder, also set it as the entry block
+        if (_builder is IRouteBuilder routeBuilder)
+        {
+            routeBuilder.SetEntryBlock(_blockName);
+        }
+
+        return this;
+    }
+
+    /// <summary>
     /// Gets the underlying builder for additional operations.
     /// </summary>
     public IStructuredDataFlowBuilder Builder => _builder;

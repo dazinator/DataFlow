@@ -32,6 +32,15 @@ public class DataFlowGraph
     public IReadOnlyList<BlockConnection> Connections => _connections;
 
     /// <summary>
+    /// Gets all blocks marked as entry blocks.
+    /// Entry blocks are target blocks where routed items can enter.
+    /// </summary>
+    public IEnumerable<BlockDefinition> GetEntryBlocks()
+    {
+        return _blockDefinitions.Values.Where(b => b.IsEntryBlock && b.IsTargetBlock());
+    }
+
+    /// <summary>
     /// Adds a block definition to the graph.
     /// </summary>
     public void AddBlockDefinition(BlockDefinition definition)

@@ -228,6 +228,7 @@ Further benchmarks for various scenarios will continue to be added.
 | BatchBlock        | Yes | Yes       | Collects incoming items into batches based on max batch size and/or time window criteria. Emits batches as arrays when either the max batch size is reached or the time window elapses. Useful for optimizing downstream processing efficiency. |
 | RateLimitBlock    | Yes | Yes       | Propagator block that rate-limits the flow of items using a token bucket algorithm. Controls throughput to prevent overwhelming downstream systems. |
 | PersistentRoutingBlock | No | Yes  | Routes items to dynamically created target data flows based on routing keys. Manages persistent routes with automatic cleanup. |
+| **StructuredRoutingBlock** | **No** | **Yes** | **NEW**: Routes items to pre-registered or dynamically-created sub-dataflows based on content. Supports static routing (known routes) and dynamic routing (template-based). Available only with Structured Builder. See [Structured Routing Documentation](./docs/structured-routing.md). |
 | OutputBlock       | No | Yes       | A terminal block that allows the application to receive the output of the data flow (each item) via a supplied `Func<T>`. Similar to a Processor Block but does not require implementing an `IProcessor`.    |
 
 

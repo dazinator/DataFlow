@@ -88,6 +88,26 @@ public class StructuredPropagatorBlockBuilder<TIn, TOut>
     }
 
     /// <summary>
+    /// Marks this propagator block as an entry block.
+    /// Entry blocks are used by routing blocks to identify where to send routed items.
+    /// Since propagator blocks are also target blocks, they can serve as entry points.
+    /// </summary>
+    public StructuredPropagatorBlockBuilder<TIn, TOut> AsEntry()
+    {
+        // Get the block definition and mark it as an entry block
+        var blockDef = _builder.Graph.GetBlockDefinition(_blockName);
+        blockDef.IsEntryBlock = true;
+
+        // If this is a route builder, also set it as the entry block
+        if (_builder is IRouteBuilder routeBuilder)
+        {
+            routeBuilder.SetEntryBlock(_blockName);
+        }
+
+        return this;
+    }
+
+    /// <summary>
     /// Gets the underlying builder for additional operations.
     /// </summary>
     public IStructuredDataFlowBuilder Builder => _builder;
