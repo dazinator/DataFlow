@@ -13,64 +13,69 @@ A high-performance, pull-based data processing pipeline library built on modern 
 
 - ## Architecture Overview
 
-The following shows an example DataFlow constructed with this library.
+The following shows an example DataFlow constructed with this library, illustrating the **pull-based architecture** where downstream blocks pull data from upstream blocks.
 
 ```mermaid
-flowchart LR
-    subgraph Producer["Producer Block"]
-        P_Process["Process"]
-        P_Buffer[("Output Buffer")]
-        P_Process --> P_Buffer
+flowchart TB
+    subgraph Producer["Producer Block (Source)"]
+        direction TB
+        P_Produce["Produces Items"]
+        P_Buffer[("Optional<br/>Output Buffer")]
+        P_Produce --> P_Buffer
     end
 
-    subgraph Batch["Batch Block"]
-        B_Buffer_In[("Input Buffer")]
-        B_Process["Batch Items"]
-        B_Buffer_Out[("Output Buffer")]
-        B_Buffer_In --> B_Process
-        B_Process --> B_Buffer_Out
-        note["Collects items into batches
-        based on size or time window"]
+    subgraph Transform["Transform Block (Propagator)"]
+        direction TB
+        T_Pull["Pull & Transform"]
+        T_Note["May buffer output<br/>or transform inline"]
     end
 
-    subgraph Router["Router Block"]
-        R_Buffer_In[("Input Buffer")]
-        R_Process{"Route"}
-        R_Buffer_A[("Route A Buffer")]
-        R_Buffer_B[("Route B Buffer")]
-        R_Buffer_In --> R_Process
-        R_Process --> R_Buffer_A
-        R_Process --> R_Buffer_B
-        note2["Routes based on
-        item properties"]
+    subgraph Batch["Batch Block (Propagator)"]
+        direction TB
+        B_Collect["Collects items<br/>into batches"]
+        B_Buffer[("Buffered<br/>Batches")]
+        B_Collect --> B_Buffer
     end
 
-    subgraph Target_A["Target Block A"]
-        TA_Buffer[("Input Buffer")]
-        TA_Process["Process"]
-        TA_Buffer --> TA_Process
+    subgraph Router["Router Block (Propagator)"]
+        direction TB
+        R_Route{"Routes by<br/>item properties"}
     end
 
-    subgraph Target_B["Target Block B"]
-        TB_Buffer[("Input Buffer")]
-        TB_Process["Process"]
-        TB_Buffer --> TB_Process
+    subgraph ProcessorA["Processor Block A (Target)"]
+        direction TB
+        PA_Pull["Pull & Process<br/>High Priority Items"]
     end
 
-    P_Buffer --> B_Buffer_In
-    B_Buffer_Out --> R_Buffer_In
-    R_Buffer_A --> TA_Buffer
-    R_Buffer_B --> TB_Buffer
+    subgraph ProcessorB["Processor Block B (Target)"]
+        direction TB
+        PB_Pull["Pull & Process<br/>Low Priority Items"]
+    end
 
-    %% Lighter colors with better contrast
-    classDef default fill:#fff,stroke:#333,stroke-width:1px
-    classDef buffer fill:#e1f5fe,stroke:#0288d1,stroke-width:2px
-    classDef process fill:#fff,stroke:#333,stroke-width:1px
-    classDef router fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-    class P_Buffer,B_Buffer_In,B_Buffer_Out,R_Buffer_In,R_Buffer_A,R_Buffer_B,TA_Buffer,TB_Buffer buffer
-    class P_Process,B_Process,TA_Process,TB_Process process
-    class R_Process router
+    %% Data flow connections (pull-based)
+    Transform -->|Pulls from| Producer
+    Batch -->|Pulls from| Transform
+    Router -->|Pulls from| Batch
+    ProcessorA -->|Pulls high priority| Router
+    ProcessorB -->|Pulls low priority| Router
+
+    %% Styling
+    classDef source fill:#e1f5fe,stroke:#0288d1,stroke-width:2px
+    classDef propagator fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef target fill:#e8f5e9,stroke:#43a047,stroke-width:2px
+    classDef buffer fill:#f3e5f5,stroke:#8e24aa,stroke-width:1px
+    
+    class Producer source
+    class Transform,Batch,Router propagator
+    class ProcessorA,ProcessorB target
+    class P_Buffer,B_Buffer buffer
 ```
+
+**Key Concepts:**
+- **Pull-Based Flow**: Downstream blocks pull data using `GetAsyncEnumerable()` - arrows show the pull direction
+- **Natural Backpressure**: If a downstream block is slow, upstream blocks automatically slow down
+- **Optional Buffering**: Blocks may buffer output (like Producer, Batch) or transform inline (like InlineTransform)
+- **Routing**: Router blocks can split flows based on item properties to different downstream processors
 
 ## How It Works
 The DataFlow library enables you to build efficient data processing pipelines by connecting specialized blocks. Each block acts as either a source of data for the next block, or a terminal block that only processes the data without passing it on.
