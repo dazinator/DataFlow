@@ -22,12 +22,7 @@ public partial class Program
                 case "diagnose":
                     Console.WriteLine("Starting diagnostic test...");
                     await DiagnosticTest.RunTest();
-                    break;
-
-                case "transform-diag":
-                    Console.WriteLine("Starting transform diagnostic test...");
-                    await TransformDiagnosticTest.RunTest();
-                    break;
+                    break;                
 
                 case "minimal":
                     Console.WriteLine("Starting minimal benchmark...");
@@ -88,13 +83,14 @@ public partial class Program
     private static void ShowHelp()
     {
         Console.WriteLine("\nAvailable commands:");
-        Console.WriteLine("  diagnose        - Run diagnostic test with detailed console output");
-        Console.WriteLine("  minimal         - Run minimal benchmark");
-        Console.WriteLine("  simple          - Run simple pipeline benchmark");
-        Console.WriteLine("  batch           - Run BatchBlock comparison benchmark (old vs new implementation)");
-        Console.WriteLine("  transform-model - Run TransformBlock execution model comparison benchmark");
-        Console.WriteLine("  transform-memory- Run TransformBlock memory usage benchmark");
-        Console.WriteLine("  test            - Run super simple test (no benchmarking)");
+        Console.WriteLine("  diagnose         - Run diagnostic test with detailed console output");
+        Console.WriteLine("  minimal          - Run minimal benchmark");
+        Console.WriteLine("  simple           - Run simple pipeline benchmark");
+        Console.WriteLine("  batch            - Run BatchBlock comparison benchmark (old vs new implementation)");
+        Console.WriteLine("  transform-model  - Run TransformBlock execution model comparison benchmark");
+        Console.WriteLine("  transform-memory - Run TransformBlock memory usage benchmark");
+        Console.WriteLine("  memory-rate      - Run RateLimitBlock memory usage benchmark");
+        Console.WriteLine("  test             - Run super simple test (no benchmarking)");
 
     }
 }
