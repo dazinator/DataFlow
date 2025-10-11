@@ -266,3 +266,62 @@ builder.AddProducer<string>("source", sp => new ItemProducer())
         }
     }
 ```
+## Development
+
+### Building and Testing
+
+To build the project:
+```bash
+cd src
+dotnet restore
+dotnet build -c Release
+```
+
+To run tests:
+```bash
+cd src
+dotnet test --filter "Category=UnitTest|Category=IntegrationTest"
+```
+
+### Benchmarks
+
+Benchmarks can be run locally or via GitHub Actions:
+
+**Locally:**
+```bash
+cd src/Benchmarks
+dotnet run -c Release -- [benchmark-name]
+```
+
+Available benchmarks: `minimal`, `simple`, `batch`, `transform-model`, `transform-memory`, `memory-rate`
+
+**Via GitHub Actions:**
+Benchmarks can be triggered manually from the Actions tab in GitHub. Results are committed to `docs/benchmarks/` and are also available as workflow artifacts.
+
+### CI/CD
+
+The project uses GitHub Actions for continuous integration and deployment:
+
+- **CI/CD Pipeline** (`.github/workflows/ci-cd.yml`): Runs on every push to `develop` branch
+  - Builds the solution with semantic versioning via GitVersion
+  - Runs unit and integration tests
+  - Publishes NuGet packages to GitHub Packages
+
+- **Benchmarks** (`.github/workflows/benchmarks.yml`): Manual workflow for running benchmarks
+  - Can run individual benchmarks or all benchmarks
+  - Results are committed to the repository for historical tracking
+  - Results are also uploaded as artifacts for easy download
+
+### NuGet Packages
+
+Packages are published to GitHub Packages feed at:
+```
+https://nuget.pkg.github.com/uniun-technology/index.json
+```
+
+To use packages from this feed, add the following to your `nuget.config`:
+```xml
+<packageSources>
+  <add key="github" value="https://nuget.pkg.github.com/uniun-technology/index.json" />
+</packageSources>
+```

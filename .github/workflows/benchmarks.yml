@@ -1,0 +1,103 @@
+name: Benchmarks
+
+on:
+  workflow_dispatch:
+    inputs:
+      benchmark:
+        description: 'Benchmark to run'
+        required: false
+        default: 'simple'
+        type: choice
+        options:
+          - all
+          - diagnose
+          - minimal
+          - simple
+          - batch
+          - transform-model
+          - transform-memory
+          - memory-rate
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  BENCHMARK_PROJECT: 'src/Benchmarks/Benchmarks.csproj'
+  RESULTS_DIR: 'docs/benchmarks'
+
+jobs:
+  run-benchmarks:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+    
+    - name: Restore dependencies
+      run: dotnet restore ${{ env.BENCHMARK_PROJECT }}
+    
+    - name: Build benchmark project
+      run: dotnet build ${{ env.BENCHMARK_PROJECT }} --configuration Release --no-restore
+    
+    - name: Create results directory
+      run: mkdir -p ${{ env.RESULTS_DIR }}
+    
+    - name: Run benchmarks
+      run: |
+        TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+        BENCHMARK="${{ github.event.inputs.benchmark }}"
+        
+        if [ "$BENCHMARK" = "all" ]; then
+          # Run all benchmarks sequentially
+          for bench in minimal simple batch transform-model transform-memory memory-rate; do
+            echo "Running $bench benchmark..."
+            dotnet run --project ${{ env.BENCHMARK_PROJECT }} --configuration Release -- $bench > ${{ env.RESULTS_DIR }}/${bench}_${TIMESTAMP}.txt 2>&1 || true
+          done
+        else
+          # Run selected benchmark
+          echo "Running $BENCHMARK benchmark..."
+          dotnet run --project ${{ env.BENCHMARK_PROJECT }} --configuration Release -- $BENCHMARK > ${{ env.RESULTS_DIR }}/${BENCHMARK}_${TIMESTAMP}.txt 2>&1
+        fi
+    
+    - name: Upload benchmark results as artifact
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: benchmark-results
+        path: ${{ env.RESULTS_DIR }}/*.txt
+        retention-days: 90
+        if-no-files-found: warn
+    
+    - name: Commit benchmark results
+      id: commit
+      run: |
+        if [ -n "$(ls -A ${{ env.RESULTS_DIR }}/*.txt 2>/dev/null)" ]; then
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add ${{ env.RESULTS_DIR }}/*.txt
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+            echo "committed=false" >> $GITHUB_OUTPUT
+          else
+            git commit -m "Add benchmark results from ${{ github.event.inputs.benchmark }} run"
+            echo "committed=true" >> $GITHUB_OUTPUT
+          fi
+        else
+          echo "No benchmark result files found to commit"
+          echo "committed=false" >> $GITHUB_OUTPUT
+          exit 1
+        fi
+    
+    - name: Push benchmark results
+      if: steps.commit.outputs.committed == 'true'
+      uses: ad-m/github-push-action@master
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        branch: ${{ github.ref }}
