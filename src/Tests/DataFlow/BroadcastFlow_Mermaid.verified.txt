@@ -1,0 +1,13 @@
+﻿flowchart LR
+    %% DataFlow: BroadcastFlow
+
+    source(["source<br/>→ Int32"])
+    broadcast[/"broadcast<br/>Int32 → Int32"/]
+    validator["validator<br/>Int32 →"]
+    archiver["archiver<br/>Int32 →"]
+    notifier["notifier<br/>Int32 →"]
+
+    source -->|Int32| broadcast
+    broadcast -->|Int32| validator
+    broadcast -->|Int32| archiver
+    broadcast -->|Int32| notifier

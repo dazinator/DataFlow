@@ -181,4 +181,64 @@ public class DataFlowGraphExporterTests
         // Assert - verify type info via snapshot
         return Verify(mermaid).UseFileName("TypeInfo_Mermaid");
     }
+
+    [Fact]
+    public Task Should_GenerateMermaidDiagram_WithBroadcastBlock()
+    {
+        // Arrange
+        var builder = new StructuredDataFlowBuilder(_serviceProvider, "BroadcastFlow");
+        var items = new[] { 1, 2, 3 };
+
+        // Create a broadcast flow with multiple targets
+        builder.AddProducer("source", sp => new TestProducer<int>(items));
+        
+        builder.AddBroadcast<int>("broadcast", null)
+            .WithTarget("validator", null)
+            .WithTarget("archiver", x => x)
+            .ReceiveFrom("source");
+
+        builder.AddProcessor("validator", sp => new TestProcessor<int>())
+            .ReceiveFrom("broadcast");
+        
+        builder.AddProcessor("archiver", sp => new TestProcessor<int>())
+            .ReceiveFrom("broadcast");
+        
+        builder.AddProcessor("notifier", sp => new TestProcessor<int>())
+            .ReceiveFrom("broadcast");
+
+        // Act
+        var mermaid = builder.Graph.ToMermaidDiagram();
+
+        // Assert - use snapshot testing
+        return Verify(mermaid).UseFileName("BroadcastFlow_Mermaid");
+    }
+
+    [Fact]
+    public Task Should_GenerateTextDiagram_WithBroadcastBlock()
+    {
+        // Arrange
+        var builder = new StructuredDataFlowBuilder(_serviceProvider, "BroadcastFlow");
+        var items = new[] { 1, 2, 3 };
+
+        // Create a broadcast flow with multiple targets
+        builder.AddProducer("source", sp => new TestProducer<int>(items));
+        
+        builder.AddBroadcast<int>("broadcast", null)
+            .ReceiveFrom("source");
+
+        builder.AddProcessor("validator", sp => new TestProcessor<int>())
+            .ReceiveFrom("broadcast");
+        
+        builder.AddProcessor("archiver", sp => new TestProcessor<int>())
+            .ReceiveFrom("broadcast");
+        
+        builder.AddProcessor("notifier", sp => new TestProcessor<int>())
+            .ReceiveFrom("broadcast");
+
+        // Act
+        var textDiagram = builder.Graph.ToTextDiagram();
+
+        // Assert - use snapshot testing
+        return Verify(textDiagram).UseFileName("BroadcastFlow_Text");
+    }
 }

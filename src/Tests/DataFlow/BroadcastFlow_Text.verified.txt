@@ -1,0 +1,27 @@
+﻿DataFlow: BroadcastFlow
+Blocks: 5
+Connections: 4
+
+Block Definitions:
+  - source
+      Type: ProducerBlock`1
+      Output: Int32
+  - broadcast
+      Type: BroadcastBlock`1
+      Input: Int32
+      Output: Int32
+  - validator
+      Type: ProcessorBlock`1
+      Input: Int32
+  - archiver
+      Type: ProcessorBlock`1
+      Input: Int32
+  - notifier
+      Type: ProcessorBlock`1
+      Input: Int32
+
+Connections:
+  source --(Int32)--> broadcast
+  broadcast --(Int32)--> validator
+  broadcast --(Int32)--> archiver
+  broadcast --(Int32)--> notifier
