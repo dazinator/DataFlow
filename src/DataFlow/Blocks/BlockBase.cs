@@ -56,7 +56,7 @@ public abstract class BlockBase : IBlock
         //ItemsMetricContext = MetricsContext.CreateItemsContext(Options.ItemsMetricLabel);
         try
         {
-            MetricsContext.Started();
+            MetricsContext?.Started();
             await CoreExecuteAsync(context);
         }
         finally
@@ -76,8 +76,13 @@ public abstract class BlockBase : IBlock
     private void SetupFlowRateCollection(IDataFlowContext context)
     {
         // Set up flow rate metrics if enabled
-        this.MetricsContext = MetricsContext ?? context.FlowMetricsContext.CreateBlockContext(Name);
-        if (Options.EnableFlowRateMetrics)
+        // Handle the case where FlowMetricsContext might be null (e.g., when blocks are executed directly in benchmarks)
+        if (MetricsContext == null && context.FlowMetricsContext != null)
+        {
+            MetricsContext = context.FlowMetricsContext.CreateBlockContext(Name);
+        }
+        
+        if (Options.EnableFlowRateMetrics && MetricsContext != null)
         {           
             FlowRateMetricsCollector = new FlowRateMetricsCollector(MetricsContext, Options.FlowRateMetricsSamplesPerSecond);
         }
