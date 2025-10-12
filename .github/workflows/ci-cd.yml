@@ -92,6 +92,17 @@ jobs:
         useConfigFile: true
         configFilePath: GitVersion.yml
     
+    - name: Display GitVersion outputs
+      run: |
+        echo "Major: ${{ steps.gitversion.outputs.major }}"
+        echo "Minor: ${{ steps.gitversion.outputs.minor }}"
+        echo "Patch: ${{ steps.gitversion.outputs.patch }}"
+        echo "SemVer: ${{ steps.gitversion.outputs.semVer }}"
+        echo "FullSemVer: ${{ steps.gitversion.outputs.fullSemVer }}"
+        echo "NuGetVersion: ${{ steps.gitversion.outputs.nuGetVersion }}"
+        echo "NuGetVersionV2: ${{ steps.gitversion.outputs.nuGetVersionV2 }}"
+        echo "All outputs: ${{ toJSON(steps.gitversion.outputs) }}"
+    
     - name: Restore dependencies
       run: dotnet restore ${{ env.SOLUTION_PATH }}
     
