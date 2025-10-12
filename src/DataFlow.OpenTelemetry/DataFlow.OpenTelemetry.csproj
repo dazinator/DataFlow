@@ -12,12 +12,12 @@
     <Company>Uniun Technology Ltd</Company>
     <Product>Uniun</Product>
     <Description>Adds companion OTEL apis for observation of DataFlows.</Description>
-    <PackageReadmeFile>readme.md</PackageReadmeFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <RepositoryType>git</RepositoryType>
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="..\..\readme.md">
+    <None Include="..\..\README.md">
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>
     </None>
