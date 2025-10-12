@@ -6,8 +6,10 @@
       label: feature.{BranchName}      
     develop:
       regex: dev(elop)?(ment)?$
+      label: alpha 
     master:
       regex: master$
+      label: ''
     pull-request:
       regex: (pull|pull\-requests|pr)[/-]
       mode: ContinuousDelivery
