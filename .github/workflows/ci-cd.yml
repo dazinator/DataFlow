@@ -12,6 +12,7 @@ env:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     
     steps:
     - name: Checkout code
@@ -49,6 +50,7 @@ jobs:
       run: dotnet build ${{ env.SOLUTION_PATH }} --configuration Release --no-restore /p:Version=${{ steps.gitversion.outputs.fullSemVer }}
     
     - name: Run tests
+      timeout-minutes: 15
       run: dotnet test ${{ env.SOLUTION_PATH }} --configuration Release --no-build --filter "Category=UnitTest|Category=IntegrationTest" --logger "trx;LogFileName=test-results.trx"
     
     - name: Publish test results

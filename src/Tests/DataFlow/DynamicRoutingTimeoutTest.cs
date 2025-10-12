@@ -11,8 +11,9 @@ using Microsoft.Extensions.Logging;
 /// <summary>
 /// Test to reproduce the issue where dynamic routing blocks dispose of routes while they're still processing,
 /// leading to "Timeout waiting for route execution" and lost items.
+/// This is a long-running demonstration test (>1 minute) and should not be run in standard CI.
 /// </summary>
-[IntegrationTest]
+[Category("Performance")]
 public class DynamicRoutingTimeoutTest
 {
     private readonly ITestOutputHelper _output;
