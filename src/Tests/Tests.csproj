@@ -64,6 +64,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DataFlow\DataFlow.csproj" />
+    <ProjectReference Include="..\Benchmarks\Benchmarks.csproj" />
   </ItemGroup>
 
   <ItemGroup>

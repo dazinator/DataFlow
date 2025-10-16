@@ -48,6 +48,14 @@ dlldata.c
 # Benchmark Results
 BenchmarkDotNet.Artifacts/
 
+# Profiling artifacts
+*.nettrace
+*.gcdump
+*.speedscope.json
+trace_*
+heap_*
+profiling_*.csv
+
 # .NET Core
 project.lock.json
 project.fragment.lock.json

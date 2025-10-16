@@ -27,6 +27,7 @@ public class DataFlowGraphExporterTests
         _serviceProvider = services.BuildServiceProvider();
     }
 
+    [SnapshotTest]
     [Fact]
     public Task Should_GenerateMermaidDiagram_ForSimpleFlow()
     {
@@ -44,6 +45,7 @@ public class DataFlowGraphExporterTests
         return Verify(mermaid).UseFileName("SimpleFlow_Mermaid");
     }
 
+    [SnapshotTest]
     [Fact]
     public Task Should_GenerateMermaidDiagram_WithTransformBlock()
     {
@@ -62,6 +64,7 @@ public class DataFlowGraphExporterTests
         return Verify(mermaid).UseFileName("TransformFlow_Mermaid");
     }
 
+    [SnapshotTest]
     [Fact]
     public Task Should_GenerateMermaidDiagram_WithBatchBlock()
     {
@@ -80,6 +83,7 @@ public class DataFlowGraphExporterTests
         return Verify(mermaid).UseFileName("BatchFlow_Mermaid");
     }
 
+    [SnapshotTest]
     [Fact]
     public Task Should_GenerateTextDiagram_ForFlow()
     {
@@ -123,6 +127,7 @@ public class DataFlowGraphExporterTests
         summary.BlockTypes.Count.ShouldBeGreaterThan(0);
     }
 
+    [SnapshotTest]
     [Fact]
     public Task Should_UseDifferentShapes_ForDifferentBlockTypes()
     {
@@ -141,6 +146,7 @@ public class DataFlowGraphExporterTests
         return Verify(mermaid).UseFileName("ShapeTest_Mermaid");
     }
 
+    [SnapshotTest]
     [Fact]
     public Task Should_SupportDifferentDirections_InMermaidDiagram()
     {
@@ -164,6 +170,7 @@ public class DataFlowGraphExporterTests
         return Verify(diagrams).UseFileName("DirectionTest_Mermaid");
     }
 
+    [SnapshotTest]
     [Fact]
     public Task Should_IncludeTypeInformation_InMermaidLabels()
     {
@@ -182,6 +189,7 @@ public class DataFlowGraphExporterTests
         return Verify(mermaid).UseFileName("TypeInfo_Mermaid");
     }
 
+    [SnapshotTest]
     [Fact]
     public Task Should_GenerateMermaidDiagram_WithBroadcastBlock()
     {
@@ -213,6 +221,7 @@ public class DataFlowGraphExporterTests
         return Verify(mermaid).UseFileName("BroadcastFlow_Mermaid");
     }
 
+    [SnapshotTest]
     [Fact]
     public Task Should_GenerateTextDiagram_WithBroadcastBlock()
     {
@@ -242,6 +251,7 @@ public class DataFlowGraphExporterTests
         return Verify(textDiagram).UseFileName("BroadcastFlow_Text");
     }
 
+    [SnapshotTest]
     [Fact]
     public Task Should_GenerateMermaidDiagram_WithRoutingBlock()
     {
@@ -276,6 +286,7 @@ public class DataFlowGraphExporterTests
         return Verify(mermaid).UseFileName("RoutingFlow_Mermaid");
     }
 
+    [SnapshotTest]
     [Fact]
     public Task Should_GenerateMermaidDiagram_WithComplexRoutingBlock()
     {
