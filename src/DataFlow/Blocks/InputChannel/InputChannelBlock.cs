@@ -13,7 +13,8 @@ public class InputChannelBlock<T> : BlockBase, ISourceBlock<T>
 {
     private readonly MonitoredChannel<T> _outputChannel;
     private readonly ILogger<InputChannelBlock<T>> _logger;
-    private TaskCompletionSource _writerCompletionSource;
+    private readonly object _completionLock = new();
+    private TaskCompletionSource _writerCompletionSource = new();
 
     public InputChannelBlock(string name, ILogger<InputChannelBlock<T>> logger, IBoundedChannelFactory channelFactory, BlockOptions? options = null) : base(name, options, logger)
     {
@@ -57,10 +58,12 @@ public class InputChannelBlock<T> : BlockBase, ISourceBlock<T>
 
     public void Complete()
     {
-        // complete the channel so downstream blocks can know there is no more data expected from this block.
-        _outputChannel.Writer.TryComplete();
-        _writerCompletionSource.SetResult(); // CoreExecuteAsync is awaiting this- the block will finish executing and return once we signal this.
-
+        lock (_completionLock)
+        {
+            // complete the channel so downstream blocks can know there is no more data expected from this block.
+            _outputChannel.Writer.TryComplete();
+            _writerCompletionSource.SetResult(); // CoreExecuteAsync is awaiting this- the block will finish executing and return once we signal this.
+        }
     }
 
     protected override async Task CoreExecuteAsync(IDataFlowContext context)
@@ -71,7 +74,19 @@ public class InputChannelBlock<T> : BlockBase, ISourceBlock<T>
         // using var monitoredChannel = this.CreateMonitoredChannel(_channelOptions.Capacity, context, _channel);
         //  context.CreateMonitoredChannel(this.Name, _channel, Options.MaxConcurrency, _channelOptions.Capacity);
         // Just wait for completion since external code writes to the channel
-        _writerCompletionSource = new TaskCompletionSource();
+        
+        // If Complete() has already been called before CoreExecuteAsync() starts, just return immediately
+        // Use lock to prevent race condition with Complete()
+        lock (_completionLock)
+        {
+            if (_writerCompletionSource.Task.IsCompleted)
+            {
+                return;
+            }
+            // Create a new TaskCompletionSource for this execution
+            _writerCompletionSource = new TaskCompletionSource();
+        }
+        
         using var monitoringLease = _outputChannel.StartMonitoring(context);
         await _writerCompletionSource.Task; // wait for the external code to signal completion that it has finished writing.  
     }   
