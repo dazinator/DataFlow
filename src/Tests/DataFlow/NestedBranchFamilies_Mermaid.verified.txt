@@ -1,0 +1,35 @@
+﻿flowchart LR
+    %% DataFlow: NestedBranchFamiliesFlow
+
+    source(["source"])
+    fanout1[/"fanout1"/]
+
+    subgraph branch_family1_branchA ["Branch: family1-branchA"]
+        direction LR
+        processor_A["processor-A"]
+    end
+    subgraph branch_family1_branchB ["Branch: family1-branchB"]
+        direction LR
+        transform_B[/"transform-B"/]
+        fanout2[/"fanout2"/]
+    end
+
+    subgraph branch_family2_branchB1 ["Branch: family2-branchB1"]
+        direction LR
+        processor_B1["processor-B1"]
+    end
+    subgraph branch_family2_branchB2 ["Branch: family2-branchB2"]
+        direction LR
+        processor_B2["processor-B2"]
+    end
+
+    source -->|Int32| fanout1
+    fanout1 -->|Int32| processor_A
+    fanout1 -->|Int32| transform_B
+    transform_B -->|String| fanout2
+    fanout2 -->|String| processor_B1
+    fanout2 -->|String| processor_B2
+
+    %% 'fanout1' broadcasts to multiple targets
+
+    %% 'fanout2' broadcasts to multiple targets

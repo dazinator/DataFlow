@@ -32,6 +32,7 @@ public static class DataFlowGraphExporter
     /// <summary>
     /// Generates a Mermaid diagram representation of the dataflow graph.
     /// This can be used in documentation, rendered on GitHub, or used with Mermaid tools.
+    /// Uses DAG-based iteration for systematic traversal of the graph structure.
     /// </summary>
     /// <param name="graph">The dataflow graph to export</param>
     /// <param name="direction">The direction of the flowchart (LR, RL, TB, BT)</param>
@@ -51,102 +52,107 @@ public static class DataFlowGraphExporter
         sb.AppendLine($"    %% DataFlow: {graph.Name}");
         sb.AppendLine();
 
-        // Group blocks by branch
-        var branchGroups = GroupBlocksByBranch(graph);
-        var blocksToRender = new HashSet<string>();
-        var collapsedBranchInfo = new Dictionary<string, (string collapsedName, BlockDefinition exampleBlock, int count)>();
-        var branchesToRenderAsSubgraphs = new Dictionary<string, List<BlockDefinition>>();
+        // Create root rendering context
+        var rootContext = new BlockRenderContext(sb, null!, direction, serviceProvider, "    ");
 
+        // Use DAG iterator to organize the graph
+        var iterator = new DataFlowGraphIterator(graph);
+        var (branchGroups, unbranchedBlocks) = iterator.GroupByBranch();
+
+        // Track which blocks are rendered and which connections should be shown
+        var renderedBlocks = new HashSet<string>();
+        var collapsedBranchInfo = new Dictionary<string, (string collapsedName, BlockDefinition exampleBlock, int count)>();
+
+        // Render unbranched blocks first
+        foreach (var block in unbranchedBlocks)
+        {
+            RenderBlockNode(rootContext, block);
+            renderedBlocks.Add(block.Name);
+        }
+
+        // Render branches using the branch renderer
         if (branchGroups.Count > 0)
         {
-            ProcessBranches(graph, branchGroups, options, blocksToRender, collapsedBranchInfo, branchesToRenderAsSubgraphs);
-        }
-        else
-        {
-            // Render all blocks normally
-            foreach (var block in graph.BlockDefinitions.Values)
+            // Determine which branches to collapse
+            var branchFamilies = GroupBranchesBySource(branchGroups, graph);
+            
+            foreach (var (sourceBlock, branches) in branchFamilies)
             {
-                blocksToRender.Add(block.Name);
-            }
-        }
-
-        // Add non-branch nodes (blocks without BranchName metadata)
-        foreach (var block in graph.BlockDefinitions.Values)
-        {
-            if (blocksToRender.Contains(block.Name) && !block.Metadata.ContainsKey("BranchName"))
-            {
-                var shape = GetBlockShape(block);
-                var label = GetBlockLabel(block);
-                sb.AppendLine($"    {SanitizeId(block.Name)}{shape.Open}\"{label}\"{shape.Close}");
-            }
-        }
-
-        // Add branches as subgraphs if not collapsed
-        if (branchesToRenderAsSubgraphs.Count > 0)
-        {
-            sb.AppendLine();
-            foreach (var (branchName, branchBlocks) in branchesToRenderAsSubgraphs.OrderBy(kvp => kvp.Key))
-            {
-                var subgraphId = SanitizeId($"branch_{branchName}");
-                sb.AppendLine($"    subgraph {subgraphId} [\"Branch: {branchName}\"]");
-                sb.AppendLine($"        direction {direction}");
-                
-                // Render blocks within the branch
-                foreach (var block in branchBlocks)
+                if (options.CollapseConcurrentBranches && branches.Count > options.MaxBranchesToShowIndividually)
                 {
-                    var shape = GetBlockShape(block);
-                    var label = GetBlockLabel(block);
-                    sb.AppendLine($"        {SanitizeId(block.Name)}{shape.Open}\"{label}\"{shape.Close}");
+                    // Collapse these branches
+                    var exampleBranch = branches[0];
+                    var exampleBlocks = branchGroups[exampleBranch];
+                    
+                    RenderCollapsedBranches(rootContext, options, branches, exampleBlocks, collapsedBranchInfo);
+                    
+                    // Track that these branches are collapsed (don't render individual connections)
+                    foreach (var branchName in branches)
+                    {
+                        foreach (var block in branchGroups[branchName])
+                        {
+                            renderedBlocks.Add(block.Name);
+                        }
+                    }
                 }
-                
-                sb.AppendLine($"    end");
-            }
-        }
-
-        // Add collapsed branch subgraphs
-        foreach (var (sourceBlock, (collapsedName, exampleBlock, count)) in collapsedBranchInfo)
-        {
-            if (options.GroupBranchesInSubgraphs)
-            {
-                // Render collapsed branches as a subgraph with simplified name
-                var subgraphId = SanitizeId($"branch_collapsed_{count}");
-                sb.AppendLine($"    subgraph {subgraphId} [\"..{count}\"]");
-                sb.AppendLine($"        direction {direction}");
-                
-                // Render the example block within the subgraph
-                var shape = GetBlockShape(exampleBlock);
-                var label = GetBlockLabel(exampleBlock);
-                sb.AppendLine($"        {SanitizeId(collapsedName)}{shape.Open}\"{label}\"{shape.Close}");
-                
-                sb.AppendLine($"    end");
-            }
-            else
-            {
-                // Render as a single node with [×N] notation
-                var shape = GetBlockShape(exampleBlock);
-                var label = GetBlockLabel(exampleBlock) + $"<br/>[×{count}]";
-                sb.AppendLine($"    {SanitizeId(collapsedName)}{shape.Open}\"{label}\"{shape.Close}");
+                else
+                {
+                    // Render individual branches
+                    RenderIndividualBranches(rootContext, options, branches, branchGroups, renderedBlocks);
+                }
             }
         }
 
         sb.AppendLine();
 
-        // Add edges
+        // Track which blocks were rendered as part of collapsed branches
+        var collapsedBlocks = new HashSet<string>();
+        if (collapsedBranchInfo.Count > 0)
+        {
+            // For each collapsed branch family, add all the actual block names (from all branches)
+            var branchFamilies = GroupBranchesBySource(branchGroups, graph);
+            foreach (var (sourceBlock, branches) in branchFamilies)
+            {
+                if (options.CollapseConcurrentBranches && branches.Count > options.MaxBranchesToShowIndividually)
+                {
+                    // Add all blocks from all collapsed branches
+                    foreach (var branchName in branches)
+                    {
+                        if (branchGroups.TryGetValue(branchName, out var blocks))
+                        {
+                            foreach (var block in blocks)
+                            {
+                                collapsedBlocks.Add(block.Name);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Add edges/connections (only for rendered blocks that aren't collapsed)
         foreach (var connection in graph.Connections)
         {
-            // Only render connections where both blocks are being rendered
-            if (blocksToRender.Contains(connection.SourceBlockName) && 
-                blocksToRender.Contains(connection.TargetBlockName))
+            // Check if the target block is part of a collapsed branch
+            if (collapsedBlocks.Contains(connection.TargetBlockName))
             {
+                // Skip this connection - we'll render it to the collapsed representation instead
+                continue;
+            }
+            
+            if (renderedBlocks.Contains(connection.SourceBlockName) && 
+                renderedBlocks.Contains(connection.TargetBlockName))
+            {
+                // Normal connection between rendered blocks
                 var dataTypeLabel = SanitizeTypeLabel(connection.DataType?.Name ?? "data");
                 sb.AppendLine($"    {SanitizeId(connection.SourceBlockName)} -->|{dataTypeLabel}| {SanitizeId(connection.TargetBlockName)}");
             }
         }
 
-        // Add collapsed branch connections
-        foreach (var (sourceBlock, (collapsedName, exampleBlock, count)) in collapsedBranchInfo)
+        // Add connections to collapsed branches
+        foreach (var (blockName, (collapsedName, exampleBlock, count)) in collapsedBranchInfo)
         {
-            var incomingConn = graph.GetIncomingConnections(exampleBlock.Name).FirstOrDefault();
+            var incomingConn = graph.GetIncomingConnections(blockName).FirstOrDefault();
             if (incomingConn != null)
             {
                 var dataTypeLabel = SanitizeTypeLabel(incomingConn.DataType?.Name ?? "data");
@@ -167,16 +173,14 @@ public static class DataFlowGraphExporter
         // Apply custom renderers for blocks that need special rendering
         foreach (var block in graph.BlockDefinitions.Values)
         {
-            if (blocksToRender.Contains(block.Name))
+            foreach (var renderer in _customRenderers)
             {
-                foreach (var renderer in _customRenderers)
+                if (renderer.CanRender(block))
                 {
-                    if (renderer.CanRender(block))
-                    {
-                        sb.AppendLine();
-                        renderer.RenderCustomContent(sb, block, direction, serviceProvider);
-                        break; // Only apply the first matching renderer
-                    }
+                    sb.AppendLine();
+                    var blockContext = new BlockRenderContext(sb, block, direction, serviceProvider, "    ");
+                    renderer.RenderCustomContent(blockContext);
+                    break; // Only apply the first matching renderer
                 }
             }
         }
@@ -184,46 +188,15 @@ public static class DataFlowGraphExporter
         return sb.ToString();
     }
 
-    private static Dictionary<string, List<BlockDefinition>> GroupBlocksByBranch(DataFlowGraph graph)
-    {
-        var branchGroups = new Dictionary<string, List<BlockDefinition>>();
-
-        foreach (var block in graph.BlockDefinitions.Values)
-        {
-            if (block.Metadata.TryGetValue("BranchName", out var branchNameObj) && branchNameObj is string branchName)
-            {
-                if (!branchGroups.ContainsKey(branchName))
-                {
-                    branchGroups[branchName] = new List<BlockDefinition>();
-                }
-                branchGroups[branchName].Add(block);
-            }
-        }
-
-        return branchGroups;
-    }
-
-    private static void ProcessBranches(
-        DataFlowGraph graph,
+    /// <summary>
+    /// Groups branches by their source block.
+    /// </summary>
+    private static Dictionary<string, List<string>> GroupBranchesBySource(
         Dictionary<string, List<BlockDefinition>> branchGroups,
-        DiagramRenderOptions options,
-        HashSet<string> blocksToRender,
-        Dictionary<string, (string collapsedName, BlockDefinition exampleBlock, int count)> collapsedBranchInfo,
-        Dictionary<string, List<BlockDefinition>> branchesToRenderAsSubgraphs)
+        DataFlowGraph graph)
     {
-        // First, add blocks that are NOT in any branch
-        foreach (var block in graph.BlockDefinitions.Values)
-        {
-            if (!block.Metadata.ContainsKey("BranchName"))
-            {
-                blocksToRender.Add(block.Name);
-            }
-        }
-
-        // Now handle branches
-        // Group branches that connect to the same source block
         var branchFamilies = new Dictionary<string, List<string>>();
-        
+
         foreach (var branchName in branchGroups.Keys)
         {
             var branchBlocks = branchGroups[branchName];
@@ -244,44 +217,134 @@ public static class DataFlowGraphExporter
             }
         }
 
-        // For each branch family, decide whether to collapse
-        foreach (var (sourceBlock, branches) in branchFamilies)
+        return branchFamilies;
+    }
+
+    /// <summary>
+    /// Renders individual branches (not collapsed).
+    /// </summary>
+    private static void RenderIndividualBranches(
+        IBlockRenderContext context,
+        DiagramRenderOptions options,
+        List<string> branches,
+        Dictionary<string, List<BlockDefinition>> branchGroups,
+        HashSet<string> renderedBlocks)
+    {
+        // Add empty line before first branch if rendering as subgraphs
+        bool firstBranch = true;
+        
+        foreach (var branchName in branches)
         {
-            if (options.CollapseConcurrentBranches && branches.Count > options.MaxBranchesToShowIndividually)
+            var branchBlocks = branchGroups[branchName];
+
+            if (options.GroupBranchesInSubgraphs)
             {
-                // Collapse these branches
-                var exampleBranch = branches[0];
-                var exampleBlocks = branchGroups[exampleBranch];
-                
-                // Create collapsed representation for each block in the branch
-                foreach (var block in exampleBlocks)
+                // Add empty line before first subgraph
+                if (firstBranch)
                 {
-                    var collapsedName = block.Name.Replace(exampleBranch, $"concurrent-x{branches.Count}");
-                    collapsedBranchInfo[collapsedName] = (collapsedName, block, branches.Count);
+                    context.AppendLine("");
+                    firstBranch = false;
                 }
+                
+                // Render as subgraph
+                var subgraphId = SanitizeId($"branch_{branchName}");
+                context.AppendLine($"subgraph {subgraphId} [\"Branch: {branchName}\"]");
+                context.AppendLine($"    direction {context.Direction}");
+
+                var nestedContext = context.CreateNested();
+                foreach (var block in branchBlocks)
+                {
+                    RenderBlockNode(nestedContext, block);
+                }
+
+                context.AppendLine($"end");
             }
             else
             {
-                // Show all branches individually (as subgraphs if option enabled)
-                foreach (var branchName in branches)
+                // Render blocks without subgraph
+                foreach (var block in branchBlocks)
                 {
-                    var branchBlocks = branchGroups[branchName];
-                    
-                    if (options.GroupBranchesInSubgraphs)
-                    {
-                        // Render as subgraph
-                        branchesToRenderAsSubgraphs[branchName] = branchBlocks;
-                    }
-                    
-                    // Still add to blocksToRender for connection processing
-                    foreach (var block in branchBlocks)
-                    {
-                        blocksToRender.Add(block.Name);
-                    }
+                    RenderBlockNode(context, block);
+                }
+            }
+
+            // Track rendered blocks
+            foreach (var block in branchBlocks)
+            {
+                renderedBlocks.Add(block.Name);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Renders collapsed branches with [×N] notation.
+    /// </summary>
+    private static void RenderCollapsedBranches(
+        IBlockRenderContext context,
+        DiagramRenderOptions options,
+        List<string> branches,
+        List<BlockDefinition> exampleBlocks,
+        Dictionary<string, (string collapsedName, BlockDefinition exampleBlock, int count)> collapsedBranchInfo)
+    {
+        var exampleBranch = branches[0];
+        var count = branches.Count;
+
+        if (options.GroupBranchesInSubgraphs)
+        {
+            // Render as a collapsed subgraph
+            var subgraphId = SanitizeId($"branch_collapsed_{count}");
+            context.AppendLine($"subgraph {subgraphId} [\"..{count}\"]");
+            context.AppendLine($"    direction {context.Direction}");
+
+            var nestedContext = context.CreateNested();
+            foreach (var block in exampleBlocks)
+            {
+                var collapsedName = block.Name.Replace(exampleBranch, $"concurrent-x{count}");
+                var shape = GetBlockShape(block);
+                var label = GetBlockLabel(block);
+                nestedContext.AppendLine($"{SanitizeId(collapsedName)}{shape.Open}\"{label}\"{shape.Close}");
+                
+                // Track collapsed block info - use the FIRST block name from the example branch
+                // The key is the block name without branch identifier
+                var blockKey = block.Name;
+                if (!collapsedBranchInfo.ContainsKey(blockKey))
+                {
+                    collapsedBranchInfo[blockKey] = (collapsedName, block, count);
+                }
+            }
+
+            context.AppendLine($"end");
+        }
+        else
+        {
+            // Render as individual nodes with [×N] notation
+            foreach (var block in exampleBlocks)
+            {
+                var collapsedName = block.Name.Replace(exampleBranch, $"concurrent-x{count}");
+                var shape = GetBlockShape(block);
+                var label = GetBlockLabel(block) + $"<br/>[×{count}]";
+                context.AppendLine($"{SanitizeId(collapsedName)}{shape.Open}\"{label}\"{shape.Close}");
+                
+                // Track collapsed block info
+                var blockKey = block.Name;
+                if (!collapsedBranchInfo.ContainsKey(blockKey))
+                {
+                    collapsedBranchInfo[blockKey] = (collapsedName, block, count);
                 }
             }
         }
     }
+
+    /// <summary>
+    /// Renders a single block node in the diagram.
+    /// </summary>
+    private static void RenderBlockNode(IBlockRenderContext context, BlockDefinition block)
+    {
+        var shape = GetBlockShape(block);
+        var label = GetBlockLabel(block);
+        context.AppendLine($"{SanitizeId(block.Name)}{shape.Open}\"{label}\"{shape.Close}");
+    }
+
 
     /// <summary>
     /// Generates a simple text representation of the graph structure.

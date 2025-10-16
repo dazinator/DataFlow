@@ -17,13 +17,13 @@ It demonstrates real-world scenarios including:
 flowchart LR
     %% DataFlow: ComplexEtlBenchmark
 
-    data_source(["data-source<br/>→ RawRecord"])
-    validator[/"validator<br/>RawRecord → ValidatedRecord"/]
-    enricher[/"enricher<br/>ValidatedRecord → EnrichedRecord"/]
-    broadcast[/"broadcast<br/>EnrichedRecord → EnrichedRecord"/]
-    metrics_collector["metrics-collector<br/>EnrichedRecord →"]
-    audit_logger["audit-logger<br/>EnrichedRecord →"]
-    router["router<br/>EnrichedRecord →"]
+    data_source(["data-source"])
+    validator[/"validator"/]
+    enricher[/"enricher"/]
+    broadcast[/"broadcast"/]
+    metrics_collector["metrics-collector"]
+    audit_logger["audit-logger"]
+    router["router"]
 
     data_source -->|RawRecord| validator
     validator -->|ValidatedRecord| enricher

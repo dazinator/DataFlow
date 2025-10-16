@@ -1,7 +1,5 @@
 namespace Uniun.DataFlow.Builder.Graph;
 
-using System.Text;
-
 /// <summary>
 /// Interface for custom Mermaid rendering of specific block types.
 /// Blocks can provide custom rendering logic by storing an instance of this interface in their metadata.
@@ -16,12 +14,9 @@ public interface IMermaidBlockRenderer
     bool CanRender(BlockDefinition block);
 
     /// <summary>
-    /// Renders custom Mermaid content for the block.
-    /// This is called after the standard block node and connections are rendered.
+    /// Renders custom Mermaid content for the block using the provided context.
+    /// The context provides callback methods that allow outer renderers to intercept and augment the content.
     /// </summary>
-    /// <param name="sb">The string builder to append Mermaid content to</param>
-    /// <param name="block">The block definition to render</param>
-    /// <param name="direction">The flowchart direction (LR, RL, TB, BT)</param>
-    /// <param name="serviceProvider">Optional service provider for rendering dynamic content</param>
-    void RenderCustomContent(StringBuilder sb, BlockDefinition block, string direction, IServiceProvider? serviceProvider);
+    /// <param name="context">The rendering context with callback methods</param>
+    void RenderCustomContent(IBlockRenderContext context);
 }

@@ -483,5 +483,54 @@ public class DataFlowGraphExporterTests
         return Verify(blockMetadata).UseFileName("BranchMetadata");
     }
 
+    [SnapshotTest]
+    [Fact]
+    public Task Should_GenerateMermaidDiagram_WithNestedBranchFamilies()
+    {
+        // Arrange - Create a flow with multiple branch families at different levels
+        var builder = new StructuredDataFlowBuilder(_serviceProvider, "NestedBranchFamiliesFlow");
+        var items = new[] { 1, 2, 3 };
+
+        // Root source
+        builder.AddProducer("source", sp => new TestProducer<int>(items));
+        
+        // First branch family: Split from source via broadcast
+        builder.AddBroadcast<int>("fanout1").ReceiveFrom("source");
+        
+        // Branch family 1 - Branch A: Simple processor
+        var branchA = builder.AddBranch("family1-branchA");
+        branchA.AddProcessor<int>("processor-A", sp => new TestProcessor<int>())
+            .ReceiveFrom("fanout1");
+        
+        // Branch family 1 - Branch B: Has a nested broadcast creating another branch family
+        var branchB = builder.AddBranch("family1-branchB");
+        branchB.AddTransform<int, string>("transform-B", sp => new NumberTransformer("Item"))
+            .ReceiveFrom("fanout1");
+        
+        // Second branch family: Nested within branchB - broadcast from transform-B
+        branchB.AddBroadcast<string>("fanout2")
+            .ReceiveFrom("transform-B");
+        
+        // Branch family 2 - Branch B1: First sub-branch
+        var branchB1 = builder.AddBranch("family2-branchB1");
+        branchB1.AddProcessor<string>("processor-B1", sp => new TestProcessor<string>())
+            .ReceiveFrom("fanout2");
+        
+        // Branch family 2 - Branch B2: Second sub-branch
+        var branchB2 = builder.AddBranch("family2-branchB2");
+        branchB2.AddProcessor<string>("processor-B2", sp => new TestProcessor<string>())
+            .ReceiveFrom("fanout2");
+
+        // Act - Render the nested structure
+        var mermaid = builder.Graph.ToMermaidDiagram(options: new DiagramRenderOptions
+        {
+            CollapseConcurrentBranches = false,
+            GroupBranchesInSubgraphs = true
+        });
+
+        // Assert - use snapshot testing to verify nested subgraphs render correctly
+        return Verify(mermaid).UseFileName("NestedBranchFamilies_Mermaid");
+    }
+
     #endregion
 }

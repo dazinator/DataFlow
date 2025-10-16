@@ -1,7 +1,5 @@
 namespace Uniun.DataFlow.Builder.Graph;
 
-using System.Text;
-
 /// <summary>
 /// Mermaid renderer for broadcast blocks.
 /// Adds a simple comment to indicate the block broadcasts to multiple targets.
@@ -22,9 +20,9 @@ public class BroadcastBlockMermaidRenderer : IMermaidBlockRenderer
     /// Renders a simple comment for broadcast blocks.
     /// The connections to targets are already shown via normal graph edges.
     /// </summary>
-    public void RenderCustomContent(StringBuilder sb, BlockDefinition block, string direction, IServiceProvider? serviceProvider)
+    public void RenderCustomContent(IBlockRenderContext context)
     {
         // Add a simple comment to indicate this is a broadcast block
-        sb.AppendLine($"    %% '{block.Name}' broadcasts to multiple targets");
+        context.AppendLine($"%% '{context.Block.Name}' broadcasts to multiple targets");
     }
 }

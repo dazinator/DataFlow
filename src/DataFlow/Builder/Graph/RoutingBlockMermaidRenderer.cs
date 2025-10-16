@@ -1,7 +1,6 @@
 namespace Uniun.DataFlow.Builder.Graph;
 
 using System;
-using System.Text;
 
 /// <summary>
 /// Mermaid renderer for routing blocks.
@@ -19,83 +18,85 @@ public class RoutingBlockMermaidRenderer : IMermaidBlockRenderer
     }
 
     /// <summary>
-    /// Renders routing block routes as Mermaid subgraphs.
+    /// Renders routing block routes as Mermaid subgraphs using the context-based approach.
     /// </summary>
-    public void RenderCustomContent(StringBuilder sb, BlockDefinition block, string direction, IServiceProvider? serviceProvider)
+    public void RenderCustomContent(IBlockRenderContext context)
     {
-        if (!block.Metadata.TryGetValue("RouteDefinitions", out var routeDefsObj) ||
+        if (!context.Block.Metadata.TryGetValue("RouteDefinitions", out var routeDefsObj) ||
             routeDefsObj is not Dictionary<string, RouteDefinition> routeDefinitions)
         {
-            sb.AppendLine($"    %% Routing block '{block.Name}' has no static routes defined");
+            context.AppendLine($"%% Routing block '{context.Block.Name}' has no static routes defined");
             return;
         }
 
         if (routeDefinitions.Count == 0)
         {
-            sb.AppendLine($"    %% Routing block '{block.Name}' has no static routes defined");
+            context.AppendLine($"%% Routing block '{context.Block.Name}' has no static routes defined");
             return;
         }
 
-        sb.AppendLine($"    %% Routes for '{block.Name}':");
+        context.AppendLine($"%% Routes for '{context.Block.Name}':");
 
         foreach (var route in routeDefinitions.Values)
         {
             var routeGraphName = $"Route: {route.Name}";
-            var subgraphId = SanitizeId($"{block.Name}_route_{route.Name}");
+            var subgraphId = SanitizeId($"{context.Block.Name}_route_{route.Name}");
 
-            sb.AppendLine($"    subgraph {subgraphId} [\"{routeGraphName}\"]");
-            sb.AppendLine($"        direction {direction}");
+            context.AppendLine($"subgraph {subgraphId} [\"{routeGraphName}\"]");
+            context.AppendLine($"    direction {context.Direction}");
 
             // Attempt to build the route structure to extract its graph
-            if (serviceProvider != null)
+            if (context.ServiceProvider != null)
             {
                 try
                 {
-                    var routeBuilder = new RouteBuilder(serviceProvider, route.Name);
+                    var routeBuilder = new RouteBuilder(context.ServiceProvider, route.Name);
                     var routeContext = new RouteContext
                     {
                         RouteName = route.Name,
                         RouteDefinitionName = route.Name,
                         TriggeringItem = null,
-                        ServiceProvider = serviceProvider,
+                        ServiceProvider = context.ServiceProvider,
                         RouteBuilder = routeBuilder,
                         IsDesignTime = true  // Indicate we're building for design-time visualization
                     };
 
                     // Call the factory to build the route structure
-                    // This populates the routeBuilder.Graph with block definitions and connections
                     var _ = route.Factory(routeContext);
 
-                    // Now render the route's internal graph structure
-                    RenderRouteGraph(sb, routeBuilder.Graph, "        ");
+                    // Now render the route's internal graph structure using nested context
+                    var nestedContext = context.CreateNested();
+                    RenderRouteGraph(nestedContext, routeBuilder.Graph);
                 }
                 catch (Exception)
                 {
                     // If we can't build the route (e.g., due to DI dependencies), show a placeholder
-                    sb.AppendLine($"        %% Route '{route.Name}' structure not available");
-                    sb.AppendLine($"        %% Error building route (check service dependencies)");
+                    var nestedContext = context.CreateNested();
+                    nestedContext.AppendLine($"%% Route '{route.Name}' structure not available");
+                    nestedContext.AppendLine($"%% Error building route (check service dependencies)");
                 }
             }
             else
             {
                 // No service provider - show placeholder
-                sb.AppendLine($"        %% Route '{route.Name}' blocks not shown");
-                sb.AppendLine($"        %% (Pass IServiceProvider to ToMermaidDiagram to render route details)");
+                var nestedContext = context.CreateNested();
+                nestedContext.AppendLine($"%% Route '{route.Name}' blocks not shown");
+                nestedContext.AppendLine($"%% (Pass IServiceProvider to ToMermaidDiagram to render route details)");
             }
 
-            sb.AppendLine($"    end");
-            sb.AppendLine();
+            context.AppendLine($"end");
+            context.AppendLine("");
 
             // Add connection from routing block to the route subgraph
             var routeInputType = SanitizeTypeLabel(route.ItemType.Name);
-            sb.AppendLine($"    {SanitizeId(block.Name)} -.->|{routeInputType}<br/>'{route.Name}'| {subgraphId}");
+            context.AppendLine($"{SanitizeId(context.Block.Name)} -.->|{routeInputType}<br/>'{route.Name}'| {subgraphId}");
         }
     }
 
     /// <summary>
-    /// Renders a route's internal graph structure with proper indentation.
+    /// Renders a route's internal graph structure using the context-based approach.
     /// </summary>
-    private static void RenderRouteGraph(StringBuilder sb, DataFlowGraph routeGraph, string indent)
+    private static void RenderRouteGraph(IBlockRenderContext context, DataFlowGraph routeGraph)
     {
         // Add route blocks
         foreach (var block in routeGraph.BlockDefinitions.Values)
@@ -110,16 +111,16 @@ public class RoutingBlockMermaidRenderer : IMermaidBlockRenderer
                 label = "[ENTRY] " + label;  // Entry point indicator
             }
 
-            sb.AppendLine($"{indent}{blockId}{shape.Open}\"{label}\"{shape.Close}");
+            context.AppendLine($"{blockId}{shape.Open}\"{label}\"{shape.Close}");
         }
 
-        sb.AppendLine();
+        context.AppendLine("");
 
         // Add route connections
         foreach (var connection in routeGraph.Connections)
         {
             var dataTypeLabel = SanitizeTypeLabel(connection.DataType?.Name ?? "data");
-            sb.AppendLine($"{indent}{SanitizeId(connection.SourceBlockName)} -->|{dataTypeLabel}| {SanitizeId(connection.TargetBlockName)}");
+            context.AppendLine($"{SanitizeId(connection.SourceBlockName)} -->|{dataTypeLabel}| {SanitizeId(connection.TargetBlockName)}");
         }
     }
 
