@@ -34,4 +34,11 @@ public class RouteContext
     /// A builder that can be used to construct the sub-dataflow for this route.
     /// </summary>
     public required IRouteBuilder RouteBuilder { get; init; }
+
+    /// <summary>
+    /// Indicates whether this route is being built at design-time (e.g., for diagram/visualization purposes).
+    /// When true, the route factory should avoid operations that require actual data items.
+    /// TriggeringItem may be null when IsDesignTime is true.
+    /// </summary>
+    public bool IsDesignTime { get; init; }
 }

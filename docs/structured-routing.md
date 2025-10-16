@@ -91,6 +91,7 @@ When building a route, you receive a `RouteContext` with useful information:
     // context.TriggeringItem - The first item that triggered this route creation (for initialization)
     // context.ServiceProvider - Scoped service provider for this route
     // context.RouteBuilder - Builder for constructing the route sub-dataflow
+    // context.IsDesignTime - True when building for design-time (e.g., diagram visualization), false at runtime
     
     var item = (MyType)context.TriggeringItem;
     Console.WriteLine($"Creating route '{context.RouteName}' triggered by {item.Id}");
@@ -99,6 +100,37 @@ When building a route, you receive a `RouteContext` with useful information:
     // Build your route...
 });
 ```
+
+### Design-Time vs Runtime
+
+When generating Mermaid diagrams or other design-time operations, routes are built with `IsDesignTime = true` and `TriggeringItem = null`. Route factories should handle this gracefully:
+
+```csharp
+.RegisterRoute("my-route", context =>
+{
+    var routeBuilder = context.RouteBuilder;
+    
+    // Always add the basic structure
+    routeBuilder.AddProcessor("processor", sp => new MyProcessor())
+        .AsEntry();
+    
+    // Only perform item-dependent operations at runtime
+    if (!context.IsDesignTime && context.TriggeringItem != null)
+    {
+        var item = (MyType)context.TriggeringItem;
+        // Use item for runtime-specific configuration
+        var logger = context.ServiceProvider.GetService<ILogger>();
+        logger?.LogInformation("Route created for item {Id}", item.Id);
+    }
+    
+    return routeBuilder.Build();
+});
+```
+
+**Best Practices:**
+- Always check `IsDesignTime` before using `TriggeringItem`
+- Keep diagram structure identical to runtime (only skip data-dependent operations)
+- Use null-safe operators when accessing `TriggeringItem`
 
 ## Complex Routes
 

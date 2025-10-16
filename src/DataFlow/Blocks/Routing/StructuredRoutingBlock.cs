@@ -185,7 +185,8 @@ public class StructuredRoutingBlock<T> : BlockBase, ITargetBlock<T>
                     RouteDefinitionName = routeDefinitionName,
                     TriggeringItem = item,
                     ServiceProvider = routeScope.ServiceProvider,
-                    RouteBuilder = routeBuilder
+                    RouteBuilder = routeBuilder,
+                    IsDesignTime = false  // Runtime execution mode
                 };
 
                 var dataFlow = routeDefinition.Factory(routeContext);

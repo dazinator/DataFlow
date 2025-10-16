@@ -1,0 +1,23 @@
+﻿flowchart LR
+    %% DataFlow: RoutingFlow
+
+    source(["source<br/>→ Int32"])
+    router["router<br/>Int32 →"]
+
+    source -->|Int32| router
+
+    %% Routes for 'router':
+    subgraph router_route_even ["Route: even"]
+        direction LR
+        even_processor["[ENTRY] even-processor<br/>Int32 →"]
+
+    end
+
+    router -.->|Int32<br/>'even'| router_route_even
+    subgraph router_route_odd ["Route: odd"]
+        direction LR
+        odd_processor["[ENTRY] odd-processor<br/>Int32 →"]
+
+    end
+
+    router -.->|Int32<br/>'odd'| router_route_odd

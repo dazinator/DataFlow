@@ -1,20 +1,43 @@
 namespace Uniun.DataFlow.Builder.Graph;
 
+using System;
 using System.Text;
+using Microsoft.Extensions.DependencyInjection;
 
 /// <summary>
 /// Utilities for visualizing and exporting dataflow graphs.
 /// </summary>
 public static class DataFlowGraphExporter
 {
+    private static readonly List<IMermaidBlockRenderer> _customRenderers = new()
+    {
+        new RoutingBlockMermaidRenderer(),
+        new BroadcastBlockMermaidRenderer()
+        // Additional custom renderers can be added here for other block types
+    };
+
+    /// <summary>
+    /// Registers a custom Mermaid renderer for specific block types.
+    /// This allows extensions to add custom rendering logic for new block types.
+    /// </summary>
+    /// <param name="renderer">The custom renderer to register</param>
+    public static void RegisterCustomRenderer(IMermaidBlockRenderer renderer)
+    {
+        if (!_customRenderers.Contains(renderer))
+        {
+            _customRenderers.Add(renderer);
+        }
+    }
+
     /// <summary>
     /// Generates a Mermaid diagram representation of the dataflow graph.
     /// This can be used in documentation, rendered on GitHub, or used with Mermaid tools.
     /// </summary>
     /// <param name="graph">The dataflow graph to export</param>
     /// <param name="direction">The direction of the flowchart (LR, RL, TB, BT)</param>
+    /// <param name="serviceProvider">Optional service provider for rendering route details</param>
     /// <returns>Mermaid diagram as a string</returns>
-    public static string ToMermaidDiagram(this DataFlowGraph graph, string direction = "LR")
+    public static string ToMermaidDiagram(this DataFlowGraph graph, string direction = "LR", IServiceProvider? serviceProvider = null)
     {
         var sb = new StringBuilder();
         sb.AppendLine($"flowchart {direction}");
@@ -34,8 +57,22 @@ public static class DataFlowGraphExporter
         // Add edges
         foreach (var connection in graph.Connections)
         {
-            var dataTypeLabel = connection.DataType?.Name ?? "data";
+            var dataTypeLabel = SanitizeTypeLabel(connection.DataType?.Name ?? "data");
             sb.AppendLine($"    {SanitizeId(connection.SourceBlockName)} -->|{dataTypeLabel}| {SanitizeId(connection.TargetBlockName)}");
+        }
+
+        // Apply custom renderers for blocks that need special rendering
+        foreach (var block in graph.BlockDefinitions.Values)
+        {
+            foreach (var renderer in _customRenderers)
+            {
+                if (renderer.CanRender(block))
+                {
+                    sb.AppendLine();
+                    renderer.RenderCustomContent(sb, block, direction, serviceProvider);
+                    break; // Only apply the first matching renderer
+                }
+            }
         }
 
         return sb.ToString();
@@ -135,6 +172,13 @@ public static class DataFlowGraphExporter
     {
         // Replace invalid characters for Mermaid IDs
         return id.Replace("-", "_").Replace(" ", "_");
+    }
+
+    private static string SanitizeTypeLabel(string typeLabel)
+    {
+        // Replace square brackets which are not valid in Mermaid edge labels
+        // Convert array notation from T[] to T Array
+        return typeLabel.Replace("[]", " Array").Replace("[", "").Replace("]", "");
     }
 }
 

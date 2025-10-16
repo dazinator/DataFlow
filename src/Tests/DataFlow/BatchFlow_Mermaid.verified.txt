@@ -6,4 +6,4 @@
     processor["processor<br/>Int32[] →"]
 
     source -->|Int32| batcher
-    batcher -->|Int32[]| processor
+    batcher -->|Int32 Array| processor

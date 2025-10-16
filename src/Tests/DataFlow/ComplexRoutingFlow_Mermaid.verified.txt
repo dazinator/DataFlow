@@ -1,0 +1,36 @@
+﻿flowchart LR
+    %% DataFlow: ComplexRoutingFlow
+
+    data_source(["data-source<br/>→ Int32"])
+    enricher[/"enricher<br/>Int32 → String"/]
+    router["router<br/>String →"]
+
+    data_source -->|Int32| enricher
+    enricher -->|String| router
+
+    %% Routes for 'router':
+    subgraph router_route_TypeA ["Route: TypeA"]
+        direction LR
+        processor[/"[ENTRY] processor<br/>String → String"/]
+        record_writer["record-writer<br/>String →"]
+
+        processor -->|String| record_writer
+    end
+
+    router -.->|String<br/>'TypeA'| router_route_TypeA
+    subgraph router_route_TypeB ["Route: TypeB"]
+        direction LR
+        batcher[/"[ENTRY] batcher<br/>String → String[]"/]
+        aggregation_writer["aggregation-writer<br/>String[] →"]
+
+        batcher -->|String Array| aggregation_writer
+    end
+
+    router -.->|String<br/>'TypeB'| router_route_TypeB
+    subgraph router_route_TypeC ["Route: TypeC"]
+        direction LR
+        category_writer["[ENTRY] category-writer<br/>String →"]
+
+    end
+
+    router -.->|String<br/>'TypeC'| router_route_TypeC

@@ -241,4 +241,87 @@ public class DataFlowGraphExporterTests
         // Assert - use snapshot testing
         return Verify(textDiagram).UseFileName("BroadcastFlow_Text");
     }
+
+    [Fact]
+    public Task Should_GenerateMermaidDiagram_WithRoutingBlock()
+    {
+        // Arrange
+        var builder = new StructuredDataFlowBuilder(_serviceProvider, "RoutingFlow");
+        var items = new[] { 1, 2, 3, 4, 5, 6 };
+
+        // Build a routing flow similar to the issue example
+        builder.AddProducer("source", sp => new TestProducer<int>(items));
+        
+        builder.AddRouter<int>("router", item => item % 2 == 0 ? "even" : "odd")
+            .RegisterRoute("even", context =>
+            {
+                var routeBuilder = context.RouteBuilder;
+                routeBuilder.AddProcessor("even-processor", sp => new TestProcessor<int>())
+                    .AsEntry();
+                return routeBuilder.Build();
+            })
+            .RegisterRoute("odd", context =>
+            {
+                var routeBuilder = context.RouteBuilder;
+                routeBuilder.AddProcessor("odd-processor", sp => new TestProcessor<int>())
+                    .AsEntry();
+                return routeBuilder.Build();
+            })
+            .ReceiveFrom("source");
+
+        // Act - pass service provider to render route details
+        var mermaid = builder.Graph.ToMermaidDiagram(serviceProvider: _serviceProvider);
+
+        // Assert - use snapshot testing
+        return Verify(mermaid).UseFileName("RoutingFlow_Mermaid");
+    }
+
+    [Fact]
+    public Task Should_GenerateMermaidDiagram_WithComplexRoutingBlock()
+    {
+        // Arrange
+        var builder = new StructuredDataFlowBuilder(_serviceProvider, "ComplexRoutingFlow");
+        var items = new[] { 1, 2, 3, 4, 5, 6 };
+
+        builder.AddProducer("data-source", sp => new TestProducer<int>(items));
+        
+        builder.AddTransform("enricher", sp => new NumberTransformer("item"))
+            .ReceiveFrom("data-source");
+        
+        builder.AddRouter<string>("router", item => 
+        {
+            var num = int.Parse(item.Replace("item", ""));
+            return num % 3 == 0 ? "TypeA" : (num % 3 == 1 ? "TypeB" : "TypeC");
+        })
+            .RegisterRoute("TypeA", context =>
+            {
+                var routeBuilder = context.RouteBuilder;
+                routeBuilder.AddTransform("processor", sp => new PassthroughTransformer<string>())
+                    .AsEntry()
+                    .AddProcessor("record-writer", sp => new TestProcessor<string>());
+                return routeBuilder.Build();
+            })
+            .RegisterRoute("TypeB", context =>
+            {
+                var routeBuilder = context.RouteBuilder;
+                routeBuilder.AddBatch<string>("batcher", maxBatchSize: 2, windowPeriod: TimeSpan.FromSeconds(1))
+                    .AsEntry()
+                    .AddProcessor("aggregation-writer", sp => new TestProcessor<string[]>());
+                return routeBuilder.Build();
+            })
+            .RegisterRoute("TypeC", context =>
+            {
+                var routeBuilder = context.RouteBuilder;
+                routeBuilder.AddProcessor("category-writer", sp => new TestProcessor<string>())
+                    .AsEntry();
+                return routeBuilder.Build();
+            })
+            .ReceiveFrom("enricher");
+
+        // Act - pass service provider to render route details
+        var mermaid = builder.Graph.ToMermaidDiagram(serviceProvider: _serviceProvider);
+
+        // Assert - use snapshot testing
+        return Verify(mermaid).UseFileName("ComplexRoutingFlow_Mermaid");
+    }
 }

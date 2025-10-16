@@ -11,3 +11,5 @@
     broadcast -->|Int32| validator
     broadcast -->|Int32| archiver
     broadcast -->|Int32| notifier
+
+    %% 'broadcast' broadcasts to multiple targets
