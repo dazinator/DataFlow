@@ -3,8 +3,8 @@
 flowchart LR
     %% DataFlow: DirectionTestFlow
 
-    source(["source<br/>→ Int32"])
-    processor["processor<br/>Int32 →"]
+    source(["source"])
+    processor["processor"]
 
     source -->|Int32| processor
 ,
@@ -12,8 +12,8 @@ flowchart LR
 flowchart TB
     %% DataFlow: DirectionTestFlow
 
-    source(["source<br/>→ Int32"])
-    processor["processor<br/>Int32 →"]
+    source(["source"])
+    processor["processor"]
 
     source -->|Int32| processor
 ,
@@ -21,8 +21,8 @@ flowchart TB
 flowchart RL
     %% DataFlow: DirectionTestFlow
 
-    source(["source<br/>→ Int32"])
-    processor["processor<br/>Int32 →"]
+    source(["source"])
+    processor["processor"]
 
     source -->|Int32| processor
 ,
@@ -30,8 +30,8 @@ flowchart RL
 flowchart BT
     %% DataFlow: DirectionTestFlow
 
-    source(["source<br/>→ Int32"])
-    processor["processor<br/>Int32 →"]
+    source(["source"])
+    processor["processor"]
 
     source -->|Int32| processor
 

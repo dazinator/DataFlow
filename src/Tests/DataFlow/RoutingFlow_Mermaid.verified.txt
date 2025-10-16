@@ -1,8 +1,8 @@
 ﻿flowchart LR
     %% DataFlow: RoutingFlow
 
-    source(["source<br/>→ Int32"])
-    router["router<br/>Int32 →"]
+    source(["source"])
+    router["router"]
 
     source -->|Int32| router
 

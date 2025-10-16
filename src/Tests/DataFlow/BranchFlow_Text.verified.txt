@@ -1,0 +1,23 @@
+﻿DataFlow: BranchTextFlow
+Blocks: 4
+Connections: 3
+
+Block Definitions:
+  - source
+      Type: ProducerBlock`1
+      Output: Int32
+  - fanout
+      Type: BroadcastBlock`1
+      Input: Int32
+      Output: Int32
+  - processor-0
+      Type: ProcessorBlock`1
+      Input: Int32
+  - processor-1
+      Type: ProcessorBlock`1
+      Input: Int32
+
+Connections:
+  source --(Int32)--> fanout
+  fanout --(Int32)--> processor-0
+  fanout --(Int32)--> processor-1

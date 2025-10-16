@@ -1,9 +1,9 @@
 ﻿flowchart LR
     %% DataFlow: BatchFlow
 
-    source(["source<br/>→ Int32"])
-    batcher[/"batcher<br/>Int32 → Int32[]"/]
-    processor["processor<br/>Int32[] →"]
+    source(["source"])
+    batcher[/"batcher"/]
+    processor["processor"]
 
     source -->|Int32| batcher
     batcher -->|Int32 Array| processor

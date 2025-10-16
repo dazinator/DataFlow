@@ -13,6 +13,8 @@ public class StructuredDataFlowBuilder : IDataFlowBuilder, IStructuredDataFlowBu
 {
     private readonly DataFlowGraph _graph;
     private string? _lastSourceBlockName;
+    private readonly Dictionary<string, IBranchBuilder> _branches = new();
+    private int _branchCounter = 0;
 
     public StructuredDataFlowBuilder(IServiceProvider serviceProvider, string name)
     {
@@ -83,6 +85,57 @@ public class StructuredDataFlowBuilder : IDataFlowBuilder, IStructuredDataFlowBu
     /// Gets the last source block name for positional chaining.
     /// </summary>
     public string? GetLastSourceBlockName() => _lastSourceBlockName;
+
+    /// <summary>
+    /// Adds a branch to the dataflow.
+    /// A branch allows building independent sub-flows that share the same graph
+    /// but maintain separate "last block" state for chaining.
+    /// </summary>
+    /// <param name="branchName">Optional unique name for the branch. If not specified, auto-generates name based on flow name, current block, and index.</param>
+    /// <param name="startFromBlock">Optional block name to start the branch from. If not specified, uses current last source block.</param>
+    /// <returns>A branch builder for building the branch</returns>
+    public IBranchBuilder AddBranch(string? branchName = null, string? startFromBlock = null)
+    {
+        // Auto-generate branch name if not provided
+        if (string.IsNullOrEmpty(branchName))
+        {
+            var currentBlock = startFromBlock ?? _lastSourceBlockName ?? "root";
+            branchName = $"{_graph.Name}-{currentBlock}-branch-{_branchCounter}";
+            _branchCounter++;
+        }
+        
+        if (_branches.ContainsKey(branchName))
+        {
+            throw new ArgumentException($"Branch with name '{branchName}' already exists", nameof(branchName));
+        }
+
+        // Capture the current block that this branch is created from
+        var branchStartBlock = startFromBlock ?? _lastSourceBlockName;
+        var branch = new BranchBuilder(this, branchName, branchStartBlock, _branchCounter - 1);
+        _branches[branchName] = branch;
+        
+        return branch;
+    }
+
+    /// <summary>
+    /// Gets a previously created branch by name.
+    /// </summary>
+    /// <param name="branchName">Name of the branch to retrieve</param>
+    /// <returns>The branch builder</returns>
+    public IBranchBuilder GetBranch(string branchName)
+    {
+        if (!_branches.TryGetValue(branchName, out var branch))
+        {
+            throw new InvalidOperationException($"Branch '{branchName}' not found");
+        }
+
+        return branch;
+    }
+
+    /// <summary>
+    /// Gets all branches that have been created.
+    /// </summary>
+    public IReadOnlyDictionary<string, IBranchBuilder> GetBranches() => _branches;
 
     /// <summary>
     /// Builds the dataflow by instantiating all blocks and wiring them according to the graph.

@@ -1,0 +1,16 @@
+﻿[
+  {
+    Name: fanout
+  },
+  {
+    Name: processor-0,
+    BranchName: branch-0
+  },
+  {
+    Name: processor-1,
+    BranchName: branch-1
+  },
+  {
+    Name: source
+  }
+]

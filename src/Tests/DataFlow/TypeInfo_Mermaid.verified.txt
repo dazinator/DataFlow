@@ -1,9 +1,9 @@
 ﻿flowchart LR
     %% DataFlow: TypeInfoFlow
 
-    source(["source<br/>→ Int32"])
-    transform[/"transform<br/>Int32 → String"/]
-    processor["processor<br/>String →"]
+    source(["source"])
+    transform[/"transform"/]
+    processor["processor"]
 
     source -->|Int32| transform
     transform -->|String| processor

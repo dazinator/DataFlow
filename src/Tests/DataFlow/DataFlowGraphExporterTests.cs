@@ -335,4 +335,153 @@ public class DataFlowGraphExporterTests
         // Assert - use snapshot testing
         return Verify(mermaid).UseFileName("ComplexRoutingFlow_Mermaid");
     }
+
+    #region Branch Diagram Tests
+
+    [Fact]
+    public Task Should_GenerateMermaidDiagram_WithBranches_NotCollapsed()
+    {
+        // Arrange
+        var builder = new StructuredDataFlowBuilder(_serviceProvider, "BranchFlow");
+        var items = new[] { 1, 2, 3 };
+
+        builder.AddProducer("source", sp => new TestProducer<int>(items));
+        builder.AddBroadcast<int>("fanout").ReceiveFrom("source");
+
+        // Add 3 branches
+        for (int i = 0; i < 3; i++)
+        {
+            var branch = builder.AddBranch($"branch-{i}");
+            branch.AddProcessor<int>($"processor-{i}", sp => new TestProcessor<int>())
+                .ReceiveFrom("fanout");
+        }
+
+        // Act - Render without collapse
+        var mermaid = builder.Graph.ToMermaidDiagram(options: new DiagramRenderOptions 
+        { 
+            CollapseConcurrentBranches = false 
+        });
+
+        // Assert - use snapshot testing
+        return Verify(mermaid).UseFileName("BranchFlow_NotCollapsed_Mermaid");
+    }
+
+    [Fact]
+    public Task Should_GenerateMermaidDiagram_WithBranches_Collapsed()
+    {
+        // Arrange
+        var builder = new StructuredDataFlowBuilder(_serviceProvider, "BranchFlowCollapsed");
+        var items = new[] { 1, 2, 3 };
+
+        builder.AddProducer("source", sp => new TestProducer<int>(items));
+        builder.AddBroadcast<int>("fanout").ReceiveFrom("source");
+
+        // Add 10 branches - exceeds threshold
+        for (int i = 0; i < 10; i++)
+        {
+            var branch = builder.AddBranch($"branch-{i}");
+            branch.AddProcessor<int>($"processor-{i}", sp => new TestProcessor<int>())
+                .ReceiveFrom("fanout");
+        }
+
+        // Act - Render with collapse enabled (threshold = 5)
+        var mermaid = builder.Graph.ToMermaidDiagram(options: new DiagramRenderOptions 
+        { 
+            CollapseConcurrentBranches = true,
+            MaxBranchesToShowIndividually = 5
+        });
+
+        // Assert - use snapshot testing - shows collapsed notation [×10]
+        return Verify(mermaid).UseFileName("BranchFlow_Collapsed_Mermaid");
+    }
+
+    [Fact]
+    public Task Should_GenerateMermaidDiagram_WithComplexBranches()
+    {
+        // Arrange
+        var builder = new StructuredDataFlowBuilder(_serviceProvider, "ComplexBranchFlow");
+        var items = new[] { 1, 2, 3 };
+
+        builder.AddProducer("source", sp => new TestProducer<int>(items));
+        builder.AddBroadcast<int>("fanout").ReceiveFrom("source");
+
+        // Add 3 branches with multi-stage pipelines
+        for (int i = 0; i < 3; i++)
+        {
+            var branch = builder.AddBranch($"branch-{i}");
+            branch.AddTransform<int, string>($"transform-{i}", 
+                sp => new NumberTransformer($"Item"))
+                .ReceiveFrom("fanout");
+            branch.AddProcessor<string>($"processor-{i}", 
+                sp => new TestProcessor<string>())
+                .ReceiveFrom($"transform-{i}");
+        }
+
+        // Act - Render without collapse
+        var mermaid = builder.Graph.ToMermaidDiagram(options: new DiagramRenderOptions 
+        { 
+            CollapseConcurrentBranches = false 
+        });
+
+        // Assert - use snapshot testing - shows all branch blocks with metadata
+        return Verify(mermaid).UseFileName("ComplexBranchFlow_Mermaid");
+    }
+
+    [Fact]
+    public Task Should_GenerateTextDiagram_WithBranches()
+    {
+        // Arrange
+        var builder = new StructuredDataFlowBuilder(_serviceProvider, "BranchTextFlow");
+        var items = new[] { 1, 2, 3 };
+
+        builder.AddProducer("source", sp => new TestProducer<int>(items));
+        builder.AddBroadcast<int>("fanout").ReceiveFrom("source");
+
+        for (int i = 0; i < 2; i++)
+        {
+            var branch = builder.AddBranch($"branch-{i}");
+            branch.AddProcessor<int>($"processor-{i}", sp => new TestProcessor<int>())
+                .ReceiveFrom("fanout");
+        }
+
+        // Act
+        var textDiagram = builder.Graph.ToTextDiagram();
+
+        // Assert - use snapshot testing
+        return Verify(textDiagram).UseFileName("BranchFlow_Text");
+    }
+
+    [Fact]
+    public Task Should_ShowBranchMetadata_InBlockDefinitions()
+    {
+        // Arrange
+        var builder = new StructuredDataFlowBuilder(_serviceProvider, "BranchMetadataFlow");
+        var items = new[] { 1, 2, 3 };
+
+        builder.AddProducer("source", sp => new TestProducer<int>(items));
+        builder.AddBroadcast<int>("fanout").ReceiveFrom("source");
+
+        // Add branches
+        for (int i = 0; i < 2; i++)
+        {
+            var branch = builder.AddBranch($"branch-{i}");
+            branch.AddProcessor<int>($"processor-{i}", sp => new TestProcessor<int>())
+                .ReceiveFrom("fanout");
+        }
+
+        // Act - Check that blocks have branch metadata
+        var blockMetadata = builder.Graph.BlockDefinitions.Values
+            .Select(b => new 
+            {
+                Name = b.Name,
+                BranchName = b.Metadata.ContainsKey("BranchName") ? b.Metadata["BranchName"] : null
+            })
+            .OrderBy(b => b.Name)
+            .ToList();
+
+        // Assert - use snapshot testing to show metadata
+        return Verify(blockMetadata).UseFileName("BranchMetadata");
+    }
+
+    #endregion
 }

@@ -1,0 +1,16 @@
+﻿flowchart LR
+    %% DataFlow: BranchFlowCollapsed
+
+    source(["source"])
+    fanout[/"fanout"/]
+    subgraph branch_collapsed_10 ["..10"]
+        direction LR
+        processor_0["processor-0"]
+    end
+
+    source -->|Int32| fanout
+    fanout -->|Int32| processor_0
+
+    %% Note: 10 concurrent branches collapsed
+
+    %% 'fanout' broadcasts to multiple targets

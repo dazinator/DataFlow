@@ -1,0 +1,31 @@
+﻿flowchart LR
+    %% DataFlow: ComplexBranchFlow
+
+    source(["source"])
+    fanout[/"fanout"/]
+
+    subgraph branch_branch_0 ["Branch: branch-0"]
+        direction LR
+        transform_0[/"transform-0"/]
+        processor_0["processor-0"]
+    end
+    subgraph branch_branch_1 ["Branch: branch-1"]
+        direction LR
+        transform_1[/"transform-1"/]
+        processor_1["processor-1"]
+    end
+    subgraph branch_branch_2 ["Branch: branch-2"]
+        direction LR
+        transform_2[/"transform-2"/]
+        processor_2["processor-2"]
+    end
+
+    source -->|Int32| fanout
+    fanout -->|Int32| transform_0
+    transform_0 -->|String| processor_0
+    fanout -->|Int32| transform_1
+    transform_1 -->|String| processor_1
+    fanout -->|Int32| transform_2
+    transform_2 -->|String| processor_2
+
+    %% 'fanout' broadcasts to multiple targets

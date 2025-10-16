@@ -1,7 +1,7 @@
 ﻿flowchart LR
     %% DataFlow: SimpleFlow
 
-    source(["source<br/>→ Int32"])
-    processor["processor<br/>Int32 →"]
+    source(["source"])
+    processor["processor"]
 
     source -->|Int32| processor

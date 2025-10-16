@@ -1,0 +1,25 @@
+﻿flowchart LR
+    %% DataFlow: BranchFlow
+
+    source(["source"])
+    fanout[/"fanout"/]
+
+    subgraph branch_branch_0 ["Branch: branch-0"]
+        direction LR
+        processor_0["processor-0"]
+    end
+    subgraph branch_branch_1 ["Branch: branch-1"]
+        direction LR
+        processor_1["processor-1"]
+    end
+    subgraph branch_branch_2 ["Branch: branch-2"]
+        direction LR
+        processor_2["processor-2"]
+    end
+
+    source -->|Int32| fanout
+    fanout -->|Int32| processor_0
+    fanout -->|Int32| processor_1
+    fanout -->|Int32| processor_2
+
+    %% 'fanout' broadcasts to multiple targets

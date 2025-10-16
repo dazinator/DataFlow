@@ -1,9 +1,9 @@
 ﻿flowchart LR
     %% DataFlow: ComplexRoutingFlow
 
-    data_source(["data-source<br/>→ Int32"])
-    enricher[/"enricher<br/>Int32 → String"/]
-    router["router<br/>String →"]
+    data_source(["data-source"])
+    enricher[/"enricher"/]
+    router["router"]
 
     data_source -->|Int32| enricher
     enricher -->|String| router
