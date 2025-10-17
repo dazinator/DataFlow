@@ -26,8 +26,7 @@ public class RoutingBlockTests
 
     }
 
-    [Theory]
-    public void AddDefaultServices(IServiceCollection services)
+    private void AddDefaultServices(IServiceCollection services)
     {
         Services.AddLogging(builder => builder.AddXUnit(Output));
         services.AddDataFlows();

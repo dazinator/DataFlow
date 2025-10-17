@@ -95,7 +95,18 @@ public class DataFlow : IDataFlow
                 // Signal cancellation to all blocks if any block fails
                 errorCts.Cancel();
 
-                flowActivity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+                if (flowActivity is not null)
+                {
+                    flowActivity.SetStatus(ActivityStatusCode.Error, ex.Message);
+                    flowActivity.SetTag("error.type", ex.GetType().FullName);
+                    
+                    // Mark as cancelled if this is an OperationCanceledException
+                    if (ex is OperationCanceledException)
+                    {
+                        flowActivity.SetTag("cancelled", "true");
+                    }
+                }
+                
                 throw;
             }
             finally
@@ -152,7 +163,20 @@ public class DataFlow : IDataFlow
         catch (Exception ex)
         {
             errorCts.Cancel(); // Signal cancellation flow-wide
-            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+            
+            // Add semantic convention tags for exception type and cancellation context
+            if (activity is not null)
+            {
+                activity.SetStatus(ActivityStatusCode.Error, ex.Message);
+                activity.SetTag("error.type", ex.GetType().FullName);
+                
+                // Mark as cancelled if this is an OperationCanceledException
+                if (ex is OperationCanceledException)
+                {
+                    activity.SetTag("cancelled", "true");
+                }
+            }
+            
             throw;
         }
         finally
