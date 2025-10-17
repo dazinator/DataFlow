@@ -20,7 +20,7 @@ public class TestProducer<T> : IStreamProducer<T>
     public async IAsyncEnumerable<T> ProduceAsync(IDataFlowContext context,
         [EnumeratorCancellation] CancellationToken cancellation)
     {
-        if(_delay is null)
+        if (_delay is null)
         {
             foreach (var item in _items)
             {
@@ -39,8 +39,8 @@ public class TestProducer<T> : IStreamProducer<T>
                 yield return item;
             }
         }
-       
+
     }
 
-  
+
 }

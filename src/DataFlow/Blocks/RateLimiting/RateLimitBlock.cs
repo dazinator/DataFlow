@@ -15,7 +15,7 @@ public class RateLimitBlock<T> : BlockBase, IPropagatorBlock<T, T>, IDisposable
 {
     private readonly RateLimiter _rateLimiter;
     private readonly MonitoredChannel<T> _outputChannel;
-   // private readonly Timer? _statisticsTimer;
+    // private readonly Timer? _statisticsTimer;
     private ISourceBlock<T>? _source;
 
     public RateLimitBlock(
@@ -127,7 +127,7 @@ public class RateLimitBlock<T> : BlockBase, IPropagatorBlock<T, T>, IDisposable
 
     public void Dispose()
     {
-       // _statisticsTimer?.Dispose();
+        // _statisticsTimer?.Dispose();
         _rateLimiter?.Dispose();
     }
 }

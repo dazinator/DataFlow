@@ -82,7 +82,7 @@ public class BroadcastBlock<T> : BlockBase, ITargetBlock<T>, ISourceBlock<T>
     public IAsyncEnumerable<T> GetAsyncEnumerable(ITargetBlock<T> target, CancellationToken cancellationToken)
     {
         BroadcastTarget<T> broadcastTarget;
-        
+
         lock (_connectionLock)
         {
             if (!_connectedTargets.TryGetValue(target, out broadcastTarget!))
@@ -99,13 +99,13 @@ public class BroadcastBlock<T> : BlockBase, ITargetBlock<T>, ISourceBlock<T>
                 };
 
                 var channel = Channel.CreateBounded<T>(channelOptions);
-                
+
                 var targetName = target.Name ?? $"Target-{_connectedTargets.Count + 1}";
-                
+
                 // Determine the clone function for this target
                 // 1. If a specific clone function was configured for this target, use it
                 // 2. Otherwise, use the default clone function
-                Func<T, T>? cloneFunc = _defaultCloneFunc;
+                var cloneFunc = _defaultCloneFunc;
                 if (_targetCloneFuncs.TryGetValue(targetName, out var targetSpecificClone))
                 {
                     cloneFunc = targetSpecificClone;

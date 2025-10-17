@@ -1,11 +1,11 @@
 namespace Uniun.DataFlow.Blocks.Routing;
-using System.Threading.Tasks;
 using System;
-using Uniun.DataFlow.Blocks.InputChannel;
+using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Uniun.DataFlow;
 using Uniun.DataFlow.Blocks;
+using Uniun.DataFlow.Blocks.InputChannel;
 
 /// <summary>
 /// Simplified route info that doesn't handle expiration or complex disposal scenarios.

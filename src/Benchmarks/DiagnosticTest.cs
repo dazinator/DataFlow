@@ -3,10 +3,10 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
-using Uniun.DataFlow.Builder;
 using Microsoft.Extensions.Logging;
-using Tests.DataFlow.Utils.Producers;
 using Tests.DataFlow.Utils.Processors;
+using Tests.DataFlow.Utils.Producers;
+using Uniun.DataFlow.Builder;
 
 public static class DiagnosticTest
 {
@@ -43,7 +43,8 @@ public static class DiagnosticTest
         // Build a very simple pipeline
         var builder = new DataFlowBuilder(serviceProvider);
         builder.AddProducer<int>("source", sp => new TestProducer<int>(items, onItemProduced: null, delay: TimeSpan.FromMilliseconds(100)))
-               .AddProcessor<int>("processor", sp => new TestProcessor<int>(item => {
+               .AddProcessor<int>("processor", sp => new TestProcessor<int>(item =>
+               {
                    var processed = Interlocked.Increment(ref count);
                    Console.WriteLine($"Processed item {item} ({processed}/{ItemCount})");
 
@@ -132,8 +133,8 @@ public static class DiagnosticTest
         Console.WriteLine("===============================================");
         Console.WriteLine("Diagnostic Test Complete");
         Console.WriteLine("===============================================");
-    } 
+    }
 
-   
+
 }
 

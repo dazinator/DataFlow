@@ -1,16 +1,16 @@
 namespace Uniun.DataFlow.Blocks.Routing;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Channels;
-using Uniun.DataFlow.Blocks.InputChannel;
+using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Uniun.DataFlow;
 using Uniun.DataFlow.Blocks;
+using Uniun.DataFlow.Blocks.InputChannel;
 
 /// <summary>
 /// A simplified routing block that creates routes dynamically but keeps them for the lifetime of the block.
@@ -85,7 +85,7 @@ public class PersistentRoutingBlock<T> : BlockBase, ITargetBlock<T>
             {
                 // Log cleanup errors but don't throw them
                 _logger.LogError(cleanupEx, "Error during cleanup");
-            }       
+            }
         }
     }
 
@@ -202,7 +202,7 @@ public class PersistentRoutingBlock<T> : BlockBase, ITargetBlock<T>
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error completing route: {routingKey}", route.Context.RoutingKey);
-              
+
             }
         }
 

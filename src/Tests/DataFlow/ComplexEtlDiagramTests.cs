@@ -30,12 +30,12 @@ public class ComplexEtlDiagramTests
         services.AddLogging(builder => builder.AddProvider(NullLoggerProvider.Instance));
         services.AddDataFlowMetrics();
         services.AddDataFlows();
-        
+
         // Register required dependencies for the dataflow
         services.AddSingleton<ConcurrentBag<ComplexEtlDataFlow.ProcessedRecord>>();
         services.AddSingleton<ConcurrentBag<ComplexEtlDataFlow.AggregatedBatch>>();
         services.AddSingleton<ConcurrentDictionary<string, ConcurrentBag<ComplexEtlDataFlow.EnrichedRecord>>>();
-        
+
         var serviceProvider = services.BuildServiceProvider();
 
         // Act - Build the dataflow
@@ -121,7 +121,7 @@ See `src/Benchmarks/Shared/ComplexEtlDataFlow.cs` for the complete implementatio
             }
             currentDir = Directory.GetParent(currentDir)?.FullName;
         }
-        
+
         // Fallback - assume we're in the Tests directory
         return Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "..", "..", ".."));
     }

@@ -1,4 +1,4 @@
-﻿namespace Uniun.DataFlow.Blocks.BatchBlock;
+namespace Uniun.DataFlow.Blocks.BatchBlock;
 using System;
 using Uniun.DataFlow.Blocks;
 

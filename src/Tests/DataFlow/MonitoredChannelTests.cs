@@ -13,13 +13,11 @@ using Uniun.DataFlow.Metrics;
 
 public class MonitoredChannelTests
 {
-    private readonly ITestOutputHelper _testOutputHelper;
-
     public MonitoredChannelTests(ITestOutputHelper testOutputHelper)
     {
-        _testOutputHelper = testOutputHelper;
+        Output = testOutputHelper;
         Services = new ServiceCollection();
-        AddDefaultServices();       
+        AddDefaultServices();
     }
 
     private void AddDefaultServices()
@@ -35,7 +33,7 @@ public class MonitoredChannelTests
     public async Task Should_Capture_ChannelBufferUtilisation()
     {
         // Arrange
-        Guid invocationId = Guid.NewGuid();
+        var invocationId = Guid.NewGuid();
         var testContext = new TestDataFlowContext()
         {
             InvocationId = invocationId,
@@ -168,7 +166,7 @@ public class MonitoredChannelTests
 
     public IServiceCollection Services { get; set; }
 
-    public ITestOutputHelper Output => _testOutputHelper;
+    public ITestOutputHelper Output { get; }
 
     private IServiceProvider CreateServiceProvider()
     {

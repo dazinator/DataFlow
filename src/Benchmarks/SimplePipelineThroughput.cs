@@ -1,14 +1,13 @@
 namespace Benchmarks;
-using Uniun.DataFlow.Builder;
-
+using System;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks.Dataflow;
-using System;
 using BenchmarkDotNet.Attributes;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Uniun.DataFlow.Blocks.InputChannel;
+using Uniun.DataFlow.Builder;
 
 [MemoryDiagnoser]  // Track memory allocations
 [ThreadingDiagnoser]  // Track threading information
@@ -16,7 +15,7 @@ public class SimplePipelineBenchmarks
 {
     private const int ItemCount = 10_000;
     private readonly int[] _items;
-    private ServiceProvider _serviceProvider;
+    private readonly ServiceProvider _serviceProvider;
 
     public SimplePipelineBenchmarks()
     {

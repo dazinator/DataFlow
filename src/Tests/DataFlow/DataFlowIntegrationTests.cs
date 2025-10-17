@@ -30,14 +30,14 @@ public class DataFlowIntegrationTests
     {
         _testOutputHelper = testOutputHelper;
         Services = new ServiceCollection();
-        AddDefaultServices(Services);        
+        AddDefaultServices(Services);
     }
 
     private void AddDefaultServices(IServiceCollection services)
     {
         //services.AddScoped(typeof(FlowExecutor<>));
         Services.AddLogging(a => a.AddXUnit(_testOutputHelper));
-        services.AddDataFlows((o)=> o.MaxConcurrentFlows = 2);
+        services.AddDataFlows((o) => o.MaxConcurrentFlows = 2);
         Services.AddDataFlowMetrics();
     }
 
@@ -184,7 +184,7 @@ public class DataFlowIntegrationTests
             var options = new BlockOptions
             {
                 MaxConcurrency = 4,
-                Capacity = 10,                
+                Capacity = 10,
             };
 
             builder

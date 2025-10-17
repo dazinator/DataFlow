@@ -26,7 +26,7 @@ public interface IBranchBuilder : IStructuredDataFlowBuilder
     /// Gets the last source block in this branch for chaining.
     /// </summary>
     string? LastSourceBlockInBranch { get; }
-    
+
     /// <summary>
     /// Gets the parent block where this branch was created from (captured at creation time).
     /// </summary>

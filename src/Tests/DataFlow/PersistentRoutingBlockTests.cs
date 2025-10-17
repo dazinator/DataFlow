@@ -23,6 +23,7 @@ public class PersistentRoutingBlockTests
         AddDefaultServices(Services);
     }
 
+    [Theory]
     public void AddDefaultServices(IServiceCollection services)
     {
         Services.AddLogging(builder => builder.AddXUnit(Output));
@@ -688,7 +689,7 @@ public class StressTestProducer : IStreamProducer<TestItem>
     public async IAsyncEnumerable<TestItem> ProduceAsync(IDataFlowContext context,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellation)
     {
-        for (int i = 0; i < _totalItems; i++)
+        for (var i = 0; i < _totalItems; i++)
         {
             if (cancellation.IsCancellationRequested)
             {

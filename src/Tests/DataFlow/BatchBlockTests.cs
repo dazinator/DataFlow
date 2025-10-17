@@ -20,9 +20,10 @@ public class BatchBlockTests
 
     }
 
+    [Theory]
     public void AddDefaultServices(IServiceCollection services)
     {
-        Services.AddLogging(builder => builder.AddXUnit(Output));       
+        Services.AddLogging(builder => builder.AddXUnit(Output));
         Services.AddDataFlowMetrics();
         Services.AddDataFlows();
     }
@@ -92,8 +93,8 @@ public class BatchBlockTests
                 items,
                 delay: TimeSpan.FromMilliseconds(10)))
             .AddBatch<string>("batcher",
-                maxBatchSize: 5, 
-                windowPeriod: TimeSpan.FromMilliseconds(400)) 
+                maxBatchSize: 5,
+                windowPeriod: TimeSpan.FromMilliseconds(400))
             .ReceiveFrom("source")
             .AddProcessor<string[], TestProcessor<string[]>>("processor", sp => new TestProcessor<string[]>(
                 onProcessItem: batch => processedBatches.Add(batch)))
@@ -313,13 +314,13 @@ public class BatchBlockTests
         // Assert
         // Should have exactly 3 batches (15 items / 5 per batch)
         Assert.Equal(3, processedBatches.Count);
-        
+
         // All batches should be full size
         Assert.All(processedBatches, batch => Assert.Equal(5, batch.Length));
-        
+
         // All batches should be emitted quickly (within ~500ms), not spread over multiple seconds
         // This proves we're not emitting unnecessary timer-based batches
-        Assert.True(totalDuration < TimeSpan.FromMilliseconds(1000), 
+        Assert.True(totalDuration < TimeSpan.FromMilliseconds(1000),
             $"Total duration {totalDuration.TotalMilliseconds}ms should be < 1000ms when batches emit by size");
     }
 
@@ -353,13 +354,13 @@ public class BatchBlockTests
         var flow = builder.Build();
         var context = CreateContext("test", Guid.NewGuid(), sp);
         await flow.ExecuteAsync(context);
-        
+
         Output.WriteLine($"Final batch count: {processedBatches.Count}");
         foreach (var batch in processedBatches)
         {
             Output.WriteLine($"  Batch: {batch.Length} items - [{string.Join(", ", batch)}]");
         }
-        
+
         // Assert
         // Should have 2 batches: one full (5 items), one partial (2 items) flushed on completion
         Assert.Equal(2, processedBatches.Count);

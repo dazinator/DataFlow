@@ -11,7 +11,7 @@ public static class AsyncEnumerableExtensions
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         await foreach (var item in source.WithCancellation(cancellationToken).ConfigureAwait(false))
-        {           
+        {
             yield return item;
             onItem();
         }

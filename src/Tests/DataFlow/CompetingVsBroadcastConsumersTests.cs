@@ -81,16 +81,16 @@ public class CompetingVsBroadcastConsumersTests
         // Assert
         _output.WriteLine("Competing Consumers Pattern (Old MaxConcurrency):");
         _output.WriteLine($"Total items processed: {processedItems.Count}");
-        
+
         // Each item should be processed by exactly ONE actor (competing consumers)
         processedItems.Count.ShouldBe(10, "Each item should be processed by exactly ONE actor");
-        
+
         // With MaxConcurrency=3, up to 3 actors can process items (competing consumers)
         var actorIds = processedItems.Select(x => x.actorId).Distinct().ToArray();
         _output.WriteLine($"Number of actors that processed items: {actorIds.Length}");
         actorIds.Length.ShouldBeGreaterThanOrEqualTo(1, "At least one actor should process items");
         actorIds.Length.ShouldBeLessThanOrEqualTo(3, "No more than MaxConcurrency actors should be used");
-        
+
         // Each original item should appear exactly once
         var originalItems = processedItems.Select(x => x.originalItem).OrderBy(x => x).ToArray();
         originalItems.ShouldBe(items, "Each item should appear exactly once");
@@ -119,11 +119,11 @@ public class CompetingVsBroadcastConsumersTests
             .ReceiveFrom("source");
 
         // Create 3 branches - each will receive ALL items
-        for (int i = 0; i < 3; i++)
+        for (var i = 0; i < 3; i++)
         {
             var branchId = i;
             var branch = builder.AddBranch($"branch-{i}");
-            
+
             branch.AddTransform<int, string>($"transform-{i}",
                 sp => new BranchTrackingTransformer(branchId, processedItems))
                 .ReceiveFrom("fanout");
@@ -142,12 +142,12 @@ public class CompetingVsBroadcastConsumersTests
         // Assert
         _output.WriteLine("Broadcast Consumers Pattern (New Branch Approach):");
         _output.WriteLine($"Total items processed: {processedItems.Count}");
-        
+
         // Each item should be processed by ALL branches (broadcast semantics)
         processedItems.Count.ShouldBe(30, "Each of 3 branches should process all 10 items");
-        
+
         // Each branch should process all items
-        for (int branchId = 0; branchId < 3; branchId++)
+        for (var branchId = 0; branchId < 3; branchId++)
         {
             var branchItems = processedItems.Where(x => x.branchId == branchId).Select(x => x.originalItem).OrderBy(x => x).ToArray();
             branchItems.ShouldBe(items, $"Branch {branchId} should receive all items");

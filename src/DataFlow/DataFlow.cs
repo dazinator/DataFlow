@@ -136,13 +136,13 @@ public class DataFlow : IDataFlow
             }
             activity.AddTag(ActivityNames.TagNames.BlockName, block.Name);
             activity.DisplayName = $"{ActivityNames.Block} {{BlockName}}";
-           
+
         }
         else
         {
             stopwatch = Stopwatch.StartNew(); //we need to resort to stopwatch for time metric as activity source is not available
         }
-      
+
         try
         {
             await block.ExecuteAsync(context);

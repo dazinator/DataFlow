@@ -2,12 +2,12 @@ namespace Benchmarks;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Threading.Tasks.Dataflow;
 using BenchmarkDotNet.Attributes;
 using Microsoft.Extensions.DependencyInjection;
-using System.Threading.Tasks.Dataflow;
-using Uniun.DataFlow.Builder;
 using Microsoft.Extensions.Logging;
 using Uniun.DataFlow.Blocks.InputChannel;
+using Uniun.DataFlow.Builder;
 
 /// <summary>
 /// A minimal benchmark to identify potential hanging issues
@@ -16,7 +16,7 @@ public partial class MinimalBenchmark
 {
     private const int ItemCount = 100; // Using a small number for quick testing
     private readonly int[] _items;
-    private ServiceProvider _serviceProvider;
+    private readonly ServiceProvider _serviceProvider;
 
     public MinimalBenchmark()
     {
@@ -57,7 +57,7 @@ public partial class MinimalBenchmark
                 Console.WriteLine("TPL complete");
                 tcs.SetResult(true);
             }
-        }, new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = 1, BoundedCapacity = 100}); // to match Uniun DataFlow.
+        }, new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = 1, BoundedCapacity = 100 }); // to match Uniun DataFlow.
 
         producer.LinkTo(processor, new DataflowLinkOptions { PropagateCompletion = true });
 
@@ -142,6 +142,6 @@ public partial class MinimalBenchmark
         Console.WriteLine("Uniun benchmark complete");
     }
 
-   
+
 }
 

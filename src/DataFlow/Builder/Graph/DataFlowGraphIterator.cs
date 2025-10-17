@@ -52,7 +52,7 @@ public class DataFlowGraphIterator
         }
 
         visited.Add(block.Name);
-        
+
         // Add this block to result BEFORE visiting children (pre-order traversal)
         // This ensures dependencies come before dependents in the result
         result.Add(block);

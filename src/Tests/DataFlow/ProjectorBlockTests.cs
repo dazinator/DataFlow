@@ -16,7 +16,7 @@ public class ProjectorBlockTests
     {
         _testOutputHelper = testOutputHelper;
         AddDefaultServices();
-       
+
     }
 
     private void AddDefaultServices()

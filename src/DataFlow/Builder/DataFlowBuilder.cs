@@ -22,7 +22,7 @@ public class DataFlowBuilder : IDataFlowBuilder
     {
         var blocks = State.Blocks.Values.ToList();
         var metrics = State.ServiceProvider.GetRequiredService<IDataFlowMetrics>();
-        return new DataFlow(Name, blocks, metrics);       
+        return new DataFlow(Name, blocks, metrics);
     }
 }
 

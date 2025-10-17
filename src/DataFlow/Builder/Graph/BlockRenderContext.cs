@@ -35,7 +35,7 @@ internal class BlockRenderContext : IBlockRenderContext
     {
         // Don't add indentation if content is empty
         var fullContent = string.IsNullOrEmpty(content) ? "" : Indentation + content;
-        
+
         // Allow interceptor to modify or augment the content
         if (_interceptor != null)
         {

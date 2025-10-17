@@ -40,8 +40,8 @@ public static class DataFlowGraphExporter
     /// <param name="options">Optional rendering options to control diagram appearance</param>
     /// <returns>Mermaid diagram as a string</returns>
     public static string ToMermaidDiagram(
-        this DataFlowGraph graph, 
-        string direction = "LR", 
+        this DataFlowGraph graph,
+        string direction = "LR",
         IServiceProvider? serviceProvider = null,
         DiagramRenderOptions? options = null)
     {
@@ -75,7 +75,7 @@ public static class DataFlowGraphExporter
         {
             // Determine which branches to collapse
             var branchFamilies = GroupBranchesBySource(branchGroups, graph);
-            
+
             foreach (var (sourceBlock, branches) in branchFamilies)
             {
                 if (options.CollapseConcurrentBranches && branches.Count > options.MaxBranchesToShowIndividually)
@@ -83,9 +83,9 @@ public static class DataFlowGraphExporter
                     // Collapse these branches
                     var exampleBranch = branches[0];
                     var exampleBlocks = branchGroups[exampleBranch];
-                    
+
                     RenderCollapsedBranches(rootContext, options, branches, exampleBlocks, collapsedBranchInfo);
-                    
+
                     // Track that these branches are collapsed (don't render individual connections)
                     foreach (var branchName in branches)
                     {
@@ -139,8 +139,8 @@ public static class DataFlowGraphExporter
                 // Skip this connection - we'll render it to the collapsed representation instead
                 continue;
             }
-            
-            if (renderedBlocks.Contains(connection.SourceBlockName) && 
+
+            if (renderedBlocks.Contains(connection.SourceBlockName) &&
                 renderedBlocks.Contains(connection.TargetBlockName))
             {
                 // Normal connection between rendered blocks
@@ -200,7 +200,10 @@ public static class DataFlowGraphExporter
         foreach (var branchName in branchGroups.Keys)
         {
             var branchBlocks = branchGroups[branchName];
-            if (branchBlocks.Count == 0) continue;
+            if (branchBlocks.Count == 0)
+            {
+                continue;
+            }
 
             // Find the source block this branch connects to
             var firstBlock = branchBlocks[0];
@@ -231,8 +234,8 @@ public static class DataFlowGraphExporter
         HashSet<string> renderedBlocks)
     {
         // Add empty line before first branch if rendering as subgraphs
-        bool firstBranch = true;
-        
+        var firstBranch = true;
+
         foreach (var branchName in branches)
         {
             var branchBlocks = branchGroups[branchName];
@@ -245,7 +248,7 @@ public static class DataFlowGraphExporter
                     context.AppendLine("");
                     firstBranch = false;
                 }
-                
+
                 // Render as subgraph
                 var subgraphId = SanitizeId($"branch_{branchName}");
                 context.AppendLine($"subgraph {subgraphId} [\"Branch: {branchName}\"]");
@@ -300,10 +303,10 @@ public static class DataFlowGraphExporter
             foreach (var block in exampleBlocks)
             {
                 var collapsedName = block.Name.Replace(exampleBranch, $"concurrent-x{count}");
-                var shape = GetBlockShape(block);
+                var (Open, Close) = GetBlockShape(block);
                 var label = GetBlockLabel(block);
-                nestedContext.AppendLine($"{SanitizeId(collapsedName)}{shape.Open}\"{label}\"{shape.Close}");
-                
+                nestedContext.AppendLine($"{SanitizeId(collapsedName)}{Open}\"{label}\"{Close}");
+
                 // Track collapsed block info - use the FIRST block name from the example branch
                 // The key is the block name without branch identifier
                 var blockKey = block.Name;
@@ -321,10 +324,10 @@ public static class DataFlowGraphExporter
             foreach (var block in exampleBlocks)
             {
                 var collapsedName = block.Name.Replace(exampleBranch, $"concurrent-x{count}");
-                var shape = GetBlockShape(block);
+                var (Open, Close) = GetBlockShape(block);
                 var label = GetBlockLabel(block) + $"<br/>[×{count}]";
-                context.AppendLine($"{SanitizeId(collapsedName)}{shape.Open}\"{label}\"{shape.Close}");
-                
+                context.AppendLine($"{SanitizeId(collapsedName)}{Open}\"{label}\"{Close}");
+
                 // Track collapsed block info
                 var blockKey = block.Name;
                 if (!collapsedBranchInfo.ContainsKey(blockKey))
@@ -340,9 +343,9 @@ public static class DataFlowGraphExporter
     /// </summary>
     private static void RenderBlockNode(IBlockRenderContext context, BlockDefinition block)
     {
-        var shape = GetBlockShape(block);
+        var (Open, Close) = GetBlockShape(block);
         var label = GetBlockLabel(block);
-        context.AppendLine($"{SanitizeId(block.Name)}{shape.Open}\"{label}\"{shape.Close}");
+        context.AppendLine($"{SanitizeId(block.Name)}{Open}\"{label}\"{Close}");
     }
 
 
@@ -363,9 +366,14 @@ public static class DataFlowGraphExporter
             sb.AppendLine($"  - {block.Name}");
             sb.AppendLine($"      Type: {block.BlockType.Name}");
             if (block.InputType != null)
+            {
                 sb.AppendLine($"      Input: {block.InputType.Name}");
+            }
+
             if (block.OutputType != null)
+            {
                 sb.AppendLine($"      Output: {block.OutputType.Name}");
+            }
         }
 
         sb.AppendLine();
@@ -401,15 +409,21 @@ public static class DataFlowGraphExporter
     {
         // Source blocks (no input)
         if (block.InputType == null && block.OutputType != null)
+        {
             return ("([", "])");  // Stadium shape for sources
+        }
 
         // Target blocks (no output)
         if (block.InputType != null && block.OutputType == null)
+        {
             return ("[", "]");    // Rectangle for targets
+        }
 
         // Propagator blocks (both input and output)
         if (block.InputType != null && block.OutputType != null)
+        {
             return ("[/", "/]");  // Parallelogram for transforms/propagators
+        }
 
         // Unknown
         return ("{", "}");         // Rhombus for unknown

@@ -26,6 +26,7 @@ public class RoutingBlockTests
 
     }
 
+    [Theory]
     public void AddDefaultServices(IServiceCollection services)
     {
         Services.AddLogging(builder => builder.AddXUnit(Output));
@@ -333,7 +334,6 @@ public class ScopedProcessor : IScopedProcessor
     private readonly List<int> _processedItems = new();
     private readonly string _instanceId = Guid.NewGuid().ToString();
     private readonly ScopeTracker _tracker;
-    private bool _disposed;
 
     public ScopedProcessor(ScopeTracker tracker)
     {
@@ -343,20 +343,23 @@ public class ScopedProcessor : IScopedProcessor
 
     public void ProcessItem(int item, string routeKey)
     {
-        if (_disposed)
+        if (WasDisposed)
+        {
             throw new ObjectDisposedException(_instanceId);
+        }
+
         _processedItems.Add(item);
         _tracker.TrackProcessing(_instanceId, routeKey, this);
     }
 
-    public bool WasDisposed => _disposed;
+    public bool WasDisposed { get; private set; }
     public IReadOnlyList<int> ProcessedItems => _processedItems;
 
     public void Dispose()
     {
-        if (!_disposed)
+        if (!WasDisposed)
         {
-            _disposed = true;
+            WasDisposed = true;
             _tracker.TrackDisposal(_instanceId);
         }
     }

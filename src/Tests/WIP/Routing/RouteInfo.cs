@@ -69,7 +69,7 @@ public class RouteInfo<T> : IAsyncDisposable
     {
         try
         {
-            ChannelBlock.Complete();           
+            ChannelBlock.Complete();
         }
         catch (Exception ex)
         {
@@ -112,8 +112,8 @@ public class RouteInfo<T> : IAsyncDisposable
                     await RouteExecuting.ExecutingTask.WaitAsync(TimeSpan.FromSeconds(20));
 
                     // After execution completes, add a buffer delay to ensure all operations finish
-                  //  _logger.LogDebug("Route execution completed, waiting buffer period: {routingKey}", Context.RoutingKey);
-                   // await Task.Delay(TimeSpan.FromSeconds(2));
+                    //  _logger.LogDebug("Route execution completed, waiting buffer period: {routingKey}", Context.RoutingKey);
+                    // await Task.Delay(TimeSpan.FromSeconds(2));
                 }
                 catch (TimeoutException)
                 {

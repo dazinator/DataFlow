@@ -57,7 +57,7 @@ public class InlineTransformBlock<TIn, TOut> : BlockBase, IPropagatorBlock<TIn, 
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         EnsureSource();
-        
+
         // THIS IS WHERE ALL THE WORK HAPPENS - inline with downstream consumption
         // Pull from upstream and transform on-the-fly without any buffering
         await foreach (var item in _source!.GetAsyncEnumerable(this, cancellationToken))
@@ -72,7 +72,7 @@ public class InlineTransformBlock<TIn, TOut> : BlockBase, IPropagatorBlock<TIn, 
     {
         EnsureSource();
         _executionContext = context;
-        
+
         // ExecuteAsync completes immediately for inline execution.
         // All transformation work happens inline during GetAsyncEnumerable() enumeration
         // by the downstream block. The dataflow completes when the downstream target block

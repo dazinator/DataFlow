@@ -5,16 +5,14 @@ using Uniun.DataFlow.Blocks;
 
 public class TargetBlockBuilder<T> : ITargetBlockBuilder<T>
 {
-    private readonly DataFlowBuilderState _state;
-
     public TargetBlockBuilder(DataFlowBuilderState state, ITargetBlock<T> currentBlock)
     {
-        _state = state;
+        State = state;
         Current = currentBlock;
         CurrentBuilder = this;
     }
 
-    public DataFlowBuilderState State => _state;
+    public DataFlowBuilderState State { get; }
 
     public ITargetBlockBuilder<T> CurrentBuilder { get; set; }
 
@@ -22,7 +20,7 @@ public class TargetBlockBuilder<T> : ITargetBlockBuilder<T>
 
     public ISourceBlock<T>? LastBlock
     {
-        get => _state.LastSourceBlock as ISourceBlock<T>;
-        set => _state.LastSourceBlock = value;
+        get => State.LastSourceBlock as ISourceBlock<T>;
+        set => State.LastSourceBlock = value;
     }
 }

@@ -11,7 +11,6 @@ using Uniun.DataFlow.Blocks;
 /// </summary>
 public class StructuredDataFlowBuilder : IDataFlowBuilder, IStructuredDataFlowBuilder
 {
-    private readonly DataFlowGraph _graph;
     private string? _lastSourceBlockName;
     private readonly Dictionary<string, IBranchBuilder> _branches = new();
     private int _branchCounter = 0;
@@ -19,7 +18,7 @@ public class StructuredDataFlowBuilder : IDataFlowBuilder, IStructuredDataFlowBu
     public StructuredDataFlowBuilder(IServiceProvider serviceProvider, string name)
     {
         State = new DataFlowBuilderState(serviceProvider);
-        _graph = new DataFlowGraph(name);
+        Graph = new DataFlowGraph(name);
     }
 
     public DataFlowBuilderState State { get; }
@@ -30,13 +29,13 @@ public class StructuredDataFlowBuilder : IDataFlowBuilder, IStructuredDataFlowBu
     /// Gets the graph representation of the dataflow.
     /// This can be used to inspect the structure before building.
     /// </summary>
-    public DataFlowGraph Graph => _graph;
+    public DataFlowGraph Graph { get; }
 
     /// <summary>
     /// Adds a block definition to the graph without instantiating it yet.
     /// </summary>
     public void AddBlockDefinition<TBlock>(
-        string name, 
+        string name,
         Func<IServiceProvider, TBlock> factory,
         Type? inputType = null,
         Type? outputType = null,
@@ -52,15 +51,15 @@ public class StructuredDataFlowBuilder : IDataFlowBuilder, IStructuredDataFlowBu
             Metadata = metadata ?? new Dictionary<string, object>()
         };
 
-        _graph.AddBlockDefinition(blockDefinition);
+        Graph.AddBlockDefinition(blockDefinition);
     }
 
     /// <summary>
     /// Adds a connection between two blocks in the graph.
     /// </summary>
     public void AddConnection(
-        string sourceBlockName, 
-        string targetBlockName, 
+        string sourceBlockName,
+        string targetBlockName,
         Type? dataType = null,
         Dictionary<string, object>? metadata = null)
     {
@@ -70,7 +69,7 @@ public class StructuredDataFlowBuilder : IDataFlowBuilder, IStructuredDataFlowBu
             Metadata = metadata ?? new Dictionary<string, object>()
         };
 
-        _graph.AddConnection(connection);
+        Graph.AddConnection(connection);
     }
 
     /// <summary>
@@ -100,10 +99,10 @@ public class StructuredDataFlowBuilder : IDataFlowBuilder, IStructuredDataFlowBu
         if (string.IsNullOrEmpty(branchName))
         {
             var currentBlock = startFromBlock ?? _lastSourceBlockName ?? "root";
-            branchName = $"{_graph.Name}-{currentBlock}-branch-{_branchCounter}";
+            branchName = $"{Graph.Name}-{currentBlock}-branch-{_branchCounter}";
             _branchCounter++;
         }
-        
+
         if (_branches.ContainsKey(branchName))
         {
             throw new ArgumentException($"Branch with name '{branchName}' already exists", nameof(branchName));
@@ -113,7 +112,7 @@ public class StructuredDataFlowBuilder : IDataFlowBuilder, IStructuredDataFlowBu
         var branchStartBlock = startFromBlock ?? _lastSourceBlockName;
         var branch = new BranchBuilder(this, branchName, branchStartBlock, _branchCounter - 1);
         _branches[branchName] = branch;
-        
+
         return branch;
     }
 
@@ -148,11 +147,11 @@ public class StructuredDataFlowBuilder : IDataFlowBuilder, IStructuredDataFlowBu
         var logger = loggerFactory?.CreateLogger(typeof(DataFlowGraph).FullName ?? "DataFlowGraph");
 
         // Validate the graph before building
-        _graph.Validate(logger);
+        Graph.Validate(logger);
 
         // Instantiate all blocks
         var blocks = new Dictionary<string, IBlock>();
-        foreach (var definition in _graph.BlockDefinitions.Values)
+        foreach (var definition in Graph.BlockDefinitions.Values)
         {
             var block = definition.Factory(ServiceProvider);
             blocks[definition.Name] = block;
@@ -160,7 +159,7 @@ public class StructuredDataFlowBuilder : IDataFlowBuilder, IStructuredDataFlowBu
         }
 
         // Wire up connections
-        foreach (var connection in _graph.Connections)
+        foreach (var connection in Graph.Connections)
         {
             var sourceBlock = blocks[connection.SourceBlockName];
             var targetBlock = blocks[connection.TargetBlockName];
@@ -180,6 +179,6 @@ public class StructuredDataFlowBuilder : IDataFlowBuilder, IStructuredDataFlowBu
 
         // Create and return the dataflow
         var metrics = ServiceProvider.GetRequiredService<Uniun.DataFlow.Metrics.IDataFlowMetrics>();
-        return new DataFlow(_graph.Name, blocks.Values.ToList(), metrics);
+        return new DataFlow(Graph.Name, blocks.Values.ToList(), metrics);
     }
 }

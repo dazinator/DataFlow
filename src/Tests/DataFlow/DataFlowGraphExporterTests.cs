@@ -19,7 +19,7 @@ public class DataFlowGraphExporterTests
     public DataFlowGraphExporterTests(ITestOutputHelper testOutputHelper)
     {
         _testOutputHelper = testOutputHelper;
-        
+
         var services = new ServiceCollection();
         services.AddLogging(builder => builder.AddXUnit(_testOutputHelper));
         services.AddDataFlows();
@@ -199,7 +199,7 @@ public class DataFlowGraphExporterTests
 
         // Create a broadcast flow with multiple targets
         builder.AddProducer("source", sp => new TestProducer<int>(items));
-        
+
         builder.AddBroadcast<int>("broadcast", null)
             .WithTarget("validator", null)
             .WithTarget("archiver", x => x)
@@ -207,10 +207,10 @@ public class DataFlowGraphExporterTests
 
         builder.AddProcessor("validator", sp => new TestProcessor<int>())
             .ReceiveFrom("broadcast");
-        
+
         builder.AddProcessor("archiver", sp => new TestProcessor<int>())
             .ReceiveFrom("broadcast");
-        
+
         builder.AddProcessor("notifier", sp => new TestProcessor<int>())
             .ReceiveFrom("broadcast");
 
@@ -231,16 +231,16 @@ public class DataFlowGraphExporterTests
 
         // Create a broadcast flow with multiple targets
         builder.AddProducer("source", sp => new TestProducer<int>(items));
-        
+
         builder.AddBroadcast<int>("broadcast", null)
             .ReceiveFrom("source");
 
         builder.AddProcessor("validator", sp => new TestProcessor<int>())
             .ReceiveFrom("broadcast");
-        
+
         builder.AddProcessor("archiver", sp => new TestProcessor<int>())
             .ReceiveFrom("broadcast");
-        
+
         builder.AddProcessor("notifier", sp => new TestProcessor<int>())
             .ReceiveFrom("broadcast");
 
@@ -261,7 +261,7 @@ public class DataFlowGraphExporterTests
 
         // Build a routing flow similar to the issue example
         builder.AddProducer("source", sp => new TestProducer<int>(items));
-        
+
         builder.AddRouter<int>("router", item => item % 2 == 0 ? "even" : "odd")
             .RegisterRoute("even", context =>
             {
@@ -295,11 +295,11 @@ public class DataFlowGraphExporterTests
         var items = new[] { 1, 2, 3, 4, 5, 6 };
 
         builder.AddProducer("data-source", sp => new TestProducer<int>(items));
-        
+
         builder.AddTransform("enricher", sp => new NumberTransformer("item"))
             .ReceiveFrom("data-source");
-        
-        builder.AddRouter<string>("router", item => 
+
+        builder.AddRouter<string>("router", item =>
         {
             var num = int.Parse(item.Replace("item", ""));
             return num % 3 == 0 ? "TypeA" : (num % 3 == 1 ? "TypeB" : "TypeC");
@@ -349,7 +349,7 @@ public class DataFlowGraphExporterTests
         builder.AddBroadcast<int>("fanout").ReceiveFrom("source");
 
         // Add 3 branches
-        for (int i = 0; i < 3; i++)
+        for (var i = 0; i < 3; i++)
         {
             var branch = builder.AddBranch($"branch-{i}");
             branch.AddProcessor<int>($"processor-{i}", sp => new TestProcessor<int>())
@@ -357,9 +357,9 @@ public class DataFlowGraphExporterTests
         }
 
         // Act - Render without collapse
-        var mermaid = builder.Graph.ToMermaidDiagram(options: new DiagramRenderOptions 
-        { 
-            CollapseConcurrentBranches = false 
+        var mermaid = builder.Graph.ToMermaidDiagram(options: new DiagramRenderOptions
+        {
+            CollapseConcurrentBranches = false
         });
 
         // Assert - use snapshot testing
@@ -377,7 +377,7 @@ public class DataFlowGraphExporterTests
         builder.AddBroadcast<int>("fanout").ReceiveFrom("source");
 
         // Add 10 branches - exceeds threshold
-        for (int i = 0; i < 10; i++)
+        for (var i = 0; i < 10; i++)
         {
             var branch = builder.AddBranch($"branch-{i}");
             branch.AddProcessor<int>($"processor-{i}", sp => new TestProcessor<int>())
@@ -385,8 +385,8 @@ public class DataFlowGraphExporterTests
         }
 
         // Act - Render with collapse enabled (threshold = 5)
-        var mermaid = builder.Graph.ToMermaidDiagram(options: new DiagramRenderOptions 
-        { 
+        var mermaid = builder.Graph.ToMermaidDiagram(options: new DiagramRenderOptions
+        {
             CollapseConcurrentBranches = true,
             MaxBranchesToShowIndividually = 5
         });
@@ -406,21 +406,21 @@ public class DataFlowGraphExporterTests
         builder.AddBroadcast<int>("fanout").ReceiveFrom("source");
 
         // Add 3 branches with multi-stage pipelines
-        for (int i = 0; i < 3; i++)
+        for (var i = 0; i < 3; i++)
         {
             var branch = builder.AddBranch($"branch-{i}");
-            branch.AddTransform<int, string>($"transform-{i}", 
+            branch.AddTransform<int, string>($"transform-{i}",
                 sp => new NumberTransformer($"Item"))
                 .ReceiveFrom("fanout");
-            branch.AddProcessor<string>($"processor-{i}", 
+            branch.AddProcessor<string>($"processor-{i}",
                 sp => new TestProcessor<string>())
                 .ReceiveFrom($"transform-{i}");
         }
 
         // Act - Render without collapse
-        var mermaid = builder.Graph.ToMermaidDiagram(options: new DiagramRenderOptions 
-        { 
-            CollapseConcurrentBranches = false 
+        var mermaid = builder.Graph.ToMermaidDiagram(options: new DiagramRenderOptions
+        {
+            CollapseConcurrentBranches = false
         });
 
         // Assert - use snapshot testing - shows all branch blocks with metadata
@@ -437,7 +437,7 @@ public class DataFlowGraphExporterTests
         builder.AddProducer("source", sp => new TestProducer<int>(items));
         builder.AddBroadcast<int>("fanout").ReceiveFrom("source");
 
-        for (int i = 0; i < 2; i++)
+        for (var i = 0; i < 2; i++)
         {
             var branch = builder.AddBranch($"branch-{i}");
             branch.AddProcessor<int>($"processor-{i}", sp => new TestProcessor<int>())
@@ -462,7 +462,7 @@ public class DataFlowGraphExporterTests
         builder.AddBroadcast<int>("fanout").ReceiveFrom("source");
 
         // Add branches
-        for (int i = 0; i < 2; i++)
+        for (var i = 0; i < 2; i++)
         {
             var branch = builder.AddBranch($"branch-{i}");
             branch.AddProcessor<int>($"processor-{i}", sp => new TestProcessor<int>())
@@ -471,9 +471,9 @@ public class DataFlowGraphExporterTests
 
         // Act - Check that blocks have branch metadata
         var blockMetadata = builder.Graph.BlockDefinitions.Values
-            .Select(b => new 
+            .Select(b => new
             {
-                Name = b.Name,
+                b.Name,
                 BranchName = b.Metadata.ContainsKey("BranchName") ? b.Metadata["BranchName"] : null
             })
             .OrderBy(b => b.Name)
@@ -493,29 +493,29 @@ public class DataFlowGraphExporterTests
 
         // Root source
         builder.AddProducer("source", sp => new TestProducer<int>(items));
-        
+
         // First branch family: Split from source via broadcast
         builder.AddBroadcast<int>("fanout1").ReceiveFrom("source");
-        
+
         // Branch family 1 - Branch A: Simple processor
         var branchA = builder.AddBranch("family1-branchA");
         branchA.AddProcessor<int>("processor-A", sp => new TestProcessor<int>())
             .ReceiveFrom("fanout1");
-        
+
         // Branch family 1 - Branch B: Has a nested broadcast creating another branch family
         var branchB = builder.AddBranch("family1-branchB");
         branchB.AddTransform<int, string>("transform-B", sp => new NumberTransformer("Item"))
             .ReceiveFrom("fanout1");
-        
+
         // Second branch family: Nested within branchB - broadcast from transform-B
         branchB.AddBroadcast<string>("fanout2")
             .ReceiveFrom("transform-B");
-        
+
         // Branch family 2 - Branch B1: First sub-branch
         var branchB1 = builder.AddBranch("family2-branchB1");
         branchB1.AddProcessor<string>("processor-B1", sp => new TestProcessor<string>())
             .ReceiveFrom("fanout2");
-        
+
         // Branch family 2 - Branch B2: Second sub-branch
         var branchB2 = builder.AddBranch("family2-branchB2");
         branchB2.AddProcessor<string>("processor-B2", sp => new TestProcessor<string>())

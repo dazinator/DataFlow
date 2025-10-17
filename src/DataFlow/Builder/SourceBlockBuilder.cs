@@ -5,16 +5,14 @@ using Uniun.DataFlow.Blocks;
 
 public class SourceBlockBuilder<T> : ISourceBlockBuilder<T>
 {
-    private readonly DataFlowBuilderState _state;
-
     public SourceBlockBuilder(DataFlowBuilderState state, ISourceBlock<T> currentBlock)
     {
-        _state = state;
+        State = state;
         Current = currentBlock;
         CurrentBuilder = this;
     }
 
-    public DataFlowBuilderState State => _state;
+    public DataFlowBuilderState State { get; }
     public ISourceBlockBuilder<T> CurrentBuilder { get; set; }
     public ISourceBlock<T> Current { get; }
 }

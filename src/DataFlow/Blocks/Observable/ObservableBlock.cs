@@ -20,7 +20,7 @@ public class ObservableBlock<T> : BlockBase, ITargetBlock<T>
     {
         _observer = observer;
 
-    }  
+    }
 
     public void SetSource(ISourceBlock<T> source)
     {
@@ -36,7 +36,7 @@ public class ObservableBlock<T> : BlockBase, ITargetBlock<T>
     }
 
     protected override async Task CoreExecuteAsync(IDataFlowContext context)
-    {      
+    {
 
         try
         {

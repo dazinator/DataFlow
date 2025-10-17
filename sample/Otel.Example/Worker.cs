@@ -43,8 +43,8 @@ public class Worker : BackgroundService
             }
             catch (Exception e)
             {
-                _logger.LogError(e, "Error occurred while executing the flow.");                
-            }           
+                _logger.LogError(e, "Error occurred while executing the flow.");
+            }
         }
     }
 }

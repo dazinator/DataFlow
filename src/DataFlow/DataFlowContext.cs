@@ -15,7 +15,7 @@ public class DataFlowContext : IDataFlowContext
         set => _current.Value = value;
     }
 
-    public DataFlowContext():this(Guid.NewGuid())
+    public DataFlowContext() : this(Guid.NewGuid())
     {
 
     }
@@ -34,13 +34,13 @@ public class DataFlowContext : IDataFlowContext
     /// <summary>
     /// Items that can be used to pass additional data between blocks in the flow. Stuff stored here could be accessed concurrently by multiple blocks, so use with care.
     /// </summary>
-    public ConcurrentDictionary<string,object> Items { get; set; } = new ConcurrentDictionary<string, object>();  
+    public ConcurrentDictionary<string, object> Items { get; set; } = new ConcurrentDictionary<string, object>();
 }
 
 
 public class DataFlowContext<T> : DataFlowContext
 {
-    public T? InputParamaters { get; }  
+    public T? InputParamaters { get; }
 
     public static new DataFlowContext<T>? Current
     {

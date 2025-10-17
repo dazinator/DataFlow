@@ -13,7 +13,7 @@ public class NumberTransformer : IStreamTransformer<int, string>
     {
         _prefix = prefix;
         _onTransform = onTransform;
-    }   
+    }
 
     public async IAsyncEnumerable<string> TransformAsync(IDataFlowContext context, IAsyncEnumerable<int> input, CancellationToken cancellationToken)
     {

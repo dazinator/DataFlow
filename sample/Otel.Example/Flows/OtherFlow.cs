@@ -25,8 +25,9 @@ internal class OtherFlowConfig : IDataFlowConfiguration
 
             // .AddBatch<string>("batcher", maxBatchSize: 3, windowPeriod: TimeSpan.FromSeconds(10))           
             .AddProcessor<string[], TestProcessor<string[]>>("processor", sp => new TestProcessor<string[]>(
-                onProcessItem: batch => { 
-                // do nothing
+                onProcessItem: batch =>
+                {
+                    // do nothing
 
                 }))
             .ReceiveFrom("batcher");
@@ -72,7 +73,7 @@ internal class OtherFlowConfig : IDataFlowConfiguration
         }
     }
 
-   
+
 
 }
 

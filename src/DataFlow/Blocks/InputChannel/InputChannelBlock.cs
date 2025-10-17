@@ -20,8 +20,8 @@ public class InputChannelBlock<T> : BlockBase, ISourceBlock<T>
     {
         _outputChannel = channelFactory.CreateMonitoredChannel<T>(name, options?.Capacity);
         _logger = logger;
-    }  
-   
+    }
+
     /// <summary>
     /// Downstream blocks obtain the reader to read items from this blocks output channel.
     /// </summary>
@@ -46,7 +46,7 @@ public class InputChannelBlock<T> : BlockBase, ISourceBlock<T>
     public virtual async ValueTask WriteAsync(T item, CancellationToken cancellationToken = default)
     {
         await Writer.WriteAsync(item, cancellationToken);
-        RecordOperation();       
+        RecordOperation();
     }
 
     /// <summary>
@@ -74,7 +74,7 @@ public class InputChannelBlock<T> : BlockBase, ISourceBlock<T>
         // using var monitoredChannel = this.CreateMonitoredChannel(_channelOptions.Capacity, context, _channel);
         //  context.CreateMonitoredChannel(this.Name, _channel, Options.MaxConcurrency, _channelOptions.Capacity);
         // Just wait for completion since external code writes to the channel
-        
+
         // If Complete() has already been called before CoreExecuteAsync() starts, just return immediately
         // Use lock to prevent race condition with Complete()
         lock (_completionLock)
@@ -86,8 +86,8 @@ public class InputChannelBlock<T> : BlockBase, ISourceBlock<T>
             // Create a new TaskCompletionSource for this execution
             _writerCompletionSource = new TaskCompletionSource();
         }
-        
+
         using var monitoringLease = _outputChannel.StartMonitoring(context);
         await _writerCompletionSource.Task; // wait for the external code to signal completion that it has finished writing.  
-    }   
+    }
 }

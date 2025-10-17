@@ -6,7 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 #pragma warning restore IDE0130 // Namespace does not match folder structure
 using Uniun.DataFlow.Blocks.InputChannel;
 public static class DataFlowBuilderExtensions
-{ 
+{
     /// <summary>
     /// Adds an input channel block.
     /// </summary>   
@@ -28,7 +28,7 @@ public static class DataFlowBuilderExtensions
        string name,
        BlockOptions options
    )
-    {            
+    {
         //  configureOptions?.Invoke(options);
         var block = ActivatorUtilities.CreateInstance<InputChannelBlock<T>>(builder.ServiceProvider, name, options);
         return builder.AddSourceBlock(name, block);

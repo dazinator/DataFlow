@@ -19,7 +19,7 @@ public static class TransformExtensions
         {
             options.TransformerFactory = (sp) => ActivatorUtilities.CreateInstance<TTransformer>(sp);
             configureOptions?.Invoke(options);
-        });       
+        });
     }
 
     public static IPropagatingBlockBuilder<TIn, TOut> AddTransform<TIn, TOut>(
@@ -33,7 +33,7 @@ public static class TransformExtensions
         {
             options.TransformerFactory = factory;
             configureOptions?.Invoke(options);
-        });       
+        });
     }
 
 

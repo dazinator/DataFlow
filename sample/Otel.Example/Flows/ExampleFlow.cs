@@ -71,7 +71,7 @@ internal class ExampleFlowConfig : IDataFlowConfiguration
                 yield return item;
             }
         }
-    }   
+    }
 
 }
 

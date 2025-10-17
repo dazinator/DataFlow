@@ -35,10 +35,10 @@ public class MonitoredChannelFactory : IBoundedChannelFactory
         //var dimensions = context.Dimensions ??
         //    new ReadOnlyDictionary<string, string>(new Dictionary<string, string>());        
 
-        return new MonitoredChannel<T>(          
+        return new MonitoredChannel<T>(
             _metrics,
             channel,
-            blockName,            
+            blockName,
             // new ReadOnlyDictionary<string, string>(dimensions),
             options.Capacity
         );

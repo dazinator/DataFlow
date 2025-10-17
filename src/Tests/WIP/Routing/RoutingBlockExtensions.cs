@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 using Uniun.DataFlow.Blocks.Routing;
 
 public static class RoutingBlockExtensions
-{   
+{
 
     /// <summary>
     /// Adds a router that routes items based on a key selector. You provide a method to lazily build the sub data flow for a routing key. The route / sub data flow is disposed after a period of inactivity as specified by the options.
@@ -32,7 +32,7 @@ public static class RoutingBlockExtensions
             options.RoutingKeySelector = routingKeySelector;
             options.RouteResolver = routeResolver;
             configureOptions?.Invoke(options);
-        });           
+        });
     }
 
     /// <summary>

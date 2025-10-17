@@ -27,9 +27,9 @@ public static class ProducerExtensions
     {
         return AddProducer<TOutput>(builder, name, (options) =>
         {
-           
+
             options.ProducersFactory = async (context, ct) => new[]
-            {              
+            {
                 ActivatorUtilities.CreateInstance<TProducer>(context.ServiceProvider)
             };
             configureOptions?.Invoke(options);
@@ -57,7 +57,7 @@ public static class ProducerExtensions
         return AddProducer<TOutput>(builder, name, (options) =>
         {
             options.ProducersFactory = async (context, ct) =>
-            {              
+            {
                 var producer = ActivatorUtilities.CreateInstance<TProducer>(context.ServiceProvider, args);
                 return new[] { producer };
             };

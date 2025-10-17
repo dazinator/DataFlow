@@ -9,7 +9,6 @@ using Uniun.DataFlow.Blocks;
 /// </summary>
 public class BranchBuilder : IBranchBuilder
 {
-    private string? _lastSourceBlockInBranch;
     private readonly string? _parentBlockAtCreation;
 
     public BranchBuilder(IStructuredDataFlowBuilder parentBuilder, string branchName, string? initialSourceBlock = null, int? branchIndex = null)
@@ -18,7 +17,7 @@ public class BranchBuilder : IBranchBuilder
         BranchName = branchName;
         BranchIndex = branchIndex;
         _parentBlockAtCreation = initialSourceBlock;
-        _lastSourceBlockInBranch = initialSourceBlock ?? parentBuilder.GetLastSourceBlockName();
+        LastSourceBlockInBranch = initialSourceBlock ?? parentBuilder.GetLastSourceBlockName();
     }
 
     public string BranchName { get; }
@@ -27,8 +26,8 @@ public class BranchBuilder : IBranchBuilder
 
     public IStructuredDataFlowBuilder ParentBuilder { get; }
 
-    public string? LastSourceBlockInBranch => _lastSourceBlockInBranch;
-    
+    public string? LastSourceBlockInBranch { get; private set; }
+
     public string? ParentBlockAtCreation => _parentBlockAtCreation;
 
     // Delegate graph operations to parent
@@ -46,7 +45,7 @@ public class BranchBuilder : IBranchBuilder
         // Add branch metadata to the block
         metadata ??= new Dictionary<string, object>();
         metadata["BranchName"] = BranchName;
-        
+
         ParentBuilder.AddBlockDefinition(name, factory, inputType, outputType, metadata);
     }
 
@@ -61,12 +60,12 @@ public class BranchBuilder : IBranchBuilder
 
     public void SetLastSourceBlock(string blockName)
     {
-        _lastSourceBlockInBranch = blockName;
+        LastSourceBlockInBranch = blockName;
         // Don't update parent's last source block - that's the point of branches
     }
 
     public string? GetLastSourceBlockName()
     {
-        return _lastSourceBlockInBranch;
+        return LastSourceBlockInBranch;
     }
 }

@@ -20,7 +20,7 @@ public class ByteArrayProducer : IStreamProducer<byte[]>
         foreach (var i in enumerable)
         {
             cancellation.ThrowIfCancellationRequested();
-            yield return i;                
+            yield return i;
         }
     }
 

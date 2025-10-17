@@ -1,4 +1,4 @@
-﻿namespace Uniun.DataFlow;
+namespace Uniun.DataFlow;
 
 using System.Diagnostics;
 

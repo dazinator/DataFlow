@@ -101,7 +101,7 @@ public class RateLimitBlockMemoryProfileTests
 
     private static IEnumerable<byte[]> GenerateLargeBlobsStream(int itemCount, int blobSizeBytes = 10 * 1024 * 1024)
     {
-        for (int i = 0; i < itemCount; i++)
+        for (var i = 0; i < itemCount; i++)
         {
             yield return new byte[blobSizeBytes];
         }

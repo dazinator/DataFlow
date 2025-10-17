@@ -47,7 +47,7 @@ public class BatchBlock<T> : BlockBase, IPropagatorBlock<T, T[]>
     {
         _source = source;
     }
-    
+
     private void EnsureSource()
     {
         if (_source is null)
@@ -116,7 +116,7 @@ public class BatchBlock<T> : BlockBase, IPropagatorBlock<T, T[]>
         private readonly CancellationTokenSource _timerCts;
         private readonly Task _timerTask;
         private readonly ObjectPool<List<TItem>> _listPool;
-        
+
         // Lightweight signaling: 0 = no batch, 1 = batch waiting
         private int _hasBatch;
         private volatile bool _isFirstItem = true;
@@ -136,7 +136,7 @@ public class BatchBlock<T> : BlockBase, IPropagatorBlock<T, T[]>
 
             _currentBatch = _listPool.Get();
             _timerCts = new CancellationTokenSource();
-            
+
             // Start single long-running timer task (like old implementation)
             _timerTask = RunTimerAsync(_timerCts.Token);
         }
@@ -188,7 +188,7 @@ public class BatchBlock<T> : BlockBase, IPropagatorBlock<T, T[]>
                 try
                 {
                     await Task.Delay(_windowPeriod, cancellationToken);
-                    
+
                     // Only emit if we have a batch waiting (lightweight check)
                     if (Interlocked.CompareExchange(ref _hasBatch, 0, 1) == 1)
                     {
@@ -214,7 +214,7 @@ public class BatchBlock<T> : BlockBase, IPropagatorBlock<T, T[]>
                     // Clear the signal and reset for next batch
                     Interlocked.Exchange(ref _hasBatch, 0);
                     _isFirstItem = true;
-                    
+
                     await _outputChannel.WriteAsync(oldBatch.ToArray(), cancellationToken);
                     _onBatchEmitted();
                 }
@@ -228,7 +228,7 @@ public class BatchBlock<T> : BlockBase, IPropagatorBlock<T, T[]>
         public async ValueTask CompleteAsync()
         {
             _timerCts.Cancel();
-            
+
             try
             {
                 await _timerTask;

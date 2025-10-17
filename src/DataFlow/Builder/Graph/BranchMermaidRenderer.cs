@@ -110,9 +110,9 @@ public class BranchMermaidRenderer
             foreach (var block in exampleBlocks)
             {
                 var collapsedName = block.Name.Replace(exampleBranch, $"concurrent-x{branches.Count}");
-                var shape = GetBlockShape(block);
+                var (Open, Close) = GetBlockShape(block);
                 var label = GetBlockLabel(block);
-                nestedContext.AppendLine($"{SanitizeId(collapsedName)}{shape.Open}\"{label}\"{shape.Close}");
+                nestedContext.AppendLine($"{SanitizeId(collapsedName)}{Open}\"{label}\"{Close}");
             }
 
             context.AppendLine($"end");
@@ -123,9 +123,9 @@ public class BranchMermaidRenderer
             foreach (var block in exampleBlocks)
             {
                 var collapsedName = block.Name.Replace(exampleBranch, $"concurrent-x{branches.Count}");
-                var shape = GetBlockShape(block);
+                var (Open, Close) = GetBlockShape(block);
                 var label = GetBlockLabel(block) + $"<br/>[×{branches.Count}]";
-                context.AppendLine($"{SanitizeId(collapsedName)}{shape.Open}\"{label}\"{shape.Close}");
+                context.AppendLine($"{SanitizeId(collapsedName)}{Open}\"{label}\"{Close}");
             }
         }
     }
@@ -135,9 +135,9 @@ public class BranchMermaidRenderer
     /// </summary>
     private void RenderBlock(IBlockRenderContext context, BlockDefinition block)
     {
-        var shape = GetBlockShape(block);
+        var (Open, Close) = GetBlockShape(block);
         var label = GetBlockLabel(block);
-        context.AppendLine($"{SanitizeId(block.Name)}{shape.Open}\"{label}\"{shape.Close}");
+        context.AppendLine($"{SanitizeId(block.Name)}{Open}\"{label}\"{Close}");
     }
 
     /// <summary>
@@ -152,7 +152,10 @@ public class BranchMermaidRenderer
         foreach (var branchName in branchGroups.Keys)
         {
             var branchBlocks = branchGroups[branchName];
-            if (branchBlocks.Count == 0) continue;
+            if (branchBlocks.Count == 0)
+            {
+                continue;
+            }
 
             // Find the source block this branch connects to
             var firstBlock = branchBlocks[0];
@@ -176,15 +179,21 @@ public class BranchMermaidRenderer
     {
         // Source blocks (no input)
         if (block.InputType == null && block.OutputType != null)
+        {
             return ("([", "])");  // Stadium shape for sources
+        }
 
         // Target blocks (no output)
         if (block.InputType != null && block.OutputType == null)
+        {
             return ("[", "]");    // Rectangle for targets
+        }
 
         // Propagator blocks (both input and output)
         if (block.InputType != null && block.OutputType != null)
+        {
             return ("[/", "/]");  // Parallelogram for transforms/propagators
+        }
 
         // Unknown
         return ("{", "}");         // Rhombus for unknown

@@ -101,7 +101,7 @@ public class RoutingBlockMermaidRenderer : IMermaidBlockRenderer
         // Add route blocks
         foreach (var block in routeGraph.BlockDefinitions.Values)
         {
-            var shape = GetBlockShape(block);
+            var (Open, Close) = GetBlockShape(block);
             var label = GetBlockLabel(block);
             var blockId = SanitizeId(block.Name);
 
@@ -111,7 +111,7 @@ public class RoutingBlockMermaidRenderer : IMermaidBlockRenderer
                 label = "[ENTRY] " + label;  // Entry point indicator
             }
 
-            context.AppendLine($"{blockId}{shape.Open}\"{label}\"{shape.Close}");
+            context.AppendLine($"{blockId}{Open}\"{label}\"{Close}");
         }
 
         context.AppendLine("");
@@ -128,15 +128,21 @@ public class RoutingBlockMermaidRenderer : IMermaidBlockRenderer
     {
         // Source blocks (no input)
         if (block.InputType == null && block.OutputType != null)
+        {
             return ("([", "])");  // Stadium shape for sources
+        }
 
         // Target blocks (no output)
         if (block.InputType != null && block.OutputType == null)
+        {
             return ("[", "]");    // Rectangle for targets
+        }
 
         // Propagator blocks (both input and output)
         if (block.InputType != null && block.OutputType != null)
+        {
             return ("[/", "/]");  // Parallelogram for transforms/propagators
+        }
 
         // Unknown
         return ("{", "}");         // Rhombus for unknown

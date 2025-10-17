@@ -62,7 +62,7 @@ public class ComplexEtlBenchmark
         services.AddLogging(builder => builder.AddProvider(NullLoggerProvider.Instance));
         services.AddDataFlowMetrics();
         services.AddDataFlows();
-        
+
         _serviceProvider = services.BuildServiceProvider();
     }
 

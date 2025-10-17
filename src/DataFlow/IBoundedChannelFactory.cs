@@ -3,5 +3,5 @@ using Uniun.DataFlow.Metrics;
 
 public interface IBoundedChannelFactory
 {
-    MonitoredChannel<T> CreateMonitoredChannel<T>(string blockName, int? capacity);  
+    MonitoredChannel<T> CreateMonitoredChannel<T>(string blockName, int? capacity);
 }

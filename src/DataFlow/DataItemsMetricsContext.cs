@@ -4,9 +4,8 @@ using Uniun.DataFlow.Metrics;
 /// <summary>
 /// Data-item specific metrics context with cached tags
 /// </summary>
-public class DataItemMetricsContext: IMetricsTagsContext
+public class DataItemMetricsContext : IMetricsTagsContext
 {
-    private readonly string _name;
     private readonly IMetricsTagsContext _parentContext;
     private readonly IDataFlowMetrics _metrics;
     private KeyValuePair<string, object?>[] _completionTags = null;
@@ -15,11 +14,11 @@ public class DataItemMetricsContext: IMetricsTagsContext
     public KeyValuePair<string, object?>[] FlowWideTags { get; }
     public KeyValuePair<string, object?>[] FlowLevelCompletionTags { get => _completionTags; }
 
-    public string Name => _name;
+    public string Name { get; }
 
     internal DataItemMetricsContext(string name, IMetricsTagsContext parentContext, IDataFlowMetrics metrics)
     {
-        _name = name;
+        Name = name;
         _parentContext = parentContext;
         _metrics = metrics;
         // Cache flow-level tags (global + flow info)
@@ -37,18 +36,15 @@ public class DataItemMetricsContext: IMetricsTagsContext
 
     public void SetCompletionOutcome(bool successful)
     {
-        if (_completionTags is null)
-        {
-            // inherit the typical tags and add success/failure outcome tag.
-            _completionTags = CreateCompletionTags(FlowWideTags, successful);
-        }
+        // inherit the typical tags and add success/failure outcome tag.
+        _completionTags ??= CreateCompletionTags(FlowWideTags, successful);
     }
 
     public void RecordItemsProcessed(long count)
     {
         _metrics.ItemsProcessed(this, count);
     }
-    
+
     private static KeyValuePair<string, object?>[] CreateCompletionTags(KeyValuePair<string, object?>[] blockTags, bool successful)
     {
         var completionTags = new KeyValuePair<string, object?>[blockTags.Length + 1];

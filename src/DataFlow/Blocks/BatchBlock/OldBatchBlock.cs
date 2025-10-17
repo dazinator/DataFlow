@@ -44,7 +44,7 @@ public class OldBatchBlock<T> : BlockBase, IPropagatorBlock<T, T[]>
     {
         _source = source;
     }
-    
+
     private void EnsureSource()
     {
         if (_source is null)

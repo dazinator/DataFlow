@@ -19,7 +19,7 @@ public class StructuredDataFlowBuilderTests
     public StructuredDataFlowBuilderTests(ITestOutputHelper testOutputHelper)
     {
         _testOutputHelper = testOutputHelper;
-        
+
         var services = new ServiceCollection();
         services.AddLogging(builder => builder.AddXUnit(_testOutputHelper));
         services.AddDataFlows();
@@ -100,7 +100,7 @@ public class StructuredDataFlowBuilderTests
         // Assert
         builder.Graph.BlockDefinitions.Count.ShouldBe(3);
         builder.Graph.Connections.Count.ShouldBe(2);
-        
+
         var sourceDef = builder.Graph.GetBlockDefinition("source");
         sourceDef.OutputType.ShouldBe(typeof(int));
         sourceDef.InputType.ShouldBeNull();
@@ -128,7 +128,7 @@ public class StructuredDataFlowBuilderTests
 
         // Assert
         builder.Graph.BlockDefinitions.Count.ShouldBe(3);
-        
+
         var batchDef = builder.Graph.GetBlockDefinition("batcher");
         batchDef.InputType.ShouldBe(typeof(int));
         batchDef.OutputType.ShouldBe(typeof(int[]));
@@ -230,7 +230,7 @@ public class StructuredDataFlowBuilderTests
 
         builder.AddProducer("source1", sp => new TestProducer<int>(items))
             .AddTransform("transform", sp => new NumberTransformer("num"));
-        
+
         builder.AddProducer("source2", sp => new TestProducer<int>(items))
             .LinkTo("transform");
 
@@ -274,9 +274,9 @@ public class StructuredDataFlowBuilderTests
 
         builder.AddProducer("source1", sp => new TestProducer<int>(items));
         builder.AddProducer("source2", sp => new TestProducer<int>(items));
-        
+
         builder.AddProcessor("processor", sp => new TestProcessor<int>());
-        
+
         // Connect both sources to the same processor
         builder.AddConnection("source1", "processor", typeof(int));
         builder.AddConnection("source2", "processor", typeof(int));

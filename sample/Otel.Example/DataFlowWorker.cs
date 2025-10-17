@@ -3,7 +3,7 @@
 namespace Otel.Example;
 
 public class DataFlowWorker<TFlowConfig> : BackgroundService
-    where TFlowConfig: IDataFlowConfiguration
+    where TFlowConfig : IDataFlowConfiguration
 {
     private readonly ILogger<DataFlowWorker<TFlowConfig>> _logger;
     private readonly IServiceScopeFactory _scopeFactory;

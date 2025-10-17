@@ -4,8 +4,8 @@ using System.Collections.Concurrent;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Shouldly;
-using Uniun.DataFlow.Blocks.Producer;
 using Uniun.DataFlow.Blocks.Processor;
+using Uniun.DataFlow.Blocks.Producer;
 using Uniun.DataFlow.Blocks.Transform;
 using Xunit.Abstractions;
 
@@ -15,24 +15,22 @@ using Xunit.Abstractions;
 [IntegrationTest]
 public class InlineTransformBlockTests
 {
-    private readonly ITestOutputHelper _testOutputHelper;
-
     public InlineTransformBlockTests(ITestOutputHelper testOutputHelper)
     {
-        _testOutputHelper = testOutputHelper;
+        Output = testOutputHelper;
         Services = new ServiceCollection();
         AddDefaultServices();
     }
 
     private void AddDefaultServices()
     {
-        Services.AddLogging(builder => builder.AddXUnit(_testOutputHelper));
+        Services.AddLogging(builder => builder.AddXUnit(Output));
         Services.AddDataFlows();
         Services.AddDataFlowMetrics();
     }
 
     public IServiceCollection Services { get; }
-    public ITestOutputHelper Output => _testOutputHelper;
+    public ITestOutputHelper Output { get; }
 
     [Fact(Skip = "Test hangs indefinitely - needs investigation. Issue with InlineTransformBlock causing deadlock.")]
     public async Task InlineTransformBlock_TransformsItemsInline()
@@ -44,7 +42,7 @@ public class InlineTransformBlockTests
         var provider = Services.BuildServiceProvider();
         var logger = provider.GetRequiredService<ILogger<InlineTransformBlock<int, string>>>();
         var channelFactory = provider.GetRequiredService<IBoundedChannelFactory>();
-        
+
         var producer = new ProducerBlock<int>(
             "test-producer",
             provider.GetRequiredService<ILogger<ProducerBlock<int>>>(),
@@ -88,7 +86,7 @@ public class InlineTransformBlockTests
     {
         // Arrange
         var items = Enumerable.Range(1, 5).ToList();
-        
+
         var provider = Services.BuildServiceProvider();
         var logger = provider.GetRequiredService<ILogger<InlineTransformBlock<int, string>>>();
         var channelFactory = provider.GetRequiredService<IBoundedChannelFactory>();
@@ -102,7 +100,7 @@ public class InlineTransformBlockTests
                 ProducersFactory = (ctx, ct) => Task.FromResult<IEnumerable<IStreamProducer<int>>>(
                     new[] { new TestProducer<int>(items) })
             });
-        
+
         var transformBlock = new InlineTransformBlock<int, string>(
             "test-transform",
             logger,
@@ -145,7 +143,7 @@ public class InlineTransformBlockTests
         var provider = Services.BuildServiceProvider();
         var logger = provider.GetRequiredService<ILogger<InlineTransformBlock<int, string>>>();
         var channelFactory = provider.GetRequiredService<IBoundedChannelFactory>();
-        
+
         var producer = new ProducerBlock<int>(
             "test-producer",
             provider.GetRequiredService<ILogger<ProducerBlock<int>>>(),
@@ -173,13 +171,13 @@ public class InlineTransformBlockTests
 
         // Act
         var sw = System.Diagnostics.Stopwatch.StartNew();
-        
+
         var producerTask = producer.ExecuteAsync(context);
         var transformTask = transformBlock.ExecuteAsync(context);
         var processorTask = processorBlock.ExecuteAsync(context);
 
         await Task.WhenAll(producerTask, transformTask, processorTask);
-        
+
         sw.Stop();
 
         // Assert

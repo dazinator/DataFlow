@@ -27,7 +27,7 @@ public partial class Program
                 case "diagnose":
                     Console.WriteLine("Starting diagnostic test...");
                     await DiagnosticTest.RunTest();
-                    break;                
+                    break;
 
                 case "minimal":
                     Console.WriteLine("Starting minimal benchmark...");
@@ -57,14 +57,14 @@ public partial class Program
                 case "memory-rate":
                     Console.WriteLine("Starting simple pipeline benchmark...");
                     var isDebug = true;
-                    var config  = isDebug
-                        ? new DebugInProcessConfig()                       
+                    var config = isDebug
+                        ? new DebugInProcessConfig()
                         : DefaultConfig.Instance;
 
                     BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly)
                         .Run(new[] { "RateLimitBlockMemoryBenchmarks" }, config);
 
-                 //   BenchmarkRunner.Run<RateLimitBlockMemoryBenchmarks>(config);
+                    //   BenchmarkRunner.Run<RateLimitBlockMemoryBenchmarks>(config);
                     break;
 
                 case "etl-benchmark":
@@ -143,19 +143,19 @@ public partial class Program
         services.AddLogging(builder => builder.AddConsole());
         services.AddDataFlowMetrics();
         services.AddDataFlows();
-        
+
         var serviceProvider = services.BuildServiceProvider();
 
-        for (int i = 1; i <= iterations; i++)
+        for (var i = 1; i <= iterations; i++)
         {
             Console.WriteLine($"=== Iteration {i}/{iterations} ===");
-            
+
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-            
+
             // Build and execute the dataflow
             var builder = Shared.ComplexEtlDataFlow.BuildDataFlow(serviceProvider, recordCount);
             var dataflow = builder.Build();
-            
+
             var context = new DataFlowContext
             {
                 InvocationId = Guid.NewGuid(),
@@ -164,9 +164,9 @@ public partial class Program
             };
 
             await dataflow.ExecuteAsync(context);
-            
+
             stopwatch.Stop();
-            
+
             Console.WriteLine($"Completed in {stopwatch.ElapsedMilliseconds:N0} ms ({recordCount / stopwatch.Elapsed.TotalSeconds:F1} records/sec)");
             Console.WriteLine();
         }

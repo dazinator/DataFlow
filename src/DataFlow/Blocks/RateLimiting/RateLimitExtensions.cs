@@ -19,8 +19,10 @@ public static class RateLimitExtensions
         Func<RateLimiter> rateLimiterFactory,
         Action<BlockOptions>? configureOptions = null)
     {
-        var blockOptions = new BlockOptions();
-        blockOptions.Capacity = 1;
+        var blockOptions = new BlockOptions
+        {
+            Capacity = 1
+        };
         configureOptions?.Invoke(blockOptions);
 
         var block = new RateLimitBlock<T>(

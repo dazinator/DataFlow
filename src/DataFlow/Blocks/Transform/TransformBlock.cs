@@ -17,7 +17,7 @@ public class TransformBlockOptions<TIn, TOut> : BlockOptions
 public class TransformBlock<TIn, TOut> : BlockBase, IPropagatorBlock<TIn, TOut>
 {
     private readonly Func<IServiceProvider, IStreamTransformer<TIn, TOut>> _transformerFactory;
-    private readonly IBoundedChannelFactory _channelFactory;   
+    private readonly IBoundedChannelFactory _channelFactory;
     private readonly MonitoredChannel<TOut> _outputChannel;
     private ISourceBlock<TIn>? _source;
 
@@ -31,15 +31,15 @@ public class TransformBlock<TIn, TOut> : BlockBase, IPropagatorBlock<TIn, TOut>
         _transformerFactory = options.TransformerFactory;
         _channelFactory = channelFactory;
         _outputChannel = _channelFactory.CreateMonitoredChannel<TOut>(name, options?.Capacity);
-    }   
+    }
 
-   // private ChannelReader<TOut> Reader => _output.Reader;
+    // private ChannelReader<TOut> Reader => _output.Reader;
 
     public void SetSource(ISourceBlock<TIn> source)
     {
         _source = source;
     }
-    
+
     private void EnsureSource()
     {
         if (_source is null)
@@ -70,9 +70,9 @@ public class TransformBlock<TIn, TOut> : BlockBase, IPropagatorBlock<TIn, TOut>
         EnsureSource();
 
         try
-        {          
+        {
             // var monitoredChannel = this.CreateMonitoredChannel(_outputChannelOptions.Capacity, context, _outputChannel);
-            await ExecuteParallelActivities(context, Options.MaxConcurrency, ExecuteStreamTransformerAsync);     
+            await ExecuteParallelActivities(context, Options.MaxConcurrency, ExecuteStreamTransformerAsync);
         }
         finally
         {
@@ -93,5 +93,5 @@ public class TransformBlock<TIn, TOut> : BlockBase, IPropagatorBlock<TIn, TOut>
             await _outputChannel.Writer.WriteAsync(result, context.CancellationToken);
             RecordOperation();
         }
-    }  
+    }
 }

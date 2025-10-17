@@ -1,16 +1,16 @@
 namespace Tests.DataFlow;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
-using System.Diagnostics;
 using Serilog;
 using Serilog.Events;
+using Serilog.Templates;
 using SerilogTracing;
+using SerilogTracing.Expressions;
 using Xunit;
 using Xunit.Abstractions;
-using SerilogTracing.Expressions;
-using Serilog.Templates;
 
 [Exploratory]
 public class ActivityTracingTests : IDisposable
@@ -135,12 +135,12 @@ public class ActivityTracingTests : IDisposable
             }
 
             _output.WriteLine("Could not find expected tags in tracing events");
-            Assert.True(false, "No events with our specific tags found");
+            Assert.Fail("No events with our specific tags found");
         }
         else
         {
             _output.WriteLine("No tracing events captured at all");
-            Assert.True(false, "No tracing events captured");
+            Assert.Fail("No tracing events captured");
         }
     }
 

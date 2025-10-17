@@ -1,11 +1,11 @@
 namespace Tests.DataFlow;
 
 using System.Collections.Concurrent;
-using Xunit;
+using System.Runtime.CompilerServices;
+using Microsoft.Extensions.Logging;
 using Uniun.DataFlow;
 using Uniun.DataFlow.Blocks;
-using Microsoft.Extensions.Logging;
-using System.Runtime.CompilerServices;
+using Xunit;
 
 [IntegrationTest]
 public class DataFlowComplexScenarioTests
@@ -66,7 +66,7 @@ public class DataFlowComplexScenarioTests
                 .AddTransform<int, int, SlowTransformer>("transform")
                     .ReceiveFrom("source")
                 .AddProcessor<int, DataCollector>("collector")
-                .ReceiveFrom("transform");         
+                .ReceiveFrom("transform");
         }
     }
 

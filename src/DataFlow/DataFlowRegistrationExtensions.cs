@@ -19,7 +19,7 @@ public static class DataFlowRegistrationExtensions
     public static IServiceCollection AddDataFlowMetrics(this IServiceCollection services)
     {
         services.AddMetrics();
-        services.TryAddSingleton<IMeterAccessor, MeterAccessor>();     
+        services.TryAddSingleton<IMeterAccessor, MeterAccessor>();
         return services;
     }
 
@@ -27,12 +27,12 @@ public static class DataFlowRegistrationExtensions
     public static IServiceCollection AddDataFlows(
         this IServiceCollection services,
         Action<DataFlowsOptions>? configure = null)
-    {      
+    {
         var optionsBuilder = services.AddOptionsWithValidateOnStart<DataFlowsOptions>();
-        if(configure is not null)
+        if (configure is not null)
         {
             optionsBuilder.Configure(configure);
-        }   
+        }
 
         services.TryAddSingleton<DataFlowThrottler>();
         services.TryAddTransient(typeof(FlowExecutor<>));
@@ -40,7 +40,7 @@ public static class DataFlowRegistrationExtensions
         services.TryAddSingleton<IBoundedChannelFactory, MonitoredChannelFactory>();
         // Register open generic executor once      
 
-        services.TryAddSingleton<IDataFlowMetrics, DataFlowMetrics>();      
+        services.TryAddSingleton<IDataFlowMetrics, DataFlowMetrics>();
         return services;
     }
 
@@ -48,11 +48,13 @@ public static class DataFlowRegistrationExtensions
         this IServiceCollection services,
         string name)
         where TConfig : class, IDataFlowConfiguration, new()
-    {       
+    {
         services.AddTransient(sp =>
         {
-            var builder = new DataFlowBuilder(sp);
-            builder.Name = name;
+            var builder = new DataFlowBuilder(sp)
+            {
+                Name = name
+            };
             var config = new TConfig();
             config.Configure(builder);
             return new DataFlow<TConfig>(builder.Build());
@@ -70,11 +72,7 @@ public static class DataFlowRegistrationExtensions
         services.AddTransient(sp =>
         {
             var builder = new DataFlowBuilder(sp);
-            var config = factory?.Invoke(sp);
-            if (config is null)
-            {
-                throw new Exception("Factory returned null configuration.");
-            }
+            var config = (factory?.Invoke(sp)) ?? throw new Exception("Factory returned null configuration.");
             config.Configure(builder);
             return new DataFlow<TConfig>(builder.Build());
         });
@@ -97,5 +95,5 @@ public static class DataFlowRegistrationExtensions
         });
 
         return services;
-    }    
+    }
 }

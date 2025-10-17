@@ -2,11 +2,12 @@ namespace Uniun.DataFlow.Builder.Graph;
 
 using Microsoft.Extensions.DependencyInjection;
 using Uniun.DataFlow.Blocks;
-using Uniun.DataFlow.Blocks.Producer;
-using Uniun.DataFlow.Blocks.Processor;
-using Uniun.DataFlow.Blocks.Transform;
 using Uniun.DataFlow.Blocks.BatchBlock;
 using Uniun.DataFlow.Blocks.Broadcast;
+using Uniun.DataFlow.Blocks.Buffer;
+using Uniun.DataFlow.Blocks.Processor;
+using Uniun.DataFlow.Blocks.Producer;
+using Uniun.DataFlow.Blocks.Transform;
 
 /// <summary>
 /// Extension methods for the structured dataflow builder.
@@ -180,13 +181,13 @@ public static class StructuredDataFlowBuilderExtensions
             {
                 var logger = sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<BroadcastBlock<T>>>();
                 var broadcastBlock = new BroadcastBlock<T>(name, logger, defaultCloneFunc, options);
-                
+
                 // Apply any target configurations that were set via WithTarget
                 foreach (var (targetName, cloneFunc) in targetConfigurations)
                 {
                     broadcastBlock.ConfigureTarget(targetName, cloneFunc);
                 }
-                
+
                 return broadcastBlock;
             },
             inputType: typeof(T),
@@ -201,6 +202,97 @@ public static class StructuredDataFlowBuilderExtensions
 
         // Return a builder that stores target configurations in the shared dictionary
         return new StructuredBroadcastBlockBuilder<T>(propagatorBuilder, targetConfigurations);
+    }
+
+    #endregion
+
+    #region Buffer Blocks
+
+    /// <summary>
+    /// Adds a buffer block to the graph.
+    /// A buffer block accepts items from multiple upstream producers and distributes them
+    /// to multiple downstream consumers in a competing consumer pattern (each item goes to exactly one consumer).
+    /// 
+    /// Unlike BroadcastBlock (fanout to all), BufferBlock creates competing consumers where
+    /// multiple downstream blocks compete for items from a shared buffer.
+    /// </summary>
+    /// <typeparam name="T">The type to buffer</typeparam>
+    /// <param name="builder">The builder</param>
+    /// <param name="name">The name of the buffer block</param>
+    /// <param name="options">Optional block options (capacity, concurrency)</param>
+    /// <returns>A propagator block builder for fluent chaining</returns>
+    public static StructuredPropagatorBlockBuilder<T, T> AddBuffer<T>(
+        this IStructuredDataFlowBuilder builder,
+        string name,
+        BlockOptions? options = null)
+    {
+        builder.AddBlockDefinition(
+            name,
+            sp =>
+            {
+                var logger = sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<BufferBlock<T>>>();
+                var channelFactory = sp.GetRequiredService<IBoundedChannelFactory>();
+                return new BufferBlock<T>(name, logger, channelFactory, options);
+            },
+            inputType: typeof(T),
+            outputType: typeof(T),
+            metadata: new Dictionary<string, object>
+            {
+                ["BlockType"] = "Buffer",
+                ["SupportsMultipleSources"] = true
+            });
+
+        builder.SetLastSourceBlock(name);
+        return new StructuredPropagatorBlockBuilder<T, T>(builder, name);
+    }
+
+    #endregion
+
+    #region Buffer Block Extensions
+
+    /// <summary>
+    /// Convenience method to connect a buffer block to receive from all branches created from a specific source block.
+    /// This is useful when you have multiple branches transforming data and you want to merge them all into a buffer.
+    /// </summary>
+    /// <typeparam name="T">The type of items in the buffer</typeparam>
+    /// <param name="bufferBuilder">The buffer block builder</param>
+    /// <param name="sourceBlockName">The name of the block that the branches were created from (typically a broadcast block)</param>
+    /// <returns>The buffer block builder for fluent chaining</returns>
+    public static StructuredPropagatorBlockBuilder<T, T> ReceiveFromBranches<T>(
+        this StructuredPropagatorBlockBuilder<T, T> bufferBuilder,
+        string sourceBlockName)
+    {
+        if (bufferBuilder.Builder is not StructuredDataFlowBuilder structuredBuilder)
+        {
+            throw new InvalidOperationException(
+                "ReceiveFromBranches can only be used with StructuredDataFlowBuilder");
+        }
+
+        var branches = structuredBuilder.GetBranches();
+        
+        // Find branches that were created from the specified source block
+        var relevantBranches = branches.Values
+            .Where(b => b.ParentBlockAtCreation == sourceBlockName)
+            .ToList();
+
+        if (relevantBranches.Count == 0)
+        {
+            throw new InvalidOperationException(
+                $"No branches found that were created from source block '{sourceBlockName}'. " +
+                $"Make sure branches were created with AddBranch() after adding '{sourceBlockName}'.");
+        }
+
+        // Connect from the last block in each branch
+        foreach (var branch in relevantBranches)
+        {
+            var lastBlockInBranch = branch.LastSourceBlockInBranch;
+            if (lastBlockInBranch != null)
+            {
+                bufferBuilder.ReceiveFrom(lastBlockInBranch);
+            }
+        }
+
+        return bufferBuilder;
     }
 
     #endregion

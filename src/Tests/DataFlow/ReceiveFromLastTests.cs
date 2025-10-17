@@ -38,13 +38,13 @@ public class ReceiveFromLastTests
         // Act
         builder
             .AddProducer("source", sp => new TestProducer<string>(items))
-            .AddProcessor<string, TestProcessor<string>>("processor", 
+            .AddProcessor<string, TestProcessor<string>>("processor",
                 sp => new TestProcessor<string>(onProcessItem: item => processedItems.Add(item)))
             .ReceiveFromLast(); // Connect to the last added source block (the producer)
 
         var flow = builder.Build();
         var context = DataFlowContextTestUtils.GetContext("test", Guid.NewGuid(), sp);
-        
+
         await flow.ExecuteAsync(context);
 
         // Assert

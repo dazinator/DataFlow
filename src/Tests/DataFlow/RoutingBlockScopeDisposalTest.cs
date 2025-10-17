@@ -44,7 +44,7 @@ public class RoutingBlockScopeDisposalTest
 
             builder.AddXUnit(_output, (o) =>
             {
-                o.IncludeScopes = true;                
+                o.IncludeScopes = true;
             });
             builder.SetMinimumLevel(LogLevel.Information);
         });
@@ -99,14 +99,14 @@ public class RoutingBlockScopeDisposalTest
         }
         catch (System.AggregateException agg)
         {
-            if(agg.InnerExceptions.All(e => e is TaskCanceledException))
+            if (agg.InnerExceptions.All(e => e is TaskCanceledException))
             {
                 _output.WriteLine("Test timed out after 30 seconds");
             }
             else
             {
                 throw;
-            }          
+            }
         }
 
         // Check the test metrics
@@ -283,7 +283,7 @@ public class RoutingBlockScopeDisposalTest
             [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellation)
         {
             // Series of production phases to create stress on the routing system
-            for (int iteration = 0; iteration < _iterations; iteration++)
+            for (var iteration = 0; iteration < _iterations; iteration++)
             {
                 if (cancellation.IsCancellationRequested)
                 {
@@ -299,7 +299,7 @@ public class RoutingBlockScopeDisposalTest
                     }
 
                     // Send a batch to this route
-                    for (int i = 0; i < _itemsPerRoute; i++)
+                    for (var i = 0; i < _itemsPerRoute; i++)
                     {
                         if (cancellation.IsCancellationRequested)
                         {
@@ -324,17 +324,17 @@ public class RoutingBlockScopeDisposalTest
 
                 // Phase 2: Alternate between routes rapidly to cause contention
                 // Focus on two routes, alternating quickly
-                string focusRoute1 = _routeKeys[iteration % _routeKeys.Length];
-                string focusRoute2 = _routeKeys[(iteration + 2) % _routeKeys.Length];
+                var focusRoute1 = _routeKeys[iteration % _routeKeys.Length];
+                var focusRoute2 = _routeKeys[(iteration + 2) % _routeKeys.Length];
 
-                for (int i = 0; i < _itemsPerRoute * 2; i++)
+                for (var i = 0; i < _itemsPerRoute * 2; i++)
                 {
                     if (cancellation.IsCancellationRequested)
                     {
                         break;
                     }
 
-                    string route = (i % 2 == 0) ? focusRoute1 : focusRoute2;
+                    var route = (i % 2 == 0) ? focusRoute1 : focusRoute2;
                     _metrics.IncrementItemsProduced();
                     yield return new TestItem
                     {
@@ -360,7 +360,7 @@ public class RoutingBlockScopeDisposalTest
                     }
 
                     // Burst of items
-                    for (int i = 0; i < _random.Next(1, _itemsPerRoute); i++)
+                    for (var i = 0; i < _random.Next(1, _itemsPerRoute); i++)
                     {
                         if (cancellation.IsCancellationRequested)
                         {
@@ -419,7 +419,7 @@ public class RoutingBlockScopeDisposalTest
         private TestMetrics _metrics;
         private bool _disposed = false;
         private readonly Random _random = new Random();
-        private readonly string _instanceId = Guid.NewGuid().ToString().Substring(0, 8);
+        private readonly string _instanceId = Guid.NewGuid().ToString()[..8];
 
         public void RegisterForDisposal(TestMetrics metrics)
         {
@@ -437,7 +437,7 @@ public class RoutingBlockScopeDisposalTest
             }
 
             // Simulate varying work durations to increase chance of timing issues
-            int processingTime = _random.Next(10, 150);
+            var processingTime = _random.Next(10, 150);
 
             // Items for some routes take longer to process
             if (item.RouteKey == "A" || item.RouteKey == "C")
@@ -452,7 +452,7 @@ public class RoutingBlockScopeDisposalTest
             if (_random.Next(100) < 15)
             {
                 var temp = new List<byte[]>();
-                for (int i = 0; i < 5; i++)
+                for (var i = 0; i < 5; i++)
                 {
                     temp.Add(new byte[1024 * _random.Next(1, 20)]);
                 }
@@ -477,7 +477,7 @@ public class RoutingBlockScopeDisposalTest
         private readonly IScopedTestService _scopedService;
         private readonly TestMetrics _metrics;
         private readonly Random _random = new Random();
-        private readonly string _processorId = Guid.NewGuid().ToString().Substring(0, 8);
+        private readonly string _processorId = Guid.NewGuid().ToString()[..8];
 
         public ScopedServiceProcessor(IScopedTestService scopedService, IServiceProvider serviceProvider)
         {

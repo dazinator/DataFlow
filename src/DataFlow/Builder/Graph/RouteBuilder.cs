@@ -9,7 +9,6 @@ using Uniun.DataFlow.Blocks;
 /// </summary>
 public class RouteBuilder : IRouteBuilder
 {
-    private readonly DataFlowGraph _graph;
     private readonly DataFlowBuilderState _state;
     private string? _entryBlockName;
     private string? _lastSourceBlockName;
@@ -19,12 +18,12 @@ public class RouteBuilder : IRouteBuilder
         ServiceProvider = serviceProvider;
         RouteName = routeName;
         _state = new DataFlowBuilderState(serviceProvider);
-        _graph = new DataFlowGraph($"Route-{routeName}");
+        Graph = new DataFlowGraph($"Route-{routeName}");
     }
 
     public IServiceProvider ServiceProvider { get; }
     public string RouteName { get; }
-    public DataFlowGraph Graph => _graph;
+    public DataFlowGraph Graph { get; }
 
     public void AddBlockDefinition<TBlock>(
         string name,
@@ -43,7 +42,7 @@ public class RouteBuilder : IRouteBuilder
             Metadata = metadata ?? new Dictionary<string, object>()
         };
 
-        _graph.AddBlockDefinition(blockDefinition);
+        Graph.AddBlockDefinition(blockDefinition);
 
         // Automatically set the first target block as the entry block if none is set yet
         if (_entryBlockName == null && blockDefinition.IsTargetBlock())
@@ -54,8 +53,8 @@ public class RouteBuilder : IRouteBuilder
     }
 
     public void AddConnection(
-        string sourceBlockName, 
-        string targetBlockName, 
+        string sourceBlockName,
+        string targetBlockName,
         Type? dataType = null,
         Dictionary<string, object>? metadata = null)
     {
@@ -65,7 +64,7 @@ public class RouteBuilder : IRouteBuilder
             Metadata = metadata ?? new Dictionary<string, object>()
         };
 
-        _graph.AddConnection(connection);
+        Graph.AddConnection(connection);
     }
 
     public void SetLastSourceBlock(string blockName)
@@ -80,12 +79,12 @@ public class RouteBuilder : IRouteBuilder
         // Clear previous entry block flag if any
         if (_entryBlockName != null)
         {
-            var prevBlockDef = _graph.GetBlockDefinition(_entryBlockName);
+            var prevBlockDef = Graph.GetBlockDefinition(_entryBlockName);
             prevBlockDef.IsEntryBlock = false;
         }
 
         _entryBlockName = blockName;
-        var blockDef = _graph.GetBlockDefinition(blockName);
+        var blockDef = Graph.GetBlockDefinition(blockName);
         blockDef.IsEntryBlock = true;
     }
 
@@ -100,7 +99,7 @@ public class RouteBuilder : IRouteBuilder
         }
 
         // Validate the entry block exists and is a target block
-        var entryBlockDef = _graph.GetBlockDefinition(_entryBlockName);
+        var entryBlockDef = Graph.GetBlockDefinition(_entryBlockName);
         if (!entryBlockDef.IsTargetBlock())
         {
             throw new InvalidOperationException(
@@ -109,7 +108,7 @@ public class RouteBuilder : IRouteBuilder
 
         // Instantiate all blocks
         var blocks = new Dictionary<string, IBlock>();
-        foreach (var definition in _graph.BlockDefinitions.Values)
+        foreach (var definition in Graph.BlockDefinitions.Values)
         {
             var block = definition.Factory(ServiceProvider);
             blocks[definition.Name] = block;
@@ -117,7 +116,7 @@ public class RouteBuilder : IRouteBuilder
         }
 
         // Wire up connections
-        foreach (var connection in _graph.Connections)
+        foreach (var connection in Graph.Connections)
         {
             var sourceBlock = blocks[connection.SourceBlockName];
             var targetBlock = blocks[connection.TargetBlockName];
@@ -137,7 +136,7 @@ public class RouteBuilder : IRouteBuilder
 
         // Create and return the dataflow
         var metrics = ServiceProvider.GetRequiredService<Uniun.DataFlow.Metrics.IDataFlowMetrics>();
-        return new DataFlow(_graph.Name, blocks.Values.ToList(), metrics);
+        return new DataFlow(Graph.Name, blocks.Values.ToList(), metrics);
     }
 
     public ITargetBlock<T> GetTargetBlock<T>(string blockName)

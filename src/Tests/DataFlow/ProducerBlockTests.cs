@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 [IntegrationTest]
 public class ProducerBlockTests
 {
-    private ITestOutputHelper _testOutputHelper;
+    private readonly ITestOutputHelper _testOutputHelper;
 
     public ProducerBlockTests(ITestOutputHelper testOutputHelper)
     {
@@ -16,7 +16,7 @@ public class ProducerBlockTests
 
     private void AddDefaultServices()
     {
-       
+
         Services.AddLogging(a => a.AddXUnit(_testOutputHelper));
         Services.AddDataFlows();
         Services.AddDataFlowMetrics();

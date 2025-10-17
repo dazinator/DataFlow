@@ -1,17 +1,17 @@
 namespace Benchmarks;
 
+using System;
+using System.Collections.Concurrent;
+using System.Diagnostics;
+using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Engines;
 using BenchmarkDotNet.Jobs;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Concurrent;
-using System.Diagnostics;
-using System.Threading.Tasks;
 using Uniun.DataFlow;
-using Uniun.DataFlow.Blocks.Producer;
 using Uniun.DataFlow.Blocks.Processor;
+using Uniun.DataFlow.Blocks.Producer;
 using Uniun.DataFlow.Blocks.Transform;
 
 /// <summary>
@@ -84,10 +84,10 @@ public class TransformBlockExecutionModelBenchmarks
         transform.SetSource(producer);
         processor.SetSource(transform);
 
-        var context = new DataFlowContext(Guid.NewGuid()) 
-        { 
-            ServiceProvider = _sp, 
-            Name = "default-buffer" 
+        var context = new DataFlowContext(Guid.NewGuid())
+        {
+            ServiceProvider = _sp,
+            Name = "default-buffer"
         };
 
         await Task.WhenAll(
@@ -133,10 +133,10 @@ public class TransformBlockExecutionModelBenchmarks
         transform.SetSource(producer);
         processor.SetSource(transform);
 
-        var context = new DataFlowContext(Guid.NewGuid()) 
-        { 
-            ServiceProvider = _sp, 
-            Name = "reduced-buffer-1" 
+        var context = new DataFlowContext(Guid.NewGuid())
+        {
+            ServiceProvider = _sp,
+            Name = "reduced-buffer-1"
         };
 
         await Task.WhenAll(
@@ -182,10 +182,10 @@ public class TransformBlockExecutionModelBenchmarks
         transform.SetSource(producer);
         processor.SetSource(transform);
 
-        var context = new DataFlowContext(Guid.NewGuid()) 
-        { 
-            ServiceProvider = _sp, 
-            Name = "reduced-buffer-50" 
+        var context = new DataFlowContext(Guid.NewGuid())
+        {
+            ServiceProvider = _sp,
+            Name = "reduced-buffer-50"
         };
 
         await Task.WhenAll(
@@ -231,10 +231,10 @@ public class TransformBlockExecutionModelBenchmarks
         transform.SetSource(producer);
         processor.SetSource(transform);
 
-        var context = new DataFlowContext(Guid.NewGuid()) 
-        { 
-            ServiceProvider = _sp, 
-            Name = "concurrency-2" 
+        var context = new DataFlowContext(Guid.NewGuid())
+        {
+            ServiceProvider = _sp,
+            Name = "concurrency-2"
         };
 
         await Task.WhenAll(
@@ -280,10 +280,10 @@ public class TransformBlockExecutionModelBenchmarks
         transform.SetSource(producer);
         processor.SetSource(transform);
 
-        var context = new DataFlowContext(Guid.NewGuid()) 
-        { 
-            ServiceProvider = _sp, 
-            Name = "concurrency-4" 
+        var context = new DataFlowContext(Guid.NewGuid())
+        {
+            ServiceProvider = _sp,
+            Name = "concurrency-4"
         };
 
         await Task.WhenAll(
@@ -324,10 +324,10 @@ public class TransformBlockExecutionModelBenchmarks
         transform.SetSource(producer);
         processor.SetSource(transform);
 
-        var context = new DataFlowContext(Guid.NewGuid()) 
-        { 
-            ServiceProvider = _sp, 
-            Name = "inline-transform" 
+        var context = new DataFlowContext(Guid.NewGuid())
+        {
+            ServiceProvider = _sp,
+            Name = "inline-transform"
         };
 
         await Task.WhenAll(
@@ -361,7 +361,7 @@ public class TransformBlockExecutionModelBenchmarks
             IDataFlowContext context,
             [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
         {
-            for (int i = 0; i < _count; i++)
+            for (var i = 0; i < _count; i++)
             {
                 yield return _start + i;
                 await Task.Yield(); // Allow cooperative multitasking

@@ -52,7 +52,7 @@ public abstract class BlockBase : IBlock
         using var logScope = Logger.BeginScope(new Dictionary<string, object> { { "BlockName", Name } });
         Logger.LogInformation("Executing");
         SetupFlowRateCollection(context);
-        
+
         //ItemsMetricContext = MetricsContext.CreateItemsContext(Options.ItemsMetricLabel);
         try
         {
@@ -64,13 +64,13 @@ public abstract class BlockBase : IBlock
             if (FlowRateMetricsCollector != null)
             {
                 FlowRateMetricsCollector.FlushPendingOperations();
-                var readStats = FlowRateMetricsCollector.GetStatistics();             
+                var readStats = FlowRateMetricsCollector.GetStatistics();
                 FlowRateMetricsCollector?.Dispose();
                 Logger.LogInformation("{FlowStats}", readStats);
-            }           
+            }
             Logger.LogInformation("Finished Executing");
-        }     
-       
+        }
+
     }
 
     private void SetupFlowRateCollection(IDataFlowContext context)
@@ -81,9 +81,9 @@ public abstract class BlockBase : IBlock
         {
             MetricsContext = context.FlowMetricsContext.CreateBlockContext(Name);
         }
-        
+
         if (Options.EnableFlowRateMetrics && MetricsContext != null)
-        {           
+        {
             FlowRateMetricsCollector = new FlowRateMetricsCollector(MetricsContext, Options.FlowRateMetricsSamplesPerSecond);
         }
     }

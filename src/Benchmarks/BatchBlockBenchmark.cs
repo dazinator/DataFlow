@@ -1,5 +1,6 @@
 namespace Benchmarks;
 
+using System.Runtime.CompilerServices;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Columns;
 using BenchmarkDotNet.Configs;
@@ -7,7 +8,6 @@ using BenchmarkDotNet.Order;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using System.Runtime.CompilerServices;
 using Uniun.DataFlow;
 using Uniun.DataFlow.Blocks.BatchBlock;
 using Uniun.DataFlow.Blocks.InputChannel;
@@ -114,7 +114,7 @@ public class BatchBlockBenchmark
         var flowTask = flow.ExecuteAsync(context);
 
         // Push items quickly to trigger size-based batching
-        for (int i = 0; i < ItemCount; i++)
+        for (var i = 0; i < ItemCount; i++)
         {
             await inputBlock.WriteAsync(i);
         }
@@ -163,7 +163,7 @@ public class BatchBlockBenchmark
         var flowTask = flow.ExecuteAsync(context);
 
         // Push items quickly to trigger size-based batching
-        for (int i = 0; i < ItemCount; i++)
+        for (var i = 0; i < ItemCount; i++)
         {
             await inputBlock.WriteAsync(i);
         }

@@ -13,7 +13,7 @@ using System.Diagnostics.Metrics;
 ///  - this ensures there is a single Meter, and all metrics can be aggregated and scraped at the root level by a single endpoint.
 ///    whilst also ensuring that if data flow metrics are added per tenant container, they can be given tenant specific tags.
 /// </remarks>
-public class MeterAccessor: IMeterAccessor
+public class MeterAccessor : IMeterAccessor
 {
     public Meter Meter { get; }
 

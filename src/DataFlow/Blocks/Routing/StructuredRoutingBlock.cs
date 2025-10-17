@@ -131,10 +131,9 @@ public class StructuredRoutingBlock<T> : BlockBase, ITargetBlock<T>
             _logger.LogDebug("Creating new route for name: {routeName}", routeName);
 
             // Determine which route definition to use
-            RouteDefinition? routeDefinition = null;
             string routeDefinitionName;
 
-            if (_options.Routes.TryGetValue(routeName, out routeDefinition))
+            if (_options.Routes.TryGetValue(routeName, out var routeDefinition))
             {
                 // Static route found
                 routeDefinitionName = routeName;
@@ -178,7 +177,7 @@ public class StructuredRoutingBlock<T> : BlockBase, ITargetBlock<T>
             {
                 // Build the route dataflow
                 var routeBuilder = new RouteBuilder(routeScope.ServiceProvider, routeName);
-                
+
                 var routeContext = new RouteContext
                 {
                     RouteName = routeName,
@@ -190,7 +189,7 @@ public class StructuredRoutingBlock<T> : BlockBase, ITargetBlock<T>
                 };
 
                 var dataFlow = routeDefinition.Factory(routeContext);
-                
+
                 // Get the entry block - use the first entry block from the graph
                 var entryBlocks = routeBuilder.Graph.GetEntryBlocks().ToList();
                 if (!entryBlocks.Any())
@@ -212,9 +211,9 @@ public class StructuredRoutingBlock<T> : BlockBase, ITargetBlock<T>
 
                 var logger = routeScope.ServiceProvider.GetRequiredService<ILogger<InputChannelBlock<T>>>();
                 var channelBlock = new InputChannelBlock<T>(
-                    $"{targetBlock.Name}-route-{routeName}", 
-                    logger, 
-                    _channelFactory, 
+                    $"{targetBlock.Name}-route-{routeName}",
+                    logger,
+                    _channelFactory,
                     channelOptions);
 
                 var routeInstance = new RouteInstance<T>(
@@ -235,7 +234,7 @@ public class StructuredRoutingBlock<T> : BlockBase, ITargetBlock<T>
                 }
                 else
                 {
-                    _logger.LogDebug("Starting DataFlow execution for route: {routeName} (definition: {routeDefinitionName})", 
+                    _logger.LogDebug("Starting DataFlow execution for route: {routeName} (definition: {routeDefinitionName})",
                         routeName, routeDefinitionName);
                 }
 
@@ -329,7 +328,6 @@ public class StructuredRoutingBlock<T> : BlockBase, ITargetBlock<T>
 internal class RouteInstance<T> : IAsyncDisposable
 {
     private readonly ILogger _logger;
-    private readonly InputChannelBlock<T> _channelBlock;
     private readonly ITargetBlock<T> _targetBlock;
     private readonly IDataFlow _dataFlow;
     private readonly AsyncServiceScope _scope;
@@ -346,18 +344,18 @@ internal class RouteInstance<T> : IAsyncDisposable
         RouteName = routeName;
         _dataFlow = dataFlow;
         _targetBlock = targetBlock;
-        _channelBlock = channelBlock;
+        ChannelBlock = channelBlock;
         _scope = scope;
     }
 
     public string RouteName { get; }
-    public InputChannelBlock<T> ChannelBlock => _channelBlock;
+    public InputChannelBlock<T> ChannelBlock { get; }
     public Task ExecutionTask { get; private set; } = Task.CompletedTask;
 
     public void StartFlowExecution(IDataFlowContext context)
     {
         // Connect the channel to the target block
-        _targetBlock.SetSource(_channelBlock);
+        _targetBlock.SetSource(ChannelBlock);
 
         // Start the dataflow execution
         ExecutionTask = _dataFlow.ExecuteAsync(context);
@@ -365,7 +363,7 @@ internal class RouteInstance<T> : IAsyncDisposable
 
     public void Complete()
     {
-        _channelBlock.Complete();
+        ChannelBlock.Complete();
     }
 
     public async ValueTask DisposeAsync()

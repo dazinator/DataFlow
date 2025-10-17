@@ -24,10 +24,10 @@ public class ProducerBlock<TOutput> : BlockBase, ISourceBlock<TOutput>
     {
         _producersFactory = options.ProducersFactory;
         _outputChannel = channelFactory.CreateMonitoredChannel<TOutput>(name, options.Capacity);
-        
+
     }
 
-   // private ChannelReader<TOutput> Reader => _outputChannel.Reader;
+    // private ChannelReader<TOutput> Reader => _outputChannel.Reader;
 
     public ChannelReader<TOutput> GetReader(ITargetBlock<TOutput> target)
     {
@@ -43,7 +43,7 @@ public class ProducerBlock<TOutput> : BlockBase, ISourceBlock<TOutput>
         {
             yield return item;
         }
-    }  
+    }
 
     protected override async Task CoreExecuteAsync(IDataFlowContext context)
     {
@@ -54,14 +54,14 @@ public class ProducerBlock<TOutput> : BlockBase, ISourceBlock<TOutput>
             // we could use a router block.            
             var producers = await _producersFactory(context, context.CancellationToken);
             var producersArray = producers.ToArray();
-           
-          //  using var monitoredChannel = this.CreateMonitoredChannel(_outputChannel.Capacity, context, _outputChannel);
+
+            //  using var monitoredChannel = this.CreateMonitoredChannel(_outputChannel.Capacity, context, _outputChannel);
             await ExecuteParallelActivities(context, producers.Count(), async (index, ctx) =>
             {
                 // its safe to concurrently index into a list that isn't being modified.  
                 var producer = producersArray[index];
                 await foreach (var item in producer.ProduceAsync(ctx, ctx.CancellationToken))
-                {                   
+                {
                     await _outputChannel.Writer.WriteAsync(item, ctx.CancellationToken);
                     RecordOperation();
                 }

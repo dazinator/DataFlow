@@ -53,6 +53,6 @@ public static class BatchExtensions
             options.MaxBatchSize = maxBatchSize;
             options.WindowPeriod = windowPeriod;
             configureOptions?.Invoke(options);
-        });      
+        });
     }
 }

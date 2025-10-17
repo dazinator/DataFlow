@@ -19,7 +19,7 @@ public class DataFlowGraphIteratorTests
     public DataFlowGraphIteratorTests(ITestOutputHelper testOutputHelper)
     {
         _testOutputHelper = testOutputHelper;
-        
+
         var services = new ServiceCollection();
         services.AddLogging(builder => builder.AddXUnit(_testOutputHelper));
         services.AddDataFlows();
@@ -157,7 +157,7 @@ public class DataFlowGraphIteratorTests
         builder.AddBroadcast<int>("fanout").ReceiveFrom("source");
 
         // Add 2 branches
-        for (int i = 0; i < 2; i++)
+        for (var i = 0; i < 2; i++)
         {
             var branch = builder.AddBranch($"branch-{i}");
             branch.AddProcessor<int>($"processor-{i}", sp => new TestProcessor<int>())
@@ -173,7 +173,7 @@ public class DataFlowGraphIteratorTests
         branchGroups.Count.ShouldBe(2);
         branchGroups.ShouldContainKey("branch-0");
         branchGroups.ShouldContainKey("branch-1");
-        
+
         unbranchedBlocks.Count.ShouldBe(2); // source and fanout
         unbranchedBlocks.Select(b => b.Name).ShouldContain("source");
         unbranchedBlocks.Select(b => b.Name).ShouldContain("fanout");
@@ -193,7 +193,7 @@ public class DataFlowGraphIteratorTests
         var branch = builder.AddBranch("my-branch");
         branch.AddTransform<int, string>("transform", sp => new NumberTransformer("num"))
             .ReceiveFrom("fanout");
-        
+
         // Add processor within the same branch
         branch.AddProcessor<string>("processor", sp => new TestProcessor<string>())
             .ReceiveFrom("transform");

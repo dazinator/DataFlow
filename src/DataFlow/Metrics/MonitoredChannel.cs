@@ -11,7 +11,7 @@ public class MonitoredChannel<T> : IMonitoredChannel
     private TagList _tags;
     private bool isMonitoringStarted = false;
 
-    public MonitoredChannel(      
+    public MonitoredChannel(
         IDataFlowMetrics metrics,
         Channel<T> channel,
         string blockName,
@@ -25,11 +25,11 @@ public class MonitoredChannel<T> : IMonitoredChannel
         if (!_channel.Reader.CanCount)
         {
             throw new ArgumentException("Channel must support counting for monitoring", nameof(channel));
-        }      
+        }
 
         // Register with metrics system
-        _metrics.RegisterChannel(this);       
-    }  
+        _metrics.RegisterChannel(this);
+    }
 
     /// <summary>
     /// Starts monitoring this channel and returns a lease that should be disposed when monitoring is no longer needed
@@ -39,7 +39,7 @@ public class MonitoredChannel<T> : IMonitoredChannel
     public IChannelMonitoringLease StartMonitoring(IDataFlowContext context)
     {
         isMonitoringStarted = true;
-        _tags = new TagList();       
+        _tags = new TagList();
         // Add global tags first
         foreach (var tag in _metrics.GlobalTags)
         {
@@ -51,9 +51,9 @@ public class MonitoredChannel<T> : IMonitoredChannel
         // _tags.Add(DataFlowMetrics.TagNames.ChannelCapacity, Capacity.ToString());
         _tags.Add(DataFlowMetrics.TagNames.FlowName, context.Name);
         _tags.Add(DataFlowMetrics.TagNames.FlowInvocationId, context.InvocationId);
-       
+
         // Register with metrics - return lease
-        return _metrics.RegisterChannel(this); 
+        return _metrics.RegisterChannel(this);
     }
 
     public ChannelMetricSnapshot? GetMetricSnapshot()

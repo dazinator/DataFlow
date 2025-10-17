@@ -15,8 +15,8 @@ public class DataFlowMetrics : IDataFlowMetrics
 {
 
     private readonly Histogram<double> _blockProcessingDuration;
-    private readonly Histogram<double> _flowExecutionDuration;   
- 
+    private readonly Histogram<double> _flowExecutionDuration;
+
     private readonly ObservableGauge<int> _channelBufferUtilization;
     private readonly ObservableGauge<int> _activeChannelCount;
     private readonly Counter<long> _flowExecutionStartedCount;
@@ -81,7 +81,7 @@ public class DataFlowMetrics : IDataFlowMetrics
             unit: "item",
             description: "Number of business data items processed within stream items");
 
-       
+
         _activeFlowCount = meter.CreateUpDownCounter<int>(InstrumentNames.ActiveFlowCount,
            unit: "flow",
            description: "Number of currently executing flows");
@@ -354,7 +354,7 @@ public class DataFlowMetrics : IDataFlowMetrics
 
         public int GetActiveChannelCount()
         {
-            int count = 0;
+            var count = 0;
             foreach (var kvp in _monitoredChannels)
             {
                 if (kvp.Value.TryGetTarget(out var channel) && channel.GetMetricSnapshot() != null)
@@ -395,22 +395,21 @@ public class DataFlowMetrics : IDataFlowMetrics
     private class ChannelMonitoringLease : IChannelMonitoringLease
     {
         private readonly ChannelRegistry _registry;
-        private readonly IMonitoredChannel _channel;
         private bool _disposed = false;
 
         public ChannelMonitoringLease(ChannelRegistry registry, IMonitoredChannel channel)
         {
             _registry = registry;
-            _channel = channel;
+            Channel = channel;
         }
 
-        public IMonitoredChannel Channel => _channel;
+        public IMonitoredChannel Channel { get; }
 
         public void Dispose()
         {
             if (!_disposed)
             {
-                _registry.UnregisterChannel(_channel);
+                _registry.UnregisterChannel(Channel);
                 _disposed = true;
             }
         }

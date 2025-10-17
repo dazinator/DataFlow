@@ -32,26 +32,26 @@ public static class ComplexEtlDataFlow
         int batchSize = 100)
     {
         var builder = new StructuredDataFlowBuilder(serviceProvider, "ComplexEtlBenchmark");
-        
-        var blockOptions = new BlockOptions 
-        { 
-            MaxConcurrency = maxConcurrency, 
-            Capacity = 100 
+
+        var blockOptions = new BlockOptions
+        {
+            MaxConcurrency = maxConcurrency,
+            Capacity = 100
         };
 
         // Source: Generate raw data records
-        builder.AddProducer<RawRecord>("data-source", 
+        builder.AddProducer<RawRecord>("data-source",
             (IServiceProvider sp) => new DataSourceProducer(recordCount));
 
         // Transform: Parse and validate records
-        builder.AddTransform<RawRecord, ValidatedRecord>("validator", sp => 
-            ActivatorUtilities.CreateInstance<ValidationTransformer>(sp), 
+        builder.AddTransform<RawRecord, ValidatedRecord>("validator", sp =>
+            ActivatorUtilities.CreateInstance<ValidationTransformer>(sp),
             new BlockOptions { MaxConcurrency = maxConcurrency, Capacity = 100 })
             .ReceiveFrom("data-source");
 
         // Transform: Enrich with additional data
-        builder.AddTransform<ValidatedRecord, EnrichedRecord>("enricher", sp => 
-            ActivatorUtilities.CreateInstance<EnrichmentTransformer>(sp), 
+        builder.AddTransform<ValidatedRecord, EnrichedRecord>("enricher", sp =>
+            ActivatorUtilities.CreateInstance<EnrichmentTransformer>(sp),
             new BlockOptions { MaxConcurrency = maxConcurrency, Capacity = 100 })
             .ReceiveFrom("validator");
 
@@ -62,14 +62,14 @@ public static class ComplexEtlDataFlow
 
         // Broadcast Fan-out Path 1: Metrics collector (lightweight processing)
         Uniun.DataFlow.Builder.Graph.StructuredDataFlowBuilderExtensions.AddProcessor<EnrichedRecord>(
-            builder, "metrics-collector", (IServiceProvider sp) => 
+            builder, "metrics-collector", (IServiceProvider sp) =>
                 ActivatorUtilities.CreateInstance<MetricsCollectorProcessor>(sp),
             new BlockOptions { MaxConcurrency = 1, Capacity = 100 })
             .ReceiveFrom("broadcast");
 
         // Broadcast Fan-out Path 2: Audit logger (compliance tracking)
         Uniun.DataFlow.Builder.Graph.StructuredDataFlowBuilderExtensions.AddProcessor<EnrichedRecord>(
-            builder, "audit-logger", (IServiceProvider sp) => 
+            builder, "audit-logger", (IServiceProvider sp) =>
                 ActivatorUtilities.CreateInstance<AuditLoggerProcessor>(sp),
             new BlockOptions { MaxConcurrency = 2, Capacity = 100 })
             .ReceiveFrom("broadcast");
@@ -81,47 +81,47 @@ public static class ComplexEtlDataFlow
             .RegisterRoute("TypeA", context =>
             {
                 var routeBuilder = context.RouteBuilder;
-                
+
                 // TypeA route: Process individual records
-                routeBuilder.AddTransform<EnrichedRecord, ProcessedRecord>("processor", sp => 
-                    ActivatorUtilities.CreateInstance<RecordProcessor>(sp), 
+                routeBuilder.AddTransform<EnrichedRecord, ProcessedRecord>("processor", sp =>
+                    ActivatorUtilities.CreateInstance<RecordProcessor>(sp),
                     new BlockOptions { MaxConcurrency = maxConcurrency, Capacity = 100 })
                     .AsEntry()
-                    .AddProcessor("record-writer", sp => 
+                    .AddProcessor("record-writer", sp =>
                         new RecordWriter(),
                         blockOptions);
-                
+
                 return routeBuilder.Build();
             })
             .RegisterRoute("TypeB", context =>
             {
                 var routeBuilder = context.RouteBuilder;
-                
+
                 // TypeB route: Batch and aggregate records
                 routeBuilder.AddBatch<EnrichedRecord>(
                     "batcher",
                     maxBatchSize: batchSize,
                     windowPeriod: TimeSpan.FromMilliseconds(100))
                     .AsEntry()
-                    .AddTransform<AggregatedBatch>("aggregator", sp => 
-                        ActivatorUtilities.CreateInstance<AggregationTransformer>(sp), 
+                    .AddTransform<AggregatedBatch>("aggregator", sp =>
+                        ActivatorUtilities.CreateInstance<AggregationTransformer>(sp),
                         new BlockOptions { MaxConcurrency = maxConcurrency, Capacity = 100 })
-                    .AddProcessor("aggregation-writer", sp => 
+                    .AddProcessor("aggregation-writer", sp =>
                         new AggregationWriter(),
                         blockOptions);
-                
+
                 return routeBuilder.Build();
             })
             .RegisterRoute("TypeC", context =>
             {
                 var routeBuilder = context.RouteBuilder;
-                
+
                 // TypeC route: Store directly for analysis
-                routeBuilder.AddProcessor<EnrichedRecord>("category-writer", sp => 
+                routeBuilder.AddProcessor<EnrichedRecord>("category-writer", sp =>
                     new CategoryWriter(context.RouteName),
                     blockOptions)
                     .AsEntry();
-                
+
                 return routeBuilder.Build();
             });
 
@@ -149,10 +149,10 @@ public static class ComplexEtlDataFlow
             IDataFlowContext context,
             [EnumeratorCancellation] CancellationToken cancellation)
         {
-            for (int i = 0; i < _count; i++)
+            for (var i = 0; i < _count; i++)
             {
                 cancellation.ThrowIfCancellationRequested();
-                
+
                 yield return new RawRecord(
                     i,
                     $"Data_{i}_{Guid.NewGuid():N}",
@@ -180,7 +180,7 @@ public static class ComplexEtlDataFlow
             {
                 // Simulate validation logic
                 var isValid = !string.IsNullOrEmpty(record.Data) && record.Id >= 0;
-                
+
                 yield return new ValidatedRecord(
                     record.Id,
                     record.Data,
@@ -202,7 +202,7 @@ public static class ComplexEtlDataFlow
             {
                 // Simulate enrichment with external data lookup
                 await Task.Delay(1, cancellationToken);
-                
+
                 var category = (record.Id % 3) switch
                 {
                     0 => "TypeA",
@@ -254,7 +254,7 @@ public static class ComplexEtlDataFlow
             {
                 // Group by category and aggregate
                 var grouped = batch.GroupBy(r => r.Category);
-                
+
                 foreach (var group in grouped)
                 {
                     yield return new AggregatedBatch(

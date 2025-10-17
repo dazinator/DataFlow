@@ -1,4 +1,4 @@
-﻿// ReSharper disable once CheckNamespace
+// ReSharper disable once CheckNamespace
 namespace Uniun.DataFlow.Metrics;
 using System.Diagnostics.Metrics;
 

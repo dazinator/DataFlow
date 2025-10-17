@@ -18,7 +18,7 @@ public class DataFlowThrottler
             throw new ArgumentException("Max concurrent flows must be greater than 0", nameof(maxConcurrentFlows));
         }
         _semaphore = new SemaphoreSlim(maxConcurrentFlows);
-    }   
+    }
 
     public async Task ExecuteFlowAsync(IDataFlow flow, IDataFlowContext context)
     {

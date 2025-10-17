@@ -47,7 +47,7 @@ public class InputChannelBlockTests
         var sp = _services.BuildServiceProvider();
         var logger = sp.GetRequiredService<ILogger<InputChannelBlock<int>>>();
         var channelFactory = sp.GetRequiredService<IBoundedChannelFactory>();
-        
+
         var block = new InputChannelBlock<int>("test-block", logger, channelFactory);
 
         // Act - Call Complete() before CoreExecuteAsync() has started
@@ -62,20 +62,20 @@ public class InputChannelBlockTests
         var sp = _services.BuildServiceProvider();
         var logger = sp.GetRequiredService<ILogger<InputChannelBlock<int>>>();
         var channelFactory = sp.GetRequiredService<IBoundedChannelFactory>();
-        
+
         var block = new InputChannelBlock<int>("test-block", logger, channelFactory);
         var context = CreateContext("test", sp);
 
         // Act - Call Complete() before CoreExecuteAsync()
         block.Complete();
-        
+
         // Now execute the block - it should complete immediately since Complete() was already called
         var executeTask = block.ExecuteAsync(context);
-        
+
         // Assert - Execution should complete quickly without hanging
         var completedTask = await Task.WhenAny(executeTask, Task.Delay(5000));
         completedTask.ShouldBe(executeTask, "Block should complete immediately when Complete() was called before execution");
-        
+
         await executeTask; // Should not throw
     }
 
@@ -86,23 +86,23 @@ public class InputChannelBlockTests
         var sp = _services.BuildServiceProvider();
         var logger = sp.GetRequiredService<ILogger<InputChannelBlock<int>>>();
         var channelFactory = sp.GetRequiredService<IBoundedChannelFactory>();
-        
+
         var block = new InputChannelBlock<int>("test-block", logger, channelFactory);
         var context = CreateContext("test", sp);
 
         // Act - Start execution, then call Complete()
         var executeTask = block.ExecuteAsync(context);
-        
+
         // Give CoreExecuteAsync time to start
         await Task.Delay(100);
-        
+
         // Now call Complete()
         block.Complete();
-        
+
         // Assert - Execution should complete normally
         var completedTask = await Task.WhenAny(executeTask, Task.Delay(5000));
         completedTask.ShouldBe(executeTask, "Block should complete after Complete() is called during execution");
-        
+
         await executeTask; // Should not throw
     }
 
@@ -113,23 +113,23 @@ public class InputChannelBlockTests
         var sp = _services.BuildServiceProvider();
         var logger = sp.GetRequiredService<ILogger<InputChannelBlock<int>>>();
         var channelFactory = sp.GetRequiredService<IBoundedChannelFactory>();
-        
+
         var block = new InputChannelBlock<int>("test-block", logger, channelFactory);
         var context = CreateContext("test", sp);
-        
+
         var receivedItems = new List<int>();
 
         // Act - Start execution in background
         var executeTask = Task.Run(async () => await block.ExecuteAsync(context));
-        
+
         // Give CoreExecuteAsync time to start
         await Task.Delay(100);
-        
+
         // Write some items
         await block.WriteAsync(1);
         await block.WriteAsync(2);
         await block.WriteAsync(3);
-        
+
         // Read items from the block
         var readTask = Task.Run(async () =>
         {
@@ -138,13 +138,13 @@ public class InputChannelBlockTests
                 receivedItems.Add(item);
             }
         });
-        
+
         // Complete the block
         block.Complete();
-        
+
         // Wait for everything to finish
         await Task.WhenAll(executeTask, readTask);
-        
+
         // Assert
         receivedItems.ShouldBe(new[] { 1, 2, 3 });
     }

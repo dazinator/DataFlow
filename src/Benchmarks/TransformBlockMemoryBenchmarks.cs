@@ -1,17 +1,17 @@
 namespace Benchmarks;
 
+using System;
+using System.Collections.Concurrent;
+using System.Diagnostics;
+using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Engines;
 using BenchmarkDotNet.Jobs;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Concurrent;
-using System.Diagnostics;
-using System.Threading.Tasks;
 using Uniun.DataFlow;
-using Uniun.DataFlow.Blocks.Producer;
 using Uniun.DataFlow.Blocks.Processor;
+using Uniun.DataFlow.Blocks.Producer;
 using Uniun.DataFlow.Blocks.Transform;
 
 /// <summary>
@@ -78,10 +78,10 @@ public class TransformBlockMemoryBenchmarks
         transform.SetSource(producer);
         processor.SetSource(transform);
 
-        var context = new DataFlowContext(Guid.NewGuid()) 
-        { 
-            ServiceProvider = _sp, 
-            Name = "default-buffer" 
+        var context = new DataFlowContext(Guid.NewGuid())
+        {
+            ServiceProvider = _sp,
+            Name = "default-buffer"
         };
 
         var startMemory = GC.GetTotalMemory(false);
@@ -128,10 +128,10 @@ public class TransformBlockMemoryBenchmarks
         transform.SetSource(producer);
         processor.SetSource(transform);
 
-        var context = new DataFlowContext(Guid.NewGuid()) 
-        { 
-            ServiceProvider = _sp, 
-            Name = "inline-transform" 
+        var context = new DataFlowContext(Guid.NewGuid())
+        {
+            ServiceProvider = _sp,
+            Name = "inline-transform"
         };
 
         var startMemory = GC.GetTotalMemory(false);
@@ -171,7 +171,7 @@ public class TransformBlockMemoryBenchmarks
             IDataFlowContext context,
             [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
         {
-            for (int i = 0; i < _count; i++)
+            for (var i = 0; i < _count; i++)
             {
                 yield return _start + i;
                 await Task.Yield();
@@ -200,7 +200,7 @@ public class TransformBlockMemoryBenchmarks
             IAsyncEnumerable<string> input,
             CancellationToken cancellationToken)
         {
-            int count = 0;
+            var count = 0;
             await foreach (var item in input.WithCancellation(cancellationToken))
             {
                 count++;

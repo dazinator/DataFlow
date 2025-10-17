@@ -81,7 +81,7 @@ public class RateLimitBlockMemoryBenchmarks
         var processed = new ConcurrentBag<byte[]>();
         var builder = new DataFlowBuilder(_sp);
 
-        builder.AddProducer("source", sp => _producer, a=>a.Capacity = 1)
+        builder.AddProducer("source", sp => _producer, a => a.Capacity = 1)
             .AddRateLimit<byte[]>(
                 "rateLimiter",
                 () => new TokenBucketRateLimiter(new TokenBucketRateLimiterOptions

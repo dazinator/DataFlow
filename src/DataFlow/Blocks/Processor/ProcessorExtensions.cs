@@ -15,7 +15,7 @@ public static class ProcessorExtensions
     {
         var logger = builder.ServiceProvider.GetRequiredService<ILogger<ProcessorBlock<TInput>>>();
         var block = new ProcessorBlock<TInput>(name, logger,
-            sp => ActivatorUtilities.CreateInstance<TProcessor>(sp),  options);
+            sp => ActivatorUtilities.CreateInstance<TProcessor>(sp), options);
         return builder.AddTargetBlock(name, block);
     }
 

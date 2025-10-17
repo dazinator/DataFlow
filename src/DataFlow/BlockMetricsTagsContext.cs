@@ -4,21 +4,18 @@ using Uniun.DataFlow.Metrics;
 /// <summary>
 /// Block-specific metrics context with cached tags
 /// </summary>
-public class BlockMetricsTagsContext: IMetricsTagsContext
+public class BlockMetricsTagsContext : IMetricsTagsContext
 {
-    private readonly string _Name;
     private readonly IMetricsTagsContext _parentContext;
     private readonly IDataFlowMetrics _metrics;
-    private KeyValuePair<string, object?>[] _completionTags = null;
-
 
     public KeyValuePair<string, object?>[] FlowWideTags { get; }
-    public KeyValuePair<string, object?>[] FlowLevelCompletionTags { get => _completionTags; }
-    public string Name => _Name;
+    public KeyValuePair<string, object?>[] FlowLevelCompletionTags { get; private set; } = null;
+    public string Name { get; }
 
     internal BlockMetricsTagsContext(string blockName, IMetricsTagsContext parentContext, IDataFlowMetrics metrics)
     {
-        _Name = blockName;
+        Name = blockName;
         _parentContext = parentContext;
         _metrics = metrics;
         // Cache flow-level tags (global + flow info)
@@ -32,7 +29,7 @@ public class BlockMetricsTagsContext: IMetricsTagsContext
         flowContext.FlowWideTags.CopyTo(blockTags, 0);
         blockTags[flowContext.FlowWideTags.Length] = new(DataFlowMetrics.TagNames.BlockName, blockName);
         return blockTags;
-    }  
+    }
 
     public void Started()
     {
@@ -51,9 +48,9 @@ public class BlockMetricsTagsContext: IMetricsTagsContext
     /// <param name="isSuccessful"></param>
     public void Completed(double duration, bool? isSuccessful)
     {
-        if (_completionTags is null && isSuccessful is not null)
+        if (FlowLevelCompletionTags is null && isSuccessful is not null)
         {
-            _completionTags = CreateCompletionTags(FlowWideTags, isSuccessful.Value);
+            FlowLevelCompletionTags = CreateCompletionTags(FlowWideTags, isSuccessful.Value);
         }
         _metrics.BlockCompleted(this, duration);
     }

@@ -6,12 +6,11 @@ namespace Uniun.DataFlow.Builder.Graph;
 /// </summary>
 public class StructuredPropagatorBlockBuilder<TIn, TOut>
 {
-    private readonly IStructuredDataFlowBuilder _builder;
     private readonly string _blockName;
 
     public StructuredPropagatorBlockBuilder(IStructuredDataFlowBuilder builder, string blockName)
     {
-        _builder = builder;
+        Builder = builder;
         _blockName = blockName;
     }
 
@@ -20,7 +19,7 @@ public class StructuredPropagatorBlockBuilder<TIn, TOut>
     /// </summary>
     public StructuredPropagatorBlockBuilder<TIn, TOut> ReceiveFrom(string sourceBlockName)
     {
-        _builder.AddConnection(sourceBlockName, _blockName, typeof(TIn));
+        Builder.AddConnection(sourceBlockName, _blockName, typeof(TIn));
         return this;
     }
 
@@ -29,11 +28,7 @@ public class StructuredPropagatorBlockBuilder<TIn, TOut>
     /// </summary>
     public StructuredPropagatorBlockBuilder<TIn, TOut> ReceiveFromLast()
     {
-        var lastSourceBlock = _builder.GetLastSourceBlockName();
-        if (lastSourceBlock == null)
-        {
-            throw new InvalidOperationException("No previous source block to receive from");
-        }
+        var lastSourceBlock = Builder.GetLastSourceBlockName() ?? throw new InvalidOperationException("No previous source block to receive from");
 
         return ReceiveFrom(lastSourceBlock);
     }
@@ -43,7 +38,7 @@ public class StructuredPropagatorBlockBuilder<TIn, TOut>
     /// </summary>
     public StructuredPropagatorBlockBuilder<TIn, TOut> LinkTo(string targetBlockName)
     {
-        _builder.AddConnection(_blockName, targetBlockName, typeof(TOut));
+        Builder.AddConnection(_blockName, targetBlockName, typeof(TOut));
         return this;
     }
 
@@ -55,8 +50,8 @@ public class StructuredPropagatorBlockBuilder<TIn, TOut>
         Func<IServiceProvider, IStreamProcessor<TOut>> processorFactory,
         BlockOptions? options = null)
     {
-        var targetBuilder = _builder.AddProcessor(name, processorFactory, options);
-        _builder.AddConnection(_blockName, name, typeof(TOut));
+        var targetBuilder = Builder.AddProcessor(name, processorFactory, options);
+        Builder.AddConnection(_blockName, name, typeof(TOut));
         return targetBuilder;
     }
 
@@ -68,8 +63,8 @@ public class StructuredPropagatorBlockBuilder<TIn, TOut>
         Func<IServiceProvider, IStreamTransformer<TOut, TNewOut>> transformerFactory,
         BlockOptions? options = null)
     {
-        var propagatorBuilder = _builder.AddTransform(name, transformerFactory, options);
-        _builder.AddConnection(_blockName, name, typeof(TOut));
+        var propagatorBuilder = Builder.AddTransform(name, transformerFactory, options);
+        Builder.AddConnection(_blockName, name, typeof(TOut));
         return propagatorBuilder;
     }
 
@@ -82,8 +77,8 @@ public class StructuredPropagatorBlockBuilder<TIn, TOut>
         TimeSpan? windowPeriod = null,
         BlockOptions? options = null)
     {
-        var propagatorBuilder = _builder.AddBatch<TOut>(name, maxBatchSize, windowPeriod, options);
-        _builder.AddConnection(_blockName, name, typeof(TOut));
+        var propagatorBuilder = Builder.AddBatch<TOut>(name, maxBatchSize, windowPeriod, options);
+        Builder.AddConnection(_blockName, name, typeof(TOut));
         return propagatorBuilder;
     }
 
@@ -95,11 +90,11 @@ public class StructuredPropagatorBlockBuilder<TIn, TOut>
     public StructuredPropagatorBlockBuilder<TIn, TOut> AsEntry()
     {
         // Get the block definition and mark it as an entry block
-        var blockDef = _builder.Graph.GetBlockDefinition(_blockName);
+        var blockDef = Builder.Graph.GetBlockDefinition(_blockName);
         blockDef.IsEntryBlock = true;
 
         // If this is a route builder, also set it as the entry block
-        if (_builder is IRouteBuilder routeBuilder)
+        if (Builder is IRouteBuilder routeBuilder)
         {
             routeBuilder.SetEntryBlock(_blockName);
         }
@@ -110,5 +105,5 @@ public class StructuredPropagatorBlockBuilder<TIn, TOut>
     /// <summary>
     /// Gets the underlying builder for additional operations.
     /// </summary>
-    public IStructuredDataFlowBuilder Builder => _builder;
+    public IStructuredDataFlowBuilder Builder { get; }
 }

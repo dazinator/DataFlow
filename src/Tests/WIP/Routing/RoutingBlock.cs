@@ -104,7 +104,7 @@ public class RoutingBlock<T> : BlockBase, ITargetBlock<T>
             await ExecuteParallelActivities(context, Options.MaxConcurrency, async (index, ctx) =>
             {
                 await ExecuteStreamProcessorAsync(index, ctx);
-            });           
+            });
         }
         finally
         {
@@ -184,7 +184,7 @@ public class RoutingBlock<T> : BlockBase, ITargetBlock<T>
                 {
                     // Use a longer timeout for stressed environments
                     await executingTask;
-                   // await executingTask.WaitAsync(TimeSpan.FromMinutes(1), cancellation);
+                    // await executingTask.WaitAsync(TimeSpan.FromMinutes(1), cancellation);
                     _logger.LogInformation("Route execution completed: {routingKey}", routingKey);
 
                     // Add a buffer delay to ensure all activities finish

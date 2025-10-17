@@ -62,7 +62,7 @@ public class BlockDefinition
     {
         if (!_isSourceBlock.HasValue)
         {
-            _isSourceBlock = BlockType.GetInterfaces().Any(i => 
+            _isSourceBlock = BlockType.GetInterfaces().Any(i =>
                 i.IsGenericType && i.GetGenericTypeDefinition() == typeof(ISourceBlock<>));
         }
         return _isSourceBlock.Value;
@@ -76,7 +76,7 @@ public class BlockDefinition
     {
         if (!_isTargetBlock.HasValue)
         {
-            _isTargetBlock = BlockType.GetInterfaces().Any(i => 
+            _isTargetBlock = BlockType.GetInterfaces().Any(i =>
                 i.IsGenericType && i.GetGenericTypeDefinition() == typeof(ITargetBlock<>));
         }
         return _isTargetBlock.Value;

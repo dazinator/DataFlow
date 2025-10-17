@@ -24,7 +24,8 @@ public class RoutingBlockScopeRaceConditionTest
         var services = new ServiceCollection();
 
         // Setup logging
-        services.AddLogging(builder => {
+        services.AddLogging(builder =>
+        {
 
             builder.AddXUnit(_output)
                 .SetMinimumLevel(LogLevel.Debug);
@@ -181,7 +182,7 @@ public class RoutingBlockScopeRaceConditionTest
             }
             )
              .ReceiveFrom("source");
-           
+
         }
     }
 
@@ -271,7 +272,7 @@ public class RoutingBlockScopeRaceConditionTest
             [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellation)
         {
             // Send items in batches to each route
-            for (int cycle = 0; cycle < _routeProcessingCycles; cycle++)
+            for (var cycle = 0; cycle < _routeProcessingCycles; cycle++)
             {
                 if (cancellation.IsCancellationRequested)
                 {
@@ -286,7 +287,7 @@ public class RoutingBlockScopeRaceConditionTest
                     }
 
                     // Send a few items to this route
-                    for (int i = 0; i < 3; i++)
+                    for (var i = 0; i < 3; i++)
                     {
                         if (cancellation.IsCancellationRequested)
                         {
@@ -339,7 +340,7 @@ public class RoutingBlockScopeRaceConditionTest
     {
         private TestMetrics _metrics;
         private bool _disposed = false;
-        private readonly string _instanceId = Guid.NewGuid().ToString().Substring(0, 8);
+        private readonly string _instanceId = Guid.NewGuid().ToString()[..8];
 
         public void RegisterForDisposal(TestMetrics metrics)
         {

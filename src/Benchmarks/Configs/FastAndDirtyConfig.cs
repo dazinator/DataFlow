@@ -48,7 +48,7 @@ public static class LoggingSetup
             });
 
             // Add debug output for VS debugging
-          //  builder.AddDebug();
+            //  builder.AddDebug();
 
             // Set minimum level
             builder.SetMinimumLevel(minimumLevel);

@@ -172,21 +172,78 @@ flowchart LR
 3. **Composability**: Build complex multi-stage pipelines within each branch
 4. **DI Scoping**: Each branch block gets its own DI scope automatically
 
-## Future Enhancements
+## Using Branches with BufferBlock (Competing Consumers)
 
-### BufferBlock for Competing Consumers
+BufferBlock enables competing consumer semantics for load distribution. Unlike BroadcastBlock where each branch receives ALL items, with BufferBlock **each item goes to ONE branch** (competing consumers).
 
-A planned BufferBlock implementation will enable competing consumer semantics (load distribution) with branches:
+### Basic Example: Competing Consumers
 
 ```csharp
-// Future: Competing consumers with branches
-builder.AddBufferBlock<int>("buffer").ReceiveFrom("source");
+var builder = new StructuredDataFlowBuilder(sp, "MyFlow");
 
-for (int i = 0; i < 5; i++) {
-    var branch = builder.AddBranch();
-    branch.AddProcessor<int>($"processor-{i}", sp => new MyProcessor())
-        .ReceiveFrom("buffer"); // Competes with other branches for items
+// Source
+builder.AddProducer<int>("source", sp => new MyProducer());
+
+// Buffer enables competing consumers
+builder.AddBuffer<int>("buffer")
+    .ReceiveFrom("source");
+
+// Create 5 competing consumers
+// Each item is processed by ONLY ONE consumer (load distribution)
+for (int i = 0; i < 5; i++)
+{
+    var consumerId = $"consumer-{i}";
+    builder.AddProcessor<int>(consumerId, sp => new MyProcessor())
+        .ReceiveFrom("buffer");
 }
 ```
 
-This would provide load distribution (each item processed by ONE branch) instead of broadcast (each item processed by ALL branches).
+### 🔀 BufferBlock vs BroadcastBlock
+
+**BufferBlock (Competing Consumers):**
+- **Each item goes to ONE consumer** (load distribution)
+- 10 items → 5 consumers = **10 total operations** (distributed across consumers)
+- Use for: Load balancing, parallel processing of independent items
+
+**BroadcastBlock (Fanout):**
+- **Each item goes to ALL consumers** (data replication)
+- 10 items → 5 consumers = **50 total operations** (10 per consumer)
+- Use for: Multiple independent operations on same data (e.g., validate + archive + notify)
+
+### Multi-Producer Merging with BufferBlock
+
+BufferBlock supports multiple upstream producers, making it ideal for merging branches:
+
+```csharp
+var builder = new StructuredDataFlowBuilder(sp, "BranchMerge");
+
+// Source and fanout
+builder.AddProducer<int>("source", sp => new MyProducer());
+builder.AddBroadcast<int>("fanout").ReceiveFrom("source");
+
+// Create 2 branches that transform items
+for (int i = 0; i < 2; i++)
+{
+    var branch = builder.AddBranch($"branch-{i}");
+    branch.AddTransform<int, string>($"transform-{i}",
+        sp => new MyTransformer(i))
+        .ReceiveFrom("fanout");
+}
+
+// Merge both branches into a buffer for competing consumption
+builder.AddBuffer<string>("merge-buffer")
+    .ReceiveFromBranches("fanout"); // Simplified API - connects to all branches from "fanout"
+    
+// Alternatively, you can manually specify each branch:
+// builder.AddBuffer<string>("merge-buffer")
+//     .ReceiveFrom("transform-0")
+//     .ReceiveFrom("transform-1");
+
+// Single consumer processes merged results
+builder.AddProcessor<string>("final-processor", sp => new MyProcessor())
+    .ReceiveFrom("merge-buffer");
+```
+
+## Future Enhancements
+
+Potential future features for branch and flow control management.

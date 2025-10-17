@@ -148,7 +148,7 @@ public class DataFlowGraph
             .ToHashSet();
 
         var disconnectedBlocks = _blockDefinitions.Keys.Except(connectedBlocks).ToList();
-        
+
         // Warn if we have more than one block and some are disconnected
         if (_blockDefinitions.Count > 1 && disconnectedBlocks.Any())
         {
@@ -166,12 +166,19 @@ public class DataFlowGraph
         foreach (var blockName in blocksWithMultipleSources)
         {
             var blockDef = _blockDefinitions[blockName];
-            // For now, throw an exception as most blocks don't support multiple sources
-            // In the future, we can add a flag to BlockDefinition to indicate support for multiple sources
-            throw new InvalidOperationException(
-                $"Block '{blockName}' has multiple incoming connections. " +
-                $"Most blocks do not support multiple source blocks yet. " +
-                $"Consider using a buffer or merge block in the future to combine multiple sources.");
+
+            // Check if this block explicitly supports multiple sources via metadata
+            var supportsMultipleSources = blockDef.Metadata.ContainsKey("SupportsMultipleSources")
+                && blockDef.Metadata["SupportsMultipleSources"] is bool supports
+                && supports;
+
+            if (!supportsMultipleSources)
+            {
+                throw new InvalidOperationException(
+                    $"Block '{blockName}' has multiple incoming connections. " +
+                    $"Most blocks do not support multiple source blocks yet. " +
+                    $"Consider using a buffer or merge block to combine multiple sources.");
+            }
         }
 
         // Check for cycles (basic check - could be enhanced)

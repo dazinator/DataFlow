@@ -55,9 +55,9 @@ public class BranchBasedConcurrencyTests
         var builder = new StructuredDataFlowBuilder(sp, "InvoiceProcessing");
 
         // Simulate 20 invoices to process
-        var invoices = Enumerable.Range(1, 20).Select(i => new Invoice 
-        { 
-            Id = i, 
+        var invoices = Enumerable.Range(1, 20).Select(i => new Invoice
+        {
+            Id = i,
             Amount = i * 100m,
             CustomerId = $"CUST-{i % 5}" // 5 different customers
         }).ToArray();
@@ -74,7 +74,7 @@ public class BranchBasedConcurrencyTests
 
         // 3. Create 5 concurrent processing branches with auto-generated names
         const int concurrency = 5;
-        for (int i = 0; i < concurrency; i++)
+        for (var i = 0; i < concurrency; i++)
         {
             var branchId = i;
             // Branch names are auto-generated: "InvoiceProcessing-fanout-branch-0", "InvoiceProcessing-fanout-branch-1", etc.
@@ -103,9 +103,9 @@ public class BranchBasedConcurrencyTests
 
         // Assert
         processedInvoices.Count.ShouldBe(100); // 20 invoices × 5 branches (broadcast semantics!)
-        
+
         // Verify each branch processed all 20 invoices
-        for (int branchId = 0; branchId < concurrency; branchId++)
+        for (var branchId = 0; branchId < concurrency; branchId++)
         {
             var branchInvoices = processedInvoices.Where(p => p.ProcessedByBranch == branchId).ToList();
             branchInvoices.Count.ShouldBe(20);
@@ -121,9 +121,9 @@ public class BranchBasedConcurrencyTests
         var builder = new StructuredDataFlowBuilder(sp, "InvoiceProcessing");
 
         // Simulate 20 invoices to process
-        var invoices = Enumerable.Range(1, 20).Select(i => new Invoice 
-        { 
-            Id = i, 
+        var invoices = Enumerable.Range(1, 20).Select(i => new Invoice
+        {
+            Id = i,
             Amount = i * 100m,
             CustomerId = $"CUST-{i % 5}" // 5 different customers
         }).ToArray();
@@ -140,7 +140,7 @@ public class BranchBasedConcurrencyTests
 
         // 3. Create 5 concurrent processing branches
         const int concurrency = 5;
-        for (int i = 0; i < concurrency; i++)
+        for (var i = 0; i < concurrency; i++)
         {
             var branchId = i;
             var branch = builder.AddBranch($"processing-branch-{i}");
@@ -171,19 +171,19 @@ public class BranchBasedConcurrencyTests
         // Assert
         processedInvoices.Count.ShouldBe(100); // 20 invoices * 5 branches = 100 (each branch processes all)
         _output.WriteLine($"Processed {processedInvoices.Count} invoice records in {duration.TotalMilliseconds}ms");
-        
+
         // Verify all branch IDs were used (confirming concurrency)
         var branchIdsUsed = processedInvoices.Select(i => i.ProcessedByBranch).Distinct().OrderBy(x => x).ToArray();
         branchIdsUsed.ShouldBe(new[] { 0, 1, 2, 3, 4 });
 
         // Generate and display diagram
         var diagram = builder.Graph.ToMermaidDiagram(
-            options: new DiagramRenderOptions 
-            { 
+            options: new DiagramRenderOptions
+            {
                 CollapseConcurrentBranches = true,
                 MaxBranchesToShowIndividually = 3
             });
-        
+
         _output.WriteLine("\nDiagram (collapsed):");
         _output.WriteLine(diagram);
     }
@@ -344,7 +344,7 @@ public class BranchBasedConcurrencyTests
         // Arrange - Verify that each branch gets its own DI scope
         var services = new ServiceCollection();
         AddDefaultServices(services);
-        
+
         // Register a scoped service to track scope instances
         var scopeInstances = new ConcurrentBag<int>();
         services.AddScoped<ScopedTestService>(sp => new ScopedTestService(scopeInstances));
@@ -359,7 +359,7 @@ public class BranchBasedConcurrencyTests
             .ReceiveFrom("source");
 
         // Create 3 concurrent branches
-        for (int i = 0; i < 3; i++)
+        for (var i = 0; i < 3; i++)
         {
             var branchBuilder = builder.AddBranch($"branch-{i}");
             var processorBuilder = StructuredDataFlowBuilderExtensions.AddProcessor<int>(branchBuilder, $"processor-{i}",
@@ -381,16 +381,15 @@ public class BranchBasedConcurrencyTests
     private class ScopedTestService
     {
         private readonly ConcurrentBag<int> _scopeInstances;
-        private readonly int _instanceId;
 
         public ScopedTestService(ConcurrentBag<int> scopeInstances)
         {
             _scopeInstances = scopeInstances;
-            _instanceId = scopeInstances.Count + 1;
-            _scopeInstances.Add(_instanceId);
+            InstanceId = scopeInstances.Count + 1;
+            _scopeInstances.Add(InstanceId);
         }
 
-        public int InstanceId => _instanceId;
+        public int InstanceId { get; }
     }
 
     private class ScopedProcessor : IStreamProcessor<int>
