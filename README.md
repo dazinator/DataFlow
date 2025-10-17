@@ -126,6 +126,37 @@ await executor.ExecuteAsync(context);
 
 ```
 
+### Named DataFlow Registration (Recommended Approach)
+
+Starting with v2.0, the library supports a more streamlined approach for registering dataflows using keyed services. This is now the recommended pattern for new code:
+
+```csharp
+// Register named dataflows with DI
+services.AddDataFlows();
+services.AddDataFlowMetrics();
+
+services.AddKeyedDataFlow("number-processing", builder =>
+{
+    builder.AddProducer("source", sp => sp.GetRequiredService<NumberProducer>())
+        .AddBatch("batcher", 
+            maxBatchSize: 100,            
+            windowPeriod: TimeSpan.FromSeconds(5))
+        .AddProcessor("database-writer", sp => sp.GetRequiredService<DatabaseWriter>());
+});
+
+// Resolve and execute the dataflow
+var dataflow = serviceProvider.GetDataFlow("number-processing");
+await dataflow.ExecuteAsync(context);
+```
+
+This approach offers several benefits:
+- **Multiple Dataflows**: Register multiple named dataflows in the same application
+- **DI Lifetime Management**: Use transient, scoped, or singleton lifetimes as needed
+- **Graph Inspection**: Access the graph directly from dataflow instances to generate Mermaid diagrams or inspect metadata
+- **Clean API**: Simpler registration without separate configuration classes
+
+See [Keyed DataFlow Registration Guide](docs/KeyedDataFlowRegistration.md) for detailed examples.
+
 ## What about TPL Dataflow?
 While TPL Dataflow is a mature library, this implementation offers several advantages:
 

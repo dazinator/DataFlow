@@ -179,6 +179,6 @@ public class StructuredDataFlowBuilder : IDataFlowBuilder, IStructuredDataFlowBu
 
         // Create and return the dataflow
         var metrics = ServiceProvider.GetRequiredService<Uniun.DataFlow.Metrics.IDataFlowMetrics>();
-        return new DataFlow(Graph.Name, blocks.Values.ToList(), metrics);
+        return new DataFlow(Graph.Name, blocks.Values.ToList(), metrics, Graph);
     }
 }

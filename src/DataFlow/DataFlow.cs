@@ -2,6 +2,7 @@ namespace Uniun.DataFlow;
 
 using System.Diagnostics;
 using Uniun.DataFlow.Blocks;
+using Uniun.DataFlow.Builder.Graph;
 using Uniun.DataFlow.Metrics;
 
 public class DataFlow<TConfig> : IDataFlow
@@ -20,6 +21,8 @@ public class DataFlow<TConfig> : IDataFlow
     }
 
     public string Name { get; set; }
+    
+    public DataFlowGraph? Graph => _flow.Graph;
 
     public Task ExecuteAsync(IDataFlowContext context) => _flow.ExecuteAsync(context);
 }
@@ -34,14 +37,18 @@ public class DataFlow : IDataFlow
     public DataFlow(
         string name,
         List<IBlock> blocks,
-        IDataFlowMetrics metrics)
+        IDataFlowMetrics metrics,
+        DataFlowGraph? graph = null)
     {
         _blocks = blocks;
         _metrics = metrics;
         Name = name;
+        Graph = graph;
     }
 
     public string Name { get; set; }
+    
+    public DataFlowGraph? Graph { get; }
 
     public async Task ExecuteAsync(IDataFlowContext context)
     {
