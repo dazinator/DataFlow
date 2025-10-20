@@ -533,4 +533,182 @@ public class DataFlowGraphExporterTests
     }
 
     #endregion
+
+    #region Enhanced Routing Diagram Tests
+
+    [SnapshotTest]
+    [Fact]
+    public Task Should_GenerateMermaidDiagram_WithRoutingBlockNoMerge()
+    {
+        // Arrange
+        var builder = new StructuredDataFlowBuilder(_serviceProvider, "RoutingFlowNoMerge");
+        var items = new[] { 1, 2, 3, 4, 5, 6 };
+
+        // Build a routing flow WITHOUT merge
+        builder.AddProducer("source", sp => new TestProducer<int>(items));
+
+        builder.AddRouter<int>("router", item => item % 2 == 0 ? "even" : "odd")
+            .RegisterRoute("even", context =>
+            {
+                var routeBuilder = context.RouteBuilder;
+                routeBuilder.AddTransform("even-transform", sp => new NumberTransformer("EVEN"))
+                    .AsEntry()
+                    .AddProcessor("even-processor", sp => new TestProcessor<string>());
+                return routeBuilder;
+            })
+            .RegisterRoute("odd", context =>
+            {
+                var routeBuilder = context.RouteBuilder;
+                routeBuilder.AddTransform("odd-transform", sp => new NumberTransformer("ODD"))
+                    .AsEntry()
+                    .AddProcessor("odd-processor", sp => new TestProcessor<string>());
+                return routeBuilder;
+            })
+            .ReceiveFrom("source");
+
+        // Act - pass service provider to render route details
+        var mermaid = builder.Graph.ToMermaidDiagram(serviceProvider: _serviceProvider);
+
+        // Assert - use snapshot testing
+        return Verify(mermaid).UseFileName("RoutingFlowNoMerge_Mermaid");
+    }
+
+    [SnapshotTest]
+    [Fact(Skip = "Merge functionality requires additional architectural work")]
+    public Task Should_GenerateMermaidDiagram_WithRoutingBlockMerge()
+    {
+        // Arrange
+        var builder = new StructuredDataFlowBuilder(_serviceProvider, "RoutingFlowWithMerge");
+        var items = new[] { 1, 2, 3, 4, 5, 6 };
+
+        // Build a routing flow WITH merge (even if merge functionality isn't complete)
+        builder.AddProducer("source", sp => new TestProducer<int>(items));
+
+        builder.AddRouter<int>("router", item => item % 2 == 0 ? "even" : "odd")
+            .RegisterRoute("even", context =>
+            {
+                var routeBuilder = context.RouteBuilder;
+                routeBuilder.AddTransform("even-transform", sp => new NumberTransformer("EVEN"))
+                    .AsEntry()
+                    .AddProcessor("even-processor", sp => new TestProcessor<string>());
+                return routeBuilder;
+            })
+            .RegisterRoute("odd", context =>
+            {
+                var routeBuilder = context.RouteBuilder;
+                routeBuilder.AddTransform("odd-transform", sp => new NumberTransformer("ODD"))
+                    .AsEntry()
+                    .AddProcessor("odd-processor", sp => new TestProcessor<string>());
+                return routeBuilder;
+            })
+            .MergeInto("merger") // Note: Merge configuration
+            .ReceiveFrom("source");
+
+        // Add buffer block for merging
+        builder.AddBuffer<string>("merger");
+
+        // Add final processor
+        builder.AddProcessor("final-processor", sp => new TestProcessor<string>())
+            .ReceiveFrom("merger");
+
+        // Act - pass service provider to render route details
+        var mermaid = builder.Graph.ToMermaidDiagram(serviceProvider: _serviceProvider);
+
+        // Assert - use snapshot testing
+        return Verify(mermaid).UseFileName("RoutingFlowWithMerge_Mermaid");
+    }
+
+    [SnapshotTest]
+    [Fact]
+    public Task Should_GenerateMermaidDiagram_WithDynamicRoutingStructure()
+    {
+        // Arrange
+        var builder = new StructuredDataFlowBuilder(_serviceProvider, "DynamicRoutingFlow");
+        var items = new[] { 1, 2, 3, 4, 5, 6 };
+
+        // Build a flow with dynamic routing configuration
+        builder.AddProducer("data-source", sp => new TestProducer<int>(items));
+
+        builder.AddRouter<int>("dynamic-router", item => $"category-{item % 3}")
+            .RegisterRoute("template", context =>
+            {
+                var routeBuilder = context.RouteBuilder;
+                routeBuilder.AddTransform("category-transform", sp => new NumberTransformer("CAT"))
+                    .AsEntry();
+                routeBuilder.AddBatch<string>("category-batcher", maxBatchSize: 2, windowPeriod: TimeSpan.FromSeconds(1))
+                    .ReceiveFrom("category-transform")
+                    .AddProcessor("category-processor", sp => new TestProcessor<string[]>());
+                return routeBuilder;
+            })
+            .WithDynamicRouting("template", maxDynamicRoutes: 10)
+            .ReceiveFrom("data-source");
+
+        // Act - render the diagram
+        var mermaid = builder.Graph.ToMermaidDiagram(serviceProvider: _serviceProvider);
+
+        // Assert - verify dynamic routing structure in diagram
+        return Verify(mermaid).UseFileName("DynamicRoutingFlow_Mermaid");
+    }
+
+    [SnapshotTest]
+    [Fact]
+    public Task Should_GenerateMermaidDiagram_WithNestedRoutingAndTransforms()
+    {
+        // Arrange
+        var builder = new StructuredDataFlowBuilder(_serviceProvider, "NestedRoutingFlow");
+        var items = new[] { 1, 2, 3, 4, 5, 6, 7, 8 };
+
+        // Create a complex flow with multiple transform stages and routing
+        builder.AddProducer("input", sp => new TestProducer<int>(items));
+
+        // Initial transform
+        builder.AddTransform("initial-transform", sp => new NumberTransformer("INIT"))
+            .ReceiveFrom("input");
+
+        // Route based on transformed data
+        builder.AddRouter<string>("categorizer", item =>
+        {
+            var num = int.Parse(item.Split('-')[1]);
+            return num switch
+            {
+                <= 2 => "small",
+                <= 5 => "medium", 
+                _ => "large"
+            };
+        })
+        .RegisterRoute("small", context =>
+        {
+            var routeBuilder = context.RouteBuilder;
+            routeBuilder.AddTransform("small-processor", sp => new PassthroughTransformer<string>())
+                .AsEntry()
+                .AddProcessor("small-output", sp => new TestProcessor<string>());
+            return routeBuilder;
+        })
+        .RegisterRoute("medium", context =>
+        {
+            var routeBuilder = context.RouteBuilder;
+            routeBuilder.AddBatch<string>("medium-batcher", maxBatchSize: 2, windowPeriod: TimeSpan.FromSeconds(1))
+                .AsEntry()
+                .AddProcessor("medium-output", sp => new TestProcessor<string[]>());
+            return routeBuilder;
+        })
+        .RegisterRoute("large", context =>
+        {
+            var routeBuilder = context.RouteBuilder;
+            routeBuilder.AddTransform("large-amplifier", sp => new PassthroughTransformer<string>())
+                .AsEntry()
+                .AddTransform("large-finalizer", sp => new PassthroughTransformer<string>())
+                .AddProcessor("large-output", sp => new TestProcessor<string>());
+            return routeBuilder;
+        })
+        .ReceiveFrom("initial-transform");
+
+        // Act
+        var mermaid = builder.Graph.ToMermaidDiagram(serviceProvider: _serviceProvider);
+
+        // Assert
+        return Verify(mermaid).UseFileName("NestedRoutingFlow_Mermaid");
+    }
+
+    #endregion
 }

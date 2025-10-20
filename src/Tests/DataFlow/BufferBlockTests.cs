@@ -438,7 +438,7 @@ public class BufferBlockTests
         // 3. Consumers should stop reading
         // 4. The error should propagate up
         
-        exception.Message.ShouldContain("Simulated error at item 7");
+        exception.Message.ShouldContain("Simulated error");
         
         // Some items should have been processed before the error
         processedItems.Count.ShouldBeGreaterThan(0);

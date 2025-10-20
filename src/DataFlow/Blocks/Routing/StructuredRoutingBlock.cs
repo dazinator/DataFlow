@@ -51,6 +51,18 @@ public class StructuredRoutingBlock<T> : BlockBase, ITargetBlock<T>
         _logger = logger;
         _parentGraph = parentGraph;
         _mergeTargetBlock = mergeTargetBlock;
+
+        // TODO: Merge functionality is not yet implemented
+        // The routing block needs runtime access to built block instances to connect route outputs
+        // to the merge target block. This requires architectural changes to provide access to the
+        // compiled DAG graph of built blocks. See separate issue for runtime block access.
+        if (!string.IsNullOrEmpty(options.MergeIntoBlockName))
+        {
+            throw new NotImplementedException(
+                "Merge functionality is not yet implemented. " +
+                "The routing block requires runtime access to built block instances to auto-connect " +
+                "route outputs to the merge target block. This feature will be implemented in a future release.");
+        }
     }
 
     public void SetSource(ISourceBlock<T> source)

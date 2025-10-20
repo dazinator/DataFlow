@@ -1,0 +1,40 @@
+﻿flowchart LR
+    %% DataFlow: NestedRoutingFlow
+
+    input(["input"])
+    initial_transform[/"initial-transform"/]
+    categorizer["categorizer"]
+
+    input -->|Int32| initial_transform
+    initial_transform -->|String| categorizer
+
+    %% Routes for 'categorizer':
+    subgraph categorizer_route_small ["Route: small"]
+        direction LR
+        small_processor[/"[ENTRY] small-processor<br/>String → String"/]
+        small_output["small-output<br/>String →"]
+
+        small_processor -->|String| small_output
+    end
+
+    categorizer -.->|String<br/>'small'| categorizer_route_small
+    subgraph categorizer_route_medium ["Route: medium"]
+        direction LR
+        medium_batcher[/"[ENTRY] medium-batcher<br/>String → String[]"/]
+        medium_output["medium-output<br/>String[] →"]
+
+        medium_batcher -->|String Array| medium_output
+    end
+
+    categorizer -.->|String<br/>'medium'| categorizer_route_medium
+    subgraph categorizer_route_large ["Route: large"]
+        direction LR
+        large_amplifier[/"[ENTRY] large-amplifier<br/>String → String"/]
+        large_finalizer[/"large-finalizer<br/>String → String"/]
+        large_output["large-output<br/>String →"]
+
+        large_amplifier -->|String| large_finalizer
+        large_finalizer -->|String| large_output
+    end
+
+    categorizer -.->|String<br/>'large'| categorizer_route_large

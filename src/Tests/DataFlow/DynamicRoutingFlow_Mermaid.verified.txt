@@ -1,0 +1,20 @@
+flowchart LR
+    %% DataFlow: DynamicRoutingFlow
+
+    data_source(["data-source"])
+    dynamic_router["dynamic-router"]
+
+    data_source -->|Int32| dynamic_router
+
+    %% Routes for 'dynamic-router':
+    subgraph dynamic_router_route_template ["Route: template"]
+        direction LR
+        category_transform[/"[ENTRY] category-transform<br/>Int32 → String"/]
+        category_batcher[/"category-batcher<br/>String → String[]"/]
+        category_processor["category-processor<br/>String[] →"]
+
+        category_transform -->|String| category_batcher
+        category_batcher -->|String Array| category_processor
+    end
+
+    dynamic_router -.->|Int32<br/>'template'| dynamic_router_route_template

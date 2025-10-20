@@ -7,6 +7,7 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
+[Xunit.Categories.Expensive]
 [Category("Regression")]
 public class RoutingBlockScopeRaceConditionTest
 {
