@@ -4,26 +4,46 @@ using Microsoft.Extensions.DependencyInjection;
 using Uniun.DataFlow.Blocks;
 
 /// <summary>
-/// A builder for constructing route sub-dataflows.
-/// Implements IRouteBuilder which extends IStructuredDataFlowBuilder to share the same API as the main builder.
+/// A builder for constructing route branches.
+/// Implements IRouteBuilder which extends IBranchBuilder to share the same API as branch builders.
+/// Unlike regular branches, routes have special entry block requirements and Build() capability.
 /// </summary>
 public class RouteBuilder : IRouteBuilder
 {
     private readonly DataFlowBuilderState _state;
+    private readonly DataFlowGraph _graph;
     private string? _entryBlockName;
     private string? _lastSourceBlockName;
 
-    public RouteBuilder(IServiceProvider serviceProvider, string routeName)
+    public RouteBuilder(IServiceProvider serviceProvider, string routeName, DataFlowGraph? parentGraph = null)
     {
         ServiceProvider = serviceProvider;
         RouteName = routeName;
+        BranchName = $"Route-{routeName}";
+        BranchIndex = null; // Routes don't have numeric indices
         _state = new DataFlowBuilderState(serviceProvider);
-        Graph = new DataFlowGraph($"Route-{routeName}");
+        _graph = new DataFlowGraph(BranchName);
+        ParentGraph = parentGraph;
+        // Routes don't have a parent builder in the traditional sense
+        ParentBuilder = null!; // Will not be used for routes
     }
 
     public IServiceProvider ServiceProvider { get; }
     public string RouteName { get; }
-    public DataFlowGraph Graph { get; }
+    public DataFlowGraph Graph => _graph;
+    
+    // IBranchBuilder properties
+    public string BranchName { get; }
+    public int? BranchIndex { get; }
+    public IStructuredDataFlowBuilder ParentBuilder { get; }
+    public string? LastSourceBlockInBranch => _lastSourceBlockName;
+    public string? ParentBlockAtCreation => null; // Routes are created on-demand, not from a specific parent block
+    
+    /// <summary>
+    /// The parent graph this route belongs to (if any).
+    /// This allows routes to lookup existing branches from the parent.
+    /// </summary>
+    public DataFlowGraph? ParentGraph { get; }
 
     public void AddBlockDefinition<TBlock>(
         string name,
@@ -42,7 +62,7 @@ public class RouteBuilder : IRouteBuilder
             Metadata = metadata ?? new Dictionary<string, object>()
         };
 
-        Graph.AddBlockDefinition(blockDefinition);
+        _graph.AddBlockDefinition(blockDefinition);
 
         // Automatically set the first target block as the entry block if none is set yet
         if (_entryBlockName == null && blockDefinition.IsTargetBlock())
@@ -64,7 +84,7 @@ public class RouteBuilder : IRouteBuilder
             Metadata = metadata ?? new Dictionary<string, object>()
         };
 
-        Graph.AddConnection(connection);
+        _graph.AddConnection(connection);
     }
 
     public void SetLastSourceBlock(string blockName)
@@ -79,17 +99,21 @@ public class RouteBuilder : IRouteBuilder
         // Clear previous entry block flag if any
         if (_entryBlockName != null)
         {
-            var prevBlockDef = Graph.GetBlockDefinition(_entryBlockName);
+            var prevBlockDef = _graph.GetBlockDefinition(_entryBlockName);
             prevBlockDef.IsEntryBlock = false;
         }
 
         _entryBlockName = blockName;
-        var blockDef = Graph.GetBlockDefinition(blockName);
+        var blockDef = _graph.GetBlockDefinition(blockName);
         blockDef.IsEntryBlock = true;
     }
 
     public string? GetEntryBlockName() => _entryBlockName;
 
+    /// <summary>
+    /// Builds the route as a DataFlow for execution by the routing block.
+    /// This is called by the routing block when instantiating a route.
+    /// </summary>
     public IDataFlow Build()
     {
         // Validate that we have an entry block
@@ -99,7 +123,7 @@ public class RouteBuilder : IRouteBuilder
         }
 
         // Validate the entry block exists and is a target block
-        var entryBlockDef = Graph.GetBlockDefinition(_entryBlockName);
+        var entryBlockDef = _graph.GetBlockDefinition(_entryBlockName);
         if (!entryBlockDef.IsTargetBlock())
         {
             throw new InvalidOperationException(
@@ -108,7 +132,7 @@ public class RouteBuilder : IRouteBuilder
 
         // Instantiate all blocks
         var blocks = new Dictionary<string, IBlock>();
-        foreach (var definition in Graph.BlockDefinitions.Values)
+        foreach (var definition in _graph.BlockDefinitions.Values)
         {
             var block = definition.Factory(ServiceProvider);
             blocks[definition.Name] = block;
@@ -116,7 +140,7 @@ public class RouteBuilder : IRouteBuilder
         }
 
         // Wire up connections
-        foreach (var connection in Graph.Connections)
+        foreach (var connection in _graph.Connections)
         {
             var sourceBlock = blocks[connection.SourceBlockName];
             var targetBlock = blocks[connection.TargetBlockName];
@@ -136,7 +160,7 @@ public class RouteBuilder : IRouteBuilder
 
         // Create and return the dataflow
         var metrics = ServiceProvider.GetRequiredService<Uniun.DataFlow.Metrics.IDataFlowMetrics>();
-        return new DataFlow(Graph.Name, blocks.Values.ToList(), metrics);
+        return new DataFlow(_graph.Name, blocks.Values.ToList(), metrics);
     }
 
     public ITargetBlock<T> GetTargetBlock<T>(string blockName)

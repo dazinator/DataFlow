@@ -91,7 +91,7 @@ public static class ComplexEtlDataFlow
                         new RecordWriter(),
                         blockOptions);
 
-                return routeBuilder.Build();
+                return routeBuilder;
             })
             .RegisterRoute("TypeB", context =>
             {
@@ -110,7 +110,7 @@ public static class ComplexEtlDataFlow
                         new AggregationWriter(),
                         blockOptions);
 
-                return routeBuilder.Build();
+                return routeBuilder;
             })
             .RegisterRoute("TypeC", context =>
             {
@@ -122,7 +122,7 @@ public static class ComplexEtlDataFlow
                     blockOptions)
                     .AsEntry();
 
-                return routeBuilder.Build();
+                return routeBuilder;
             });
 
         return builder;

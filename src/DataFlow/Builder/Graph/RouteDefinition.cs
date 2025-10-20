@@ -1,14 +1,12 @@
 namespace Uniun.DataFlow.Builder.Graph;
 
-using Uniun.DataFlow.Blocks;
-
 /// <summary>
 /// Represents a route definition in the routing graph.
-/// This describes how to build a sub-dataflow for a specific route name.
+/// This describes how to build a branch for a specific route name.
 /// </summary>
 public class RouteDefinition
 {
-    public RouteDefinition(string name, Type itemType, Func<RouteContext, IDataFlow> factory)
+    public RouteDefinition(string name, Type itemType, Func<RouteContext, IBranchBuilder> factory)
     {
         Name = name;
         ItemType = itemType;
@@ -26,10 +24,11 @@ public class RouteDefinition
     public Type ItemType { get; }
 
     /// <summary>
-    /// Factory function to create the route's sub-dataflow.
+    /// Factory function to create the route's branch.
     /// Called when the route needs to be instantiated.
+    /// The factory can either create a new branch or lookup and return an existing branch from the graph.
     /// </summary>
-    public Func<RouteContext, IDataFlow> Factory { get; }
+    public Func<RouteContext, IBranchBuilder> Factory { get; }
 
     /// <summary>
     /// Additional metadata about the route.

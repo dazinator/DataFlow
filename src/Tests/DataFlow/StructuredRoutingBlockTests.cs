@@ -78,7 +78,7 @@ public class StructuredRoutingBlockTests
                     }))
                     .AsEntry();
 
-                return routeBuilder.Build();
+                return routeBuilder;
             })
             .RegisterRoute("odd", context =>
             {
@@ -100,7 +100,7 @@ public class StructuredRoutingBlockTests
                     }))
                     .AsEntry();
 
-                return routeBuilder.Build();
+                return routeBuilder;
             })
             .ReceiveFrom("source");
 
@@ -136,7 +136,7 @@ public class StructuredRoutingBlockTests
                 var routeBuilder = context.RouteBuilder;
                 routeBuilder.AddProcessor("processor", sp => new TestProcessor<int>())
                     .AsEntry();
-                return routeBuilder.Build();
+                return routeBuilder;
             })
             .ReceiveFrom("source");
 
@@ -183,7 +183,7 @@ public class StructuredRoutingBlockTests
                                 context.RouteName, string.Join(", ", numbers));
                         }));
 
-                return routeBuilder.Build();
+                return routeBuilder;
             })
             .RegisterRoute("odd", context =>
             {
@@ -201,7 +201,7 @@ public class StructuredRoutingBlockTests
                                 context.RouteName, string.Join(", ", numbers));
                         }));
 
-                return routeBuilder.Build();
+                return routeBuilder;
             })
             .ReceiveFrom("source");
 
@@ -263,7 +263,7 @@ public class StructuredRoutingBlockTests
                     }))
                     .AsEntry();
 
-                return routeBuilder.Build();
+                return routeBuilder;
             })
             .WithDynamicRouting("template")
             .ReceiveFrom("source");
@@ -301,7 +301,7 @@ public class StructuredRoutingBlockTests
                 var routeBuilder = context.RouteBuilder;
                 routeBuilder.AddProcessor("processor", sp => new TestProcessor<RoutingTestItem>())
                     .AsEntry();
-                return routeBuilder.Build();
+                return routeBuilder;
             })
             .WithDynamicRouting("template", maxDynamicRoutes: 5)
             .ReceiveFrom("source");
@@ -368,7 +368,7 @@ public class StructuredRoutingBlockTests
                 var routeBuilder = context.RouteBuilder;
                 routeBuilder.AddProcessor("processor", sp => new TestProcessor<RoutingTestItem>())
                     .AsEntry();
-                return routeBuilder.Build();
+                return routeBuilder;
             })
             .WithDynamicRouting("template")
             .ReceiveFrom("source");
@@ -404,7 +404,7 @@ public class StructuredRoutingBlockTests
                 var routeBuilder = context.RouteBuilder;
                 routeBuilder.AddProcessor("processor", sp => new TestProcessor<int>());
                 // No need to call .AsEntry() - first target block is automatically the entry
-                return routeBuilder.Build();
+                return routeBuilder;
             })
             .ReceiveFrom("source");
 
@@ -436,7 +436,7 @@ public class StructuredRoutingBlockTests
                 var routeBuilder = context.RouteBuilder;
                 routeBuilder.AddProcessor("processor", sp => new TestProcessor<int>())
                     .AsEntry();
-                return routeBuilder.Build();
+                return routeBuilder;
             })
             .ReceiveFrom("source");
 
@@ -473,7 +473,7 @@ public class StructuredRoutingBlockTests
                 routeBuilder.AddProcessor("processor", sp => new TestProcessor<int>(
                     onProcessItem: item => processedItems.Add(item)))
                     .AsEntry();
-                return routeBuilder.Build();
+                return routeBuilder;
             })
             .RegisterRoute("even", context =>
             {
@@ -481,7 +481,7 @@ public class StructuredRoutingBlockTests
                 routeBuilder.AddProcessor("processor", sp => new TestProcessor<int>(
                     onProcessItem: item => processedItems.Add(item)))
                     .AsEntry();
-                return routeBuilder.Build();
+                return routeBuilder;
             })
             .RegisterRoute("odd", context =>
             {
@@ -489,7 +489,7 @@ public class StructuredRoutingBlockTests
                 routeBuilder.AddProcessor("processor", sp => new TestProcessor<int>(
                     onProcessItem: item => processedItems.Add(item)))
                     .AsEntry();
-                return routeBuilder.Build();
+                return routeBuilder;
             })
             .ReceiveFrom("source");
 
@@ -528,7 +528,7 @@ public class StructuredRoutingBlockTests
             {
                 var routeBuilder = context.RouteBuilder;
                 routeBuilder.AddProcessor("processor", sp => new TestProcessor<int>());
-                return routeBuilder.Build();
+                return routeBuilder;
             })
             .ReceiveFrom("source");
 

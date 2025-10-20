@@ -50,13 +50,14 @@ public class RoutingBlockMermaidRenderer : IMermaidBlockRenderer
             {
                 try
                 {
-                    var routeBuilder = new RouteBuilder(context.ServiceProvider, route.Name);
+                    var routeBuilder = new RouteBuilder(context.ServiceProvider, route.Name, parentGraph: null);
                     var routeContext = new RouteContext
                     {
                         RouteName = route.Name,
                         RouteDefinitionName = route.Name,
                         TriggeringItem = null,
                         ServiceProvider = context.ServiceProvider,
+                        ParentGraph = new DataFlowGraph("Visualization"), // Temporary graph for visualization
                         RouteBuilder = routeBuilder,
                         IsDesignTime = true  // Indicate we're building for design-time visualization
                     };

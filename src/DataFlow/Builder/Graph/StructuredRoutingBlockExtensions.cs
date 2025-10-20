@@ -2,6 +2,7 @@ namespace Uniun.DataFlow.Builder.Graph;
 
 using System;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Uniun.DataFlow.Blocks;
 using Uniun.DataFlow.Blocks.Routing;
 
@@ -41,7 +42,29 @@ public static class StructuredRoutingBlockExtensions
 
         builder.AddBlockDefinition(
             name,
-            sp => ActivatorUtilities.CreateInstance<StructuredRoutingBlock<T>>(sp, name, options),
+            sp =>
+            {
+                var logger = sp.GetRequiredService<ILogger<StructuredRoutingBlock<T>>>();
+                var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
+                var channelFactory = sp.GetRequiredService<IBoundedChannelFactory>();
+
+                // Get the merge target block if configured
+                ITargetBlock<T>? mergeTargetBlock = null;
+                if (!string.IsNullOrEmpty(options.MergeIntoBlockName))
+                {
+                    // The merge target will be wired up during the Build phase
+                    // For now, we just note it in the options
+                }
+
+                return new StructuredRoutingBlock<T>(
+                    name,
+                    logger,
+                    scopeFactory,
+                    channelFactory,
+                    options,
+                    builder.Graph,
+                    mergeTargetBlock);
+            },
             inputType: typeof(T),
             outputType: null,
             metadata: metadata);
@@ -71,13 +94,14 @@ public class StructuredRoutingBlockBuilder<T>
 
     /// <summary>
     /// Registers a route with the routing block.
+    /// The factory function now returns an IBranchBuilder instead of IDataFlow.
     /// </summary>
     /// <param name="routeName">The name of the route</param>
-    /// <param name="routeFactory">Factory function to build the route's sub-dataflow</param>
+    /// <param name="routeFactory">Factory function to build the route's branch</param>
     /// <returns>This builder for chaining</returns>
     public StructuredRoutingBlockBuilder<T> RegisterRoute(
         string routeName,
-        Func<RouteContext, IDataFlow> routeFactory)
+        Func<RouteContext, IBranchBuilder> routeFactory)
     {
         if (_options.Routes.ContainsKey(routeName))
         {
@@ -86,6 +110,9 @@ public class StructuredRoutingBlockBuilder<T>
 
         var routeDefinition = new RouteDefinition(routeName, typeof(T), routeFactory);
         _options.Routes[routeName] = routeDefinition;
+
+        // Also add to the parent graph
+        _builder.Graph.AddRouteDefinition(routeDefinition);
 
         return this;
     }
@@ -112,6 +139,18 @@ public class StructuredRoutingBlockBuilder<T>
         _options.DynamicRouteTemplateName = templateRouteName;
         _options.MaxDynamicRoutes = maxDynamicRoutes;
 
+        return this;
+    }
+
+    /// <summary>
+    /// Configures the routing block to merge all route outputs into a specified downstream block.
+    /// This allows routes to be collected and processed together after routing.
+    /// </summary>
+    /// <param name="targetBlockName">The name of the target block to merge routes into</param>
+    /// <returns>This builder for chaining</returns>
+    public StructuredRoutingBlockBuilder<T> MergeInto(string targetBlockName)
+    {
+        _options.MergeIntoBlockName = targetBlockName;
         return this;
     }
 

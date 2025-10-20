@@ -10,6 +10,7 @@ public class DataFlowGraph
 {
     private readonly Dictionary<string, BlockDefinition> _blockDefinitions = new();
     private readonly List<BlockConnection> _connections = new();
+    private readonly Dictionary<string, RouteDefinition> _routeDefinitions = new();
 
     public DataFlowGraph(string name)
     {
@@ -20,6 +21,11 @@ public class DataFlowGraph
     /// The name of the dataflow.
     /// </summary>
     public string Name { get; set; }
+
+    /// <summary>
+    /// All route definitions in the dataflow, keyed by route name.
+    /// </summary>
+    public IReadOnlyDictionary<string, RouteDefinition> RouteDefinitions => _routeDefinitions;
 
     /// <summary>
     /// All block definitions in the dataflow, keyed by block name.
@@ -69,6 +75,19 @@ public class DataFlowGraph
         }
 
         _connections.Add(connection);
+    }
+
+    /// <summary>
+    /// Adds a route definition to the graph.
+    /// </summary>
+    public void AddRouteDefinition(RouteDefinition definition)
+    {
+        if (_routeDefinitions.ContainsKey(definition.Name))
+        {
+            throw new ArgumentException($"Route with name '{definition.Name}' already exists", nameof(definition));
+        }
+
+        _routeDefinitions[definition.Name] = definition;
     }
 
     /// <summary>

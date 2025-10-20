@@ -268,14 +268,14 @@ public class DataFlowGraphExporterTests
                 var routeBuilder = context.RouteBuilder;
                 routeBuilder.AddProcessor("even-processor", sp => new TestProcessor<int>())
                     .AsEntry();
-                return routeBuilder.Build();
+                return routeBuilder;
             })
             .RegisterRoute("odd", context =>
             {
                 var routeBuilder = context.RouteBuilder;
                 routeBuilder.AddProcessor("odd-processor", sp => new TestProcessor<int>())
                     .AsEntry();
-                return routeBuilder.Build();
+                return routeBuilder;
             })
             .ReceiveFrom("source");
 
@@ -310,7 +310,7 @@ public class DataFlowGraphExporterTests
                 routeBuilder.AddTransform("processor", sp => new PassthroughTransformer<string>())
                     .AsEntry()
                     .AddProcessor("record-writer", sp => new TestProcessor<string>());
-                return routeBuilder.Build();
+                return routeBuilder;
             })
             .RegisterRoute("TypeB", context =>
             {
@@ -318,14 +318,14 @@ public class DataFlowGraphExporterTests
                 routeBuilder.AddBatch<string>("batcher", maxBatchSize: 2, windowPeriod: TimeSpan.FromSeconds(1))
                     .AsEntry()
                     .AddProcessor("aggregation-writer", sp => new TestProcessor<string[]>());
-                return routeBuilder.Build();
+                return routeBuilder;
             })
             .RegisterRoute("TypeC", context =>
             {
                 var routeBuilder = context.RouteBuilder;
                 routeBuilder.AddProcessor("category-writer", sp => new TestProcessor<string>())
                     .AsEntry();
-                return routeBuilder.Build();
+                return routeBuilder;
             })
             .ReceiveFrom("enricher");
 

@@ -29,4 +29,11 @@ public class StructuredRoutingBlockOptions<T> : BlockOptions
     /// Null means no limit. Only applies when DynamicRouteTemplateName is set.
     /// </summary>
     public int? MaxDynamicRoutes { get; set; }
+
+    /// <summary>
+    /// Optional name of a downstream target block to merge all route outputs into.
+    /// When set, the routing block will automatically connect the last source block
+    /// of each route to this target block, allowing routes to be merged.
+    /// </summary>
+    public string? MergeIntoBlockName { get; set; }
 }

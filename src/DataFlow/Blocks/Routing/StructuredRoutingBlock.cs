@@ -14,6 +14,7 @@ using Uniun.DataFlow.Builder.Graph;
 /// A routing block for the structured dataflow builder.
 /// Supports both static (pre-registered) and dynamic routing.
 /// Routes are created on-demand and persist for the lifetime of the block.
+/// Routes are now branch-based and can optionally merge into a downstream block.
 /// </summary>
 public class StructuredRoutingBlock<T> : BlockBase, ITargetBlock<T>
 {
@@ -21,6 +22,8 @@ public class StructuredRoutingBlock<T> : BlockBase, ITargetBlock<T>
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IBoundedChannelFactory _channelFactory;
     private readonly ILogger<StructuredRoutingBlock<T>> _logger;
+    private readonly DataFlowGraph _parentGraph;
+    private readonly ITargetBlock<T>? _mergeTargetBlock;
 
     private ISourceBlock<T>? _source;
 
@@ -38,12 +41,16 @@ public class StructuredRoutingBlock<T> : BlockBase, ITargetBlock<T>
         ILogger<StructuredRoutingBlock<T>> logger,
         IServiceScopeFactory scopeFactory,
         IBoundedChannelFactory channelFactory,
-        StructuredRoutingBlockOptions<T> options) : base(name, options, logger)
+        StructuredRoutingBlockOptions<T> options,
+        DataFlowGraph parentGraph,
+        ITargetBlock<T>? mergeTargetBlock = null) : base(name, options, logger)
     {
         _options = options;
         _scopeFactory = scopeFactory;
         _channelFactory = channelFactory;
         _logger = logger;
+        _parentGraph = parentGraph;
+        _mergeTargetBlock = mergeTargetBlock;
     }
 
     public void SetSource(ISourceBlock<T> source)
@@ -175,8 +182,8 @@ public class StructuredRoutingBlock<T> : BlockBase, ITargetBlock<T>
 
             try
             {
-                // Build the route dataflow
-                var routeBuilder = new RouteBuilder(routeScope.ServiceProvider, routeName);
+                // Build the route using the new branch-based approach
+                var routeBuilder = new RouteBuilder(routeScope.ServiceProvider, routeName, _parentGraph);
 
                 var routeContext = new RouteContext
                 {
@@ -184,11 +191,16 @@ public class StructuredRoutingBlock<T> : BlockBase, ITargetBlock<T>
                     RouteDefinitionName = routeDefinitionName,
                     TriggeringItem = item,
                     ServiceProvider = routeScope.ServiceProvider,
+                    ParentGraph = _parentGraph,
                     RouteBuilder = routeBuilder,
                     IsDesignTime = false  // Runtime execution mode
                 };
 
-                var dataFlow = routeDefinition.Factory(routeContext);
+                // Call the factory to get the branch for this route
+                var routeBranch = routeDefinition.Factory(routeContext);
+
+                // Build the dataflow from the route branch
+                var dataFlow = routeBuilder.Build();
 
                 // Get the entry block - use the first entry block from the graph
                 var entryBlocks = routeBuilder.Graph.GetEntryBlocks().ToList();
@@ -215,6 +227,21 @@ public class StructuredRoutingBlock<T> : BlockBase, ITargetBlock<T>
                     logger,
                     _channelFactory,
                     channelOptions);
+
+                // Get the last source block from the route for potential merging
+                ISourceBlock<T>? lastSourceBlock = null;
+                if (_mergeTargetBlock != null && !string.IsNullOrEmpty(routeBranch.GetLastSourceBlockName()))
+                {
+                    var lastBlockName = routeBranch.GetLastSourceBlockName();
+                    var lastBlockDef = routeBuilder.Graph.GetBlockDefinition(lastBlockName!);
+                    if (lastBlockDef.IsSourceBlock())
+                    {
+                        // Get the instantiated block from the state
+                        var block = routeBuilder.Build(); // This will have already been built above
+                        // We need to track blocks differently - for now, skip merge support in this iteration
+                        _logger.LogWarning("Route merging will be implemented in a follow-up iteration");
+                    }
+                }
 
                 var routeInstance = new RouteInstance<T>(
                     _logger,

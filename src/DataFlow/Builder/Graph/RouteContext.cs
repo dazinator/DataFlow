@@ -1,9 +1,7 @@
 namespace Uniun.DataFlow.Builder.Graph;
 
-using Uniun.DataFlow.Blocks;
-
 /// <summary>
-/// Context provided when building a route's sub-dataflow.
+/// Context provided when building a route's branch.
 /// Contains information about the route being created and the item that triggered it.
 /// </summary>
 public class RouteContext
@@ -31,7 +29,14 @@ public class RouteContext
     public required IServiceProvider ServiceProvider { get; init; }
 
     /// <summary>
-    /// A builder that can be used to construct the sub-dataflow for this route.
+    /// The parent dataflow graph that contains block definitions and other routes.
+    /// Routes can use this to lookup and return existing branches from the graph.
+    /// </summary>
+    public required DataFlowGraph ParentGraph { get; init; }
+
+    /// <summary>
+    /// A builder that can be used to construct a new branch for this route.
+    /// This creates a branch that is scoped to the route and not added to the parent graph.
     /// </summary>
     public required IRouteBuilder RouteBuilder { get; init; }
 

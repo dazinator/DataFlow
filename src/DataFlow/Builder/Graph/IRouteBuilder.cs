@@ -4,10 +4,10 @@ using Uniun.DataFlow.Blocks;
 
 /// <summary>
 /// A specialized builder for constructing route sub-dataflows.
-/// Extends IStructuredDataFlowBuilder to share the same API as the main builder.
+/// Extends IBranchBuilder to be compatible with the branch-based architecture.
 /// Routes must have a target block as their entry point (where routed items are sent).
 /// </summary>
-public interface IRouteBuilder : IStructuredDataFlowBuilder
+public interface IRouteBuilder : IBranchBuilder
 {
     /// <summary>
     /// Gets the route name for this builder.
