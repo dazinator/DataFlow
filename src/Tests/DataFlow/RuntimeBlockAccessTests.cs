@@ -28,7 +28,7 @@ public class RuntimeBlockAccessTests
     }
 
     [Fact]
-    public async Task Should_CreateRuntimeGraph_WithBlockInstances()
+    public void Should_CreateRuntimeGraph_WithBlockInstances()
     {
         // Arrange
         var builder = new StructuredDataFlowBuilder(_serviceProvider, "TestFlow");
@@ -41,7 +41,7 @@ public class RuntimeBlockAccessTests
         builder.AddConnection("source", "test");
 
         // Act
-        var dataflow = await builder.Build();
+        var dataflow = builder.Build();
 
         // Assert - runtime graph should be accessible via the initializable block
         var runtimeGraph = testBlock.RuntimeGraphReceived;
@@ -52,7 +52,7 @@ public class RuntimeBlockAccessTests
     }
 
     [Fact]
-    public async Task Should_CallInitialization_OnInitializableBlocks()
+    public void Should_CallInitialization_OnInitializableBlocks()
     {
         // Arrange
         var builder = new StructuredDataFlowBuilder(_serviceProvider, "TestFlow");
@@ -65,7 +65,7 @@ public class RuntimeBlockAccessTests
         builder.AddConnection("source", "initializable");
 
         // Act
-        var dataflow = await builder.Build();
+        var dataflow = builder.Build();
 
         // Assert
         initializableBlock.WasInitialized.ShouldBeTrue();
@@ -74,7 +74,7 @@ public class RuntimeBlockAccessTests
     }
 
     [Fact]
-    public async Task Should_InitializeBlocksInTopologicalOrder()
+    public void Should_InitializeBlocksInTopologicalOrder()
     {
         // Arrange
         var builder = new StructuredDataFlowBuilder(_serviceProvider, "TestFlow");
@@ -93,7 +93,7 @@ public class RuntimeBlockAccessTests
         builder.AddConnection("block2", "block3");
 
         // Act
-        var dataflow = await builder.Build();
+        var dataflow = builder.Build();
 
         // Assert - blocks should be initialized in topological order
         initOrder.Count.ShouldBe(3);
@@ -103,7 +103,7 @@ public class RuntimeBlockAccessTests
     }
 
     [Fact]
-    public async Task Should_PassRuntimeGraph_WithAllBlockInstances()
+    public void Should_PassRuntimeGraph_WithAllBlockInstances()
     {
         // Arrange
         var builder = new StructuredDataFlowBuilder(_serviceProvider, "TestFlow");
@@ -117,7 +117,7 @@ public class RuntimeBlockAccessTests
         builder.AddConnection("transform", "initializable");
 
         // Act
-        var dataflow = await builder.Build();
+        var dataflow = builder.Build();
 
         // Assert - runtime graph should contain all blocks
         var runtimeGraph = initializableBlock.RuntimeGraphReceived;
@@ -129,7 +129,7 @@ public class RuntimeBlockAccessTests
     }
 
     [Fact]
-    public async Task Should_AllowBlocksToAccessOtherBlocks()
+    public void Should_AllowBlocksToAccessOtherBlocks()
     {
         // Arrange
         var builder = new StructuredDataFlowBuilder(_serviceProvider, "TestFlow");
@@ -143,7 +143,7 @@ public class RuntimeBlockAccessTests
         builder.AddConnection("transform", "accessor");
 
         // Act
-        var dataflow = await builder.Build();
+        var dataflow = builder.Build();
 
         // Assert - the initializable block should have accessed the transform block
         initializableBlock.AccessedBlock.ShouldNotBeNull();
@@ -151,7 +151,7 @@ public class RuntimeBlockAccessTests
     }
 
     [Fact]
-    public async Task Should_RespectCancellationToken_DuringInitialization()
+    public void Should_RespectCancellationToken_DuringInitialization()
     {
         // Arrange
         var builder = new StructuredDataFlowBuilder(_serviceProvider, "TestFlow");
@@ -167,14 +167,14 @@ public class RuntimeBlockAccessTests
         cts.Cancel(); // Cancel immediately
 
         // Act & Assert
-        await Should.ThrowAsync<OperationCanceledException>(async () =>
+        Should.Throw<OperationCanceledException>(() =>
         {
-            await builder.Build(cts.Token);
+            builder.Build(cts.Token);
         });
     }
 
     [Fact]
-    public async Task Should_SupportGetBlockInstance_ByName()
+    public void Should_SupportGetBlockInstance_ByName()
     {
         // Arrange
         var builder = new StructuredDataFlowBuilder(_serviceProvider, "TestFlow");
@@ -187,7 +187,7 @@ public class RuntimeBlockAccessTests
 
         builder.AddConnection("transform", "test");
 
-        var dataflow = await builder.Build();
+        var dataflow = builder.Build();
 
         // Assert
         var runtimeGraph = testBlock.RuntimeGraphReceived;
@@ -199,7 +199,7 @@ public class RuntimeBlockAccessTests
     }
 
     [Fact]
-    public async Task Should_SupportGetBlockInstance_WithStrongTyping()
+    public void Should_SupportGetBlockInstance_WithStrongTyping()
     {
         // Arrange
         var builder = new StructuredDataFlowBuilder(_serviceProvider, "TestFlow");
@@ -212,7 +212,7 @@ public class RuntimeBlockAccessTests
 
         builder.AddConnection("transform", "test");
 
-        var dataflow = await builder.Build();
+        var dataflow = builder.Build();
 
         // Assert
         var runtimeGraph = testBlock.RuntimeGraphReceived;
@@ -225,7 +225,7 @@ public class RuntimeBlockAccessTests
     }
 
     [Fact]
-    public async Task Should_ThrowException_WhenBlockNotFound()
+    public void Should_ThrowException_WhenBlockNotFound()
     {
         // Arrange
         var builder = new StructuredDataFlowBuilder(_serviceProvider, "TestFlow");
@@ -237,7 +237,7 @@ public class RuntimeBlockAccessTests
 
         builder.AddConnection("source", "test");
 
-        var dataflow = await builder.Build();
+        var dataflow = builder.Build();
 
         // Assert
         var runtimeGraph = testBlock.RuntimeGraphReceived;
@@ -250,7 +250,7 @@ public class RuntimeBlockAccessTests
     }
 
     [Fact]
-    public async Task Should_TryGetBlockInstance_ReturnFalse_WhenBlockNotFound()
+    public void Should_TryGetBlockInstance_ReturnFalse_WhenBlockNotFound()
     {
         // Arrange
         var builder = new StructuredDataFlowBuilder(_serviceProvider, "TestFlow");
@@ -262,7 +262,7 @@ public class RuntimeBlockAccessTests
 
         builder.AddConnection("source", "test");
 
-        var dataflow = await builder.Build();
+        var dataflow = builder.Build();
 
         // Assert
         var runtimeGraph = testBlock.RuntimeGraphReceived;
@@ -274,7 +274,7 @@ public class RuntimeBlockAccessTests
     }
 
     [Fact]
-    public async Task Should_SupportBuild_WithoutExplicitCancellation()
+    public void Should_SupportBuild_WithoutExplicitCancellation()
     {
         // Arrange
         var builder = new StructuredDataFlowBuilder(_serviceProvider, "TestFlow");
@@ -287,7 +287,7 @@ public class RuntimeBlockAccessTests
         builder.AddConnection("source", "initializable");
 
         // Act - Build() method with default cancellation token
-        var dataflow = await builder.Build();
+        var dataflow = builder.Build();
 
         // Assert
         initializableBlock.WasInitialized.ShouldBeTrue();
@@ -315,11 +315,10 @@ internal class InitializableTestBlock<T> : Uniun.DataFlow.Blocks.BlockBase, Uniu
         _source = source;
     }
 
-    public override Task OnDataFlowInitializedAsync(IDataFlowRuntimeGraph runtimeGraph, CancellationToken cancellationToken)
+    public override void OnDataFlowInitialized(IDataFlowRuntimeGraph runtimeGraph, CancellationToken cancellationToken)
     {
         WasInitialized = true;
         RuntimeGraphReceived = runtimeGraph;
-        return Task.CompletedTask;
     }
 
     protected override async Task CoreExecuteAsync(IDataFlowContext context)
@@ -349,10 +348,9 @@ internal class OrderTrackingBlock : Uniun.DataFlow.Blocks.BlockBase, Uniun.DataF
         _initOrder = initOrder;
     }
 
-    public override Task OnDataFlowInitializedAsync(IDataFlowRuntimeGraph runtimeGraph, CancellationToken cancellationToken)
+    public override void OnDataFlowInitialized(IDataFlowRuntimeGraph runtimeGraph, CancellationToken cancellationToken)
     {
         _initOrder.Add(Name);
-        return Task.CompletedTask;
     }
 
     public async IAsyncEnumerable<int> GetAsyncEnumerable(Uniun.DataFlow.Blocks.ITargetBlock<int> target, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
@@ -380,10 +378,9 @@ internal class OrderTrackingProducerBlock : Uniun.DataFlow.Blocks.BlockBase, Uni
         _initOrder = initOrder;
     }
 
-    public override Task OnDataFlowInitializedAsync(IDataFlowRuntimeGraph runtimeGraph, CancellationToken cancellationToken)
+    public override void OnDataFlowInitialized(IDataFlowRuntimeGraph runtimeGraph, CancellationToken cancellationToken)
     {
         _initOrder.Add(Name);
-        return Task.CompletedTask;
     }
 
     public async IAsyncEnumerable<int> GetAsyncEnumerable(Uniun.DataFlow.Blocks.ITargetBlock<int> target, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
@@ -416,10 +413,9 @@ internal class OrderTrackingTransformBlock : Uniun.DataFlow.Blocks.BlockBase, Un
         _source = source;
     }
 
-    public override Task OnDataFlowInitializedAsync(IDataFlowRuntimeGraph runtimeGraph, CancellationToken cancellationToken)
+    public override void OnDataFlowInitialized(IDataFlowRuntimeGraph runtimeGraph, CancellationToken cancellationToken)
     {
         _initOrder.Add(Name);
-        return Task.CompletedTask;
     }
 
     public async IAsyncEnumerable<int> GetAsyncEnumerable(Uniun.DataFlow.Blocks.ITargetBlock<int> target, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
@@ -458,10 +454,9 @@ internal class OrderTrackingProcessorBlock : Uniun.DataFlow.Blocks.BlockBase, Un
         _source = source;
     }
 
-    public override Task OnDataFlowInitializedAsync(IDataFlowRuntimeGraph runtimeGraph, CancellationToken cancellationToken)
+    public override void OnDataFlowInitialized(IDataFlowRuntimeGraph runtimeGraph, CancellationToken cancellationToken)
     {
         _initOrder.Add(Name);
-        return Task.CompletedTask;
     }
 
     protected override async Task CoreExecuteAsync(IDataFlowContext context)
@@ -495,14 +490,13 @@ internal class BlockThatAccessesOtherBlocks<T> : Uniun.DataFlow.Blocks.BlockBase
         _source = source;
     }
 
-    public override Task OnDataFlowInitializedAsync(IDataFlowRuntimeGraph runtimeGraph, CancellationToken cancellationToken)
+    public override void OnDataFlowInitialized(IDataFlowRuntimeGraph runtimeGraph, CancellationToken cancellationToken)
     {
         // Try to access the transform block
         if (runtimeGraph.TryGetBlockInstance("transform", out var block))
         {
             AccessedBlock = block;
         }
-        return Task.CompletedTask;
     }
 
     protected override async Task CoreExecuteAsync(IDataFlowContext context)
@@ -536,10 +530,9 @@ internal class CancellableInitBlock<T> : Uniun.DataFlow.Blocks.BlockBase, Uniun.
         _source = source;
     }
 
-    public override Task OnDataFlowInitializedAsync(IDataFlowRuntimeGraph runtimeGraph, CancellationToken cancellationToken)
+    public override void OnDataFlowInitialized(IDataFlowRuntimeGraph runtimeGraph, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        return Task.CompletedTask;
     }
 
     protected override async Task CoreExecuteAsync(IDataFlowContext context)

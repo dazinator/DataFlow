@@ -72,7 +72,7 @@ public class CompetingVsBroadcastConsumersTests
             (IServiceProvider sp) => new TestProcessor<string>());
         stringProcessorBuilder.ReceiveFrom("transform");
 
-        var flow = await builder.Build();
+        var flow = builder.Build();
 
         // Act
         var context = CreateContext("test", Guid.NewGuid(), sp);
@@ -133,7 +133,7 @@ public class CompetingVsBroadcastConsumersTests
             processorBuilder.ReceiveFrom($"transform-{i}");
         }
 
-        var flow = await builder.Build();
+        var flow = builder.Build();
 
         // Act
         var context = CreateContext("test", Guid.NewGuid(), sp);

@@ -104,7 +104,7 @@ public class StructuredRoutingBlockTests
             })
             .ReceiveFrom("source");
 
-        var flow = await builder.Build();
+        var flow = builder.Build();
         var context = CreateContext("test", Guid.NewGuid(), sp);
         await flow.ExecuteAsync(context);
 
@@ -140,7 +140,7 @@ public class StructuredRoutingBlockTests
             })
             .ReceiveFrom("source");
 
-        var flow = await builder.Build();
+        var flow = builder.Build();
         var context = CreateContext("test", Guid.NewGuid(), sp);
 
         // Assert - Should throw when trying to route to non-existent "odd" route
@@ -205,7 +205,7 @@ public class StructuredRoutingBlockTests
             })
             .ReceiveFrom("source");
 
-        var flow = await builder.Build();
+        var flow = builder.Build();
         var context = CreateContext("test", Guid.NewGuid(), sp);
         await flow.ExecuteAsync(context);
 
@@ -268,7 +268,7 @@ public class StructuredRoutingBlockTests
             .WithDynamicRouting("template")
             .ReceiveFrom("source");
 
-        var flow = await builder.Build();
+        var flow = builder.Build();
         var context = CreateContext("test", Guid.NewGuid(), sp);
         await flow.ExecuteAsync(context);
 
@@ -306,7 +306,7 @@ public class StructuredRoutingBlockTests
             .WithDynamicRouting("template", maxDynamicRoutes: 5)
             .ReceiveFrom("source");
 
-        var flow = await builder.Build();
+        var flow = builder.Build();
         var context = CreateContext("test", Guid.NewGuid(), sp);
 
         // Assert - Should throw when limit is exceeded
@@ -373,7 +373,7 @@ public class StructuredRoutingBlockTests
             .WithDynamicRouting("template")
             .ReceiveFrom("source");
 
-        var flow = await builder.Build();
+        var flow = builder.Build();
         var context = CreateContext("test", Guid.NewGuid(), sp);
         await flow.ExecuteAsync(context);
 
@@ -408,7 +408,7 @@ public class StructuredRoutingBlockTests
             })
             .ReceiveFrom("source");
 
-        var flow = await builder.Build();
+        var flow = builder.Build();
         var context = CreateContext("test", Guid.NewGuid(), sp);
 
         // Assert - Should execute successfully with automatic entry block
@@ -440,7 +440,7 @@ public class StructuredRoutingBlockTests
             })
             .ReceiveFrom("source");
 
-        var flow = await builder.Build();
+        var flow = builder.Build();
         var context = CreateContext("test", Guid.NewGuid(), sp);
 
         // Assert - Should execute successfully
@@ -493,7 +493,7 @@ public class StructuredRoutingBlockTests
             })
             .ReceiveFrom("source");
 
-        var flow = await builder.Build();
+        var flow = builder.Build();
         var context = CreateContext("test", Guid.NewGuid(), sp);
         await flow.ExecuteAsync(context);
 
@@ -532,7 +532,7 @@ public class StructuredRoutingBlockTests
             })
             .ReceiveFrom("source");
 
-        var flow = await builder.Build();
+        var flow = builder.Build();
         var context = CreateContext("test", Guid.NewGuid(), sp);
 
         // Assert - Should throw when trying to create "even" route
@@ -573,7 +573,7 @@ public class StructuredRoutingBlockTests
             })
             .ReceiveFrom("source");
 
-        var flow = await builder.Build();
+        var flow = builder.Build();
         var context = CreateContext("test", Guid.NewGuid(), sp);
         await flow.ExecuteAsync(context);
 
@@ -614,7 +614,7 @@ public class StructuredRoutingBlockTests
             .WithDynamicRouting("template")
             .ReceiveFrom("source");
 
-        var flow = await builder.Build();
+        var flow = builder.Build();
         var context = CreateContext("test", Guid.NewGuid(), sp);
         await flow.ExecuteAsync(context);
 
@@ -677,7 +677,7 @@ public class StructuredRoutingBlockTests
         })
         .ReceiveFrom("source");
 
-        var flow = await builder.Build();
+        var flow = builder.Build();
         var context = CreateContext("test", Guid.NewGuid(), sp);
         await flow.ExecuteAsync(context);
 
@@ -745,7 +745,7 @@ public class StructuredRoutingBlockTests
             })
             .ReceiveFrom("source");
 
-        var flow = await builder.Build();
+        var flow = builder.Build();
         var context = CreateContext("test", Guid.NewGuid(), sp);
         await flow.ExecuteAsync(context);
 
@@ -779,7 +779,7 @@ public class StructuredRoutingBlockTests
             .WithDynamicRouting("template")
             .ReceiveFrom("source");
 
-        var flow = await builder.Build();
+        var flow = builder.Build();
         var context = CreateContext("test", Guid.NewGuid(), sp);
         await flow.ExecuteAsync(context);
 
@@ -848,7 +848,7 @@ public class StructuredRoutingBlockTests
             })
             .ReceiveFrom("source");
 
-        var flow = await builder.Build();
+        var flow = builder.Build();
 
         // Assert - Parent graph should be available in route context
         // Note: The route factory isn't called until runtime, so we can't test this synchronously
@@ -911,7 +911,7 @@ public class StructuredRoutingBlockTests
             }))
             .ReceiveFrom("merger");
 
-        var flow = await builder.Build();
+        var flow = builder.Build();
         var context = CreateContext("test", Guid.NewGuid(), sp);
         await flow.ExecuteAsync(context);
 
@@ -979,7 +979,7 @@ public class StructuredRoutingBlockTests
             }))
             .ReceiveFrom("merger");
 
-        var flow = await builder.Build();
+        var flow = builder.Build();
         var context = CreateContext("test", Guid.NewGuid(), sp);
         await flow.ExecuteAsync(context);
 
@@ -1052,7 +1052,7 @@ public class StructuredRoutingBlockTests
             new TestProcessor<string>(onProcessItem: result => processedItems.Add(result)))
             .ReceiveFrom("merger");
 
-        var flow = await builder.Build();
+        var flow = builder.Build();
         var context = CreateContext("test", Guid.NewGuid(), sp);
         await flow.ExecuteAsync(context);
 

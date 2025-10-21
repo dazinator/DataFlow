@@ -137,13 +137,13 @@ public class StructuredDataFlowBuilder : IDataFlowBuilder, IStructuredDataFlowBu
     public IReadOnlyDictionary<string, IBranchBuilder> GetBranches() => _branches;
 
     /// <summary>
-    /// Builds the dataflow asynchronously by instantiating all blocks and wiring them according to the graph.
+    /// Builds the dataflow by instantiating all blocks and wiring them according to the graph.
     /// This implements a two-phase build process:
     /// Phase 1: Instantiate blocks and wire connections
     /// Phase 2: Initialize blocks in topological order
     /// </summary>
     /// <param name="cancellationToken">Cancellation token for the build process</param>
-    public async Task<IDataFlow> Build(CancellationToken cancellationToken = default)
+    public IDataFlow Build(CancellationToken cancellationToken = default)
     {
         // Get logger for validation warnings
         var loggerFactory = ServiceProvider.GetService<Microsoft.Extensions.Logging.ILoggerFactory>();
@@ -194,7 +194,7 @@ public class StructuredDataFlowBuilder : IDataFlowBuilder, IStructuredDataFlowBu
             var block = blocks[blockDefinition.Name];
             if (block is IDataFlowInitializable initializableBlock)
             {
-                await initializableBlock.OnDataFlowInitializedAsync(runtimeGraph, cancellationToken);
+                initializableBlock.OnDataFlowInitialized(runtimeGraph, cancellationToken);
             }
         }
 

@@ -95,7 +95,7 @@ public class BranchBasedConcurrencyTests
         }
 
         // Build and execute
-        var flow = await builder.Build();
+        var flow = builder.Build();
 
         // Act
         var context = CreateContext("invoice-processing", Guid.NewGuid(), sp);
@@ -160,7 +160,7 @@ public class BranchBasedConcurrencyTests
         }
 
         // Build and execute
-        var flow = await builder.Build();
+        var flow = builder.Build();
 
         // Act
         var context = CreateContext("invoice-processing", Guid.NewGuid(), sp);
@@ -367,7 +367,7 @@ public class BranchBasedConcurrencyTests
             processorBuilder.ReceiveFrom("fanout");
         }
 
-        var flow = await builder.Build();
+        var flow = builder.Build();
 
         // Act
         var context = CreateContext("test", Guid.NewGuid(), sp);

@@ -82,7 +82,7 @@ public class ComplexEtlBenchmark
             MaxConcurrency,
             BatchSize);
 
-        var dataFlow = await builder.Build();
+        var dataFlow = builder.Build();
         var context = new DataFlowContext
         {
             InvocationId = Guid.NewGuid(),

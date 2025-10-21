@@ -16,6 +16,5 @@ public interface IDataFlowInitializable
     /// </summary>
     /// <param name="runtimeGraph">The runtime graph containing all instantiated blocks</param>
     /// <param name="cancellationToken">Cancellation token for the initialization process</param>
-    /// <returns>A task representing the initialization operation</returns>
-    Task OnDataFlowInitializedAsync(IDataFlowRuntimeGraph runtimeGraph, CancellationToken cancellationToken);
+    void OnDataFlowInitialized(IDataFlowRuntimeGraph runtimeGraph, CancellationToken cancellationToken);
 }

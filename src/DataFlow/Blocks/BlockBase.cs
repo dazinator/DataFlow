@@ -98,11 +98,9 @@ public abstract class BlockBase : IBlock, IDataFlowInitializable
     /// </summary>
     /// <param name="runtimeGraph">The runtime graph containing all instantiated blocks</param>
     /// <param name="cancellationToken">Cancellation token for the initialization process</param>
-    /// <returns>A task representing the initialization operation</returns>
-    public virtual Task OnDataFlowInitializedAsync(IDataFlowRuntimeGraph runtimeGraph, CancellationToken cancellationToken)
+    public virtual void OnDataFlowInitialized(IDataFlowRuntimeGraph runtimeGraph, CancellationToken cancellationToken)
     {
         // Default implementation does nothing - derived classes can override
-        return Task.CompletedTask;
     }
 
     // 2. Add simple exception handling in BlockBase.ExecuteParallelActivities

@@ -131,8 +131,8 @@ public static class DataFlowRegistrationExtensions
             {
                 var builder = new Builder.Graph.StructuredDataFlowBuilder(sp, name);
                 configure(builder);
-                // Build async but wait synchronously (required by DI container)
-                return builder.Build().GetAwaiter().GetResult();
+                // Build synchronously (safe for DI container)
+                return builder.Build();
             },
             lifetime);
 

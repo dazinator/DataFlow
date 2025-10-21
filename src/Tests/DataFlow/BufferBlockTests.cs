@@ -66,7 +66,7 @@ public class BufferBlockTests
                 onProcessItem: item => processedItems.Add(item)))
             .ReceiveFrom("buffer");
 
-        var flow = await builder.Build();
+        var flow = builder.Build();
 
         // Act
         var context = CreateContext("test", Guid.NewGuid(), sp);
@@ -103,7 +103,7 @@ public class BufferBlockTests
                 .ReceiveFrom("buffer");
         }
 
-        var flow = await builder.Build();
+        var flow = builder.Build();
 
         // Act
         var context = CreateContext("test", Guid.NewGuid(), sp);
@@ -163,7 +163,7 @@ public class BufferBlockTests
                 onProcessItem: item => processedItems.Add(item)))
             .ReceiveFrom("buffer");
 
-        var flow = await builder.Build();
+        var flow = builder.Build();
 
         // Act
         var context = CreateContext("test", Guid.NewGuid(), sp);
@@ -208,7 +208,7 @@ public class BufferBlockTests
                 .ReceiveFrom("buffer");
         }
 
-        var flow = await builder.Build();
+        var flow = builder.Build();
 
         // Act
         var context = CreateContext("test", Guid.NewGuid(), sp);
@@ -258,7 +258,7 @@ public class BufferBlockTests
                 .ReceiveFrom("buffer");
         }
 
-        var bufferFlow = await bufferBuilder.Build();
+        var bufferFlow = bufferBuilder.Build();
         await bufferFlow.ExecuteAsync(CreateContext("buffer-test", Guid.NewGuid(), sp));
 
         // Test with BroadcastBlock
@@ -276,7 +276,7 @@ public class BufferBlockTests
                 .ReceiveFrom("broadcast");
         }
 
-        var broadcastFlow = await broadcastBuilder.Build();
+        var broadcastFlow = broadcastBuilder.Build();
         await broadcastFlow.ExecuteAsync(CreateContext("broadcast-test", Guid.NewGuid(), sp));
 
         // Assert
@@ -336,7 +336,7 @@ public class BufferBlockTests
                 onProcessItem: item => processedItems.Add(item)))
             .ReceiveFrom("merge-buffer");
 
-        var flow = await builder.Build();
+        var flow = builder.Build();
 
         // Act
         var context = CreateContext("test", Guid.NewGuid(), sp);
@@ -422,7 +422,7 @@ public class BufferBlockTests
                 onProcessItem: item => processedItems.Add(item)))
             .ReceiveFrom("buffer");
 
-        var flow = await builder.Build();
+        var flow = builder.Build();
 
         // Act & Assert
         var context = CreateContext("test", Guid.NewGuid(), sp);

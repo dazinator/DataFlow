@@ -58,7 +58,7 @@ public class StructuredDataFlowBuilderTests
             .AddProcessor("processor", sp => new TestProcessor<int>());
 
         // Act - Build the actual dataflow
-        var dataflow = await builder.Build();
+        var dataflow = builder.Build();
 
         // Assert
         dataflow.ShouldNotBeNull();
@@ -181,7 +181,7 @@ public class StructuredDataFlowBuilderTests
             .AddProcessor("processor", sp => new TestProcessor<int>());
 
         // Act & Assert - Should not throw
-        await Should.NotThrowAsync(async () => await builder.Build());
+        Should.NotThrow(() => builder.Build());
     }
 
     [Fact]
@@ -196,7 +196,7 @@ public class StructuredDataFlowBuilderTests
             .AddProcessor("processor", sp => new TestProcessor<int>(
                 onProcessItem: item => processedItems.Add(item)));
 
-        var dataflow = await builder.Build();
+        var dataflow = builder.Build();
         var context = DataFlowContextTestUtils.GetContext("test", Guid.NewGuid(), _serviceProvider);
 
         // Act
@@ -282,7 +282,7 @@ public class StructuredDataFlowBuilderTests
         builder.AddConnection("source2", "processor", typeof(int));
 
         // Act & Assert
-        var ex = await Should.ThrowAsync<InvalidOperationException>(async () => await builder.Build());
+        var ex = Should.Throw<InvalidOperationException>(() => builder.Build());
         ex.Message.ShouldContain("multiple incoming connections");
         ex.Message.ShouldContain("processor");
     }
