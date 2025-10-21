@@ -84,19 +84,19 @@ public class KeyedDataFlowIntegrationTests
         flow1.AddProducer("source", sp => new TestProducer<int>(dataset1))
             .AddProcessor("processor", sp => new TestProcessor<int>(
                 onProcessItem: item => results1.Add(item)));
-        var dataflow1 = flow1.Build();
+        var dataflow1 = await flow1.Build();
 
         var flow2 = new StructuredDataFlowBuilder(serviceProvider, "flow2");
         flow2.AddProducer("source", sp => new TestProducer<int>(dataset2))
             .AddProcessor("processor", sp => new TestProcessor<int>(
                 onProcessItem: item => results2.Add(item)));
-        var dataflow2 = flow2.Build();
+        var dataflow2 = await flow2.Build();
 
         var flow3 = new StructuredDataFlowBuilder(serviceProvider, "flow3");
         flow3.AddProducer("source", sp => new TestProducer<int>(dataset3))
             .AddProcessor("processor", sp => new TestProcessor<int>(
                 onProcessItem: item => results3.Add(item)));
-        var dataflow3 = flow3.Build();
+        var dataflow3 = await flow3.Build();
 
         var context1 = DataFlowContextTestUtils.GetContext("batch1", Guid.NewGuid(), serviceProvider);
         var context2 = DataFlowContextTestUtils.GetContext("batch2", Guid.NewGuid(), serviceProvider);

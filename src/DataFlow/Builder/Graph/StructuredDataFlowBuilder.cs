@@ -137,10 +137,13 @@ public class StructuredDataFlowBuilder : IDataFlowBuilder, IStructuredDataFlowBu
     public IReadOnlyDictionary<string, IBranchBuilder> GetBranches() => _branches;
 
     /// <summary>
-    /// Builds the dataflow by instantiating all blocks and wiring them according to the graph.
-    /// This is the second phase where we take the graph metadata and create the actual runtime flow.
+    /// Builds the dataflow asynchronously by instantiating all blocks and wiring them according to the graph.
+    /// This implements a two-phase build process:
+    /// Phase 1: Instantiate blocks and wire connections
+    /// Phase 2: Initialize blocks in topological order
     /// </summary>
-    public IDataFlow Build()
+    /// <param name="cancellationToken">Cancellation token for the build process</param>
+    public async Task<IDataFlow> Build(CancellationToken cancellationToken = default)
     {
         // Get logger for validation warnings
         var loggerFactory = ServiceProvider.GetService<Microsoft.Extensions.Logging.ILoggerFactory>();
@@ -149,7 +152,7 @@ public class StructuredDataFlowBuilder : IDataFlowBuilder, IStructuredDataFlowBu
         // Validate the graph before building
         Graph.Validate(logger);
 
-        // Instantiate all blocks
+        // Phase 1: Instantiate all blocks and wire connections
         var blocks = new Dictionary<string, IBlock>();
         foreach (var definition in Graph.BlockDefinitions.Values)
         {
@@ -174,6 +177,24 @@ public class StructuredDataFlowBuilder : IDataFlowBuilder, IStructuredDataFlowBu
             {
                 throw new InvalidOperationException(
                     $"Target block '{connection.TargetBlockName}' does not have a SetSource method");
+            }
+        }
+
+        // Create the runtime graph
+        var runtimeGraph = new DataFlowRuntimeGraph(Graph.Name, Graph, blocks);
+
+        // Phase 2: Initialize blocks in topological order
+        var iterator = new DataFlowGraphIterator(Graph);
+        var blocksInOrder = iterator.IterateTopologically();
+
+        foreach (var blockDefinition in blocksInOrder)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var block = blocks[blockDefinition.Name];
+            if (block is IDataFlowInitializable initializableBlock)
+            {
+                await initializableBlock.OnDataFlowInitializedAsync(runtimeGraph, cancellationToken);
             }
         }
 

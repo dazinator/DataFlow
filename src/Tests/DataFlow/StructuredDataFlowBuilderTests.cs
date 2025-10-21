@@ -48,7 +48,7 @@ public class StructuredDataFlowBuilderTests
     }
 
     [Fact]
-    public void Should_CreateBlockInstances_WhenBuildIsCalled()
+    public async Task Should_CreateBlockInstances_WhenBuildIsCalled()
     {
         // Arrange
         var builder = new StructuredDataFlowBuilder(_serviceProvider, "TestFlow");
@@ -58,7 +58,7 @@ public class StructuredDataFlowBuilderTests
             .AddProcessor("processor", sp => new TestProcessor<int>());
 
         // Act - Build the actual dataflow
-        var dataflow = builder.Build();
+        var dataflow = await builder.Build();
 
         // Assert
         dataflow.ShouldNotBeNull();
@@ -171,7 +171,7 @@ public class StructuredDataFlowBuilderTests
     }
 
     [Fact]
-    public void Should_ValidateGraph_BeforeBuild()
+    public async Task Should_ValidateGraph_BeforeBuild()
     {
         // Arrange
         var builder = new StructuredDataFlowBuilder(_serviceProvider, "TestFlow");
@@ -181,7 +181,7 @@ public class StructuredDataFlowBuilderTests
             .AddProcessor("processor", sp => new TestProcessor<int>());
 
         // Act & Assert - Should not throw
-        Should.NotThrow(() => builder.Build());
+        await Should.NotThrowAsync(async () => await builder.Build());
     }
 
     [Fact]
@@ -196,7 +196,7 @@ public class StructuredDataFlowBuilderTests
             .AddProcessor("processor", sp => new TestProcessor<int>(
                 onProcessItem: item => processedItems.Add(item)));
 
-        var dataflow = builder.Build();
+        var dataflow = await builder.Build();
         var context = DataFlowContextTestUtils.GetContext("test", Guid.NewGuid(), _serviceProvider);
 
         // Act
@@ -266,7 +266,7 @@ public class StructuredDataFlowBuilderTests
     }
 
     [Fact]
-    public void Should_ThrowException_WhenMultipleSourcesConnectToSingleTarget()
+    public async Task Should_ThrowException_WhenMultipleSourcesConnectToSingleTarget()
     {
         // Arrange
         var builder = new StructuredDataFlowBuilder(_serviceProvider, "MultiSourceFlow");
@@ -282,7 +282,7 @@ public class StructuredDataFlowBuilderTests
         builder.AddConnection("source2", "processor", typeof(int));
 
         // Act & Assert
-        var ex = Should.Throw<InvalidOperationException>(() => builder.Build());
+        var ex = await Should.ThrowAsync<InvalidOperationException>(async () => await builder.Build());
         ex.Message.ShouldContain("multiple incoming connections");
         ex.Message.ShouldContain("processor");
     }

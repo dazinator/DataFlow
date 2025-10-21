@@ -3,9 +3,10 @@ namespace Uniun.DataFlow.Blocks;
 using System;
 using Microsoft.Extensions.Logging;
 using Uniun.DataFlow;
+using Uniun.DataFlow.Builder.Graph;
 using Uniun.DataFlow.Metrics;
 
-public abstract class BlockBase : IBlock
+public abstract class BlockBase : IBlock, IDataFlowInitializable
 {
     protected BlockBase(string name, BlockOptions? blockOptions, ILogger logger)
     {
@@ -90,6 +91,19 @@ public abstract class BlockBase : IBlock
 
     protected abstract Task CoreExecuteAsync(IDataFlowContext context);
 
+    /// <summary>
+    /// Called after all blocks in the dataflow have been instantiated during the Build phase.
+    /// Override this method in derived classes to perform initialization that requires
+    /// access to other blocks in the runtime graph.
+    /// </summary>
+    /// <param name="runtimeGraph">The runtime graph containing all instantiated blocks</param>
+    /// <param name="cancellationToken">Cancellation token for the initialization process</param>
+    /// <returns>A task representing the initialization operation</returns>
+    public virtual Task OnDataFlowInitializedAsync(IDataFlowRuntimeGraph runtimeGraph, CancellationToken cancellationToken)
+    {
+        // Default implementation does nothing - derived classes can override
+        return Task.CompletedTask;
+    }
 
     // 2. Add simple exception handling in BlockBase.ExecuteParallelActivities
     protected virtual async Task ExecuteParallelActivities(IDataFlowContext context, int howMany, ParallelActivityDelegate activity)

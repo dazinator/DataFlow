@@ -154,7 +154,7 @@ public partial class Program
 
             // Build and execute the dataflow
             var builder = Shared.ComplexEtlDataFlow.BuildDataFlow(serviceProvider, recordCount);
-            var dataflow = builder.Build();
+            var dataflow = await builder.Build();
 
             var context = new DataFlowContext
             {
