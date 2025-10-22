@@ -35,6 +35,18 @@ public class RoutingBlockMermaidRenderer : IMermaidBlockRenderer
             return;
         }
 
+        // Check if there's a merge target configured
+        string? mergeTargetBlockName = null;
+        if (context.Block.Metadata.TryGetValue("RoutingOptions", out var routingOptionsObj))
+        {
+            // Use reflection to get MergeIntoBlockName from the options object
+            var mergeProperty = routingOptionsObj.GetType().GetProperty("MergeIntoBlockName");
+            if (mergeProperty != null)
+            {
+                mergeTargetBlockName = mergeProperty.GetValue(routingOptionsObj) as string;
+            }
+        }
+
         context.AppendLine($"%% Routes for '{context.Block.Name}':");
 
         foreach (var route in routeDefinitions.Values)
@@ -44,6 +56,8 @@ public class RoutingBlockMermaidRenderer : IMermaidBlockRenderer
 
             context.AppendLine($"subgraph {subgraphId} [\"{routeGraphName}\"]");
             context.AppendLine($"    direction {context.Direction}");
+
+            string? lastSourceBlockName = null;
 
             // Attempt to build the route structure to extract its graph
             if (context.ServiceProvider != null)
@@ -63,7 +77,10 @@ public class RoutingBlockMermaidRenderer : IMermaidBlockRenderer
                     };
 
                     // Call the factory to build the route structure
-                    var _ = route.Factory(routeContext);
+                    var routeBranch = route.Factory(routeContext);
+                    
+                    // Capture the last source block name for merge connections
+                    lastSourceBlockName = routeBranch.GetLastSourceBlockName();
 
                     // Now render the route's internal graph structure using nested context
                     var nestedContext = context.CreateNested();
@@ -91,6 +108,18 @@ public class RoutingBlockMermaidRenderer : IMermaidBlockRenderer
             // Add connection from routing block to the route subgraph
             var routeInputType = SanitizeTypeLabel(route.ItemType.Name);
             context.AppendLine($"{SanitizeId(context.Block.Name)} -.->|{routeInputType}<br/>'{route.Name}'| {subgraphId}");
+            
+            // Add merge connection if configured and we have a last source block
+            if (!string.IsNullOrEmpty(mergeTargetBlockName) && !string.IsNullOrEmpty(lastSourceBlockName))
+            {
+                // The connection goes from the last block in the route to the merge target
+                var lastBlockId = SanitizeId(lastSourceBlockName);
+                var mergeBlockId = SanitizeId(mergeTargetBlockName);
+                
+                // Determine the output type from the route's last source block
+                // For now, use a generic label since we don't have easy access to the exact type
+                context.AppendLine($"{lastBlockId} -.->|output| {mergeBlockId}");
+            }
         }
     }
 

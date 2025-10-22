@@ -15,6 +15,30 @@ public interface IRouteBuilder : IBranchBuilder
     string RouteName { get; }
 
     /// <summary>
+    /// Gets the entry block for this route. This is the InputChannelBlock that receives items from the routing block.
+    /// Available after Build() is called.
+    /// </summary>
+    IBlock? EntryBlock { get; }
+
+    /// <summary>
+    /// Ensures an InputChannelBlock exists at the start of the route's pipeline.
+    /// The InputChannelBlock is connected to the route's entry target block.
+    /// If an InputChannelBlock already exists in the correct position, does nothing.
+    /// </summary>
+    /// <typeparam name="T">The type of items that will be routed to this route</typeparam>
+    /// <param name="channelFactory">Factory for creating the channel</param>
+    /// <param name="options">Options for the InputChannelBlock</param>
+    /// <returns>The name of the InputChannelBlock (either existing or newly created)</returns>
+    string EnsureInputChannelBlock<T>(IBoundedChannelFactory channelFactory, BlockOptions options);
+
+    /// <summary>
+    /// Gets the InputChannelBlock for this route after it has been ensured.
+    /// </summary>
+    /// <typeparam name="T">The type of items</typeparam>
+    /// <returns>The InputChannelBlock instance, or null if not found</returns>
+    Uniun.DataFlow.Blocks.InputChannel.InputChannelBlock<T>? GetInputChannelBlock<T>();
+
+    /// <summary>
     /// Sets the entry target block for this route.
     /// This is where routed items will be sent.
     /// </summary>

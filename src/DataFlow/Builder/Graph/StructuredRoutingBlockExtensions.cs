@@ -37,7 +37,8 @@ public static class StructuredRoutingBlockExtensions
         var metadata = new Dictionary<string, object>
         {
             ["IsRoutingBlock"] = true,
-            ["RouteDefinitions"] = options.Routes
+            ["RouteDefinitions"] = options.Routes,
+            ["RoutingOptions"] = options
         };
 
         builder.AddBlockDefinition(

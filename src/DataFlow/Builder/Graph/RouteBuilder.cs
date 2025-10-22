@@ -14,6 +14,7 @@ public class RouteBuilder : IRouteBuilder
     private readonly DataFlowGraph _graph;
     private string? _entryBlockName;
     private string? _lastSourceBlockName;
+    private IBlock? _entryBlock;
 
     public RouteBuilder(IServiceProvider serviceProvider, string routeName, DataFlowGraph? parentGraph = null)
     {
@@ -31,6 +32,12 @@ public class RouteBuilder : IRouteBuilder
     public IServiceProvider ServiceProvider { get; }
     public string RouteName { get; }
     public DataFlowGraph Graph => _graph;
+    
+    /// <summary>
+    /// Gets the entry block for this route. This is the InputChannelBlock that receives items from the routing block.
+    /// Available after Build() is called.
+    /// </summary>
+    public IBlock? EntryBlock => _entryBlock;
     
     // IBranchBuilder properties
     public string BranchName { get; }
@@ -111,6 +118,82 @@ public class RouteBuilder : IRouteBuilder
     public string? GetEntryBlockName() => _entryBlockName;
 
     /// <summary>
+    /// Ensures an InputChannelBlock exists at the start of the route's pipeline.
+    /// The InputChannelBlock is connected to the route's entry target block.
+    /// If an InputChannelBlock already exists in the correct position, does nothing.
+    /// </summary>
+    /// <typeparam name="T">The type of items that will be routed to this route</typeparam>
+    /// <param name="channelFactory">Factory for creating the channel</param>
+    /// <param name="options">Options for the InputChannelBlock</param>
+    /// <returns>The name of the InputChannelBlock (either existing or newly created)</returns>
+    public string EnsureInputChannelBlock<T>(IBoundedChannelFactory channelFactory, BlockOptions options)
+    {
+        // Check if there's already an InputChannelBlock in the graph
+        var existingInputChannel = _graph.BlockDefinitions.Values
+            .FirstOrDefault(bd => bd.Metadata.ContainsKey("IsRouteInputChannel") || 
+                                 (bd.BlockType.IsGenericType && 
+                                  bd.BlockType.GetGenericTypeDefinition() == typeof(Uniun.DataFlow.Blocks.InputChannel.InputChannelBlock<>)));
+        
+        if (existingInputChannel != null)
+        {
+            // Already has an InputChannelBlock, return its name
+            return existingInputChannel.Name;
+        }
+        
+        // Get the entry block - this must be a target block
+        var entryBlocks = _graph.GetEntryBlocks().ToList();
+        if (!entryBlocks.Any())
+        {
+            throw new InvalidOperationException(
+                $"Route '{RouteName}' must have at least one entry block before calling EnsureInputChannelBlock. " +
+                "The first target block added is automatically marked as the entry block, or you can explicitly call AsEntry() on a target block.");
+        }
+        
+        var entryBlockName = entryBlocks.First().Name;
+        
+        // Create a new InputChannelBlock
+        var inputChannelBlockName = $"input-channel-{RouteName}";
+        
+        // Add InputChannelBlock to the route's graph
+        AddBlockDefinition(
+            inputChannelBlockName,
+            sp => new Uniun.DataFlow.Blocks.InputChannel.InputChannelBlock<T>(
+                inputChannelBlockName,
+                sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<Uniun.DataFlow.Blocks.InputChannel.InputChannelBlock<T>>>(),
+                channelFactory,
+                options),
+            inputType: null, // InputChannelBlock doesn't receive from other blocks in the route
+            outputType: typeof(T),
+            metadata: new Dictionary<string, object>
+            {
+                ["IsRouteInputChannel"] = true
+            });
+        
+        // Connect InputChannelBlock to the entry target block
+        AddConnection(inputChannelBlockName, entryBlockName, typeof(T));
+        
+        return inputChannelBlockName;
+    }
+
+    /// <summary>
+    /// Gets the InputChannelBlock for this route after it has been ensured.
+    /// </summary>
+    /// <typeparam name="T">The type of items</typeparam>
+    /// <returns>The InputChannelBlock instance, or null if not found</returns>
+    public Uniun.DataFlow.Blocks.InputChannel.InputChannelBlock<T>? GetInputChannelBlock<T>()
+    {
+        var inputChannelBlockName = _graph.BlockDefinitions.Values
+            .FirstOrDefault(bd => bd.Metadata.ContainsKey("IsRouteInputChannel"))?.Name;
+        
+        if (inputChannelBlockName != null && _state.Blocks.TryGetValue(inputChannelBlockName, out var block))
+        {
+            return block as Uniun.DataFlow.Blocks.InputChannel.InputChannelBlock<T>;
+        }
+        
+        return null;
+    }
+
+    /// <summary>
     /// Builds the route as a DataFlow for execution by the routing block.
     /// This is called by the routing block when instantiating a route.
     /// </summary>
@@ -156,6 +239,15 @@ public class RouteBuilder : IRouteBuilder
                 throw new InvalidOperationException(
                     $"Target block '{connection.TargetBlockName}' does not have a {nameof(ITargetBlock<object>.SetSource)} method");
             }
+        }
+
+        // Store the InputChannelBlock as the entry block for easy access
+        // The InputChannelBlock is the block that the routing block writes to
+        var inputChannelBlockDef = _graph.BlockDefinitions.Values
+            .FirstOrDefault(bd => bd.Metadata.ContainsKey("IsRouteInputChannel"));
+        if (inputChannelBlockDef != null && blocks.TryGetValue(inputChannelBlockDef.Name, out var inputChannelBlock))
+        {
+            _entryBlock = inputChannelBlock;
         }
 
         // Create runtime graph for initialization

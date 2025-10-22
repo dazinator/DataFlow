@@ -230,8 +230,25 @@ public class StructuredRoutingBlock<T> : BlockBase, ITargetBlock<T>
                 // Call the factory to get the branch for this route
                 var routeBranch = routeDefinition.Factory(routeContext);
 
-                // Build the dataflow from the route branch
+                // Ensure the route has an InputChannelBlock as its entry point
+                // This will either use an existing InputChannelBlock or create a new one
+                var inputChannelOptions = new BlockOptions
+                {
+                    Capacity = Math.Max(1, Options.MaxConcurrency),
+                    MaxConcurrency = 1 // Channel itself doesn't need concurrency
+                };
+                
+                var inputChannelBlockName = routeBuilder.EnsureInputChannelBlock<T>(_channelFactory, inputChannelOptions);
+
+                // Build the dataflow from the route branch (including the InputChannelBlock)
                 var dataFlow = routeBuilder.Build();
+
+                // Get the InputChannelBlock instance from the built route
+                var inputChannelBlock = routeBuilder.EntryBlock as InputChannelBlock<T>;
+                if (inputChannelBlock == null)
+                {
+                    throw new InvalidOperationException($"Failed to get InputChannelBlock for route '{routeName}'. Entry block is not an InputChannelBlock<{typeof(T).Name}>.");
+                }
 
                 // Get the last source block if merge target is configured
                 IBlock? lastSourceBlock = null;
@@ -262,38 +279,11 @@ public class StructuredRoutingBlock<T> : BlockBase, ITargetBlock<T>
                     }
                 }
 
-                // Get the entry block - use the first entry block from the graph
-                var entryBlocks = routeBuilder.Graph.GetEntryBlocks().ToList();
-                if (!entryBlocks.Any())
-                {
-                    throw new InvalidOperationException(
-                        $"Route '{routeName}' must have at least one entry block. The first target block added is automatically marked as the entry block, or you can explicitly call AsEntry() on a target block.");
-                }
-
-                var entryBlockName = entryBlocks.First().Name;
-                var targetBlock = routeBuilder.GetTargetBlock<T>(entryBlockName);
-
-                // Create the input channel for this route with bounded capacity
-                // Use capacity = MaxConcurrency to reduce memory usage and get backpressure
-                var channelOptions = new BlockOptions
-                {
-                    Capacity = Math.Max(1, Options.MaxConcurrency),
-                    MaxConcurrency = 1 // Channel itself doesn't need concurrency
-                };
-
-                var logger = routeScope.ServiceProvider.GetRequiredService<ILogger<InputChannelBlock<T>>>();
-                var channelBlock = new InputChannelBlock<T>(
-                    $"{targetBlock.Name}-route-{routeName}",
-                    logger,
-                    _channelFactory,
-                    channelOptions);
-
                 var routeInstance = new RouteInstance<T>(
                     _logger,
                     routeName,
                     dataFlow,
-                    targetBlock,
-                    channelBlock,
+                    inputChannelBlock,
                     routeScope,
                     lastSourceBlock,
                     _mergeTargetBlock);
@@ -445,7 +435,6 @@ internal class MergeProducerHelper<TItem>
 internal class RouteInstance<T> : IAsyncDisposable
 {
     private readonly ILogger _logger;
-    private readonly ITargetBlock<T> _targetBlock;
     private readonly IDataFlow _dataFlow;
     private readonly AsyncServiceScope _scope;
     private readonly IBlock? _lastSourceBlock;
@@ -456,7 +445,6 @@ internal class RouteInstance<T> : IAsyncDisposable
         ILogger logger,
         string routeName,
         IDataFlow dataFlow,
-        ITargetBlock<T> targetBlock,
         InputChannelBlock<T> channelBlock,
         AsyncServiceScope scope,
         IBlock? lastSourceBlock = null,
@@ -465,7 +453,6 @@ internal class RouteInstance<T> : IAsyncDisposable
         _logger = logger;
         RouteName = routeName;
         _dataFlow = dataFlow;
-        _targetBlock = targetBlock;
         ChannelBlock = channelBlock;
         _scope = scope;
         _lastSourceBlock = lastSourceBlock;
@@ -479,11 +466,23 @@ internal class RouteInstance<T> : IAsyncDisposable
 
     public void StartFlowExecution(IDataFlowContext context)
     {
-        // Connect the channel to the target block
-        _targetBlock.SetSource(ChannelBlock);
+        // InputChannelBlock is now part of the route's graph, so it will be started
+        // automatically when we call ExecuteAsync on the dataflow.
+        // We no longer need to manually connect it to the target block.
 
-        // Start the dataflow execution
-        ExecutionTask = _dataFlow.ExecuteAsync(context);
+        // Create a new context with the route's service provider
+        // This ensures that the route executes with its own scoped service provider
+        var routeContext = new DataFlowContext(context.InvocationId)
+        {
+            Name = context.Name,
+            ServiceProvider = _scope.ServiceProvider,
+            CancellationToken = context.CancellationToken,
+            FlowMetricsContext = context.FlowMetricsContext,
+            Items = context.Items
+        };
+
+        // Start the dataflow execution with the route's scoped context
+        ExecutionTask = _dataFlow.ExecuteAsync(routeContext);
 
         // If there's a last source block and merge target, start a producer task
         // to pump data from the route's output to the merge target

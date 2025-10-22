@@ -574,14 +574,14 @@ public class DataFlowGraphExporterTests
     }
 
     [SnapshotTest]
-    [Fact(Skip = "Merge functionality requires additional architectural work")]
+    [Fact]
     public Task Should_GenerateMermaidDiagram_WithRoutingBlockMerge()
     {
         // Arrange
         var builder = new StructuredDataFlowBuilder(_serviceProvider, "RoutingFlowWithMerge");
         var items = new[] { 1, 2, 3, 4, 5, 6 };
 
-        // Build a routing flow WITH merge (even if merge functionality isn't complete)
+        // Build a routing flow WITH merge
         builder.AddProducer("source", sp => new TestProducer<int>(items));
 
         builder.AddRouter<int>("router", item => item % 2 == 0 ? "even" : "odd")
@@ -601,11 +601,10 @@ public class DataFlowGraphExporterTests
                     .AddProcessor("odd-processor", sp => new TestProcessor<string>());
                 return routeBuilder;
             })
-            .MergeInto("merger") // Note: Merge configuration
+            .MergeInto<string>("merger") // MergeInto automatically creates the merger block
             .ReceiveFrom("source");
 
-        // Add buffer block for merging
-        builder.AddBuffer<string>("merger");
+        // Note: The merger block is automatically created by MergeInto(), no need to add it manually
 
         // Add final processor
         builder.AddProcessor("final-processor", sp => new TestProcessor<string>())
