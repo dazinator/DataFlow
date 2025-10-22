@@ -34,4 +34,15 @@ public interface IRouteBuilder : IBranchBuilder
     /// Gets a target block from the route by name.
     /// </summary>
     ITargetBlock<T> GetTargetBlock<T>(string blockName);
+
+    /// <summary>
+    /// Gets a source block from the route by name.
+    /// This is used for connecting route outputs to merge targets.
+    /// </summary>
+    ISourceBlock<T> GetSourceBlock<T>(string blockName);
+
+    /// <summary>
+    /// Gets a block by name without type checking. Used for dynamic type scenarios like merge connections.
+    /// </summary>
+    IBlock GetBlock(string blockName);
 }

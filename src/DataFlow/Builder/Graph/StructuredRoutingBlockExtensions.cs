@@ -143,14 +143,53 @@ public class StructuredRoutingBlockBuilder<T>
     }
 
     /// <summary>
-    /// Configures the routing block to merge all route outputs into a specified downstream block.
-    /// This allows routes to be collected and processed together after routing.
+    /// Configures the routing block to merge all route outputs into a dynamically created merge block.
+    /// This automatically adds a specialized DynamicMergeBlock that can handle sources being added
+    /// after execution starts (unlike BufferBlock).
+    /// Use this overload when routes output the same type as the routing block input.
     /// </summary>
-    /// <param name="targetBlockName">The name of the target block to merge routes into</param>
+    /// <param name="mergeBlockName">The name for the merge block that will be created</param>
     /// <returns>This builder for chaining</returns>
-    public StructuredRoutingBlockBuilder<T> MergeInto(string targetBlockName)
+    public StructuredRoutingBlockBuilder<T> MergeInto(string mergeBlockName)
     {
-        _options.MergeIntoBlockName = targetBlockName;
+        return MergeInto<T>(mergeBlockName);
+    }
+
+    /// <summary>
+    /// Configures the routing block to merge all route outputs into a dynamically created merge block.
+    /// This automatically adds a specialized DynamicMergeBlock that can handle sources being added
+    /// after execution starts (unlike BufferBlock).
+    /// Use this overload when routes transform data to a different output type.
+    /// </summary>
+    /// <typeparam name="TOutput">The output type of the routes (may differ from T if routes transform data)</typeparam>
+    /// <param name="mergeBlockName">The name for the merge block that will be created</param>
+    /// <returns>This builder for chaining</returns>
+    public StructuredRoutingBlockBuilder<T> MergeInto<TOutput>(string mergeBlockName)
+    {
+        _options.MergeIntoBlockName = mergeBlockName;
+        
+        // Automatically add a DynamicMergeBlock to handle the merging
+        // This block supports sources being added dynamically after execution starts
+        _builder.AddBlockDefinition(
+            mergeBlockName,
+            sp =>
+            {
+                var logger = sp.GetRequiredService<ILogger<DynamicMergeBlock<TOutput>>>();
+                var channelFactory = sp.GetRequiredService<IBoundedChannelFactory>();
+                return new DynamicMergeBlock<TOutput>(
+                    mergeBlockName,
+                    logger,
+                    channelFactory,
+                    new BlockOptions { Capacity = 1000 });
+            },
+            inputType: typeof(TOutput),
+            outputType: typeof(TOutput),
+            metadata: new Dictionary<string, object>
+            {
+                ["IsDynamicMergeBlock"] = true,
+                ["CreatedByRoutingBlock"] = _blockName
+            });
+        
         return this;
     }
 

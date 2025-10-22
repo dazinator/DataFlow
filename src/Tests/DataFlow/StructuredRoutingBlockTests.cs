@@ -797,7 +797,7 @@ public class StructuredRoutingBlockTests
     #region Merge Functionality Tests
 
     [Fact]
-    public void RoutingBlock_CanBe_ConfiguredWithMergeOption()
+    public async Task RoutingBlock_CanBe_ConfiguredWithMergeOption()
     {
         // Arrange
         var sp = _services.BuildServiceProvider();
@@ -817,13 +817,17 @@ public class StructuredRoutingBlockTests
             .MergeInto("merger") // Configure merge target
             .ReceiveFrom("source");
 
-        builder.AddBuffer<int>("merger");
+        // Note: The "merger" block is automatically created by MergeInto()
         builder.AddProcessor<int>("final", sp => new TestProcessor<int>())
             .ReceiveFrom("merger");
 
-        // Assert - Should throw NotImplementedException when merge is configured
-        Should.Throw<NotImplementedException>(() => builder.Build())
-            .Message.ShouldContain("Merge functionality is not yet implemented");
+        // Assert - Should build successfully now that merge is implemented
+        var flow = builder.Build();
+        flow.ShouldNotBeNull();
+
+        // Execute to ensure it works end-to-end
+        var context = CreateContext("test", Guid.NewGuid(), sp);
+        await flow.ExecuteAsync(context);
     }
 
     [Fact]
@@ -856,7 +860,7 @@ public class StructuredRoutingBlockTests
         flow.ShouldNotBeNull();
     }
 
-    [Fact(Skip = "Merge functionality requires additional architectural work - see TODO in StructuredRoutingBlock")]
+    [Fact]
     public async Task StaticRouting_CanMerge_RoutesIntoDownstreamBuffer()
     {
         // Arrange
@@ -899,8 +903,8 @@ public class StructuredRoutingBlockTests
             .MergeInto("merger")
             .ReceiveFrom("source");
 
-        // Add buffer block to merge all route outputs
-        builder.AddBuffer<int>("merger");
+        // Note: The "merger" block is automatically created by MergeInto()
+        // It's a DynamicMergeBlock that supports sources being added dynamically
 
         // Add final processor to collect all merged results
         builder.AddProcessor<int>("collector", sp =>
@@ -929,7 +933,7 @@ public class StructuredRoutingBlockTests
         processedItems.Count.ShouldBe(items.Length);
     }
 
-    [Fact(Skip = "Merge functionality requires additional architectural work - see TODO in StructuredRoutingBlock")]
+    [Fact]
     public async Task DynamicRouting_CanMerge_RoutesIntoDownstreamBuffer()
     {
         // Arrange
@@ -964,11 +968,10 @@ public class StructuredRoutingBlockTests
                 return routeBuilder;
             })
             .WithDynamicRouting("template")
-            .MergeInto("merger")
+            .MergeInto<string>("merger") // Specify output type since routes transform to string
             .ReceiveFrom("source");
 
-        // Add buffer block to merge all route outputs
-        builder.AddBuffer<string>("merger");
+        // Note: The "merger" block is automatically created by MergeInto()
 
         // Add final processor to collect all merged results
         builder.AddProcessor<string>("collector", sp =>
@@ -994,7 +997,7 @@ public class StructuredRoutingBlockTests
         processedItems.Count.ShouldBe(5);
     }
 
-    [Fact(Skip = "Merge functionality requires additional architectural work - see TODO in StructuredRoutingBlock")]
+    [Fact]
     public async Task Routing_CanLookup_ExistingBranchFromGraph()
     {
         // Arrange
@@ -1041,11 +1044,10 @@ public class StructuredRoutingBlockTests
                     .AsEntry();
                 return routeBuilder;
             })
-            .MergeInto("merger")
+            .MergeInto<string>("merger") // Specify output type since routes transform to string
             .ReceiveFrom("source");
 
-        // Add buffer block to merge all route outputs
-        builder.AddBuffer<string>("merger");
+        // Note: The "merger" block is automatically created by MergeInto()
 
         // Add final processor
         builder.AddProcessor<string>("collector", sp =>

@@ -2,7 +2,9 @@ namespace Uniun.DataFlow.Blocks.Routing;
 
 using System;
 using System.Collections.Concurrent;
+using System.Linq;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -23,7 +25,7 @@ public class StructuredRoutingBlock<T> : BlockBase, ITargetBlock<T>
     private readonly IBoundedChannelFactory _channelFactory;
     private readonly ILogger<StructuredRoutingBlock<T>> _logger;
     private readonly DataFlowGraph _parentGraph;
-    private readonly ITargetBlock<T>? _mergeTargetBlock;
+    private IBlock? _mergeTargetBlock; // Store as IBlock to support any target type
 
     private ISourceBlock<T>? _source;
 
@@ -43,7 +45,7 @@ public class StructuredRoutingBlock<T> : BlockBase, ITargetBlock<T>
         IBoundedChannelFactory channelFactory,
         StructuredRoutingBlockOptions<T> options,
         DataFlowGraph parentGraph,
-        ITargetBlock<T>? mergeTargetBlock = null) : base(name, options, logger)
+        IBlock? mergeTargetBlock = null) : base(name, options, logger)
     {
         _options = options;
         _scopeFactory = scopeFactory;
@@ -51,17 +53,27 @@ public class StructuredRoutingBlock<T> : BlockBase, ITargetBlock<T>
         _logger = logger;
         _parentGraph = parentGraph;
         _mergeTargetBlock = mergeTargetBlock;
+    }
 
-        // TODO: Merge functionality is not yet implemented
-        // The routing block needs runtime access to built block instances to connect route outputs
-        // to the merge target block. This requires architectural changes to provide access to the
-        // compiled DAG graph of built blocks. See separate issue for runtime block access.
-        if (!string.IsNullOrEmpty(options.MergeIntoBlockName))
+    /// <summary>
+    /// Called after all blocks in the dataflow have been instantiated.
+    /// This is where we resolve the merge target block if configured.
+    /// The merge target can be any ITargetBlock regardless of its type parameter.
+    /// </summary>
+    public override void OnDataFlowInitialized(IDataFlowRuntimeGraph runtimeGraph, CancellationToken cancellationToken)
+    {
+        if (!string.IsNullOrEmpty(_options.MergeIntoBlockName))
         {
-            throw new NotImplementedException(
-                "Merge functionality is not yet implemented. " +
-                "The routing block requires runtime access to built block instances to auto-connect " +
-                "route outputs to the merge target block. This feature will be implemented in a future release.");
+            _logger.LogDebug("Resolving merge target block: {MergeTargetBlockName}", _options.MergeIntoBlockName);
+
+            if (!runtimeGraph.TryGetBlockInstance(_options.MergeIntoBlockName, out var mergeTargetBlock))
+            {
+                throw new InvalidOperationException(
+                    $"Merge target block '{_options.MergeIntoBlockName}' not found");
+            }
+
+            _mergeTargetBlock = mergeTargetBlock;
+            _logger.LogInformation("Merge target block '{MergeTargetBlockName}' resolved successfully", _options.MergeIntoBlockName);
         }
     }
 
@@ -94,6 +106,13 @@ public class StructuredRoutingBlock<T> : BlockBase, ITargetBlock<T>
             {
                 await CompleteAllRoutesAsync();
                 await WaitForAllRoutesAsync();
+                
+                // Signal the merge block that all routes are done
+                if (_mergeTargetBlock is IDynamicMergeBlock mergeBlock)
+                {
+                    mergeBlock.Complete();
+                    _logger.LogDebug("Signaled completion to merge block");
+                }
             }
             catch (Exception cleanupEx)
             {
@@ -214,6 +233,35 @@ public class StructuredRoutingBlock<T> : BlockBase, ITargetBlock<T>
                 // Build the dataflow from the route branch
                 var dataFlow = routeBuilder.Build();
 
+                // Get the last source block if merge target is configured
+                IBlock? lastSourceBlock = null;
+                if (_mergeTargetBlock != null && !string.IsNullOrEmpty(routeBranch.GetLastSourceBlockName()))
+                {
+                    var lastBlockName = routeBranch.GetLastSourceBlockName();
+                    try
+                    {
+                        lastSourceBlock = routeBuilder.GetBlock(lastBlockName!);
+                        
+                        // Register the source with the merge target via SetSource
+                        // Note: DynamicMergeBlock doesn't actively use this in its implementation,
+                        // but we call it to adhere to expected block lifecycle patterns
+                        var setSourceMethod = _mergeTargetBlock.GetType().GetMethod(nameof(ITargetBlock<object>.SetSource));
+                        if (setSourceMethod != null)
+                        {
+                            setSourceMethod.Invoke(_mergeTargetBlock, new object[] { lastSourceBlock });
+                            _logger.LogDebug(
+                                "Registered last source block '{LastBlockName}' of route '{RouteName}' with merge target",
+                                lastBlockName, routeName);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, 
+                            "Failed to get last source block '{LastBlockName}' for merge on route '{RouteName}'",
+                            lastBlockName, routeName);
+                    }
+                }
+
                 // Get the entry block - use the first entry block from the graph
                 var entryBlocks = routeBuilder.Graph.GetEntryBlocks().ToList();
                 if (!entryBlocks.Any())
@@ -240,28 +288,15 @@ public class StructuredRoutingBlock<T> : BlockBase, ITargetBlock<T>
                     _channelFactory,
                     channelOptions);
 
-                // Get the last source block from the route for potential merging
-                ISourceBlock<T>? lastSourceBlock = null;
-                if (_mergeTargetBlock != null && !string.IsNullOrEmpty(routeBranch.GetLastSourceBlockName()))
-                {
-                    var lastBlockName = routeBranch.GetLastSourceBlockName();
-                    var lastBlockDef = routeBuilder.Graph.GetBlockDefinition(lastBlockName!);
-                    if (lastBlockDef.IsSourceBlock())
-                    {
-                        // Get the instantiated block from the state
-                        var block = routeBuilder.Build(); // This will have already been built above
-                        // We need to track blocks differently - for now, skip merge support in this iteration
-                        _logger.LogWarning("Route merging will be implemented in a follow-up iteration");
-                    }
-                }
-
                 var routeInstance = new RouteInstance<T>(
                     _logger,
                     routeName,
                     dataFlow,
                     targetBlock,
                     channelBlock,
-                    routeScope);
+                    routeScope,
+                    lastSourceBlock,
+                    _mergeTargetBlock);
 
                 if (_logger.IsEnabled(LogLevel.Debug))
                 {
@@ -332,11 +367,22 @@ public class StructuredRoutingBlock<T> : BlockBase, ITargetBlock<T>
         _logger.LogDebug("Waiting for all routes to finish execution - {routeCount} routes", _routeInstances.Count);
 
         var executionTasks = _routeInstances.Values.Select(route => route.ExecutionTask).ToArray();
+        var mergeProducerTasks = _routeInstances.Values
+            .Where(route => route.MergeProducerTask != null)
+            .Select(route => route.MergeProducerTask!)
+            .ToArray();
 
         try
         {
             await Task.WhenAll(executionTasks);
             _logger.LogInformation("All routes finished execution successfully");
+            
+            // Wait for all merge producer tasks to complete
+            if (mergeProducerTasks.Length > 0)
+            {
+                await Task.WhenAll(mergeProducerTasks);
+                _logger.LogInformation("All merge producer tasks completed");
+            }
         }
         catch (Exception ex)
         {
@@ -362,14 +408,49 @@ public class StructuredRoutingBlock<T> : BlockBase, ITargetBlock<T>
 }
 
 /// <summary>
-/// Represents an instantiated route with its dataflow and channels.
+/// Helper class for pumping items from a route's source block to a merge target.
+/// This class is instantiated via reflection with the correct item type.
 /// </summary>
+/// <typeparam name="TItem">The type of items being pumped</typeparam>
+internal class MergeProducerHelper<TItem>
+{
+    private readonly ILogger _logger;
+
+    public MergeProducerHelper(ILogger logger)
+    {
+        _logger = logger;
+    }
+
+    /// <summary>
+    /// Pumps items from a source block to a merge target's writer.
+    /// This method uses strongly-typed code after being instantiated with the correct type via reflection.
+    /// </summary>
+    public async Task PumpToMergeTargetAsync(IBlock lastSourceBlock, IBlock mergeTarget, CancellationToken cancellationToken)
+    {
+        // Cast to strongly-typed interfaces (we know these are correct because we were instantiated with the right type)
+        var sourceBlock = (ISourceBlock<TItem>)lastSourceBlock;
+        var dynamicMergeBlock = (DynamicMergeBlock<TItem>)mergeTarget;
+
+        _logger.LogDebug("MergeProducerHelper<{Type}>: Starting to pump items", typeof(TItem).Name);
+
+        // Get items from source and write to merge target's writer
+        await foreach (var item in sourceBlock.GetAsyncEnumerable(dynamicMergeBlock, cancellationToken).ConfigureAwait(false))
+        {
+            await dynamicMergeBlock.Writer.WriteAsync(item, cancellationToken).ConfigureAwait(false);
+        }
+
+        _logger.LogDebug("MergeProducerHelper<{Type}>: Completed", typeof(TItem).Name);
+    }
+}
 internal class RouteInstance<T> : IAsyncDisposable
 {
     private readonly ILogger _logger;
     private readonly ITargetBlock<T> _targetBlock;
     private readonly IDataFlow _dataFlow;
     private readonly AsyncServiceScope _scope;
+    private readonly IBlock? _lastSourceBlock;
+    private readonly IBlock? _mergeTarget;
+    private Task? _mergeProducerTask;
 
     public RouteInstance(
         ILogger logger,
@@ -377,7 +458,9 @@ internal class RouteInstance<T> : IAsyncDisposable
         IDataFlow dataFlow,
         ITargetBlock<T> targetBlock,
         InputChannelBlock<T> channelBlock,
-        AsyncServiceScope scope)
+        AsyncServiceScope scope,
+        IBlock? lastSourceBlock = null,
+        IBlock? mergeTarget = null)
     {
         _logger = logger;
         RouteName = routeName;
@@ -385,11 +468,14 @@ internal class RouteInstance<T> : IAsyncDisposable
         _targetBlock = targetBlock;
         ChannelBlock = channelBlock;
         _scope = scope;
+        _lastSourceBlock = lastSourceBlock;
+        _mergeTarget = mergeTarget;
     }
 
     public string RouteName { get; }
     public InputChannelBlock<T> ChannelBlock { get; }
     public Task ExecutionTask { get; private set; } = Task.CompletedTask;
+    public Task? MergeProducerTask => _mergeProducerTask;
 
     public void StartFlowExecution(IDataFlowContext context)
     {
@@ -398,6 +484,60 @@ internal class RouteInstance<T> : IAsyncDisposable
 
         // Start the dataflow execution
         ExecutionTask = _dataFlow.ExecuteAsync(context);
+
+        // If there's a last source block and merge target, start a producer task
+        // to pump data from the route's output to the merge target
+        if (_lastSourceBlock != null && _mergeTarget != null)
+        {
+            _mergeProducerTask = StartMergeProducerAsync(_lastSourceBlock, _mergeTarget, context.CancellationToken);
+        }
+    }
+
+    private async Task StartMergeProducerAsync(IBlock lastSourceBlock, IBlock mergeTarget, CancellationToken cancellationToken)
+    {
+        try
+        {
+            // Use reflection to discover the output type of the route's last source block
+            var sourceBlockType = lastSourceBlock.GetType()
+                .GetInterfaces()
+                .FirstOrDefault(i =>
+                    i.IsGenericType &&
+                    i.GetGenericTypeDefinition() == typeof(ISourceBlock<>));
+
+            if (sourceBlockType == null)
+            {
+                _logger.LogWarning("Route: Last source block does not implement ISourceBlock<>");
+                return;
+            }
+
+            var itemType = sourceBlockType.GetGenericArguments()[0];
+            _logger.LogDebug("Route: Starting merge producer for output type {Type}", itemType.Name);
+
+            // Create a strongly-typed helper using reflection, then invoke it
+            var helperType = typeof(MergeProducerHelper<>).MakeGenericType(itemType);
+            var helper = Activator.CreateInstance(helperType, _logger);
+            
+            var pumpMethod = helperType.GetMethod("PumpToMergeTargetAsync");
+            if (pumpMethod == null)
+            {
+                _logger.LogWarning("Route: Cannot find PumpToMergeTargetAsync method on helper");
+                return;
+            }
+
+            var pumpTask = (Task)pumpMethod.Invoke(helper, new object[] { lastSourceBlock, mergeTarget, cancellationToken })!;
+            await pumpTask.ConfigureAwait(false);
+
+            _logger.LogDebug("Route: Merge producer completed successfully");
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogDebug("Route: Merge producer cancelled");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Route: Error in merge producer");
+            throw;
+        }
     }
 
     public void Complete()

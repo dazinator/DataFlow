@@ -158,6 +158,18 @@ public class RouteBuilder : IRouteBuilder
             }
         }
 
+        // Create runtime graph for initialization
+        var runtimeGraph = new DataFlowRuntimeGraph(_graph.Name, _graph, blocks);
+        
+        // Call OnDataFlowInitialized on all blocks that implement IDataFlowInitializable
+        foreach (var block in blocks.Values)
+        {
+            if (block is IDataFlowInitializable initializableBlock)
+            {
+                initializableBlock.OnDataFlowInitialized(runtimeGraph, CancellationToken.None);
+            }
+        }
+
         // Create and return the dataflow
         var metrics = ServiceProvider.GetRequiredService<Uniun.DataFlow.Metrics.IDataFlowMetrics>();
         return new DataFlow(_graph.Name, blocks.Values.ToList(), metrics);
@@ -177,5 +189,41 @@ public class RouteBuilder : IRouteBuilder
         }
 
         return targetBlock;
+    }
+
+    public ISourceBlock<T> GetSourceBlock<T>(string blockName)
+    {
+        if (!_state.Blocks.TryGetValue(blockName, out var block))
+        {
+            throw new InvalidOperationException($"Block '{blockName}' not found in route '{RouteName}'");
+        }
+
+        if (block is not ISourceBlock<T> sourceBlock)
+        {
+            throw new InvalidOperationException(
+                $"Block '{blockName}' is not a source block for type {typeof(T).Name}");
+        }
+
+        return sourceBlock;
+    }
+
+    /// <summary>
+    /// Gets a block by name without type checking.
+    /// </summary>
+    /// <param name="blockName">The name of the block to retrieve.</param>
+    /// <returns>The block instance.</returns>
+    /// <remarks>
+    /// This method bypasses type checking and is intended for scenarios like merge connections
+    /// where the exact type may not be known at compile time.
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">Thrown when the block is not found.</exception>
+    public IBlock GetBlock(string blockName)
+    {
+        if (!_state.Blocks.TryGetValue(blockName, out var block))
+        {
+            throw new InvalidOperationException($"Block '{blockName}' not found in route '{RouteName}'");
+        }
+
+        return block;
     }
 }
