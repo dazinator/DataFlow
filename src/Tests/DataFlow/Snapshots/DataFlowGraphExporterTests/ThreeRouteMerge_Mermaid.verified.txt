@@ -1,0 +1,36 @@
+﻿flowchart LR
+    %% DataFlow: ThreeRouteMerge
+
+    source(["source"])
+    router["router"]
+    merger[/"merger"/]
+    final_processor["final-processor"]
+
+    source -->|Int32| router
+    merger -->|String| final_processor
+
+    %% Routes for 'router':
+    subgraph router_route_div3 ["Route: div3"]
+        direction LR
+        div3_transform[/"[ENTRY] div3-transform<br/>Int32 → String"/]
+
+    end
+
+    router -.->|Int32<br/>'div3'| router_route_div3
+    div3_transform -.->|output| merger
+    subgraph router_route_even ["Route: even"]
+        direction LR
+        even_transform[/"[ENTRY] even-transform<br/>Int32 → String"/]
+
+    end
+
+    router -.->|Int32<br/>'even'| router_route_even
+    even_transform -.->|output| merger
+    subgraph router_route_odd ["Route: odd"]
+        direction LR
+        odd_transform[/"[ENTRY] odd-transform<br/>Int32 → String"/]
+
+    end
+
+    router -.->|Int32<br/>'odd'| router_route_odd
+    odd_transform -.->|output| merger

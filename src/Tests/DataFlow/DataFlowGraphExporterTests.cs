@@ -618,6 +618,58 @@ public class DataFlowGraphExporterTests
 
     [SnapshotTest]
     [Fact]
+    public Task Should_GenerateMermaidDiagram_WithThreeRouteMerge()
+    {
+        // Arrange
+        var builder = new StructuredDataFlowBuilder(_serviceProvider, "ThreeRouteMerge");
+        var items = new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+
+        // Build a routing flow WITH 3 routes that merge
+        // This test validates that ALL routes show connections to the merger, not just the last one
+        builder.AddProducer("source", sp => new TestProducer<int>(items));
+
+        builder.AddRouter<int>("router", item =>
+        {
+            if (item % 3 == 0) return "div3";
+            if (item % 2 == 0) return "even";
+            return "odd";
+        })
+            .RegisterRoute("div3", context =>
+            {
+                var routeBuilder = context.RouteBuilder;
+                routeBuilder.AddTransform("div3-transform", sp => new NumberTransformer("DIV3"))
+                    .AsEntry();
+                return routeBuilder;
+            })
+            .RegisterRoute("even", context =>
+            {
+                var routeBuilder = context.RouteBuilder;
+                routeBuilder.AddTransform("even-transform", sp => new NumberTransformer("EVEN"))
+                    .AsEntry();
+                return routeBuilder;
+            })
+            .RegisterRoute("odd", context =>
+            {
+                var routeBuilder = context.RouteBuilder;
+                routeBuilder.AddTransform("odd-transform", sp => new NumberTransformer("ODD"))
+                    .AsEntry();
+                return routeBuilder;
+            })
+            .MergeInto<string>("merger")
+            .ReceiveFrom("source");
+
+        builder.AddProcessor("final-processor", sp => new TestProcessor<string>())
+            .ReceiveFrom("merger");
+
+        // Act - pass service provider to render route details
+        var mermaid = builder.Graph.ToMermaidDiagram(serviceProvider: _serviceProvider);
+
+        // Assert - use snapshot testing to verify all 3 routes show merge connections
+        return Verify(mermaid).UseFileName("ThreeRouteMerge_Mermaid");
+    }
+
+    [SnapshotTest]
+    [Fact]
     public Task Should_GenerateMermaidDiagram_WithDynamicRoutingStructure()
     {
         // Arrange

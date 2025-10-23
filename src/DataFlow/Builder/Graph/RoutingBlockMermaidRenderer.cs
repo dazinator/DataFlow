@@ -80,7 +80,16 @@ public class RoutingBlockMermaidRenderer : IMermaidBlockRenderer
                     var routeBranch = route.Factory(routeContext);
                     
                     // Capture the last source block name for merge connections
-                    lastSourceBlockName = routeBranch.GetLastSourceBlockName();
+                    // Use GetLastSourceBlockForMerge() which analyzes the graph to find terminal source blocks
+                    if (routeBranch is IRouteBuilder asRouteBuilder)
+                    {
+                        lastSourceBlockName = asRouteBuilder.GetLastSourceBlockForMerge();
+                    }
+                    else
+                    {
+                        // Fallback to GetLastSourceBlockName for non-route branches
+                        lastSourceBlockName = routeBranch.GetLastSourceBlockName();
+                    }
 
                     // Now render the route's internal graph structure using nested context
                     var nestedContext = context.CreateNested();
