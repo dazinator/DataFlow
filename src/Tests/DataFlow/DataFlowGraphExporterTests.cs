@@ -582,6 +582,7 @@ public class DataFlowGraphExporterTests
         var items = new[] { 1, 2, 3, 4, 5, 6 };
 
         // Build a routing flow WITH merge
+        // Note: Routes must end with ISourceBlocks (not terminal processors) to merge
         builder.AddProducer("source", sp => new TestProducer<int>(items));
 
         builder.AddRouter<int>("router", item => item % 2 == 0 ? "even" : "odd")
@@ -589,16 +590,14 @@ public class DataFlowGraphExporterTests
             {
                 var routeBuilder = context.RouteBuilder;
                 routeBuilder.AddTransform("even-transform", sp => new NumberTransformer("EVEN"))
-                    .AsEntry()
-                    .AddProcessor("even-processor", sp => new TestProcessor<string>());
+                    .AsEntry();
                 return routeBuilder;
             })
             .RegisterRoute("odd", context =>
             {
                 var routeBuilder = context.RouteBuilder;
                 routeBuilder.AddTransform("odd-transform", sp => new NumberTransformer("ODD"))
-                    .AsEntry()
-                    .AddProcessor("odd-processor", sp => new TestProcessor<string>());
+                    .AsEntry();
                 return routeBuilder;
             })
             .MergeInto<string>("merger") // MergeInto automatically creates the merger block

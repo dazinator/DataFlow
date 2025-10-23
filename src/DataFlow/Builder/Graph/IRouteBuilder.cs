@@ -69,4 +69,11 @@ public interface IRouteBuilder : IBranchBuilder
     /// Gets a block by name without type checking. Used for dynamic type scenarios like merge connections.
     /// </summary>
     IBlock GetBlock(string blockName);
+    
+    /// <summary>
+    /// Gets the last block in the route that is also an ISourceBlock.
+    /// Returns null if the route ends with a terminal (target-only) block.
+    /// This is important for merge scenarios - only source blocks can output to a merge block.
+    /// </summary>
+    string? GetLastSourceBlockForMerge();
 }

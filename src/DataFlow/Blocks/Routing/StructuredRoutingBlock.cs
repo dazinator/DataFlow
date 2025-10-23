@@ -252,30 +252,42 @@ public class StructuredRoutingBlock<T> : BlockBase, ITargetBlock<T>
 
                 // Get the last source block if merge target is configured
                 IBlock? lastSourceBlock = null;
-                if (_mergeTargetBlock != null && !string.IsNullOrEmpty(routeBranch.GetLastSourceBlockName()))
+                if (_mergeTargetBlock != null)
                 {
-                    var lastBlockName = routeBranch.GetLastSourceBlockName();
-                    try
+                    // Use GetLastSourceBlockForMerge which checks if the actual last block is a source block
+                    var lastSourceBlockName = routeBuilder.GetLastSourceBlockForMerge();
+                    
+                    if (!string.IsNullOrEmpty(lastSourceBlockName))
                     {
-                        lastSourceBlock = routeBuilder.GetBlock(lastBlockName!);
-                        
-                        // Register the source with the merge target via SetSource
-                        // Note: DynamicMergeBlock doesn't actively use this in its implementation,
-                        // but we call it to adhere to expected block lifecycle patterns
-                        var setSourceMethod = _mergeTargetBlock.GetType().GetMethod(nameof(ITargetBlock<object>.SetSource));
-                        if (setSourceMethod != null)
+                        try
                         {
-                            setSourceMethod.Invoke(_mergeTargetBlock, new object[] { lastSourceBlock });
-                            _logger.LogDebug(
-                                "Registered last source block '{LastBlockName}' of route '{RouteName}' with merge target",
-                                lastBlockName, routeName);
+                            lastSourceBlock = routeBuilder.GetBlock(lastSourceBlockName);
+                            
+                            // Register the source with the merge target via SetSource
+                            // Note: DynamicMergeBlock doesn't actively use this in its implementation,
+                            // but we call it to adhere to expected block lifecycle patterns
+                            var setSourceMethod = _mergeTargetBlock.GetType().GetMethod(nameof(ITargetBlock<object>.SetSource));
+                            if (setSourceMethod != null)
+                            {
+                                setSourceMethod.Invoke(_mergeTargetBlock, new object[] { lastSourceBlock });
+                                _logger.LogDebug(
+                                    "Registered last source block '{LastBlockName}' of route '{RouteName}' with merge target",
+                                    lastSourceBlockName, routeName);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, 
+                                "Failed to get last source block '{LastBlockName}' for merge on route '{RouteName}'",
+                                lastSourceBlockName, routeName);
                         }
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        _logger.LogWarning(ex, 
-                            "Failed to get last source block '{LastBlockName}' for merge on route '{RouteName}'",
-                            lastBlockName, routeName);
+                        _logger.LogWarning(
+                            "Route '{RouteName}' ends with a terminal target-only block and cannot merge. " +
+                            "Only routes ending with ISourceBlock can output to a merge block.",
+                            routeName);
                     }
                 }
 

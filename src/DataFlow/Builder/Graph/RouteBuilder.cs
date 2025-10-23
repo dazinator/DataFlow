@@ -100,6 +100,43 @@ public class RouteBuilder : IRouteBuilder
     }
 
     public string? GetLastSourceBlockName() => _lastSourceBlockName;
+    
+    /// <summary>
+    /// Gets the last block in the route that is also an ISourceBlock.
+    /// Returns null if the route ends with a terminal (target-only) block.
+    /// This is important for merge scenarios - only source blocks can output to a merge block.
+    /// </summary>
+    public string? GetLastSourceBlockForMerge()
+    {
+        // Get all blocks that don't have any outgoing connections (potential terminal blocks)
+        // Exclude the InputChannelBlock as it's internal infrastructure
+        var allBlockNames = _graph.BlockDefinitions
+            .Where(kvp => !kvp.Value.Metadata.ContainsKey("IsRouteInputChannel"))
+            .Select(kvp => kvp.Key)
+            .ToHashSet();
+            
+        var sourceBlocksWithOutgoingConnections = _graph.Connections
+            .Select(c => c.SourceBlockName)
+            .ToHashSet();
+        
+        // Find blocks that have no outgoing connections (terminal blocks)
+        var terminalBlockNames = allBlockNames.Except(sourceBlocksWithOutgoingConnections).ToList();
+        
+        // If we have terminal blocks, check if any is a source block
+        foreach (var terminalBlockName in terminalBlockNames)
+        {
+            var blockDef = _graph.BlockDefinitions[terminalBlockName];
+            if (blockDef.IsSourceBlock())
+            {
+                // This terminal block is a source block, it can merge
+                return terminalBlockName;
+            }
+        }
+        
+        // No terminal source block found - the route ends with a target-only block
+        // This route cannot merge
+        return null;
+    }
 
     public void SetEntryBlock(string blockName)
     {
