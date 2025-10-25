@@ -31,9 +31,8 @@ public enum EdgeType
 /// Abstract base for edge strategies that handle delivery semantics.
 /// Encapsulates how items flow from source to target(s).
 /// 
-/// PERFORMANCE NOTE: Uses object-typed channels and parameters for flexibility with heterogeneous types.
-/// This introduces boxing overhead for value types. See DESIGN_DECISIONS.md "Loss of Strong Typing in Processing Loop"
-/// for detailed analysis and potential optimization strategies.
+/// PERFORMANCE: Now uses runtime-typed channels via reflection to eliminate boxing overhead for value types.
+/// The DataType parameter is used to create properly typed Channel&lt;T&gt; instances.
 /// </summary>
 public abstract class EdgeStrategy
 {
@@ -60,25 +59,29 @@ public abstract class EdgeStrategy
     public int BufferCapacity { get; }
 
     /// <summary>
-    /// Creates the required channels for this edge strategy.
-    /// 
-    /// PERFORMANCE NOTE: Returns Channel&lt;object&gt; instead of Channel&lt;T&gt;.
-    /// This causes boxing for value types. Consider using Edge.DataType with reflection
-    /// to create properly typed channels if profiling shows GC pressure.
+    /// Creates the required typed channel adapters for this edge strategy.
+    /// Uses reflection with caching to create properly typed Channel&lt;T&gt; instances.
+    /// This eliminates boxing overhead for value types.
     /// </summary>
-    public abstract Dictionary<IBlock, (ChannelWriter<object> writer, ChannelReader<object> reader)> CreateChannels(
+    /// <param name="dataType">The type of data flowing through the channels</param>
+    /// <param name="sourceBlock">The source block</param>
+    /// <param name="targetBlocks">The target blocks</param>
+    /// <returns>Dictionary mapping target blocks to their typed channel adapters</returns>
+    public abstract Dictionary<IBlock, TypedChannelAdapter> CreateTypedChannels(
+        Type dataType,
         IBlock sourceBlock,
         IReadOnlyList<IBlock> targetBlocks);
 
     /// <summary>
-    /// Routes an item to the appropriate target channel(s).
-    /// 
-    /// PERFORMANCE NOTE: Item parameter is object type, causing boxing for value types in hot path.
-    /// This method is called for every item flowing through the graph.
+    /// Routes an item to the appropriate target channel(s) using typed channel adapters.
+    /// The adapters provide efficient non-generic access with minimal reflection overhead.
     /// </summary>
+    /// <param name="item">The item to route</param>
+    /// <param name="channels">The typed channel adapters</param>
+    /// <param name="cancellationToken">Cancellation token</param>
     public abstract Task RouteItemAsync(
         object item,
-        Dictionary<IBlock, (ChannelWriter<object> writer, ChannelReader<object> reader)> channels,
+        Dictionary<IBlock, TypedChannelAdapter> channels,
         CancellationToken cancellationToken);
 }
 
@@ -86,6 +89,7 @@ public abstract class EdgeStrategy
 /// Broadcast edge strategy - writes each item to all target channels.
 /// Each target gets its own channel and receives all items.
 /// Optionally supports cloning items before broadcasting for mutation isolation.
+/// Now uses typed channels to eliminate boxing overhead.
 /// </summary>
 public class BroadcastEdgeStrategy : EdgeStrategy
 {
@@ -103,33 +107,6 @@ public class BroadcastEdgeStrategy : EdgeStrategy
     /// <summary>
     /// Creates a broadcast edge strategy with optional cloning.
     /// </summary>
-    /// <param name="cloneFunc">
-    /// Optional function to clone items before broadcasting. 
-    /// If provided, each target receives an independent clone.
-    /// If null, all targets receive the same reference (default broadcast behavior).
-    /// 
-    /// <strong>When to use cloning:</strong>
-    /// - When targets may mutate items and you need mutation isolation
-    /// - When items contain mutable state that should be independent per target
-    /// - Not needed for immutable types (strings, records with immutable properties)
-    /// 
-    /// <strong>Performance implications:</strong>
-    /// - Clone function signature is <c>Func&lt;object, object&gt;</c> which causes boxing for value types
-    /// - Called once per item per target in the hot path (N items × M targets calls)
-    /// - For value types, consider using reference types or accepting shared mutation
-    /// - For high-throughput scenarios with value types, measure GC impact via profiling
-    /// - See DESIGN_DECISIONS.md "Loss of Strong Typing in Processing Loop" for optimization strategies
-    /// 
-    /// <strong>Example:</strong>
-    /// <code>
-    /// // Clone mutable objects
-    /// new BroadcastEdgeStrategy(
-    ///     cloneFunc: item => ((MyMutableClass)item).Clone(),
-    ///     BufferMode.Bounded, 100);
-    /// </code>
-    /// </param>
-    /// <param name="bufferMode">The buffering mode for this edge.</param>
-    /// <param name="bufferCapacity">The capacity of the buffer (if BufferMode is Bounded).</param>
     public BroadcastEdgeStrategy(
         Func<object, object>? cloneFunc,
         BufferMode bufferMode = BufferMode.Bounded,
@@ -139,21 +116,23 @@ public class BroadcastEdgeStrategy : EdgeStrategy
         _cloneFunc = cloneFunc;
     }
 
-    public override Dictionary<IBlock, (ChannelWriter<object> writer, ChannelReader<object> reader)> CreateChannels(
+    public override Dictionary<IBlock, TypedChannelAdapter> CreateTypedChannels(
+        Type dataType,
         IBlock sourceBlock,
         IReadOnlyList<IBlock> targetBlocks)
     {
-        var channels = new Dictionary<IBlock, (ChannelWriter<object> writer, ChannelReader<object> reader)>();
+        var channels = new Dictionary<IBlock, TypedChannelAdapter>();
 
         foreach (var target in targetBlocks)
         {
-            var channel = Channel.CreateBounded<object>(new BoundedChannelOptions(BufferCapacity)
-            {
-                SingleReader = true,
-                SingleWriter = false,
-                FullMode = BoundedChannelFullMode.Wait
-            });
-            channels[target] = (channel.Writer, channel.Reader);
+            var adapter = TypedChannelFactory.CreateTypedChannel(
+                dataType,
+                BufferMode,
+                BufferCapacity,
+                singleReader: true,
+                singleWriter: false);
+            
+            channels[target] = adapter;
         }
 
         return channels;
@@ -161,24 +140,24 @@ public class BroadcastEdgeStrategy : EdgeStrategy
 
     public override async Task RouteItemAsync(
         object item,
-        Dictionary<IBlock, (ChannelWriter<object> writer, ChannelReader<object> reader)> channels,
+        Dictionary<IBlock, TypedChannelAdapter> channels,
         CancellationToken cancellationToken)
     {
         // If cloning is enabled, clone for each target
         if (_cloneFunc != null)
         {
-            foreach (var (writer, _) in channels.Values)
+            foreach (var adapter in channels.Values)
             {
                 var clonedItem = _cloneFunc(item);
-                await writer.WriteAsync(clonedItem, cancellationToken);
+                await adapter.WriteAsync(clonedItem, cancellationToken);
             }
         }
         else
         {
             // Write same reference to all channels (standard broadcast)
-            foreach (var (writer, _) in channels.Values)
+            foreach (var adapter in channels.Values)
             {
-                await writer.WriteAsync(item, cancellationToken);
+                await adapter.WriteAsync(item, cancellationToken);
             }
         }
     }
@@ -188,6 +167,7 @@ public class BroadcastEdgeStrategy : EdgeStrategy
 /// Competing edge strategy - writes each item to a shared channel.
 /// All targets compete for items - each item consumed once by one target.
 /// This enables true concurrent processing without special concurrent blocks.
+/// Now uses typed channels to eliminate boxing overhead.
 /// </summary>
 public class CompetingEdgeStrategy : EdgeStrategy
 {
@@ -196,24 +176,25 @@ public class CompetingEdgeStrategy : EdgeStrategy
     {
     }
 
-    public override Dictionary<IBlock, (ChannelWriter<object> writer, ChannelReader<object> reader)> CreateChannels(
+    public override Dictionary<IBlock, TypedChannelAdapter> CreateTypedChannels(
+        Type dataType,
         IBlock sourceBlock,
         IReadOnlyList<IBlock> targetBlocks)
     {
-        // Create a single shared channel
-        var channel = Channel.CreateBounded<object>(new BoundedChannelOptions(BufferCapacity)
-        {
-            SingleReader = false, // Multiple readers compete
-            SingleWriter = false,
-            FullMode = BoundedChannelFullMode.Wait
-        });
+        // Create a single shared channel adapter
+        var adapter = TypedChannelFactory.CreateTypedChannel(
+            dataType,
+            BufferMode,
+            BufferCapacity,
+            singleReader: false, // Multiple readers compete
+            singleWriter: false);
 
-        var channels = new Dictionary<IBlock, (ChannelWriter<object> writer, ChannelReader<object> reader)>();
+        var channels = new Dictionary<IBlock, TypedChannelAdapter>();
 
-        // All targets share the same channel reader
+        // All targets share the same channel adapter
         foreach (var target in targetBlocks)
         {
-            channels[target] = (channel.Writer, channel.Reader);
+            channels[target] = adapter;
         }
 
         return channels;
@@ -221,14 +202,14 @@ public class CompetingEdgeStrategy : EdgeStrategy
 
     public override async Task RouteItemAsync(
         object item,
-        Dictionary<IBlock, (ChannelWriter<object> writer, ChannelReader<object> reader)> channels,
+        Dictionary<IBlock, TypedChannelAdapter> channels,
         CancellationToken cancellationToken)
     {
         // Write once to shared channel - first available consumer gets it
         if (channels.Any())
         {
-            var (writer, _) = channels.Values.First();
-            await writer.WriteAsync(item, cancellationToken);
+            var adapter = channels.Values.First();
+            await adapter.WriteAsync(item, cancellationToken);
         }
     }
 }
