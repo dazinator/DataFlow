@@ -58,9 +58,13 @@ public class DataFlowGraph
         {
             throw new ArgumentException($"Source block '{edge.SourceBlock.Name}' not found in graph");
         }
-        if (!_blocks.Contains(edge.TargetBlock))
+        
+        foreach (var targetBlock in edge.TargetBlocks)
         {
-            throw new ArgumentException($"Target block '{edge.TargetBlock.Name}' not found in graph");
+            if (!_blocks.Contains(targetBlock))
+            {
+                throw new ArgumentException($"Target block '{targetBlock.Name}' not found in graph");
+            }
         }
 
         _edges.Add(edge);
@@ -72,12 +76,15 @@ public class DataFlowGraph
         }
         _outgoingEdges[edge.SourceBlock].Add(edge);
 
-        // Track incoming edges per block
-        if (!_incomingEdges.ContainsKey(edge.TargetBlock))
+        // Track incoming edges per block (for all targets)
+        foreach (var targetBlock in edge.TargetBlocks)
         {
-            _incomingEdges[edge.TargetBlock] = new List<Edge>();
+            if (!_incomingEdges.ContainsKey(targetBlock))
+            {
+                _incomingEdges[targetBlock] = new List<Edge>();
+            }
+            _incomingEdges[targetBlock].Add(edge);
         }
-        _incomingEdges[edge.TargetBlock].Add(edge);
 
         _logger.LogDebug("Added edge: {Edge}", edge);
     }
@@ -93,22 +100,18 @@ public class DataFlowGraph
         // Dictionary to store the output streams from each block
         var blockOutputs = new Dictionary<IBlock, IAsyncEnumerable<object>>();
 
-        // Dictionary to store channel writers for buffered edges
-        var edgeChannels = new Dictionary<Edge, (ChannelWriter<object> writer, ChannelReader<object> reader)>();
+        // Dictionary to store channel writers/readers per target block per edge
+        // Structure: Edge -> (TargetBlock -> (Writer, Reader))
+        var edgeChannels = new Dictionary<Edge, Dictionary<IBlock, (ChannelWriter<object> writer, ChannelReader<object> reader)>>();
 
-        // Create channels for all buffered edges
+        // Create channels for all buffered edges using their strategies
         foreach (var edge in _edges.Where(e => e.BufferMode != BufferMode.None))
         {
-            // Only bounded channels are supported
-            var channel = Channel.CreateBounded<object>(new BoundedChannelOptions(edge.BufferCapacity)
-            {
-                SingleReader = false, // Multiple readers for broadcast scenarios
-                SingleWriter = false,
-                FullMode = BoundedChannelFullMode.Wait // Backpressure
-            });
-
-            edgeChannels[edge] = (channel.Writer, channel.Reader);
-            _logger.LogDebug("Created bounded channel for edge: {Edge} with capacity {Capacity}", edge, edge.BufferCapacity);
+            var channels = edge.Strategy.CreateChannels(edge.SourceBlock, edge.TargetBlocks);
+            edgeChannels[edge] = channels;
+            
+            _logger.LogDebug("Created channels for edge: {Edge} with strategy {Strategy}", 
+                edge, edge.Strategy.EdgeType);
         }
 
         // Start all blocks
@@ -132,13 +135,13 @@ public class DataFlowGraph
                     {
                         // Single input edge
                         var edge = _incomingEdges[block][0];
-                        input = GetEdgeInput(edge, blockOutputs, edgeChannels);
+                        input = GetEdgeInput(block, edge, blockOutputs, edgeChannels);
                     }
                     else
                     {
                         // Multiple inputs - merge them
                         var inputs = _incomingEdges[block]
-                            .Select(edge => GetEdgeInput(edge, blockOutputs, edgeChannels))
+                            .Select(edge => GetEdgeInput(block, edge, blockOutputs, edgeChannels))
                             .ToList();
                         input = MergeAsyncEnumerables(inputs);
                     }
@@ -164,10 +167,28 @@ public class DataFlowGraph
                     {
                         foreach (var edge in _outgoingEdges[block])
                         {
-                            if (edgeChannels.TryGetValue(edge, out var channel))
+                            if (edgeChannels.TryGetValue(edge, out var channels))
                             {
-                                channel.writer.Complete();
-                                _logger.LogDebug("Completed channel for edge: {Edge}", edge);
+                                // Deduplicate writers in case of competing edge strategy
+                                // where multiple targets share the same channel.
+                                // 
+                                // With CompetingEdgeStrategy, all target blocks receive the same
+                                // ChannelWriter instance (they share one channel for competition).
+                                // We use Distinct() to ensure we only call Complete() once per unique writer,
+                                // preventing "channel already closed" exceptions.
+                                //
+                                // ChannelWriter is a reference type, so Distinct() compares by reference equality,
+                                // which correctly identifies when multiple dictionary entries point to the same writer.
+                                var uniqueWriters = channels.Values
+                                    .Select(c => c.writer)
+                                    .Distinct()
+                                    .ToList();
+                                
+                                foreach (var writer in uniqueWriters)
+                                {
+                                    writer.Complete();
+                                }
+                                _logger.LogDebug("Completed channels for edge: {Edge}", edge);
                             }
                         }
                     }
@@ -183,9 +204,18 @@ public class DataFlowGraph
                     {
                         foreach (var edge in _outgoingEdges[block])
                         {
-                            if (edgeChannels.TryGetValue(edge, out var channel))
+                            if (edgeChannels.TryGetValue(edge, out var channels))
                             {
-                                channel.writer.Complete(ex);
+                                // Deduplicate writers in case of competing edge strategy
+                                var uniqueWriters = channels.Values
+                                    .Select(c => c.writer)
+                                    .Distinct()
+                                    .ToList();
+                                
+                                foreach (var writer in uniqueWriters)
+                                {
+                                    writer.Complete(ex);
+                                }
                             }
                         }
                     }
@@ -202,10 +232,25 @@ public class DataFlowGraph
         _logger.LogInformation("Completed execution of dataflow: {FlowName}", Name);
     }
 
+    /// <summary>
+    /// Gets the IAsyncEnumerable input stream for a target block from an edge.
+    /// This method determines how the target block receives its input data:
+    /// - For inline (unbuffered) edges: returns direct reference to source block's output stream
+    /// - For buffered edges: returns stream that reads from the channel associated with this target block
+    /// 
+    /// In competing consumer scenarios, multiple target blocks may share the same channel reader,
+    /// causing them to compete for items. In broadcast scenarios, each target has its own channel reader.
+    /// </summary>
+    /// <param name="targetBlock">The target block that will consume the input</param>
+    /// <param name="edge">The edge connecting source to target</param>
+    /// <param name="blockOutputs">Dictionary of direct output streams from blocks (for inline edges)</param>
+    /// <param name="edgeChannels">Dictionary of channels created per edge and target block</param>
+    /// <returns>An IAsyncEnumerable that the target block will iterate over as its input</returns>
     private IAsyncEnumerable<object> GetEdgeInput(
+        IBlock targetBlock,
         Edge edge,
         Dictionary<IBlock, IAsyncEnumerable<object>> blockOutputs,
-        Dictionary<Edge, (ChannelWriter<object> writer, ChannelReader<object> reader)> edgeChannels)
+        Dictionary<Edge, Dictionary<IBlock, (ChannelWriter<object> writer, ChannelReader<object> reader)>> edgeChannels)
     {
         if (edge.BufferMode == BufferMode.None)
         {
@@ -219,42 +264,45 @@ public class DataFlowGraph
         }
         else
         {
-            // Buffered - read from channel
+            // Buffered - read from channel for this target block
             if (!edgeChannels.ContainsKey(edge))
             {
-                throw new InvalidOperationException($"Channel not found for edge: {edge}");
+                throw new InvalidOperationException($"Channels not found for edge: {edge}");
             }
-            return edgeChannels[edge].reader.ReadAllAsync();
+            
+            var channels = edgeChannels[edge];
+            if (!channels.ContainsKey(targetBlock))
+            {
+                throw new InvalidOperationException(
+                    $"Channel not found for target block '{targetBlock.Name}' in edge: {edge}");
+            }
+            
+            return channels[targetBlock].reader.ReadAllAsync();
         }
     }
 
     /// <summary>
-    /// Routes output from a block to all its outgoing edges.
-    /// This method handles the broadcasting mechanism where each item is written to all
-    /// downstream edge channels. This enables:
-    /// 1. Broadcasting - same item sent to multiple consumers
-    /// 2. Routing with filters - item sent to all paths, filters decide what passes through
-    /// 
-    /// The key insight: RouteFilterBlocks act as filters on broadcast streams,
-    /// NOT as competing consumers. Each edge gets its own channel, so all filters
-    /// see all items and can independently decide what to pass through.
+    /// Routes output from a block to all its outgoing edges using edge strategies.
+    /// Each edge strategy determines how items are delivered to target blocks:
+    /// - BroadcastEdgeStrategy: writes to all target channels (each gets all items)
+    /// - CompetingEdgeStrategy: writes to shared channel (targets compete for items)
+    /// - CloningEdgeStrategy: clones items and writes to all target channels
     /// </summary>
     private async IAsyncEnumerable<object> RouteOutput(
         IBlock sourceBlock,
         IAsyncEnumerable<object> output,
         List<Edge> outgoingEdges,
-        Dictionary<Edge, (ChannelWriter<object> writer, ChannelReader<object> reader)> edgeChannels,
+        Dictionary<Edge, Dictionary<IBlock, (ChannelWriter<object> writer, ChannelReader<object> reader)>> edgeChannels,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
     {
         await foreach (var item in output.WithCancellation(cancellationToken))
         {
-            // Write to all outgoing edge channels (broadcast)
-            // Each edge has its own channel, so there's no competition between consumers
+            // Route to all outgoing edges using their strategies
             foreach (var edge in outgoingEdges)
             {
-                if (edgeChannels.TryGetValue(edge, out var channel))
+                if (edgeChannels.TryGetValue(edge, out var channels))
                 {
-                    await channel.writer.WriteAsync(item, cancellationToken);
+                    await edge.Strategy.RouteItemAsync(item, channels, cancellationToken);
                 }
             }
 

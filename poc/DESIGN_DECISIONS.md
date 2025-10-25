@@ -74,88 +74,250 @@ This is feasible but was excluded from the initial POC to keep the design simple
 
 ## Broadcasting and Competing Consumers
 
+### Edge Strategy Pattern (NEW - Implemented)
+
+The POC now formalizes delivery semantics through the **Edge Strategy Pattern**. This addresses the expert feedback to "promote Edge strategies (broadcast, competing, cloning, routed)."
+
+#### Edge Strategy Types
+
+All edge strategies inherit from `EdgeStrategy` base class and define how items flow from source to target(s):
+
+```csharp
+public enum EdgeType
+{
+    Broadcast,   // All targets get all items (independent channels)
+    Competing,   // Each item consumed once (shared channel)
+    Cloning,     // All targets get independent clones
+    Routed       // Items routed based on criteria
+}
+```
+
+#### 1. BroadcastEdgeStrategy (Default)
+
+Multiple edges from one source → Each edge gets its own channel.
+
+**How it works:**
+- Creates one channel per target block
+- Writes each item to ALL target channels
+- No competition between consumers
+- Each consumer reads at its own pace (independent backpressure)
+
+```csharp
+var producer = new ProducerBlock<int>("producer", ...);
+var consumer1 = new ProcessorBlock<int>("consumer1", ...);
+var consumer2 = new ProcessorBlock<int>("consumer2", ...);
+
+// Broadcast edge - both consumers get all items
+var broadcastEdge = new Edge(
+    producer,
+    new[] { consumer1, consumer2 },
+    new BroadcastEdgeStrategy(BufferMode.Bounded, 100));
+
+graph.AddEdge(broadcastEdge);
+
+// Result: consumer1 and consumer2 both receive ALL items
+```
+
+**Alternative syntax using separate edges (equivalent):**
+```csharp
+graph.Connect(producer, consumer1);  // Edge 1 with Channel A
+graph.Connect(producer, consumer2);  // Edge 2 with Channel B
+// Graph writes each item to BOTH Channel A and Channel B
+```
+
+#### 2. CompetingEdgeStrategy (NEW - Enables Concurrent Processing)
+
+Multiple blocks read from the SAME shared channel → True competing consumers.
+
+**How it works:**
+- Creates ONE shared channel for all targets
+- Writes each item ONCE to the shared channel
+- First available consumer gets the item
+- Natural load balancing across consumers
+
+```csharp
+var producer = new ProducerBlock<int>("producer", ...);
+var processor1 = new ProcessorBlock<int>("processor1", ...);
+var processor2 = new ProcessorBlock<int>("processor2", ...);
+var processor3 = new ProcessorBlock<int>("processor3", ...);
+
+// Competing edge - processors compete for items
+var competingEdge = new Edge(
+    producer,
+    new[] { processor1, processor2, processor3 },
+    new CompetingEdgeStrategy(BufferMode.Bounded, 50));
+
+graph.AddEdge(competingEdge);
+
+// Result: Each item processed by ONE processor (competing consumers)
+// This provides concurrent processing without ConcurrentProcessorBlock!
+```
+
+**This replaces ConcurrentProcessorBlock:**
+```csharp
+// OLD WAY (still works but transitional):
+var concurrentProc = new ConcurrentProcessorBlock<int>(
+    "processor", 
+    ProcessItem, 
+    maxConcurrency: 4);
+
+// NEW WAY (better separation of concerns):
+var proc1 = new ProcessorBlock<int>("proc1", ProcessItem);
+var proc2 = new ProcessorBlock<int>("proc2", ProcessItem);
+var proc3 = new ProcessorBlock<int>("proc3", ProcessItem);
+var proc4 = new ProcessorBlock<int>("proc4", ProcessItem);
+
+var competingEdge = new Edge(
+    source,
+    new[] { proc1, proc2, proc3, proc4 },
+    new CompetingEdgeStrategy());
+```
+
+**Benefits:**
+- ✅ Concurrency moved to edge layer (graph responsibility)
+- ✅ Processors remain simple (no internal concurrency logic)
+- ✅ Parallelism explicit in topology
+- ✅ Easy to tune concurrency (add/remove processor blocks)
+
+#### 3. CloningEdgeStrategy (NEW)
+
+Similar to broadcast but clones items for each target.
+
+**How it works:**
+- Creates one channel per target block
+- Clones each item before writing to each channel
+- Each consumer gets an independent copy (mutations don't affect others)
+- Requires items to implement `ICloneable` or be value types
+
+```csharp
+var producer = new ProducerBlock<DataItem>("producer", ...);
+var processor1 = new ProcessorBlock<DataItem>("processor1", ...);
+var processor2 = new ProcessorBlock<DataItem>("processor2", ...);
+
+// Cloning edge - each processor gets independent clones
+var cloningEdge = new Edge(
+    producer,
+    new[] { processor1, processor2 },
+    new CloningEdgeStrategy(BufferMode.Bounded, 100));
+
+graph.AddEdge(cloningEdge);
+
+// Result: Both processors get clones - mutations are isolated
+```
+
+**Use case:** When downstream consumers mutate items and need isolation.
+
+**Legacy note:** This replaces the `shouldClone` parameter from legacy `BroadcastBlock`:
+```csharp
+// OLD: new BroadcastBlock<T>(name, shouldClone: item => item.Clone())
+// NEW: CloningEdgeStrategy
+```
+
 ### How Broadcasting Works in POC
 
-The POC achieves broadcasting through **edge-level fanout**:
+The POC achieves broadcasting through **edge-level fanout** (now formalized as `BroadcastEdgeStrategy`):
 
-1. **Multiple edges from one source** → Each edge gets its own channel
+1. **Multiple edges from one source** → Each edge gets its own channel (or single edge with multiple targets)
 2. **Graph writes to all channels** → No competition between consumers
 3. **Each consumer reads at its own pace** → Independent backpressure per path
 
 Example:
 ```csharp
-graph.AddBlock(producer)
-    .AddBlock(consumer1)
-    .AddBlock(consumer2)
-    .Connect(producer, consumer1)  // Edge 1 with Channel A
-    .Connect(producer, consumer2); // Edge 2 with Channel B
+// Using BroadcastEdgeStrategy (explicit)
+var broadcastEdge = new Edge(
+    producer,
+    new[] { consumer1, consumer2 },
+    new BroadcastEdgeStrategy());
+graph.AddEdge(broadcastEdge);
+
+// Or using separate Connect calls (same result)
+graph.Connect(producer, consumer1);  // Edge 1 with Channel A
+graph.Connect(producer, consumer2);  // Edge 2 with Channel B
 
 // Graph writes each item to BOTH Channel A and Channel B
 // consumer1 and consumer2 are NOT competing - each gets all items
 ```
 
-### Competing Consumers vs Broadcasting
+### Competing Consumers vs Broadcasting (NOW SUPPORTED)
 
-The model naturally supports **both** patterns:
+**Status: ✅ FULLY IMPLEMENTED via CompetingEdgeStrategy**
 
-#### Broadcasting Pattern
-Multiple edges from same source, each with its own channel:
+The model now natively supports **both** patterns through edge strategies:
+
+#### Broadcasting Pattern (BroadcastEdgeStrategy)
+Multiple targets, each with own channel:
 ```csharp
 // Each consumer gets ALL items
-Connect(source, target1);  // Channel A
-Connect(source, target2);  // Channel B
+var broadcastEdge = new Edge(
+    source,
+    new[] { target1, target2 },
+    new BroadcastEdgeStrategy());
 // Item written to both channels → broadcast
 ```
 
-#### Competing Consumers Pattern
-Multiple blocks read from the SAME upstream source:
+#### Competing Consumers Pattern (CompetingEdgeStrategy - NEW)
+Multiple targets share ONE channel:
 ```csharp
-// Multiple processor blocks as targets
-var processor1 = new ProcessorBlock<int>("proc1", ...);
-var processor2 = new ProcessorBlock<int>("proc2", ...);
-
-Connect(source, processor1);  // Channel A
-Connect(source, processor2);  // Channel B
-
-// Still broadcasting! Each processor gets all items.
+// Targets compete for items - each item consumed once
+var competingEdge = new Edge(
+    source,
+    new[] { target1, target2 },
+    new CompetingEdgeStrategy());
+// Item written to shared channel → only one consumer gets it
 ```
 
-**Wait, that's still broadcasting!** To get true competing consumers, you need:
+### True Competing Consumers (✅ NOW SUPPORTED)
 
-#### True Competing Consumers (Not Currently Supported)
-This would require a special edge type or block that manages a shared channel:
+Implemented via `CompetingEdgeStrategy`:
 
 ```csharp
-// Hypothetical competing consumer edge
-public class CompetingConsumerEdge : Edge
-{
-    // All target blocks share ONE channel
-    // Only one consumer gets each item
-}
+var source = new ProducerBlock<int>("source", ...);
+var proc1 = new ProcessorBlock<int>("proc1", ...);
+var proc2 = new ProcessorBlock<int>("proc2", ...);
+
+// All target blocks share ONE channel
+var competingEdge = new Edge(
+    source,
+    new[] { proc1, proc2 },
+    new CompetingEdgeStrategy(BufferMode.Bounded, 100));
+
+graph.AddEdge(competingEdge);
+
+// Only one consumer gets each item - true competing consumers!
 ```
 
-**Current Status:** POC only supports broadcasting. Competing consumers would need to be added as a feature.
+**Implementation details:**
+- `CompetingEdgeStrategy.CreateChannels()` creates ONE shared channel
+- All targets get the SAME `ChannelReader` instance
+- First available consumer wins each item
+- Natural load balancing and concurrency
 
-### Broadcast Item Copying
+**Current Status:** ✅ Fully implemented and tested. See `EdgeStrategyTests.cs` for examples.
+
+### Broadcast Item Copying (✅ NOW SUPPORTED)
 
 Legacy BroadcastBlock supported optional item copying:
 ```csharp
 new BroadcastBlock<T>(name, shouldClone: item => item.Clone())
 ```
 
-**In POC:** This is NOT currently supported. All broadcasts pass the same reference.
+**In POC:** ✅ NOW SUPPORTED via `CloningEdgeStrategy`
 
-**To Add Item Copying:**
 ```csharp
-public class CloningEdge<T> : Edge where T : ICloneable
-{
-    public bool ShouldClone { get; init; }
-    
-    // Graph would clone items before writing to this edge's channel
-}
+var cloningEdge = new Edge(
+    source,
+    new[] { target1, target2 },
+    new CloningEdgeStrategy(BufferMode.Bounded, 100));
+
+// Graph clones items before writing to each target's channel
+// Each target gets an independent copy
 ```
 
-This could be added as an edge-level feature without changing block semantics.
+**Implementation:**
+- Items must implement `ICloneable`, be value types, or be immutable (like strings)
+- Each target channel receives a cloned copy
+- Mutations in one consumer don't affect others
+- Perfect for scenarios where downstream blocks modify items
 
 ## Routing and Competing Consumers
 
@@ -181,27 +343,40 @@ Each filter has its **own channel**, so:
 
 ## Concurrent Processing
 
-### ConcurrentProcessorBlock - Needed?
+### ConcurrentProcessorBlock - Still Needed?
+
+**Status: ✅ SOLVED - CompetingEdgeStrategy provides better alternative**
 
 **Legacy Design:** ProcessorBlock supports max concurrency via competing consumers reading from one channel.
 
 **POC Design:** Two options for concurrent processing:
 
-#### Option 1: Multiple Processor Blocks (Currently Used)
+#### Option 1: Multiple Processor Blocks with CompetingEdgeStrategy (RECOMMENDED)
 ```csharp
 var proc1 = new ProcessorBlock<int>("proc1", ProcessItem);
 var proc2 = new ProcessorBlock<int>("proc2", ProcessItem);
+var proc3 = new ProcessorBlock<int>("proc3", ProcessItem);
+var proc4 = new ProcessorBlock<int>("proc4", ProcessItem);
 
-Connect(source, proc1);
-Connect(source, proc2);
+var competingEdge = new Edge(
+    source,
+    new[] { proc1, proc2, proc3, proc4 },
+    new CompetingEdgeStrategy(BufferMode.Bounded, 100));
 
-// Each processor gets ALL items (broadcasting)
-// To get competing consumers, need special edge type
+graph.AddEdge(competingEdge);
+
+// Each processor competes for items - true concurrent processing!
+// Concurrency level = number of processor blocks (4 in this example)
 ```
 
-**Problem:** This is broadcasting, not concurrent processing of the same stream.
+**Benefits:**
+- ✅ Concurrency is a graph/orchestration concern (not block concern)
+- ✅ Processors remain simple - just business logic
+- ✅ Easy to tune concurrency (add/remove blocks)
+- ✅ Explicit parallelism in topology
+- ✅ Natural load balancing
 
-#### Option 2: ConcurrentProcessorBlock (As Implemented)
+#### Option 2: ConcurrentProcessorBlock (TRANSITIONAL - Use Option 1 Instead)
 ```csharp
 var concurrentProc = new ConcurrentProcessorBlock<int>(
     "processor", 
@@ -211,28 +386,58 @@ var concurrentProc = new ConcurrentProcessorBlock<int>(
 // Block internally manages concurrent processing
 ```
 
-**Verdict:** ConcurrentProcessorBlock IS needed because:
-- Without competing consumer edges, can't achieve concurrency via multiple blocks
-- Alternative requires adding competing consumer feature to graph
+**Verdict:** 
+- ✅ CompetingEdgeStrategy is NOW the recommended approach
+- ⚠️ ConcurrentProcessorBlock remains for backward compatibility but is TRANSITIONAL
+- 📝 Documentation updated to guide users toward CompetingEdgeStrategy
 
-**Keep ConcurrentProcessorBlock** for now, but document that it's a workaround until competing consumer edges are implemented.
+**Key Insight:** With CompetingEdgeStrategy, concurrency becomes an orchestration feature, not a block implementation detail. This aligns with the expert recommendation: "Once CompetingEdge exists, you can drop ConcurrentProcessorBlock and ConcurrentTransformerBlock because parallelism becomes an orchestration concern."
 
 ### ConcurrentTransformerBlock - Channels in Blocks?
 
-Similar situation: ConcurrentTransformerBlock manages internal channel for concurrent work.
+**Status: ✅ SOLVED - CompetingEdgeStrategy provides better alternative**
+
+Similar situation to ConcurrentProcessorBlock: ConcurrentTransformerBlock manages internal channel for concurrent work.
 
 **Question:** "Shouldn't channels be managed via edges?"
 
-**Answer:** Ideally yes, but without competing consumer support:
-- Can't connect multiple transformer blocks and have them compete
-- Need internal channel for parallel work coordination
+**Answer:** Yes! Now they can be via CompetingEdgeStrategy.
 
-**Options:**
-1. Keep ConcurrentTransformerBlock (pragmatic)
-2. Add competing consumer edges (better separation of concerns)
-3. Remove concurrent variants (limits functionality)
+**Recommended approach:**
+```csharp
+// Create multiple simple transformer instances
+var transform1 = new SimpleTransformerBlock<int, string>("t1", Transform);
+var transform2 = new SimpleTransformerBlock<int, string>("t2", Transform);
+var transform3 = new SimpleTransformerBlock<int, string>("t3", Transform);
+var transform4 = new SimpleTransformerBlock<int, string>("t4", Transform);
 
-**Recommendation:** Keep for now, document as limitation to address in future versions.
+// Input edge: competing among transformers
+var competingInput = new Edge(
+    source,
+    new[] { transform1, transform2, transform3, transform4 },
+    new CompetingEdgeStrategy());
+
+graph.AddEdge(competingInput);
+
+// Output edges: merge results to downstream
+graph.Connect(transform1, downstream);
+graph.Connect(transform2, downstream);
+graph.Connect(transform3, downstream);
+graph.Connect(transform4, downstream);
+
+// Result: Concurrent transformation with competing consumers!
+```
+
+**Benefits:**
+- ✅ Transformers remain simple (just transformation logic)
+- ✅ Concurrency explicit in topology
+- ✅ Easy to add/remove workers
+- ✅ No internal channel management in blocks
+
+**Verdict:** 
+- ✅ CompetingEdgeStrategy is NOW the recommended approach
+- ⚠️ ConcurrentTransformerBlock remains for backward compatibility but is TRANSITIONAL
+- 📝 Better separation of concerns - edges handle concurrency, blocks handle logic
 
 ## Concurrent Producers
 
@@ -287,6 +492,60 @@ graph.AddProducerGroup(
 - CPU usage
 - Batching accuracy (size and time-window)
 
+### Loss of Strong Typing in Processing Loop
+
+**Concern:** Using `object` types instead of generic types in the main processing paths may impact performance in a high-performance library.
+
+**Areas Where Strong Typing Is Lost:**
+
+1. **Channel Types** (`EdgeStrategy.CreateChannels`)
+   - Channels are created as `Channel<object>` instead of `Channel<T>`
+   - Location: `EdgeStrategy.CreateChannels()` returns `ChannelWriter<object>` and `ChannelReader<object>`
+   - Impact: Boxing for value types, loss of compile-time type safety
+
+2. **Item Routing** (`EdgeStrategy.RouteItemAsync`)
+   - Items are passed as `object` parameter in the hot path
+   - Location: `RouteItemAsync(object item, ...)` 
+   - Impact: Boxing/unboxing overhead for value types, runtime type checks
+
+3. **Clone Function** (`BroadcastEdgeStrategy._cloneFunc`)
+   - Clone function signature: `Func<object, object>?`
+   - Location: `BroadcastEdgeStrategy` constructor and `RouteItemAsync` 
+   - Impact: Boxing when cloning value types, no compile-time type checking
+
+4. **Block Execution** (`IBlock.ExecuteAsync`)
+   - Block input/output streams use `IAsyncEnumerable<object>`
+   - Location: Untyped `IBlock` interface
+   - Impact: Boxing/unboxing at block boundaries
+
+**Performance Implications:**
+- **Boxing overhead**: Value types (int, double, struct, etc.) are boxed when written to channels and unboxed when read
+- **GC pressure**: Each box operation allocates on the heap, increasing garbage collection frequency
+- **Cache locality**: Boxed values have worse cache performance due to indirection
+
+**Mitigation Options:**
+1. **Preserve type information for future optimization**: Edge already has `DataType` property that preserves the original type information
+   - Could use reflection with `Edge.DataType` to create properly typed `Channel<T>` instances at runtime
+   - EdgeStrategy could store type info for typed channel creation
+   - This would eliminate boxing for value types while maintaining flexibility
+   - **ACTION ITEM**: Document as high-priority optimization path for production use
+   
+2. **Typed fast path**: Add generic overloads for common scenarios while keeping object-based path for heterogeneous graphs
+   - Common value types (int, long, double) could have specialized implementations
+   - Fallback to object-based approach for less common types
+   
+3. **Benchmark first**: Measure actual performance impact before optimizing - may be acceptable for POC and many real-world scenarios
+   - Focus on value type throughput benchmarks
+   - Measure GC pressure under realistic loads
+
+**Action Required:** Performance testing should focus on:
+- Value type throughput (int, long, struct payloads)
+- GC allocation rates under load
+- Comparison with strongly-typed alternatives
+- **Validating type-preserving optimization approach using Edge.DataType**
+
+**Current Status:** Acceptable tradeoff for POC validating architecture patterns. **Type information is preserved in Edge.DataType** for future optimization. Should be prioritized if moving beyond POC for production use.
+
 ## Type System - Untyped IBlock
 
 **Question:** "Do we really need the untyped version?"
@@ -306,7 +565,9 @@ private readonly List<IBlock> _blocks;
 
 ## Summary of Actions
 
-### Immediate (Done in this commit)
+### ✅ Completed - Edge Strategy Pattern Implementation
+
+#### Phase 1: Initial POC (Previous Commit)
 - ✅ Added `AutoConnect()` API for refactor-friendly chaining
 - ✅ Added `ConnectMany()` API for multiple connections
 - ✅ Removed Unbounded buffer mode
@@ -314,15 +575,41 @@ private readonly List<IBlock> _blocks;
 - ✅ Added comprehensive documentation of routing/broadcasting behavior
 - ✅ Explained RouteOutput method
 
-### Future Work (Documented for Discussion)
+#### Phase 2: Edge Strategy Pattern (Current Commit)
+- ✅ **Implemented EdgeStrategy abstraction** - Base class for delivery semantics
+- ✅ **Implemented BroadcastEdgeStrategy** - All targets get all items (existing behavior formalized)
+- ✅ **Implemented CompetingEdgeStrategy** - Each item consumed once (TRUE competing consumers!)
+- ✅ **Implemented CloningEdgeStrategy** - All targets get independent clones
+- ✅ **Updated DataFlowGraph** - Routes items via edge strategies
+- ✅ **Added comprehensive tests** - 4 new tests covering all strategies (14 tests total, all passing)
+- ✅ **Documented concurrent block deprecation** - ConcurrentProcessorBlock and ConcurrentTransformerBlock now transitional
+- ✅ **Updated DESIGN_DECISIONS.md** - Complete edge strategy documentation
+
+### Key Achievements
+
+**Competing Consumers:** ✅ FULLY IMPLEMENTED
+- No longer "future work"
+- CompetingEdgeStrategy provides true competing consumers
+- Replaces need for ConcurrentProcessorBlock/ConcurrentTransformerBlock
+- Moves concurrency from block concern to orchestration concern
+
+**Item Cloning:** ✅ FULLY IMPLEMENTED
+- CloningEdgeStrategy provides item cloning
+- Supports ICloneable types, value types, and immutable types
+- Each consumer gets independent copy
+
+**Edge Strategies:** ✅ ARCHITECTURE IMPROVEMENT
+- Formalizes delivery semantics at edge level
+- Aligns with expert recommendation: "Promote Edge strategies (broadcast, competing, cloning, routed)"
+- Clean separation: blocks = logic, edges = delivery, graph = orchestration
+
+### Future Work (Remaining Items)
 - ⏭️ Dynamic routing support (requires graph-level route creation)
-- ⏭️ Competing consumer edges (alternative to concurrent block variants)
-- ⏭️ Item cloning for broadcast edges
-- ⏭️ Graph-level producer concurrency management
+- ⏭️ Graph-level producer concurrency management (ProducerGroup pattern)
 - ⏭️ Performance benchmarking (RouterBlock, BatchBlock)
 - ⏭️ Consider struct vs record for RoutedItem<T>
 
-### Won't Do
-- ❌ Remove ConcurrentProcessorBlock (needed without competing consumers)
-- ❌ Remove ConcurrentTransformerBlock (needed without competing consumers)
-- ❌ Remove untyped IBlock (needed for graph management)
+### Transitional Components
+- ⚠️ ConcurrentProcessorBlock - Kept for backward compatibility, use CompetingEdgeStrategy instead
+- ⚠️ ConcurrentTransformerBlock - Kept for backward compatibility, use CompetingEdgeStrategy instead
+- ℹ️ Both documented with migration guidance

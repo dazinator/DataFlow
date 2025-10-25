@@ -76,6 +76,16 @@ public class DataFlowGraphBuilder
     }
 
     /// <summary>
+    /// Add a pre-configured edge to the graph.
+    /// This allows using custom edge strategies like CompetingEdgeStrategy or CloningEdgeStrategy.
+    /// </summary>
+    public DataFlowGraphBuilder AddEdge(Edge edge)
+    {
+        _edges.Add(edge);
+        return this;
+    }
+
+    /// <summary>
     /// Connect a source block to multiple target blocks.
     /// Useful for broadcasting or routing scenarios.
     /// </summary>

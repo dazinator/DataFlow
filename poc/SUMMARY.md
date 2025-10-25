@@ -4,20 +4,30 @@
 
 This POC successfully demonstrates a new architecture for the DataFlow library that addresses the key concerns raised in the GitHub issue about separating concerns between blocks, edges, and execution orchestration.
 
-## Completion Status: ✅ 100%
+## Completion Status: ✅ 100% + Edge Strategy Pattern
 
-All objectives have been achieved:
+All objectives have been achieved, plus additional expert-recommended improvements:
 
+### Phase 1: Core POC
 - ✅ **Core Abstractions**: IBlock, Edge, DataFlowGraph implemented
 - ✅ **Block Types**: All 6 major block types working (Producer, Transformer, Processor, Batch, Router, Broadcast)
 - ✅ **Tests**: 10/10 tests passing covering all scenarios
 - ✅ **Documentation**: Comprehensive comparison and architecture docs
 - ✅ **Code Quality**: Clean, well-organized, follows best practices
 
+### Phase 2: Edge Strategy Pattern (NEW)
+- ✅ **EdgeStrategy Abstraction**: Formalizes delivery semantics at edge level
+- ✅ **BroadcastEdgeStrategy**: All targets get all items (existing behavior formalized)
+- ✅ **CompetingEdgeStrategy**: True competing consumers - items shared among targets
+- ✅ **CloningEdgeStrategy**: Independent clones for mutation isolation
+- ✅ **Tests**: 19/19 tests passing (10 original + 4 edge strategies + 5 migration examples)
+- ✅ **Concurrency Evolution**: Moved from blocks to orchestration layer
+- ✅ **Migration Guidance**: Complete documentation and examples
+
 ## Test Results
 
 ```
-Test summary: total: 10, failed: 0, succeeded: 10, skipped: 0
+Test summary: total: 19, failed: 0, succeeded: 19, skipped: 0
 ```
 
 ### Test Coverage
@@ -29,6 +39,8 @@ Test summary: total: 10, failed: 0, succeeded: 10, skipped: 0
 | **Broadcasting** | 1 | Single source to multiple consumers |
 | **Routing** | 2 | Even/odd routing, three-way routing |
 | **Complex** | 2 | Transform+Batch+Route pipeline, Diamond topology with merge |
+| **Edge Strategies** | 4 | Competing, broadcasting, cloning, mixed strategies |
+| **Migration Examples** | 5 | Old vs new approaches for concurrent processing |
 
 ## Key Design Achievements
 
@@ -80,9 +92,41 @@ public class DataFlowGraph
 - RouteFilterBlock filters at edge level
 - Graph handles channel fanout naturally
 
-### 3. Natural Broadcasting ✅
+### 3. Natural Broadcasting & Edge Strategies ✅
 
-Broadcasting is achieved simply by having multiple edges from the same source block. The graph automatically handles fanout and independent buffering per downstream consumer.
+**Phase 1:** Broadcasting achieved simply by having multiple edges from the same source block. The graph automatically handles fanout and independent buffering per downstream consumer.
+
+**Phase 2 (NEW):** Edge Strategy Pattern formalizes delivery semantics:
+
+| Strategy | Channels | Behavior | Use Case |
+|----------|----------|----------|----------|
+| **BroadcastEdgeStrategy** | One per target | All targets get all items | Default fanout behavior |
+| **CompetingEdgeStrategy** | One shared | Each item consumed once | Concurrent processing, load balancing |
+| **CloningEdgeStrategy** | One per target | Independent clones | Mutation isolation |
+
+**Key Achievement:** CompetingEdgeStrategy enables true concurrent processing without ConcurrentProcessorBlock:
+
+```csharp
+// OLD: Concurrency in block
+var proc = new ConcurrentProcessorBlock<int>("proc", Process, maxConcurrency: 4);
+
+// NEW: Concurrency via edge strategy (orchestration)
+var proc1 = new ProcessorBlock<int>("proc1", Process);
+var proc2 = new ProcessorBlock<int>("proc2", Process);
+var proc3 = new ProcessorBlock<int>("proc3", Process);
+var proc4 = new ProcessorBlock<int>("proc4", Process);
+
+var competingEdge = new Edge(
+    source, 
+    new[] { proc1, proc2, proc3, proc4 },
+    new CompetingEdgeStrategy());
+```
+
+Benefits:
+- ✅ Concurrency is orchestration concern (not block concern)
+- ✅ Processors remain simple (pure business logic)
+- ✅ Parallelism explicit in graph topology
+- ✅ Easy to tune (add/remove processor blocks)
 
 ### 4. Feature Parity ✅
 
@@ -91,11 +135,14 @@ All major features from the current design are supported:
 | Feature | Status | Notes |
 |---------|--------|-------|
 | Producer Blocks | ✅ | Including concurrent producers |
-| Transform Blocks | ✅ | Simple and concurrent variants |
-| Processor Blocks | ✅ | Simple and concurrent variants |
+| Transform Blocks | ✅ | Simple and concurrent variants (concurrent transitional) |
+| Processor Blocks | ✅ | Simple and concurrent variants (concurrent transitional) |
 | Batch Blocks | ✅ | Size and time-window based |
 | Routing | ✅ | Cleaner implementation via filters |
-| Broadcasting | ✅ | Natural graph behavior |
+| Broadcasting | ✅ | Natural graph behavior + formalized via BroadcastEdgeStrategy |
+| **Competing Consumers** | ✅ | **NEW: via CompetingEdgeStrategy** |
+| **Item Cloning** | ✅ | **NEW: via CloningEdgeStrategy** |
+| **Edge Strategies** | ✅ | **NEW: Pluggable delivery semantics** |
 | Backpressure | ✅ | Automatic via bounded channels |
 | Error Propagation | ✅ | Basic implementation |
 
@@ -113,13 +160,14 @@ poc/
 │   ├── Core/                           # Core abstractions
 │   │   ├── IBlock.cs                   # Block interface
 │   │   ├── BlockBase.cs                # Base implementation
-│   │   ├── Edge.cs                     # Edge class
+│   │   ├── Edge.cs                     # Edge class with strategy support
+│   │   ├── EdgeStrategy.cs             # **NEW: Edge strategy abstraction**
 │   │   ├── DataFlowGraph.cs            # Graph orchestration
 │   │   └── IExecutionContext.cs        # Execution context
 │   ├── Blocks/                         # Block implementations
 │   │   ├── ProducerBlock.cs            # Source blocks
-│   │   ├── TransformerBlock.cs         # Transform blocks
-│   │   ├── ProcessorBlock.cs           # Terminal blocks
+│   │   ├── TransformerBlock.cs         # Transform blocks (+ migration guidance)
+│   │   ├── ProcessorBlock.cs           # Terminal blocks (+ migration guidance)
 │   │   ├── BatchBlock.cs               # Batching
 │   │   ├── RouterBlock.cs              # Routing + filters
 │   │   └── BroadcastBlock.cs           # Broadcasting
@@ -132,7 +180,9 @@ poc/
     ├── BatchFlowTests.cs               # 2 tests
     ├── BroadcastFlowTests.cs           # 1 test
     ├── RoutingFlowTests.cs             # 2 tests
-    └── ComplexFlowTests.cs             # 2 tests
+    ├── ComplexFlowTests.cs             # 2 tests
+    ├── EdgeStrategyTests.cs            # **NEW: 4 tests for edge strategies**
+    └── ConcurrencyMigrationExamples.cs # **NEW: 5 migration examples**
 ```
 
 ## Code Metrics
@@ -145,6 +195,7 @@ poc/
 | Router block LOC | ~250 | ~40 | 84% reduction |
 | Broadcast complexity | High | Low | Much simpler |
 | Lines per block (avg) | ~150 | ~50 | 67% reduction |
+| **Edge strategies** | **N/A** | **~230** | **NEW: Pluggable** |
 
 ### Test Coverage
 

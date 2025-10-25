@@ -24,8 +24,8 @@ public enum BufferMode
 }
 
 /// <summary>
-/// Represents a connection (edge) between two blocks in the dataflow graph.
-/// Edges own the buffering policy and channel management.
+/// Represents a connection (edge) between a source block and one or more target blocks in the dataflow graph.
+/// Edges own the buffering policy, channel management, and delivery semantics via EdgeStrategy.
 /// </summary>
 public class Edge
 {
@@ -34,18 +34,41 @@ public class Edge
         IBlock targetBlock,
         BufferMode bufferMode = BufferMode.Bounded,
         int bufferCapacity = 100)
+        : this(sourceBlock, new[] { targetBlock }, new BroadcastEdgeStrategy(bufferMode, bufferCapacity))
+    {
+    }
+
+    public Edge(
+        IBlock sourceBlock,
+        IBlock targetBlock,
+        EdgeStrategy strategy)
+        : this(sourceBlock, new[] { targetBlock }, strategy)
+    {
+    }
+
+    public Edge(
+        IBlock sourceBlock,
+        IReadOnlyList<IBlock> targetBlocks,
+        EdgeStrategy strategy)
     {
         SourceBlock = sourceBlock ?? throw new ArgumentNullException(nameof(sourceBlock));
-        TargetBlock = targetBlock ?? throw new ArgumentNullException(nameof(targetBlock));
-        BufferMode = bufferMode;
-        BufferCapacity = bufferCapacity;
+        TargetBlocks = targetBlocks ?? throw new ArgumentNullException(nameof(targetBlocks));
+        Strategy = strategy ?? throw new ArgumentNullException(nameof(strategy));
 
-        // Validate type compatibility
-        if (sourceBlock.OutputType != targetBlock.InputType)
+        if (targetBlocks.Count == 0)
         {
-            throw new ArgumentException(
-                $"Type mismatch: Source block '{sourceBlock.Name}' output type {sourceBlock.OutputType.Name} " +
-                $"does not match target block '{targetBlock.Name}' input type {targetBlock.InputType.Name}");
+            throw new ArgumentException("At least one target block is required", nameof(targetBlocks));
+        }
+
+        // Validate type compatibility for all targets
+        foreach (var targetBlock in targetBlocks)
+        {
+            if (sourceBlock.OutputType != targetBlock.InputType)
+            {
+                throw new ArgumentException(
+                    $"Type mismatch: Source block '{sourceBlock.Name}' output type {sourceBlock.OutputType.Name} " +
+                    $"does not match target block '{targetBlock.Name}' input type {targetBlock.InputType.Name}");
+            }
         }
 
         DataType = sourceBlock.OutputType;
@@ -57,19 +80,32 @@ public class Edge
     public IBlock SourceBlock { get; }
 
     /// <summary>
-    /// The target block that consumes data.
+    /// The target blocks that consume data.
+    /// For single-target edges, this contains one block.
+    /// For multi-target edges (broadcast, competing), this contains multiple blocks.
     /// </summary>
-    public IBlock TargetBlock { get; }
+    public IReadOnlyList<IBlock> TargetBlocks { get; }
+
+    /// <summary>
+    /// The target block that consumes data (for single-target edges).
+    /// For backward compatibility.
+    /// </summary>
+    public IBlock TargetBlock => TargetBlocks[0];
+
+    /// <summary>
+    /// The edge strategy that defines delivery semantics.
+    /// </summary>
+    public EdgeStrategy Strategy { get; }
 
     /// <summary>
     /// The buffering mode for this edge.
     /// </summary>
-    public BufferMode BufferMode { get; }
+    public BufferMode BufferMode => Strategy.BufferMode;
 
     /// <summary>
     /// The capacity of the buffer (if BufferMode is Bounded).
     /// </summary>
-    public int BufferCapacity { get; }
+    public int BufferCapacity => Strategy.BufferCapacity;
 
     /// <summary>
     /// The type of data flowing through this edge.
@@ -83,6 +119,7 @@ public class Edge
 
     public override string ToString()
     {
-        return $"{SourceBlock.Name} -> {TargetBlock.Name} ({BufferMode}, {DataType.Name})";
+        var targetNames = string.Join(", ", TargetBlocks.Select(t => t.Name));
+        return $"{SourceBlock.Name} -> [{targetNames}] ({Strategy.EdgeType}, {DataType.Name})";
     }
 }

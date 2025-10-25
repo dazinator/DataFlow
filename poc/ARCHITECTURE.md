@@ -97,6 +97,112 @@ Benefits:
 ✅ Routing is explicit via edge filtering
 ```
 
+## Edge Strategy Pattern - Delivery Semantics
+
+The POC implements edge strategies to formalize how data flows from source to target(s):
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                  Edge Strategy Abstraction                   │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  ┌────────────────────────────────────────────────────┐    │
+│  │  BroadcastEdgeStrategy                             │    │
+│  │  • One channel per target                          │    │
+│  │  • All targets get all items                       │    │
+│  │  • Independent backpressure per target             │    │
+│  │                                                     │    │
+│  │  Source ──┬─[Channel A]──▶ Target 1               │    │
+│  │           └─[Channel B]──▶ Target 2               │    │
+│  └────────────────────────────────────────────────────┘    │
+│                                                              │
+│  ┌────────────────────────────────────────────────────┐    │
+│  │  CompetingEdgeStrategy (NEW)                       │    │
+│  │  • ONE shared channel for all targets              │    │
+│  │  • Each item consumed once                         │    │
+│  │  • True competing consumers                        │    │
+│  │                                                     │    │
+│  │  Source ──[Shared Channel]──▶ Target 1            │    │
+│  │                         ├────▶ Target 2            │    │
+│  │                         └────▶ Target 3            │    │
+│  │  (Targets compete for items)                       │    │
+│  └────────────────────────────────────────────────────┘    │
+│                                                              │
+│  ┌────────────────────────────────────────────────────┐    │
+│  │  CloningEdgeStrategy (NEW)                         │    │
+│  │  • One channel per target                          │    │
+│  │  • Items cloned before delivery                    │    │
+│  │  • Independent copies for mutation isolation       │    │
+│  │                                                     │    │
+│  │  Source ──┬─[Channel A]──▶ Target 1 (clone)       │    │
+│  │           └─[Channel B]──▶ Target 2 (clone)       │    │
+│  └────────────────────────────────────────────────────┘    │
+│                                                              │
+│  ┌────────────────────────────────────────────────────┐    │
+│  │  RoutingEdge (Existing)                            │    │
+│  │  • Route-based filtering                           │    │
+│  │  • Each route has own channel                      │    │
+│  │  • Filters decide what passes through              │    │
+│  └────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Edge Strategy Usage Examples
+
+```csharp
+// Broadcast - all consumers get all items
+var broadcastEdge = new Edge(
+    producer,
+    new[] { consumer1, consumer2 },
+    new BroadcastEdgeStrategy(BufferMode.Bounded, 100));
+
+// Competing - consumers compete for items (concurrent processing!)
+var competingEdge = new Edge(
+    producer,
+    new[] { processor1, processor2, processor3, processor4 },
+    new CompetingEdgeStrategy(BufferMode.Bounded, 50));
+
+// Cloning - independent copies for mutation safety
+var cloningEdge = new Edge(
+    producer,
+    new[] { mutator1, mutator2 },
+    new CloningEdgeStrategy(BufferMode.Bounded, 100));
+```
+
+### CompetingEdge Enables True Concurrent Processing
+
+```
+WITHOUT CompetingEdge (Old Approach):
+┌────────────────────────────────────────────────┐
+│  ConcurrentProcessorBlock<T>                   │
+│  • maxConcurrency: 4                           │
+│  • Internal semaphore                          │
+│  • Internal task management                    │
+│  • Block handles concurrency ❌                │
+└────────────────────────────────────────────────┘
+
+WITH CompetingEdge (New Approach):
+┌────────────────────────────────────────────────┐
+│  DataFlowGraph (Orchestration)                 │
+│                                                 │
+│  Producer ──[CompetingEdge]──▶ Processor1      │
+│              (Shared Channel)  ├─▶ Processor2  │
+│                                ├─▶ Processor3  │
+│                                └─▶ Processor4  │
+│                                                 │
+│  • Graph handles concurrency ✅                │
+│  • Processors simple & focused ✅              │
+│  • Parallelism explicit in topology ✅         │
+└────────────────────────────────────────────────┘
+
+Benefits:
+✅ Concurrency moved from block to orchestration layer
+✅ Processors contain only business logic
+✅ Easy to tune parallelism (add/remove processors)
+✅ Natural load balancing via channel competition
+✅ Clear separation of concerns
+```
+
 ## Routing Example - Current Design
 
 ```
