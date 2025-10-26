@@ -32,6 +32,9 @@ public static class ComplexEtlPOC
         var dataSource = new ProducerBlock<RawRecord>("data-source",
             ctx => ProduceRawRecords(recordCount, ctx.CancellationToken));
 
+        // Buffer: Fan out from single source to multiple validators (competing consumers)
+        var sourceBuffer = builder.Buffer<RawRecord>(capacity: 100, name: "source-buffer");
+
         // Transform: Parse and validate records - use multiple instances for concurrency
         var validators = new List<TransformerBlock<RawRecord, ValidatedRecord>>();
         for (int i = 0; i < maxConcurrency; i++)
@@ -40,6 +43,9 @@ public static class ComplexEtlPOC
                 (record, ctx) => ValidateRecord(record)));
         }
 
+        // Buffer: Merge validator outputs into single competing channel for enrichers
+        var validatorBuffer = builder.Buffer<ValidatedRecord>(capacity: 100, name: "validator-buffer");
+
         // Transform: Enrich with additional data - use multiple instances for concurrency
         var enrichers = new List<TransformerBlock<ValidatedRecord, EnrichedRecord>>();
         for (int i = 0; i < maxConcurrency; i++)
@@ -47,6 +53,9 @@ public static class ComplexEtlPOC
             enrichers.Add(new TransformerBlock<ValidatedRecord, EnrichedRecord>($"enricher-{i}",
                 (record, ctx) => EnrichRecord(record, ctx.CancellationToken)));
         }
+
+        // Buffer: Merge enricher outputs into single channel before broadcast
+        var enricherBuffer = builder.Buffer<EnrichedRecord>(capacity: 100, name: "enricher-buffer");
 
         // Broadcast: Fan out enriched records for parallel processing
         var broadcast = new BroadcastBlock<EnrichedRecord>("broadcast");
@@ -70,6 +79,9 @@ public static class ComplexEtlPOC
             typeAProcessors.Add(new TransformerBlock<EnrichedRecord, ProcessedRecord>($"typeA-processor-{i}",
                 (record, ctx) => ProcessRecord(record)));
         }
+        // Buffer: Merge processor outputs into single competing channel for writers
+        var typeAProcessorBuffer = builder.Buffer<ProcessedRecord>(capacity: 100, name: "typeA-processor-buffer");
+        
         var typeAWriters = new List<ProcessorBlock<ProcessedRecord>>();
         for (int i = 0; i < maxConcurrency; i++)
         {
@@ -124,33 +136,41 @@ public static class ComplexEtlPOC
             .AddBlock(typeCWriter);
 
         // Connect blocks using CompetingEdgeStrategy for concurrent processing
-        // Source to validators - competing consumers for parallel validation
-        builder.AddEdge(new Edge(
-            dataSource,
-            validators.Cast<IBlock>().ToList(),
-            new CompetingEdgeStrategy(BufferMode.Bounded, 100)));
+        // Source to buffer - single producer to shared buffer
+        builder.Connect(dataSource, sourceBuffer);
 
-        // Validators to enrichers - each validator connects to all enrichers via competing strategy
-        // This creates multiple competing channels that enrichers will merge and read from concurrently
+        // Buffer to validators - all validators compete from shared buffer
         foreach (var validator in validators)
         {
-            builder.AddEdge(new Edge(
-                validator,
-                enrichers.Cast<IBlock>().ToList(),
-                new CompetingEdgeStrategy(BufferMode.Bounded, 100)));
+            builder.Connect(sourceBuffer, validator);
         }
 
-        // Enrichers to broadcast - merge all enricher outputs
+        // Validators to buffer - all validators write to shared buffer
+        foreach (var validator in validators)
+        {
+            builder.Connect(validator, validatorBuffer);
+        }
+
+        // Buffer to enrichers - all enrichers compete from shared buffer
         foreach (var enricher in enrichers)
         {
-            builder.Connect(enricher, broadcast);
+            builder.Connect(validatorBuffer, enricher);
         }
+
+        // Enrichers to buffer - all enrichers write to shared buffer before broadcast
+        foreach (var enricher in enrichers)
+        {
+            builder.Connect(enricher, enricherBuffer);
+        }
+
+        // Buffer to broadcast - single input stream for broadcast
+        builder.Connect(enricherBuffer, broadcast);
 
         // Broadcast to multiple paths (broadcast strategy - all consumers get all items)
         builder
-            .AddEdge(new Edge(broadcast, metricsCollector, BufferMode.Bounded, 100))
-            .AddEdge(new Edge(broadcast, auditLogger, BufferMode.Bounded, 100))
-            .AddEdge(new Edge(broadcast, router, BufferMode.Bounded, 100));
+            .Connect(broadcast, metricsCollector, 100)
+            .Connect(broadcast, auditLogger, 100)
+            .Connect(broadcast, router, 100);
 
         // Router to type-specific routes
         builder
@@ -158,19 +178,19 @@ public static class ComplexEtlPOC
             .Connect(router, typeBFilter)
             .Connect(router, typeCFilter);
 
-        // TypeA route: filter -> processors (competing) -> writers (competing)
-        builder.AddEdge(new Edge(
-            typeAFilter,
-            typeAProcessors.Cast<IBlock>().ToList(),
-            new CompetingEdgeStrategy(BufferMode.Bounded, 100)));
+        // TypeA route: filter -> processors (competing) -> buffer -> writers (competing)
+        builder.ConnectCompeting(typeAFilter, typeAProcessors.Cast<IBlock>().ToList(), 100);
 
-        // Processors to writers - each processor connects to all writers via competing strategy
+        // Processors to buffer - all processors write to shared buffer
         foreach (var processor in typeAProcessors)
         {
-            builder.AddEdge(new Edge(
-                processor,
-                typeAWriters.Cast<IBlock>().ToList(),
-                new CompetingEdgeStrategy(BufferMode.Bounded, 50)));
+            builder.Connect(processor, typeAProcessorBuffer);
+        }
+
+        // Buffer to writers - all writers compete from shared buffer
+        foreach (var writer in typeAWriters)
+        {
+            builder.Connect(typeAProcessorBuffer, writer);
         }
 
         // TypeB route connections

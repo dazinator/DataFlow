@@ -115,6 +115,25 @@ public class DataFlowGraphBuilder
     }
 
     /// <summary>
+    /// Connect a source block to multiple target blocks with competing consumer semantics.
+    /// Each item from the source will be delivered to exactly one target (competing consumers).
+    /// This is useful for load balancing across multiple parallel workers.
+    /// </summary>
+    /// <param name="source">The source block</param>
+    /// <param name="targets">The target blocks that will compete for items</param>
+    /// <param name="bufferCapacity">The buffer capacity for the edge (default: 100)</param>
+    /// <returns>The builder for chaining</returns>
+    public DataFlowGraphBuilder ConnectCompeting(
+        IBlock source,
+        IReadOnlyList<IBlock> targets,
+        int bufferCapacity = 100)
+    {
+        var edge = new Edge(source, targets, new CompetingEdgeStrategy(BufferMode.Bounded, bufferCapacity));
+        _edges.Add(edge);
+        return this;
+    }
+
+    /// <summary>
     /// Connect two blocks by name.
     /// </summary>
     public DataFlowGraphBuilder Connect(
