@@ -20,9 +20,12 @@ public class DataFlowGraph
 {
     private readonly ILogger<DataFlowGraph> _logger;
     private readonly List<IBlock> _blocks = new();
+    private readonly List<BufferNode> _bufferNodes = new();
     private readonly List<Edge> _edges = new();
     private readonly Dictionary<IBlock, List<Edge>> _outgoingEdges = new();
     private readonly Dictionary<IBlock, List<Edge>> _incomingEdges = new();
+    private readonly Dictionary<BufferNode, List<IBlock>> _bufferProducers = new();
+    private readonly Dictionary<BufferNode, List<IBlock>> _bufferConsumers = new();
 
     public DataFlowGraph(string name, ILogger<DataFlowGraph> logger)
     {
@@ -41,6 +44,11 @@ public class DataFlowGraph
     public IReadOnlyList<IBlock> Blocks => _blocks;
 
     /// <summary>
+    /// All buffer nodes in the graph.
+    /// </summary>
+    public IReadOnlyList<BufferNode> BufferNodes => _bufferNodes;
+
+    /// <summary>
     /// All edges in the graph.
     /// </summary>
     public IReadOnlyList<Edge> Edges => _edges;
@@ -56,6 +64,63 @@ public class DataFlowGraph
         }
         _blocks.Add(block);
         _logger.LogDebug("Added block: {BlockName}", block.Name);
+    }
+
+    /// <summary>
+    /// Add a buffer node to the graph.
+    /// </summary>
+    public void AddBufferNode(BufferNode bufferNode)
+    {
+        if (_bufferNodes.Contains(bufferNode))
+        {
+            throw new ArgumentException($"Buffer node already exists in graph");
+        }
+        _bufferNodes.Add(bufferNode);
+        _logger.LogDebug("Added buffer node: {BufferName}", bufferNode.GetName());
+    }
+
+    /// <summary>
+    /// Add a connection from a block to a buffer node.
+    /// </summary>
+    public void AddBlockToBufferConnection(IBlock source, BufferNode target)
+    {
+        if (!_blocks.Contains(source))
+        {
+            throw new ArgumentException($"Source block '{source.Name}' not found in graph");
+        }
+        if (!_bufferNodes.Contains(target))
+        {
+            throw new ArgumentException($"Target buffer node '{target.GetName()}' not found in graph");
+        }
+
+        if (!_bufferProducers.ContainsKey(target))
+        {
+            _bufferProducers[target] = new List<IBlock>();
+        }
+        _bufferProducers[target].Add(source);
+        _logger.LogDebug("Added connection: {SourceBlock} -> BufferNode({BufferName})", source.Name, target.Name);
+    }
+
+    /// <summary>
+    /// Add a connection from a buffer node to a block.
+    /// </summary>
+    public void AddBufferToBlockConnection(BufferNode source, IBlock target)
+    {
+        if (!_bufferNodes.Contains(source))
+        {
+            throw new ArgumentException($"Source buffer node '{source.GetName()}' not found in graph");
+        }
+        if (!_blocks.Contains(target))
+        {
+            throw new ArgumentException($"Target block '{target.Name}' not found in graph");
+        }
+
+        if (!_bufferConsumers.ContainsKey(source))
+        {
+            _bufferConsumers[source] = new List<IBlock>();
+        }
+        _bufferConsumers[source].Add(target);
+        _logger.LogDebug("Added connection: BufferNode({BufferName}) -> {TargetBlock}", source.Name, target.Name);
     }
 
     /// <summary>
@@ -125,6 +190,34 @@ public class DataFlowGraph
     {
         var pipeline = new ExecutionPipeline();
 
+        // Create typed channels for all buffer nodes
+        foreach (var bufferNode in _bufferNodes)
+        {
+            // Determine if single reader/writer optimization can be applied
+            var producerCount = _bufferProducers.ContainsKey(bufferNode) ? _bufferProducers[bufferNode].Count : 0;
+            var consumerCount = _bufferConsumers.ContainsKey(bufferNode) ? _bufferConsumers[bufferNode].Count : 0;
+            
+            var singleWriter = producerCount <= 1;
+            var singleReader = consumerCount <= 1;
+
+            var (writer, reader) = TypedChannelFactory.CreateTypedChannel(
+                bufferNode.DataType,
+                BufferMode.Bounded,
+                bufferNode.Capacity,
+                singleReader,
+                singleWriter);
+
+            var bufferModel = new BufferRuntimeModel
+            {
+                Writer = writer,
+                Reader = reader
+            };
+            pipeline.BufferRuntimeModels[bufferNode] = bufferModel;
+            
+            _logger.LogDebug("Created typed channel for buffer node: {BufferName} (type={DataType}, capacity={Capacity}, producers={Producers}, consumers={Consumers})",
+                bufferNode.GetName(), bufferNode.DataType.Name, bufferNode.Capacity, producerCount, consumerCount);
+        }
+
         // Create typed channels for all buffered edges using their strategies
         foreach (var edge in _edges.Where(e => e.BufferMode != BufferMode.None))
         {
@@ -148,7 +241,7 @@ public class DataFlowGraph
         foreach (var block in _blocks)
         {
             var adapter = ExecutableBlockFactory.CreateAdapter(block);
-            var blockModel = new BlockRuntimeModel(block, _outgoingEdges, _incomingEdges, pipeline)
+            var blockModel = new BlockRuntimeModel(block, _outgoingEdges, _incomingEdges, _bufferProducers, _bufferConsumers, pipeline)
             {
                 Adapter = adapter
             };
@@ -168,6 +261,7 @@ public class DataFlowGraph
     {
         public Dictionary<IBlock, BlockRuntimeModel> BlockRuntimeModels { get; } = new();
         public Dictionary<Edge, EdgeRuntimeModel> EdgeRuntimeModels { get; } = new();
+        public Dictionary<BufferNode, BufferRuntimeModel> BufferRuntimeModels { get; } = new();
 
         /// <summary>
         /// Executes all blocks in the pipeline concurrently.
@@ -210,30 +304,80 @@ public class DataFlowGraph
         }
 
         /// <summary>
-        /// Gets the typed input stream for a block based on its incoming edges.
+        /// Gets the typed input stream for a block based on its incoming edges and buffer nodes.
         /// </summary>
         internal object GetBlockInputStream(
             IBlock block,
             Dictionary<IBlock, List<Edge>> incomingEdges,
+            Dictionary<BufferNode, List<IBlock>> bufferConsumers,
             Type inputItemType)
         {
-            if (!incomingEdges.ContainsKey(block) || incomingEdges[block].Count == 0)
+            var inputs = new List<object>();
+
+            // Add inputs from edges and buffers
+            AddInputsFromEdges(block, incomingEdges, inputItemType, inputs);
+            AddInputsFromBufferNodes(block, bufferConsumers, inputItemType, inputs);
+
+            // Return appropriate stream based on input count
+            return MergeInputStreams(inputs, inputItemType);
+        }
+
+        /// <summary>
+        /// Adds input streams from incoming edges to the inputs list.
+        /// </summary>
+        private void AddInputsFromEdges(
+            IBlock block,
+            Dictionary<IBlock, List<Edge>> incomingEdges,
+            Type inputItemType,
+            List<object> inputs)
+        {
+            if (incomingEdges.ContainsKey(block) && incomingEdges[block].Count > 0)
+            {
+                inputs.AddRange(incomingEdges[block].Select(edge => GetTypedEdgeInput(block, edge, inputItemType)));
+            }
+        }
+
+        /// <summary>
+        /// Adds input streams from buffer nodes to the inputs list.
+        /// </summary>
+        private void AddInputsFromBufferNodes(
+            IBlock block,
+            Dictionary<BufferNode, List<IBlock>> bufferConsumers,
+            Type inputItemType,
+            List<object> inputs)
+        {
+            var bufferNodesToRead = bufferConsumers
+                .Where(kvp => kvp.Value.Contains(block))
+                .Select(kvp => kvp.Key)
+                .ToList();
+
+            foreach (var bufferNode in bufferNodesToRead)
+            {
+                if (BufferRuntimeModels.TryGetValue(bufferNode, out var bufferModel))
+                {
+                    var typedStream = ReflectionHelper.GetTypedStreamFromChannelReader(bufferModel.Reader, inputItemType, CancellationToken.None);
+                    inputs.Add(typedStream);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Merges input streams based on count: empty, single, or multiple.
+        /// </summary>
+        private object MergeInputStreams(List<object> inputs, Type inputItemType)
+        {
+            if (inputs.Count == 0)
             {
                 // Source block - no input, provide empty typed stream
                 return ReflectionHelper.CreateEmptyTypedStream(inputItemType);
             }
-            else if (incomingEdges[block].Count == 1)
+            else if (inputs.Count == 1)
             {
-                // Single input edge
-                var edge = incomingEdges[block][0];
-                return GetTypedEdgeInput(block, edge, inputItemType);
+                return inputs[0];
             }
             else
             {
                 // Multiple inputs - merge them
-                var inputs = incomingEdges[block]
-                    .Select(edge => GetTypedEdgeInput(block, edge, inputItemType))
-                    .ToList();
                 return ReflectionHelper.MergeTypedStreams(inputs, inputItemType);
             }
         }
@@ -275,34 +419,69 @@ public class DataFlowGraph
         }
 
         /// <summary>
-        /// Completes all outgoing channel writers for a block.
+        /// Completes all outgoing channel writers for a block, including buffer nodes.
         /// </summary>
         internal void CompleteOutgoingChannels(
             IBlock block,
             Dictionary<IBlock, List<Edge>> outgoingEdges,
+            Dictionary<BufferNode, List<IBlock>> bufferProducers,
             ILogger<DataFlowGraph> logger,
             Exception? exception = null)
         {
-            if (!outgoingEdges.ContainsKey(block))
+            // Complete regular edge channels
+            if (outgoingEdges.ContainsKey(block))
             {
-                return;
+                foreach (var edge in outgoingEdges[block])
+                {
+                    if (EdgeRuntimeModels.TryGetValue(edge, out var edgeModel))
+                    {
+                        // Deduplicate writers in case of competing edge strategy
+                        var uniqueWriters = edgeModel.Writers.Values.Distinct().ToList();
+                        
+                        foreach (var writerObj in uniqueWriters)
+                        {
+                            ReflectionHelper.CompleteTypedWriter(writerObj, exception);
+                        }
+                        
+                        if (exception == null)
+                        {
+                            logger.LogDebug("Completed channels for edge: {Edge}", edge);
+                        }
+                    }
+                }
             }
 
-            foreach (var edge in outgoingEdges[block])
+            // Complete buffer node channels
+            var bufferNodesToComplete = bufferProducers
+                .Where(kvp => kvp.Value.Contains(block))
+                .Select(kvp => kvp.Key)
+                .ToList();
+
+            foreach (var bufferNode in bufferNodesToComplete)
             {
-                if (EdgeRuntimeModels.TryGetValue(edge, out var edgeModel))
+                if (BufferRuntimeModels.TryGetValue(bufferNode, out var bufferModel))
                 {
-                    // Deduplicate writers in case of competing edge strategy
-                    var uniqueWriters = edgeModel.Writers.Values.Distinct().ToList();
+                    bool shouldComplete = false;
                     
-                    foreach (var writerObj in uniqueWriters)
+                    lock (bufferModel.CompletionLock)
                     {
-                        ReflectionHelper.CompleteTypedWriter(writerObj, exception);
+                        bufferModel.CompletedProducers.Add(block);
+                        
+                        // Complete only when all producers have finished
+                        var totalProducers = bufferProducers[bufferNode].Count;
+                        var completedProducers = bufferModel.CompletedProducers.Count;
+                        shouldComplete = completedProducers == totalProducers;
                     }
                     
-                    if (exception == null)
+                    if (shouldComplete)
                     {
-                        logger.LogDebug("Completed channels for edge: {Edge}", edge);
+                        ReflectionHelper.CompleteTypedWriter(bufferModel.Writer, exception);
+                        
+                        if (exception == null)
+                        {
+                            logger.LogDebug("Completed channel for buffer node: {BufferName} (all {Count} producers finished)", 
+                                bufferNode.GetName(), bufferProducers[bufferNode].Count);
+                        }
                     }
                 }
             }
@@ -318,6 +497,8 @@ public class DataFlowGraph
         private readonly IBlock _block;
         private readonly Dictionary<IBlock, List<Edge>> _outgoingEdges;
         private readonly Dictionary<IBlock, List<Edge>> _incomingEdges;
+        private readonly Dictionary<BufferNode, List<IBlock>> _bufferProducers;
+        private readonly Dictionary<BufferNode, List<IBlock>> _bufferConsumers;
         private readonly ExecutionPipeline _pipeline;
 
         public IExecutableBlock? Adapter { get; set; }
@@ -327,11 +508,15 @@ public class DataFlowGraph
             IBlock block,
             Dictionary<IBlock, List<Edge>> outgoingEdges,
             Dictionary<IBlock, List<Edge>> incomingEdges,
+            Dictionary<BufferNode, List<IBlock>> bufferProducers,
+            Dictionary<BufferNode, List<IBlock>> bufferConsumers,
             ExecutionPipeline pipeline)
         {
             _block = block;
             _outgoingEdges = outgoingEdges;
             _incomingEdges = incomingEdges;
+            _bufferProducers = bufferProducers;
+            _bufferConsumers = bufferConsumers;
             _pipeline = pipeline;
         }
 
@@ -346,7 +531,7 @@ public class DataFlowGraph
                 var adapter = Adapter!;
                 
                 // Get the typed input stream for this block
-                var typedInput = _pipeline.GetBlockInputStream(_block, _incomingEdges, adapter.InputItemType);
+                var typedInput = _pipeline.GetBlockInputStream(_block, _incomingEdges, _bufferConsumers, adapter.InputItemType);
 
                 // Execute the block using adapter - returns typed stream as object (NO BOXING per item)
                 var typedOutput = await adapter.ExecuteUntypedAsync(typedInput, context);
@@ -354,15 +539,41 @@ public class DataFlowGraph
                 // Store typed output for downstream blocks
                 Output = typedOutput;
 
-                // Handle output routing with zero-boxing
+                // Collect output routers from edges and buffer nodes
+                var outputRouters = new List<ITypedEdgeRouter>();
+
+                // Add routers from regular edges
                 if (_outgoingEdges.ContainsKey(_block) && _outgoingEdges[_block].Count > 0)
                 {
                     var edges = _outgoingEdges[_block];
-                    var outputRouters = edges
+                    var edgeRouters = edges
                         .Where(e => _pipeline.EdgeRuntimeModels.ContainsKey(e) && _pipeline.EdgeRuntimeModels[e].Router != null)
                         .Select(e => _pipeline.EdgeRuntimeModels[e].Router!)
                         .ToList();
-                    
+                    outputRouters.AddRange(edgeRouters);
+                }
+
+                // Add routers for buffer nodes this block writes to
+                var bufferNodesToWrite = _bufferProducers
+                    .Where(kvp => kvp.Value.Contains(_block))
+                    .Select(kvp => kvp.Key)
+                    .ToList();
+
+                foreach (var bufferNode in bufferNodesToWrite)
+                {
+                    if (_pipeline.BufferRuntimeModels.TryGetValue(bufferNode, out var bufferModel))
+                    {
+                        var router = TypedBufferNodeRouterFactory.CreateTypedRouter(
+                            adapter.OutputItemType,
+                            bufferNode,
+                            bufferModel.Writer);
+                        outputRouters.Add(router);
+                    }
+                }
+
+                // Route output
+                if (outputRouters.Count > 0)
+                {
                     // Enumerate typed output and route without boxing
                     await ReflectionHelper.EnumerateAndRouteTypedStreamAsync(
                         typedOutput, 
@@ -377,7 +588,7 @@ public class DataFlowGraph
                 }
 
                 // Complete all outgoing typed channels
-                _pipeline.CompleteOutgoingChannels(_block, _outgoingEdges, logger);
+                _pipeline.CompleteOutgoingChannels(_block, _outgoingEdges, _bufferProducers, logger);
 
                 logger.LogDebug("Block {BlockName} completed successfully", _block.Name);
             }
@@ -386,7 +597,7 @@ public class DataFlowGraph
                 logger.LogError(ex, "Block {BlockName} failed with error", _block.Name);
 
                 // Complete typed channel writers with exception
-                _pipeline.CompleteOutgoingChannels(_block, _outgoingEdges, logger, ex);
+                _pipeline.CompleteOutgoingChannels(_block, _outgoingEdges, _bufferProducers, logger, ex);
                 throw;
             }
         }
@@ -401,5 +612,17 @@ public class DataFlowGraph
         public Dictionary<IBlock, object> Writers { get; set; } = new();
         public Dictionary<IBlock, object> Readers { get; set; } = new();
         public ITypedEdgeRouter? Router { get; set; }
+    }
+
+    /// <summary>
+    /// Runtime model for a buffer node during execution.
+    /// Encapsulates the typed channel writer and reader for the buffer.
+    /// </summary>
+    private class BufferRuntimeModel
+    {
+        public object Writer { get; set; } = null!;
+        public object Reader { get; set; } = null!;
+        public HashSet<IBlock> CompletedProducers { get; } = new();
+        public object CompletionLock { get; } = new();
     }
 }

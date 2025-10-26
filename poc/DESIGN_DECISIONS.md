@@ -603,10 +603,172 @@ private readonly List<IBlock> _blocks;
 - Aligns with expert recommendation: "Promote Edge strategies (broadcast, competing, cloning, routed)"
 - Clean separation: blocks = logic, edges = delivery, graph = orchestration
 
+## Buffer Nodes (✅ Phase 3 - NEW)
+
+### Overview
+
+Buffer Nodes are first-class representations of shared channels in the graph, providing explicit visibility and control for **fan-in** (multiple producers → single buffer) and **fan-out** (single buffer → multiple competing consumers) scenarios. Unlike regular edges that connect blocks directly, Buffer Nodes are configurable channel buffers that can be referenced and connected to multiple upstream producers and downstream consumers.
+
+**Note:** Block-to-block connections (without BufferNode) continue to use edge-level stream merging for fan-in as before. BufferNode is specifically for scenarios requiring explicit buffer representation and control.
+
+### Terminology
+
+- **Fan-in**: Multiple producers writing to a single shared buffer
+- **Fan-out**: Multiple consumers competing to read from a single shared buffer (each item consumed once)
+- When producers and consumers are balanced (e.g., 3 producers → buffer → 3 consumers), both fan-in and fan-out occur, maintaining overall concurrency
+
+### Motivation
+
+Before Buffer Nodes, connecting multiple producers to multiple consumers was difficult and required workarounds:
+
+**Without BufferNode** (complex, unclear topology):
+```csharp
+// Trying to connect 2 producers to 2 consumers
+// Option 1: Connect each producer to each consumer (4 edges, duplicated processing)
+builder.Connect(producer1, consumer1);
+builder.Connect(producer1, consumer2);
+builder.Connect(producer2, consumer1);
+builder.Connect(producer2, consumer2);
+// Problem: Each consumer receives ALL items from BOTH producers (duplication)
+
+// Option 2: Use CompetingEdgeStrategy (only works for single source)
+var competingEdge = new Edge(producer1, new[] { consumer1, consumer2 }, new CompetingEdgeStrategy());
+// Problem: Can only connect ONE producer, not multiple
+
+// Option 3: Manual intermediate block to consolidate
+// Problem: Requires custom block logic, not explicit in graph
+```
+
+**With BufferNode** (clean, explicit topology):
+```csharp
+var buffer = builder.Buffer<int>(capacity: 100);  // name optional
+builder.Connect(producer1, buffer);
+builder.Connect(producer2, buffer);
+builder.Connect(buffer, consumer1);
+builder.Connect(buffer, consumer2);
+// Clear: 2 producers write to shared buffer, 2 consumers compete for items
+```
+
+### Graph Node Types
+
+The POC now has three first-class node types:
+
+| Node Type | Purpose | Multiple Inputs | Multiple Outputs | Transformation Logic |
+|-----------|---------|-----------------|------------------|---------------------|
+| **Block** (`IBlock`) | Data transformation | ❌ Single source | ✅ Multiple (via edges) | ✅ Yes (`ExecuteAsync`) |
+| **Buffer** (`BufferNode`) | Shared channel buffer | ✅ Multiple producers | ✅ Multiple consumers | ❌ No (pure buffering) |
+| **Edge** | Connection between nodes | Single source | Single/Multiple targets | ❌ No (routing only) |
+
+**Why BufferNode isn't IBlock:** IBlock is designed for single-input transformation pipelines. It doesn't have semantics to:
+- Accept input from multiple independent source streams
+- Provide multiple independent output streams (it provides one output that edges can fan out)
+- Represent a stateful buffer that consolidates and redistributes items
+
+### Design
+
+**BufferNode** is a separate entity from `IBlock`:
+- Does not have transformation logic (no `ExecuteAsync`)
+- Backed by a single `Channel<T>` with configurable capacity
+- Enables multiple upstream producers (fan-in) and multiple downstream consumers (fan-out with competition)
+
+### Usage Example
+
+```csharp
+var builder = new DataFlowGraphBuilder("fan-in-fan-out-flow");
+
+// Create a shared buffer with capacity 100 (name is optional)
+var buffer = builder.Buffer<int>(capacity: 100, name: "shared-buffer");
+
+// Connect multiple producers to buffer (fan-in)
+builder.Connect(producer1, buffer);
+builder.Connect(producer2, buffer);
+
+// Connect buffer to multiple consumers (fan-out - consumers compete)
+builder.Connect(buffer, consumer1);
+builder.Connect(buffer, consumer2);
+
+var graph = builder.Build();
+```
+
+### What BufferNode Enables Beyond Standard Channels
+
+Since BufferNode is backed by `Channel<T>`, it inherits backpressure control, bounded capacity, and concurrent read/write support. What makes BufferNode unique:
+
+1. **Explicit Fan-In/Fan-Out Topology**
+   - Makes multi-producer/multi-consumer patterns visible in the graph
+   - No need for workarounds like all-to-all connections or intermediate blocks
+
+2. **Automatic Producer Completion Tracking**
+   - Channel closes only when ALL producers complete (not just one)
+   - Handles complex coordination automatically
+
+3. **Channel Optimization**
+   - Detects single reader/writer scenarios and optimizes accordingly
+   - Applied transparently based on actual connections
+
+### Implementation Details
+
+**Builder API:**
+```csharp
+// Generic version for compile-time type safety
+public BufferNode<T> Buffer<T>(string name, int capacity = 100)
+
+// Non-generic version for runtime type specification
+public BufferNode Buffer(string name, Type dataType, int capacity = 100)
+
+// Connect block to buffer
+public DataFlowGraphBuilder Connect(IBlock source, BufferNode target)
+
+// Connect buffer to block
+public DataFlowGraphBuilder Connect(BufferNode source, IBlock target)
+```
+
+**Graph Execution:**
+- Buffer nodes create a single typed `Channel<T>` during pipeline building
+- Writers are shared among all producer blocks
+- Readers are shared among all consumer blocks
+- Channel completion is coordinated - closes only when all producers complete
+- Uses `TypedBufferNodeRouter` for zero-boxing routing
+
+### Comparison with Edge Strategies
+
+| Feature | BufferNode | CompetingEdgeStrategy |
+|---------|------------|----------------------|
+| **Fan-In (Multiple Producers)** | ✅ Yes | ❌ No (single source) |
+| **Fan-Out (Multiple Consumers)** | ✅ Yes | ✅ Yes |
+| **Explicit Channel Reference** | ✅ Yes (named node) | ❌ No (implicit in edge) |
+| **Configurable Capacity** | ✅ Yes (per buffer) | ✅ Yes (per edge) |
+| **Graph Visibility** | ✅ High (visible as node) | ⚠️ Medium (edge metadata) |
+
+**Use CompetingEdgeStrategy when:**
+- Single producer with multiple competing consumers
+- Don't need to reference the shared channel by name
+
+**Use BufferNode when:**
+- Multiple producers need to feed the same buffer (fan-in)
+- Need explicit visibility of buffer in graph topology
+- Want to reference the buffer by name for clarity
+- Complex multi-producer, multi-consumer scenarios
+
+### Status
+
+✅ **FULLY IMPLEMENTED**
+- BufferNode class with type safety
+- Builder API with `Buffer()` and `Connect()` methods
+- Graph execution with proper channel management
+- Producer completion tracking for multi-producer scenarios
+- 7 comprehensive tests covering all scenarios:
+  - Single producer to single consumer
+  - Multiple producers to single consumer
+  - Single producer to multiple consumers (competing)
+  - Multiple producers to multiple consumers
+  - Backpressure enforcement
+  - Type compatibility validation
+
 ### Future Work (Remaining Items)
 - ⏭️ Dynamic routing support (requires graph-level route creation)
 - ⏭️ Graph-level producer concurrency management (ProducerGroup pattern)
-- ⏭️ Performance benchmarking (RouterBlock, BatchBlock)
+- ⏭️ Performance benchmarking (RouterBlock, BatchBlock, BufferNode)
 - ⏭️ Consider struct vs record for RoutedItem<T>
 
 ### Transitional Components

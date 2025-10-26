@@ -1,0 +1,252 @@
+namespace DataFlow.POC.Tests;
+
+using DataFlow.POC.Blocks;
+using DataFlow.POC.Builder;
+using DataFlow.POC.Core;
+using Microsoft.Extensions.DependencyInjection;
+using Shouldly;
+using Xunit;
+using Xunit.Abstractions;
+
+/// <summary>
+/// Demonstrates the BufferNode feature with practical examples.
+/// </summary>
+public class BufferNodeDemonstrationTests
+{
+    private readonly ITestOutputHelper _output;
+
+    public BufferNodeDemonstrationTests(ITestOutputHelper output)
+    {
+        _output = output;
+    }
+
+    private static async IAsyncEnumerable<int> ProduceIntegers(IExecutionContext ctx, int start, int count)
+    {
+        for (int i = start; i < start + count; i++)
+        {
+            yield return i;
+        }
+        await Task.CompletedTask;
+    }
+
+    [Fact]
+    [Trait("Category", "Documentation")]
+    public async Task BufferNode_Demonstration_FanIn_Scenario()
+    {
+        // Scenario: Multiple data sources (producers) feed into a single shared buffer,
+        // which is then consumed by a single processor.
+        // This is useful for consolidating data from multiple sources before processing.
+
+        _output.WriteLine("=== Fan-In Scenario: Multiple Producers → Single Buffer → Single Consumer ===");
+
+        var processedItems = new List<(int value, string source)>();
+        var services = new ServiceCollection().BuildServiceProvider();
+
+        // Create three producers that generate different ranges of numbers
+        var producer1 = new ProducerBlock<int>("producer-A", ctx => ProduceIntegers(ctx, 1, 3));
+        var producer2 = new ProducerBlock<int>("producer-B", ctx => ProduceIntegers(ctx, 100, 3));
+        var producer3 = new ProducerBlock<int>("producer-C", ctx => ProduceIntegers(ctx, 200, 3));
+
+        // Create a processor that tracks which items it receives
+        var processor = new ProcessorBlock<int>("processor", async (item, ctx) =>
+        {
+            var source = item < 100 ? "A" : (item < 200 ? "B" : "C");
+            lock (processedItems)
+            {
+                processedItems.Add((item, source));
+                _output.WriteLine($"  Processed: {item} from Producer-{source}");
+            }
+            await Task.CompletedTask;
+        });
+
+        // Build the graph with a shared buffer
+        var builder = new DataFlowGraphBuilder("fan-in-demo");
+        var sharedBuffer = builder.Buffer<int>(capacity: 10);
+
+        builder.AddBlock(producer1)
+            .AddBlock(producer2)
+            .AddBlock(producer3)
+            .AddBlock(processor)
+            .Connect(producer1, sharedBuffer)
+            .Connect(producer2, sharedBuffer)
+            .Connect(producer3, sharedBuffer)
+            .Connect(sharedBuffer, processor);
+
+        var graph = builder.Build();
+        var context = new ExecutionContext(services, CancellationToken.None);
+
+        // Execute
+        await graph.ExecuteAsync(context);
+
+        // Verify
+        _output.WriteLine($"\nTotal items processed: {processedItems.Count}");
+        processedItems.Count.ShouldBe(9); // 3 items from each producer
+        
+        var fromA = processedItems.Where(x => x.source == "A").Select(x => x.value).OrderBy(x => x).ToList();
+        var fromB = processedItems.Where(x => x.source == "B").Select(x => x.value).OrderBy(x => x).ToList();
+        var fromC = processedItems.Where(x => x.source == "C").Select(x => x.value).OrderBy(x => x).ToList();
+        
+        fromA.ShouldBe(new[] { 1, 2, 3 });
+        fromB.ShouldBe(new[] { 100, 101, 102 });
+        fromC.ShouldBe(new[] { 200, 201, 202 });
+    }
+
+    [Fact]
+    [Trait("Category", "Documentation")]
+    public async Task BufferNode_Demonstration_FanOut_Scenario()
+    {
+        // Scenario: Single producer feeds a buffer, which distributes work to multiple
+        // competing consumers (workers) for parallel processing.
+        // This is useful for load balancing and parallel processing.
+
+        _output.WriteLine("=== Fan-Out Scenario: Single Producer → Buffer → Multiple Competing Consumers ===");
+
+        var worker1Items = new List<int>();
+        var worker2Items = new List<int>();
+        var worker3Items = new List<int>();
+        var services = new ServiceCollection().BuildServiceProvider();
+
+        // Create a single producer
+        var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(ctx, 1, 15));
+
+        // Create three workers that compete for items
+        var worker1 = new ProcessorBlock<int>("worker-1", async (item, ctx) =>
+        {
+            lock (worker1Items)
+            {
+                worker1Items.Add(item);
+                _output.WriteLine($"  Worker-1 processed: {item}");
+            }
+            await Task.Delay(10); // Simulate work
+        });
+
+        var worker2 = new ProcessorBlock<int>("worker-2", async (item, ctx) =>
+        {
+            lock (worker2Items)
+            {
+                worker2Items.Add(item);
+                _output.WriteLine($"  Worker-2 processed: {item}");
+            }
+            await Task.Delay(10); // Simulate work
+        });
+
+        var worker3 = new ProcessorBlock<int>("worker-3", async (item, ctx) =>
+        {
+            lock (worker3Items)
+            {
+                worker3Items.Add(item);
+                _output.WriteLine($"  Worker-3 processed: {item}");
+            }
+            await Task.Delay(10); // Simulate work
+        });
+
+        // Build the graph with a shared buffer
+        var builder = new DataFlowGraphBuilder("fan-out-demo");
+        var workQueue = builder.Buffer<int>(capacity: 5);
+
+        builder.AddBlock(producer)
+            .AddBlock(worker1)
+            .AddBlock(worker2)
+            .AddBlock(worker3)
+            .Connect(producer, workQueue)
+            .Connect(workQueue, worker1)
+            .Connect(workQueue, worker2)
+            .Connect(workQueue, worker3);
+
+        var graph = builder.Build();
+        var context = new ExecutionContext(services, CancellationToken.None);
+
+        // Execute
+        await graph.ExecuteAsync(context);
+
+        // Verify
+        _output.WriteLine($"\nWork distribution:");
+        _output.WriteLine($"  Worker-1: {worker1Items.Count} items");
+        _output.WriteLine($"  Worker-2: {worker2Items.Count} items");
+        _output.WriteLine($"  Worker-3: {worker3Items.Count} items");
+
+        // Each worker should have processed some items
+        worker1Items.Count.ShouldBeGreaterThan(0);
+        worker2Items.Count.ShouldBeGreaterThan(0);
+        worker3Items.Count.ShouldBeGreaterThan(0);
+
+        // Total should be 15
+        (worker1Items.Count + worker2Items.Count + worker3Items.Count).ShouldBe(15);
+
+        // No duplicates - each item processed exactly once
+        var allItems = worker1Items.Concat(worker2Items).Concat(worker3Items).OrderBy(x => x).ToList();
+        allItems.ShouldBe(Enumerable.Range(1, 15));
+    }
+
+    [Fact]
+    [Trait("Category", "Documentation")]
+    public async Task BufferNode_Demonstration_Complex_Pipeline()
+    {
+        // Scenario: Multiple producers → Buffer → Multiple workers → Another buffer → Final consumer
+        // This demonstrates chaining buffer nodes in a complex pipeline.
+
+        _output.WriteLine("=== Complex Pipeline: Multi-stage with Buffer Nodes ===");
+
+        var finalResults = new List<string>();
+        var services = new ServiceCollection().BuildServiceProvider();
+
+        // Stage 1: Two producers generate numbers
+        var producer1 = new ProducerBlock<int>("producer-1", ctx => ProduceIntegers(ctx, 1, 5));
+        var producer2 = new ProducerBlock<int>("producer-2", ctx => ProduceIntegers(ctx, 100, 5));
+
+        // Stage 2: Two workers transform numbers to strings
+        var transformer1 = new SimpleTransformerBlock<int, string>("transformer-1", x =>
+        {
+            _output.WriteLine($"  Transformer-1: {x} → '{x}'");
+            return $"T1-{x}";
+        });
+        var transformer2 = new SimpleTransformerBlock<int, string>("transformer-2", x =>
+        {
+            _output.WriteLine($"  Transformer-2: {x} → '{x}'");
+            return $"T2-{x}";
+        });
+
+        // Stage 3: Final processor
+        var finalProcessor = new ProcessorBlock<string>("final-processor", async (item, ctx) =>
+        {
+            lock (finalResults)
+            {
+                finalResults.Add(item);
+                _output.WriteLine($"  Final: {item}");
+            }
+            await Task.CompletedTask;
+        });
+
+        // Build the graph with two buffer nodes
+        var builder = new DataFlowGraphBuilder("complex-pipeline-demo");
+        var inputBuffer = builder.Buffer<int>(capacity: 10);
+        var outputBuffer = builder.Buffer<string>(capacity: 10);
+
+        builder.AddBlock(producer1)
+            .AddBlock(producer2)
+            .AddBlock(transformer1)
+            .AddBlock(transformer2)
+            .AddBlock(finalProcessor)
+            // Stage 1: Producers → Input Buffer
+            .Connect(producer1, inputBuffer)
+            .Connect(producer2, inputBuffer)
+            // Stage 2: Input Buffer → Transformers → Output Buffer
+            .Connect(inputBuffer, transformer1)
+            .Connect(inputBuffer, transformer2)
+            .Connect(transformer1, outputBuffer)
+            .Connect(transformer2, outputBuffer)
+            // Stage 3: Output Buffer → Final Processor
+            .Connect(outputBuffer, finalProcessor);
+
+        var graph = builder.Build();
+        var context = new ExecutionContext(services, CancellationToken.None);
+
+        // Execute
+        _output.WriteLine("\nExecuting pipeline...\n");
+        await graph.ExecuteAsync(context);
+
+        // Verify
+        _output.WriteLine($"\nTotal results: {finalResults.Count}");
+        finalResults.Count.ShouldBe(10); // 5 from each producer
+    }
+}

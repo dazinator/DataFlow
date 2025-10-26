@@ -1,5 +1,6 @@
 namespace DataFlow.POC.Core;
 
+using System.Linq.Expressions;
 using System.Reflection;
 using System.Threading.Channels;
 
@@ -244,5 +245,31 @@ public static class ReflectionHelper
         }
         
         completeMethod.Invoke(writerObj, new object?[] { exception });
+    }
+
+    /// <summary>
+    /// Creates a factory function that instantiates typed router instances using reflection.
+    /// This consolidates the expression-tree-based factory creation pattern used by router factories.
+    /// </summary>
+    /// <typeparam name="TRouter">The router interface type</typeparam>
+    /// <param name="genericRouterType">The generic router type (e.g., typeof(TypedBufferNodeRouter&lt;&gt;))</param>
+    /// <param name="itemType">The specific type parameter (e.g., int, string)</param>
+    /// <param name="constructorParamTypes">The parameter types for the router constructor</param>
+    /// <returns>A factory function that creates router instances</returns>
+    public static Func<object, TRouter> CreateTypedRouterFactory<TRouter>(
+        Type genericRouterType,
+        Type itemType,
+        Type[] constructorParamTypes)
+    {
+        var routerType = genericRouterType.MakeGenericType(itemType);
+        var constructor = routerType.GetConstructor(constructorParamTypes)
+            ?? throw new InvalidOperationException($"Could not find constructor for {routerType.Name}");
+
+        // Build expression: (param) => new TypedRouter<T>(param)
+        var param = Expression.Parameter(typeof(object), "param");
+        var newExpr = Expression.New(constructor, param);
+        var lambda = Expression.Lambda<Func<object, TRouter>>(newExpr, param);
+        
+        return lambda.Compile();
     }
 }

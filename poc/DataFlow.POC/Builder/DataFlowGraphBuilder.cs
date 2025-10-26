@@ -12,7 +12,10 @@ public class DataFlowGraphBuilder
     private readonly string _name;
     private readonly ILogger<DataFlowGraph> _logger;
     private readonly List<IBlock> _blocks = new();
+    private readonly List<BufferNode> _bufferNodes = new();
     private readonly List<Edge> _edges = new();
+    private readonly List<(IBlock source, BufferNode target)> _blockToBufferConnections = new();
+    private readonly List<(BufferNode source, IBlock target)> _bufferToBlockConnections = new();
 
     public DataFlowGraphBuilder(string name, ILogger<DataFlowGraph>? logger = null)
     {
@@ -128,6 +131,72 @@ public class DataFlowGraphBuilder
     }
 
     /// <summary>
+    /// Create a new buffer node with the specified data type and capacity.
+    /// A buffer node serves as a shared channel that multiple producers can write to
+    /// and multiple consumers can read from.
+    /// </summary>
+    /// <param name="dataType">The type of data flowing through the buffer</param>
+    /// <param name="capacity">The maximum capacity of the buffer (for backpressure control)</param>
+    /// <param name="name">Optional name for debugging and logging purposes</param>
+    /// <returns>The created buffer node</returns>
+    public BufferNode Buffer(Type dataType, int capacity = 100, string? name = null)
+    {
+        var buffer = new BufferNode(dataType, capacity, name);
+        _bufferNodes.Add(buffer);
+        return buffer;
+    }
+
+    /// <summary>
+    /// Create a new buffer node with the specified generic type and capacity.
+    /// A buffer node serves as a shared channel that multiple producers can write to
+    /// and multiple consumers can read from.
+    /// </summary>
+    /// <typeparam name="T">The type of data flowing through the buffer</typeparam>
+    /// <param name="capacity">The maximum capacity of the buffer (for backpressure control)</param>
+    /// <param name="name">Optional name for debugging and logging purposes</param>
+    /// <returns>The created buffer node</returns>
+    public BufferNode<T> Buffer<T>(int capacity = 100, string? name = null)
+    {
+        var buffer = new BufferNode<T>(capacity, name);
+        _bufferNodes.Add(buffer);
+        return buffer;
+    }
+
+    /// <summary>
+    /// Connect a block to a buffer node.
+    /// The block will write its output to the buffer's channel.
+    /// </summary>
+    public DataFlowGraphBuilder Connect(IBlock source, BufferNode target)
+    {
+        if (source.OutputType != target.DataType)
+        {
+            throw new ArgumentException(
+                $"Type mismatch: Source block '{source.Name}' output type {source.OutputType.Name} " +
+                $"does not match buffer node '{target.GetName()}' data type {target.DataType.Name}");
+        }
+
+        _blockToBufferConnections.Add((source, target));
+        return this;
+    }
+
+    /// <summary>
+    /// Connect a buffer node to a block.
+    /// The block will read its input from the buffer's channel.
+    /// </summary>
+    public DataFlowGraphBuilder Connect(BufferNode source, IBlock target)
+    {
+        if (source.DataType != target.InputType)
+        {
+            throw new ArgumentException(
+                $"Type mismatch: Buffer node '{source.GetName()}' data type {source.DataType.Name} " +
+                $"does not match target block '{target.Name}' input type {target.InputType.Name}");
+        }
+
+        _bufferToBlockConnections.Add((source, target));
+        return this;
+    }
+
+    /// <summary>
     /// Build the dataflow graph.
     /// </summary>
     public DataFlowGraph Build()
@@ -139,9 +208,25 @@ public class DataFlowGraphBuilder
             graph.AddBlock(block);
         }
 
+        foreach (var bufferNode in _bufferNodes)
+        {
+            graph.AddBufferNode(bufferNode);
+        }
+
         foreach (var edge in _edges)
         {
             graph.AddEdge(edge);
+        }
+
+        // Add buffer connections
+        foreach (var (source, target) in _blockToBufferConnections)
+        {
+            graph.AddBlockToBufferConnection(source, target);
+        }
+
+        foreach (var (source, target) in _bufferToBlockConnections)
+        {
+            graph.AddBufferToBlockConnection(source, target);
         }
 
         return graph;
