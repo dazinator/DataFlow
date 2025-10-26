@@ -528,13 +528,18 @@ public class DataFlowGraph
         {
             try
             {
+                logger.LogDebug("Block {BlockName} starting execution (Thread: {ThreadId})", _block.Name, Environment.CurrentManagedThreadId);
+                
                 var adapter = Adapter!;
                 
-                // Get the typed input stream for this block
+                // Get the typed input stream for this block                
                 var typedInput = _pipeline.GetBlockInputStream(_block, _incomingEdges, _bufferConsumers, adapter.InputItemType);
+                logger.LogDebug("Block {BlockName} got input stream", _block.Name);
 
                 // Execute the block using adapter - returns typed stream as object (NO BOXING per item)
                 var typedOutput = await adapter.ExecuteUntypedAsync(typedInput, context);
+                
+                logger.LogDebug("Block {BlockName} execute completed, starting enumeration", _block.Name);
                 
                 // Store typed output for downstream blocks
                 Output = typedOutput;
@@ -574,17 +579,24 @@ public class DataFlowGraph
                 // Route output
                 if (outputRouters.Count > 0)
                 {
+                   logger.LogDebug("Block {BlockName} routing output to {RouterCount} routers", _block.Name, outputRouters.Count);
                     // Enumerate typed output and route without boxing
                     await ReflectionHelper.EnumerateAndRouteTypedStreamAsync(
                         typedOutput, 
                         adapter.OutputItemType, 
                         outputRouters, 
                         context.CancellationToken);
+                    
+                    logger.LogDebug("Block {BlockName} completed routing output", _block.Name);
                 }
                 else
                 {
+                    logger.LogDebug("Block {BlockName} is terminal, enumerating to completion", _block.Name);
+                    
                     // Terminal block - enumerate output to completion
                     await ReflectionHelper.EnumerateTypedStreamAsync(typedOutput, adapter.OutputItemType, context.CancellationToken);
+                    
+                    logger.LogDebug("Block {BlockName} completed enumeration", _block.Name);
                 }
 
                 // Complete all outgoing typed channels

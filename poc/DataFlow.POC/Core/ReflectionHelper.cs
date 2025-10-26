@@ -97,33 +97,74 @@ public static class ReflectionHelper
         return MergeAsyncEnumerables(typed);
     }
     
+    /// <summary>
+    /// Merges multiple async enumerables into one using concurrent reading.
+    /// Uses a channel-based approach to read from all sources concurrently,
+    /// enabling proper concurrency scaling when multiple blocks feed into one downstream block.
+    /// </summary>
     private static async IAsyncEnumerable<T> MergeAsyncEnumerables<T>(List<IAsyncEnumerable<T>> sources)
     {
-        // Simple merge - interleaves items from multiple sources
-        // Note: More sophisticated merge strategies could be implemented
-        var enumerators = sources.Select(s => s.GetAsyncEnumerator()).ToList();
-        try
+        if (sources.Count == 0)
         {
-            while (true)
-            {
-                var hasAny = false;
-                foreach (var enumerator in enumerators)
-                {
-                    if (await enumerator.MoveNextAsync())
-                    {
-                        hasAny = true;
-                        yield return enumerator.Current;
-                    }
-                }
-                if (!hasAny) break;
-            }
+            yield break;
         }
-        finally
+        
+        if (sources.Count == 1)
         {
-            foreach (var enumerator in enumerators)
+            // Optimization: no merge needed for single source
+            await foreach (var item in sources[0])
             {
-                await enumerator.DisposeAsync();
+                yield return item;
             }
+            yield break;
+        }
+        
+        // Concurrent merge using channels - reads from all sources in parallel
+        // This enables proper concurrency scaling by allowing multiple producers to write simultaneously
+        // Using capacity=1 to maintain backpressure behavior similar to sequential merge
+        var channel = Channel.CreateBounded<T>(new BoundedChannelOptions(1)
+        {
+            SingleReader = true,
+            SingleWriter = false,
+            FullMode = BoundedChannelFullMode.Wait
+        });
+        
+        // Start concurrent readers for all sources
+        var readerTasks = sources.Select(source => ReadSourceIntoChannelAsync(source, channel.Writer)).ToList();
+        
+        // Start a completion task that completes the channel when all readers finish
+        var completionTask = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.WhenAll(readerTasks);
+                channel.Writer.Complete();
+            }
+            catch (Exception ex)
+            {
+                channel.Writer.Complete(ex);
+            }
+        });
+        
+        // Yield items from the channel as they arrive
+        await foreach (var item in channel.Reader.ReadAllAsync())
+        {
+            yield return item;
+        }
+        
+        // Ensure completion task finishes and propagate any exceptions
+        await completionTask;
+    }
+    
+    /// <summary>
+    /// Helper method to read from a source and write to a channel.
+    /// Each source runs concurrently, enabling parallel reading from multiple upstream blocks.
+    /// </summary>
+    private static async Task ReadSourceIntoChannelAsync<T>(IAsyncEnumerable<T> source, ChannelWriter<T> writer)
+    {
+        await foreach (var item in source)
+        {
+            await writer.WriteAsync(item).ConfigureAwait(false);
         }
     }
     

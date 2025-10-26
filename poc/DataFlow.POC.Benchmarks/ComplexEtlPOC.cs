@@ -17,7 +17,8 @@ using DataFlow.POC.Core;
 public static class ComplexEtlPOC
 {
     /// <summary>
-    /// Builds the complete ETL dataflow using POC DataFlowGraphBuilder
+    /// Builds the complete ETL dataflow using POC DataFlowGraphBuilder.
+    /// Uses POC architecture pattern: concurrency via multiple block instances + CompetingEdgeStrategy.
     /// </summary>
     public static DataFlowGraph BuildDataFlow(
         IServiceProvider serviceProvider,
@@ -31,89 +32,89 @@ public static class ComplexEtlPOC
         var dataSource = new ProducerBlock<RawRecord>("data-source",
             ctx => ProduceRawRecords(recordCount, ctx.CancellationToken));
 
-        // Transform: Parse and validate records
-        var validator = new TransformerBlock<RawRecord, ValidatedRecord>("validator",
-            (record, ctx) =>
-            {
-                return ValidateRecord(record);
-            });
+        // Transform: Parse and validate records - use multiple instances for concurrency
+        var validators = new List<TransformerBlock<RawRecord, ValidatedRecord>>();
+        for (int i = 0; i < maxConcurrency; i++)
+        {
+            validators.Add(new TransformerBlock<RawRecord, ValidatedRecord>($"validator-{i}",
+                (record, ctx) => ValidateRecord(record)));
+        }
 
-        // Transform: Enrich with additional data
-        var enricher = new TransformerBlock<ValidatedRecord, EnrichedRecord>("enricher",
-            (record, ctx) =>
-            {
-                return EnrichRecord(record, ctx.CancellationToken);
-            });
+        // Transform: Enrich with additional data - use multiple instances for concurrency
+        var enrichers = new List<TransformerBlock<ValidatedRecord, EnrichedRecord>>();
+        for (int i = 0; i < maxConcurrency; i++)
+        {
+            enrichers.Add(new TransformerBlock<ValidatedRecord, EnrichedRecord>($"enricher-{i}",
+                (record, ctx) => EnrichRecord(record, ctx.CancellationToken)));
+        }
 
         // Broadcast: Fan out enriched records for parallel processing
         var broadcast = new BroadcastBlock<EnrichedRecord>("broadcast");
 
         // Broadcast Fan-out Path 1: Metrics collector
         var metricsCollector = new ProcessorBlock<EnrichedRecord>("metrics-collector",
-            (record, ctx) =>
-            {
-                return CollectMetrics(record);
-            });
+            (record, ctx) => CollectMetrics(record));
 
         // Broadcast Fan-out Path 2: Audit logger
         var auditLogger = new ProcessorBlock<EnrichedRecord>("audit-logger",
-            (record, ctx) =>
-            {
-                return LogAudit(record);
-            });
+            (record, ctx) => LogAudit(record));
 
         // Routing: Route enriched records by category
         var router = new RouterBlock<EnrichedRecord>("router", record => record.Category);
 
-        // TypeA route: Process individual records
+        // TypeA route: Process individual records - use multiple instances for concurrency
         var typeAFilter = new RouteFilterBlock<EnrichedRecord>("typeA-filter", "TypeA");
-        var typeAProcessor = new TransformerBlock<EnrichedRecord, ProcessedRecord>("typeA-processor",
-            (record, ctx) =>
-            {
-                return ProcessRecord(record);
-            });
-        var typeAWriter = new ProcessorBlock<ProcessedRecord>("typeA-writer",
-            (record, ctx) =>
-            {
-                return WriteRecord(record, ctx.CancellationToken);
-            });
+        var typeAProcessors = new List<TransformerBlock<EnrichedRecord, ProcessedRecord>>();
+        for (int i = 0; i < maxConcurrency; i++)
+        {
+            typeAProcessors.Add(new TransformerBlock<EnrichedRecord, ProcessedRecord>($"typeA-processor-{i}",
+                (record, ctx) => ProcessRecord(record)));
+        }
+        var typeAWriters = new List<ProcessorBlock<ProcessedRecord>>();
+        for (int i = 0; i < maxConcurrency; i++)
+        {
+            typeAWriters.Add(new ProcessorBlock<ProcessedRecord>($"typeA-writer-{i}",
+                (record, ctx) => WriteRecord(record, ctx.CancellationToken)));
+        }
 
         // TypeB route: Batch and aggregate records
         var typeBFilter = new RouteFilterBlock<EnrichedRecord>("typeB-filter", "TypeB");
         var typeBBatcher = new BatchBlock<EnrichedRecord>("typeB-batcher", batchSize, TimeSpan.FromMilliseconds(100));
         var typeBAggregator = new TransformerBlock<EnrichedRecord[], AggregatedBatch>("typeB-aggregator",
-            (batch, ctx) =>
-            {
-                return AggregateRecords(batch);
-            });
+            (batch, ctx) => AggregateRecords(batch));
         var typeBWriter = new ProcessorBlock<AggregatedBatch>("typeB-writer",
-            (batch, ctx) =>
-            {
-                return WriteAggregation(batch, ctx.CancellationToken);
-            });
+            (batch, ctx) => WriteAggregation(batch, ctx.CancellationToken));
 
         // TypeC route: Store directly
         var typeCFilter = new RouteFilterBlock<EnrichedRecord>("typeC-filter", "TypeC");
         var typeCWriter = new ProcessorBlock<EnrichedRecord>("typeC-writer",
-            (record, ctx) =>
-            {
-                return WriteCategoryRecord(record, "TypeC", ctx.CancellationToken);
-            });
+            (record, ctx) => WriteCategoryRecord(record, "TypeC", ctx.CancellationToken));
 
-        // Build the graph
+        // Add all blocks to the graph
+        builder.AddBlock(dataSource);
+        
+        foreach (var validator in validators)
+            builder.AddBlock(validator);
+        
+        foreach (var enricher in enrichers)
+            builder.AddBlock(enricher);
+        
         builder
-            .AddBlock(dataSource)
-            .AddBlock(validator)
-            .AddBlock(enricher)
             .AddBlock(broadcast)
             .AddBlock(metricsCollector)
             .AddBlock(auditLogger)
             .AddBlock(router)
             // TypeA route
-            .AddBlock(typeAFilter)
-            .AddBlock(typeAProcessor)
-            .AddBlock(typeAWriter)
-            // TypeB route
+            .AddBlock(typeAFilter);
+        
+        foreach (var processor in typeAProcessors)
+            builder.AddBlock(processor);
+        
+        foreach (var writer in typeAWriters)
+            builder.AddBlock(writer);
+        
+        // TypeB route
+        builder
             .AddBlock(typeBFilter)
             .AddBlock(typeBBatcher)
             .AddBlock(typeBAggregator)
@@ -122,13 +123,30 @@ public static class ComplexEtlPOC
             .AddBlock(typeCFilter)
             .AddBlock(typeCWriter);
 
-        // Connect blocks
-        builder
-            .Connect(dataSource, validator)
-            .Connect(validator, enricher)
-            .Connect(enricher, broadcast);
+        // Connect blocks using CompetingEdgeStrategy for concurrent processing
+        // Source to validators - competing consumers for parallel validation
+        builder.AddEdge(new Edge(
+            dataSource,
+            validators.Cast<IBlock>().ToList(),
+            new CompetingEdgeStrategy(BufferMode.Bounded, 100)));
 
-        // Broadcast to multiple paths
+        // Validators to enrichers - each validator connects to all enrichers via competing strategy
+        // This creates multiple competing channels that enrichers will merge and read from concurrently
+        foreach (var validator in validators)
+        {
+            builder.AddEdge(new Edge(
+                validator,
+                enrichers.Cast<IBlock>().ToList(),
+                new CompetingEdgeStrategy(BufferMode.Bounded, 100)));
+        }
+
+        // Enrichers to broadcast - merge all enricher outputs
+        foreach (var enricher in enrichers)
+        {
+            builder.Connect(enricher, broadcast);
+        }
+
+        // Broadcast to multiple paths (broadcast strategy - all consumers get all items)
         builder
             .AddEdge(new Edge(broadcast, metricsCollector, BufferMode.Bounded, 100))
             .AddEdge(new Edge(broadcast, auditLogger, BufferMode.Bounded, 100))
@@ -140,10 +158,20 @@ public static class ComplexEtlPOC
             .Connect(router, typeBFilter)
             .Connect(router, typeCFilter);
 
-        // TypeA route connections
-        builder
-            .Connect(typeAFilter, typeAProcessor)
-            .Connect(typeAProcessor, typeAWriter);
+        // TypeA route: filter -> processors (competing) -> writers (competing)
+        builder.AddEdge(new Edge(
+            typeAFilter,
+            typeAProcessors.Cast<IBlock>().ToList(),
+            new CompetingEdgeStrategy(BufferMode.Bounded, 100)));
+
+        // Processors to writers - each processor connects to all writers via competing strategy
+        foreach (var processor in typeAProcessors)
+        {
+            builder.AddEdge(new Edge(
+                processor,
+                typeAWriters.Cast<IBlock>().ToList(),
+                new CompetingEdgeStrategy(BufferMode.Bounded, 50)));
+        }
 
         // TypeB route connections
         builder
@@ -152,8 +180,7 @@ public static class ComplexEtlPOC
             .Connect(typeBAggregator, typeBWriter);
 
         // TypeC route connections
-        builder
-            .Connect(typeCFilter, typeCWriter);
+        builder.Connect(typeCFilter, typeCWriter);
 
         return builder.Build();
     }
