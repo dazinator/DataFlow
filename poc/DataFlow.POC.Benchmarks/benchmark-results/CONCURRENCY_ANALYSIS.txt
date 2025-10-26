@@ -1,0 +1,111 @@
+================================================================================
+CONCURRENCY SCALING ANALYSIS - POC vs Non-POC
+================================================================================
+
+Test Configuration: 10,000 records, Batch size: 100
+
+Concurrency Level: 1
+--------------------
+Non-POC: [===================] 11,825 ms (100%)
+POC:     [===================] 11,779 ms (100%)
+Ratio:   0.996x (POC slightly wins)
+
+Concurrency Level: 2
+--------------------
+Non-POC: [==========         ]  5,979 ms (51%)
+POC:     [===================] 11,823 ms (100%)
+Ratio:   1.98x (Non-POC 2x faster)
+Non-POC Speedup: 1.98x
+POC Speedup:     1.00x ⚠️
+
+Concurrency Level: 4
+--------------------
+Non-POC: [====               ]  2,883 ms (24%)
+POC:     [===================] 11,739 ms (99%)
+Ratio:   4.07x (Non-POC 4x faster)
+Non-POC Speedup: 4.10x
+POC Speedup:     1.00x ⚠️
+
+Concurrency Level: 8
+--------------------
+Non-POC: [==                 ]  1,501 ms (13%)
+POC:     [===================] 11,731 ms (99%)
+Ratio:   7.82x (Non-POC 8x faster)
+Non-POC Speedup: 7.88x ✅
+POC Speedup:     1.00x ❌
+
+================================================================================
+THROUGHPUT COMPARISON
+================================================================================
+
+Concurrency Level: 1
+--------------------
+Non-POC:    846 records/sec
+POC:        849 records/sec
+Difference: +0.4% (POC slightly higher)
+
+Concurrency Level: 2
+--------------------
+Non-POC:  1,672 records/sec
+POC:        846 records/sec
+Difference: -49.4% (POC lower)
+
+Concurrency Level: 4
+--------------------
+Non-POC:  3,468 records/sec
+POC:        852 records/sec
+Difference: -75.4% (POC lower)
+
+Concurrency Level: 8
+--------------------
+Non-POC:  6,660 records/sec
+POC:        852 records/sec
+Difference: -87.2% (POC lower)
+
+================================================================================
+KEY INSIGHTS
+================================================================================
+
+1. EQUAL AT BASELINE
+   At concurrency=1, both implementations perform identically.
+   This proves POC's core block execution logic is as efficient as Non-POC.
+
+2. NON-POC SCALES LINEARLY
+   Doubling concurrency roughly halves execution time (2x, 4x, 8x speedup).
+   This is ideal concurrency scaling behavior.
+
+3. POC DOESN'T SCALE
+   POC execution time remains constant (~11.7 seconds) regardless of concurrency.
+   This indicates blocks are NOT running in parallel.
+
+4. ROOT CAUSE HYPOTHESIS
+   - POC's individual blocks are efficient (proven by concurrency=1)
+   - POC's graph execution model forces sequential execution
+   - Possible causes:
+     a) Blocks waiting on single shared channel
+     b) Graph executor running blocks sequentially
+     c) Missing Task.Run() or similar parallelization
+     d) Synchronous coordination between blocks
+
+5. PRIORITY FIX
+   The POC needs architectural changes to enable parallel block execution.
+   This is NOT a block-level optimization issue - it's graph-level.
+
+================================================================================
+RECOMMENDATIONS
+================================================================================
+
+For POC Development Team:
+1. ✅ Don't optimize individual blocks - they're already efficient
+2. ❌ Focus on graph execution model
+3. 🔍 Profile a single run to see where time is spent
+4. �� Look for sequential execution patterns in graph executor
+5. 📊 Consider how Non-POC achieves parallelism and apply similar patterns
+
+For Performance Testing:
+1. ✅ Current benchmarks are comprehensive and informative
+2. ✅ Measurements are accurate and revealing
+3. ✅ Continue tracking these metrics as POC evolves
+4. 📈 Add profiling data once parallelism issue is identified
+
+================================================================================
