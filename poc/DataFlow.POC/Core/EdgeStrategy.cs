@@ -59,29 +59,31 @@ public abstract class EdgeStrategy
     public int BufferCapacity { get; }
 
     /// <summary>
-    /// Creates the required typed channel adapters for this edge strategy.
+    /// Creates the required typed channels for this edge strategy.
     /// Uses reflection with caching to create properly typed Channel&lt;T&gt; instances.
     /// This eliminates boxing overhead for value types.
     /// </summary>
     /// <param name="dataType">The type of data flowing through the channels</param>
     /// <param name="sourceBlock">The source block</param>
     /// <param name="targetBlocks">The target blocks</param>
-    /// <returns>Dictionary mapping target blocks to their typed channel adapters</returns>
-    public abstract Dictionary<IBlock, TypedChannelAdapter> CreateTypedChannels(
+    /// <returns>Typed channels - writers dictionary for routing, readers dictionary for consumption</returns>
+    public abstract (Dictionary<IBlock, object> writers, Dictionary<IBlock, object> readers) CreateTypedChannels(
         Type dataType,
         IBlock sourceBlock,
         IReadOnlyList<IBlock> targetBlocks);
 
     /// <summary>
-    /// Routes an item to the appropriate target channel(s) using typed channel adapters.
-    /// The adapters provide efficient non-generic access with minimal reflection overhead.
+    /// Routes an item to the appropriate target channel(s) using strongly-typed channel writers.
+    /// This method allows strategies to perform routing with typed channels, eliminating boxing overhead.
+    /// Strategies can perform any necessary transformations (e.g., cloning) before writing to channels.
     /// </summary>
+    /// <typeparam name="T">The type of items flowing through the channels</typeparam>
     /// <param name="item">The item to route</param>
-    /// <param name="channels">The typed channel adapters</param>
+    /// <param name="typedWriters">Dictionary of typed channel writers</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    public abstract Task RouteItemAsync(
-        object item,
-        Dictionary<IBlock, TypedChannelAdapter> channels,
+    public abstract Task RouteTypedItemAsync<T>(
+        T item,
+        Dictionary<IBlock, ChannelWriter<T>> typedWriters,
         CancellationToken cancellationToken);
 }
 
@@ -116,48 +118,54 @@ public class BroadcastEdgeStrategy : EdgeStrategy
         _cloneFunc = cloneFunc;
     }
 
-    public override Dictionary<IBlock, TypedChannelAdapter> CreateTypedChannels(
+    public override (Dictionary<IBlock, object> writers, Dictionary<IBlock, object> readers) CreateTypedChannels(
         Type dataType,
         IBlock sourceBlock,
         IReadOnlyList<IBlock> targetBlocks)
     {
-        var channels = new Dictionary<IBlock, TypedChannelAdapter>();
+        var writers = new Dictionary<IBlock, object>();
+        var readers = new Dictionary<IBlock, object>();
 
         foreach (var target in targetBlocks)
         {
-            var adapter = TypedChannelFactory.CreateTypedChannel(
+            var (writer, reader) = TypedChannelFactory.CreateTypedChannel(
                 dataType,
                 BufferMode,
                 BufferCapacity,
                 singleReader: true,
                 singleWriter: false);
             
-            channels[target] = adapter;
+            writers[target] = writer;
+            readers[target] = reader;
         }
 
-        return channels;
+        return (writers, readers);
     }
 
-    public override async Task RouteItemAsync(
-        object item,
-        Dictionary<IBlock, TypedChannelAdapter> channels,
+    /// <summary>
+    /// Routes an item to all target channels using typed writers.
+    /// Performs cloning if configured to ensure mutation isolation.
+    /// </summary>
+    public override async Task RouteTypedItemAsync<T>(
+        T item,
+        Dictionary<IBlock, ChannelWriter<T>> typedWriters,
         CancellationToken cancellationToken)
     {
-        // If cloning is enabled, clone for each target
         if (_cloneFunc != null)
         {
-            foreach (var adapter in channels.Values)
+            // Clone for each target to ensure isolation
+            foreach (var writer in typedWriters.Values)
             {
-                var clonedItem = _cloneFunc(item);
-                await adapter.WriteAsync(clonedItem, cancellationToken);
+                var clonedItem = (T)_cloneFunc(item!);
+                await writer.WriteAsync(clonedItem, cancellationToken).ConfigureAwait(false);
             }
         }
         else
         {
             // Write same reference to all channels (standard broadcast)
-            foreach (var adapter in channels.Values)
+            foreach (var writer in typedWriters.Values)
             {
-                await adapter.WriteAsync(item, cancellationToken);
+                await writer.WriteAsync(item, cancellationToken).ConfigureAwait(false);
             }
         }
     }
@@ -176,40 +184,45 @@ public class CompetingEdgeStrategy : EdgeStrategy
     {
     }
 
-    public override Dictionary<IBlock, TypedChannelAdapter> CreateTypedChannels(
+    public override (Dictionary<IBlock, object> writers, Dictionary<IBlock, object> readers) CreateTypedChannels(
         Type dataType,
         IBlock sourceBlock,
         IReadOnlyList<IBlock> targetBlocks)
     {
-        // Create a single shared channel adapter
-        var adapter = TypedChannelFactory.CreateTypedChannel(
+        // Create a single shared channel
+        var (writer, reader) = TypedChannelFactory.CreateTypedChannel(
             dataType,
             BufferMode,
             BufferCapacity,
             singleReader: false, // Multiple readers compete
             singleWriter: false);
 
-        var channels = new Dictionary<IBlock, TypedChannelAdapter>();
+        var writers = new Dictionary<IBlock, object>();
+        var readers = new Dictionary<IBlock, object>();
 
-        // All targets share the same channel adapter
+        // All targets share the same channel
         foreach (var target in targetBlocks)
         {
-            channels[target] = adapter;
+            writers[target] = writer;
+            readers[target] = reader;
         }
 
-        return channels;
+        return (writers, readers);
     }
 
-    public override async Task RouteItemAsync(
-        object item,
-        Dictionary<IBlock, TypedChannelAdapter> channels,
+    /// <summary>
+    /// Routes an item to the shared channel using typed writer.
+    /// First available consumer gets the item.
+    /// </summary>
+    public override async Task RouteTypedItemAsync<T>(
+        T item,
+        Dictionary<IBlock, ChannelWriter<T>> typedWriters,
         CancellationToken cancellationToken)
     {
-        // Write once to shared channel - first available consumer gets it
-        if (channels.Any())
+        if (typedWriters.Count > 0)
         {
-            var adapter = channels.Values.First();
-            await adapter.WriteAsync(item, cancellationToken);
+            var writer = typedWriters.Values.First();
+            await writer.WriteAsync(item, cancellationToken).ConfigureAwait(false);
         }
     }
 }

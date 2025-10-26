@@ -6,6 +6,15 @@ using Microsoft.Extensions.Logging;
 /// <summary>
 /// Represents a dataflow graph that orchestrates block execution and edge management.
 /// The graph owns topology, wiring, and execution coordination.
+/// <para>
+/// Architecture: Implements the Layered Responsibility Model for reduced-boxing execution.
+/// - Block implementation: Strongly-typed business logic (IBlock&lt;TIn, TOut&gt;)
+/// - Graph orchestration: Non-generic coordination using untyped references  
+/// - Execution hot path: Cached typed delegates minimizing boxing overhead
+/// </para>
+/// <para>
+/// See TYPED_CHANNEL_PERFORMANCE.md for detailed architecture and performance characteristics.
+/// </para>
 /// </summary>
 public class DataFlowGraph
 {
@@ -92,26 +101,48 @@ public class DataFlowGraph
     /// <summary>
     /// Execute the dataflow graph.
     /// This wires up all blocks and edges, starts execution, and waits for completion.
+    /// Uses ExecutableBlockAdapter for zero-boxing execution.
     /// </summary>
     public async Task ExecuteAsync(IExecutionContext context)
     {
         _logger.LogInformation("Starting execution of dataflow: {FlowName}", Name);
 
-        // Dictionary to store the output streams from each block
-        var blockOutputs = new Dictionary<IBlock, IAsyncEnumerable<object>>();
+        // Dictionary to store the typed output streams from each block (as objects)
+        var blockOutputs = new Dictionary<IBlock, object>();
 
-        // Dictionary to store typed channel adapters per target block per edge
-        // Structure: Edge -> (TargetBlock -> TypedChannelAdapter)
-        var edgeChannels = new Dictionary<Edge, Dictionary<IBlock, TypedChannelAdapter>>();
+        // Dictionary to store typed channel writers and readers per edge per target block
+        // Structure: Edge -> (TargetBlock -> Writer/Reader)
+        var edgeChannelWriters = new Dictionary<Edge, Dictionary<IBlock, object>>();
+        var edgeChannelReaders = new Dictionary<Edge, Dictionary<IBlock, object>>();
+        
+        // Dictionary to store typed edge routers for efficient routing without boxing
+        var edgeRouters = new Dictionary<Edge, ITypedEdgeRouter>();
+        
+        // Dictionary to store executable block adapters for zero-boxing execution
+        var blockAdapters = new Dictionary<IBlock, IExecutableBlock>();
 
-        // Create typed channel adapters for all buffered edges using their strategies
+        // Create typed channels for all buffered edges using their strategies
         foreach (var edge in _edges.Where(e => e.BufferMode != BufferMode.None))
         {
-            var channels = edge.Strategy.CreateTypedChannels(edge.DataType, edge.SourceBlock, edge.TargetBlocks);
-            edgeChannels[edge] = channels;
+            var (writers, readers) = edge.Strategy.CreateTypedChannels(edge.DataType, edge.SourceBlock, edge.TargetBlocks);
+            edgeChannelWriters[edge] = writers;
+            edgeChannelReaders[edge] = readers;
             
-            _logger.LogDebug("Created typed channel adapters for edge: {Edge} with strategy {Strategy} and type {DataType}", 
+            // Create typed edge router to eliminate boxing during routing
+            var router = TypedEdgeRouterFactory.CreateTypedRouter(edge.DataType, edge, writers);
+            edgeRouters[edge] = router;
+            
+            _logger.LogDebug("Created typed channels for edge: {Edge} with strategy {Strategy} and type {DataType}", 
                 edge, edge.Strategy.EdgeType, edge.DataType.Name);
+        }
+        
+        // Create executable block adapters for zero-boxing execution (reflection happens once here at build time)
+        foreach (var block in _blocks)
+        {
+            var adapter = ExecutableBlockFactory.CreateAdapter(block);
+            blockAdapters[block] = adapter;
+            _logger.LogDebug("Created executable adapter for block: {BlockName} with types {InputType} -> {OutputType}",
+                block.Name, block.InputType.Name, block.OutputType.Name);
         }
 
         // Start all blocks
@@ -123,69 +154,83 @@ public class DataFlowGraph
             {
                 try
                 {
-                    // Determine input source for this block
-                    IAsyncEnumerable<object> input;
+                    var adapter = blockAdapters[block];
+                    
+                    // Determine input source for this block (as typed stream object)
+                    object typedInput;
 
                     if (!_incomingEdges.ContainsKey(block) || _incomingEdges[block].Count == 0)
                     {
-                        // Source block - no input
-                        input = EmptyAsyncEnumerable();
+                        // Source block - no input, provide empty typed stream
+                        typedInput = CreateEmptyTypedStream(adapter.InputItemType);
                     }
                     else if (_incomingEdges[block].Count == 1)
                     {
                         // Single input edge
                         var edge = _incomingEdges[block][0];
-                        input = GetEdgeInput(block, edge, blockOutputs, edgeChannels);
+                        typedInput = GetTypedEdgeInput(block, edge, blockOutputs, edgeChannelReaders, adapter.InputItemType);
                     }
                     else
                     {
                         // Multiple inputs - merge them
                         var inputs = _incomingEdges[block]
-                            .Select(edge => GetEdgeInput(block, edge, blockOutputs, edgeChannels))
+                            .Select(edge => GetTypedEdgeInput(block, edge, blockOutputs, edgeChannelReaders, adapter.InputItemType))
                             .ToList();
-                        input = MergeAsyncEnumerables(inputs);
+                        typedInput = MergeTypedStreams(inputs, adapter.InputItemType);
                     }
 
-                    // Execute the block
-                    var output = block.ExecuteAsync(input, context);
+                    // Execute the block using adapter - returns typed stream as object (NO BOXING per item)
+                    var typedOutput = await adapter.ExecuteUntypedAsync(typedInput, context);
+                    
+                    // Store typed output for downstream blocks
+                    blockOutputs[block] = typedOutput;
 
-                    // Handle output routing
+                    // Handle output routing with zero-boxing
                     if (_outgoingEdges.ContainsKey(block) && _outgoingEdges[block].Count > 0)
                     {
-                        // Route output to downstream edges
-                        output = RouteOutput(block, output, _outgoingEdges[block], edgeChannels, context.CancellationToken);
+                        var outgoingEdges = _outgoingEdges[block];
+                        var outputRouters = outgoingEdges
+                            .Where(e => edgeRouters.ContainsKey(e))
+                            .Select(e => edgeRouters[e])
+                            .ToList();
+                        
+                        // Enumerate typed output and route without boxing
+                        await EnumerateAndRouteTypedStreamAsync(
+                            typedOutput, 
+                            adapter.OutputItemType, 
+                            outputRouters, 
+                            context.CancellationToken);
                     }
-
-                    // Materialize the output (consume the enumerable)
-                    await foreach (var item in output.WithCancellation(context.CancellationToken))
+                    else
                     {
-                        // Items are consumed/routed during enumeration
+                        // Terminal block - enumerate output to completion
+                        await EnumerateTypedStreamAsync(typedOutput, adapter.OutputItemType, context.CancellationToken);
                     }
 
-                    // Complete all outgoing typed channel adapters
+                    // Complete all outgoing typed channels
                     if (_outgoingEdges.ContainsKey(block))
                     {
                         foreach (var edge in _outgoingEdges[block])
                         {
-                            if (edgeChannels.TryGetValue(edge, out var channels))
+                            if (edgeChannelWriters.TryGetValue(edge, out var writers))
                             {
-                                // Deduplicate adapters in case of competing edge strategy
-                                // where multiple targets share the same channel adapter.
+                                // Deduplicate writers in case of competing edge strategy
+                                // where multiple targets share the same channel writer.
                                 // 
                                 // With CompetingEdgeStrategy, all target blocks receive the same
-                                // TypedChannelAdapter instance (they share one channel for competition).
-                                // We use Distinct() to ensure we only call Complete() once per unique adapter,
+                                // writer instance (they share one channel for competition).
+                                // We use Distinct() to ensure we only call Complete() once per unique writer,
                                 // preventing "channel already closed" exceptions.
                                 //
-                                // TypedChannelAdapter is a reference type, so Distinct() compares by reference equality,
-                                // which correctly identifies when multiple dictionary entries point to the same adapter.
-                                var uniqueAdapters = channels.Values
+                                // Writers are objects, so Distinct() compares by reference equality,
+                                // which correctly identifies when multiple dictionary entries point to the same writer.
+                                var uniqueWriters = writers.Values
                                     .Distinct()
                                     .ToList();
                                 
-                                foreach (var adapter in uniqueAdapters)
+                                foreach (var writerObj in uniqueWriters)
                                 {
-                                    adapter.Complete();
+                                    CompleteTypedWriter(writerObj);
                                 }
                                 _logger.LogDebug("Completed channels for edge: {Edge}", edge);
                             }
@@ -198,21 +243,21 @@ public class DataFlowGraph
                 {
                     _logger.LogError(ex, "Block {BlockName} failed with error", block.Name);
 
-                    // Complete typed channel adapters with exception
+                    // Complete typed channel writers with exception
                     if (_outgoingEdges.ContainsKey(block))
                     {
                         foreach (var edge in _outgoingEdges[block])
                         {
-                            if (edgeChannels.TryGetValue(edge, out var channels))
+                            if (edgeChannelWriters.TryGetValue(edge, out var writers))
                             {
-                                // Deduplicate adapters in case of competing edge strategy
-                                var uniqueAdapters = channels.Values
+                                // Deduplicate writers in case of competing edge strategy
+                                var uniqueWriters = writers.Values
                                     .Distinct()
                                     .ToList();
                                 
-                                foreach (var adapter in uniqueAdapters)
+                                foreach (var writerObj in uniqueWriters)
                                 {
-                                    adapter.Complete(ex);
+                                    CompleteTypedWriter(writerObj, ex);
                                 }
                             }
                         }
@@ -228,84 +273,6 @@ public class DataFlowGraph
         await Task.WhenAll(blockTasks);
 
         _logger.LogInformation("Completed execution of dataflow: {FlowName}", Name);
-    }
-
-    /// <summary>
-    /// Gets the IAsyncEnumerable input stream for a target block from an edge.
-    /// This method determines how the target block receives its input data:
-    /// - For inline (unbuffered) edges: returns direct reference to source block's output stream
-    /// - For buffered edges: returns stream that reads from the typed channel adapter associated with this target block
-    /// 
-    /// In competing consumer scenarios, multiple target blocks may share the same channel adapter,
-    /// causing them to compete for items. In broadcast scenarios, each target has its own channel adapter.
-    /// </summary>
-    /// <param name="targetBlock">The target block that will consume the input</param>
-    /// <param name="edge">The edge connecting source to target</param>
-    /// <param name="blockOutputs">Dictionary of direct output streams from blocks (for inline edges)</param>
-    /// <param name="edgeChannels">Dictionary of typed channel adapters created per edge and target block</param>
-    /// <returns>An IAsyncEnumerable that the target block will iterate over as its input</returns>
-    private IAsyncEnumerable<object> GetEdgeInput(
-        IBlock targetBlock,
-        Edge edge,
-        Dictionary<IBlock, IAsyncEnumerable<object>> blockOutputs,
-        Dictionary<Edge, Dictionary<IBlock, TypedChannelAdapter>> edgeChannels)
-    {
-        if (edge.BufferMode == BufferMode.None)
-        {
-            // Inline - connect directly to source block's output
-            if (!blockOutputs.ContainsKey(edge.SourceBlock))
-            {
-                throw new InvalidOperationException(
-                    $"Source block '{edge.SourceBlock.Name}' output not available for inline edge");
-            }
-            return blockOutputs[edge.SourceBlock];
-        }
-        else
-        {
-            // Buffered - read from typed channel adapter for this target block
-            if (!edgeChannels.ContainsKey(edge))
-            {
-                throw new InvalidOperationException($"Channels not found for edge: {edge}");
-            }
-            
-            var channels = edgeChannels[edge];
-            if (!channels.ContainsKey(targetBlock))
-            {
-                throw new InvalidOperationException(
-                    $"Channel not found for target block '{targetBlock.Name}' in edge: {edge}");
-            }
-            
-            return channels[targetBlock].ReadAllAsync();
-        }
-    }
-
-    /// <summary>
-    /// Routes output from a block to all its outgoing edges using edge strategies.
-    /// Each edge strategy determines how items are delivered to target blocks:
-    /// - BroadcastEdgeStrategy: writes to all target channels (each gets all items)
-    /// - CompetingEdgeStrategy: writes to shared channel (targets compete for items)
-    /// Uses typed channel adapters to eliminate boxing overhead.
-    /// </summary>
-    private async IAsyncEnumerable<object> RouteOutput(
-        IBlock sourceBlock,
-        IAsyncEnumerable<object> output,
-        List<Edge> outgoingEdges,
-        Dictionary<Edge, Dictionary<IBlock, TypedChannelAdapter>> edgeChannels,
-        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
-    {
-        await foreach (var item in output.WithCancellation(cancellationToken))
-        {
-            // Route to all outgoing edges using their strategies with typed channel adapters
-            foreach (var edge in outgoingEdges)
-            {
-                if (edgeChannels.TryGetValue(edge, out var channels))
-                {
-                    await edge.Strategy.RouteItemAsync(item, channels, cancellationToken);
-                }
-            }
-
-            yield return item; // Yield for potential observability or chaining of terminal blocks
-        }
     }
 
     private static async IAsyncEnumerable<object> EmptyAsyncEnumerable()
@@ -342,5 +309,183 @@ public class DataFlowGraph
                 await enumerator.DisposeAsync();
             }
         }
+    }
+    
+    /// <summary>
+    /// Creates an empty typed stream for source blocks with no input.
+    /// Uses reflection to create IAsyncEnumerable<T> at runtime.
+    /// </summary>
+    private object CreateEmptyTypedStream(Type itemType)
+    {
+        var method = typeof(DataFlowGraph).GetMethod(nameof(CreateEmptyTypedStreamGeneric), 
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        var genericMethod = method!.MakeGenericMethod(itemType);
+        return genericMethod.Invoke(null, null)!;
+    }
+    
+    private static async IAsyncEnumerable<T> CreateEmptyTypedStreamGeneric<T>()
+    {
+        await Task.CompletedTask;
+        yield break;
+    }
+    
+    /// <summary>
+    /// Gets typed input stream for a block from an edge.
+    /// Returns the stream as object to maintain type information.
+    /// </summary>
+    private object GetTypedEdgeInput(
+        IBlock targetBlock,
+        Edge edge,
+        Dictionary<IBlock, object> blockOutputs,
+        Dictionary<Edge, Dictionary<IBlock, object>> edgeChannelReaders,
+        Type itemType)
+    {
+        if (edge.BufferMode == BufferMode.None)
+        {
+            // Inline - return direct reference to typed output stream
+            if (!blockOutputs.ContainsKey(edge.SourceBlock))
+            {
+                throw new InvalidOperationException(
+                    $"Source block '{edge.SourceBlock.Name}' output not available for inline edge");
+            }
+            return blockOutputs[edge.SourceBlock];
+        }
+        else
+        {
+            // Buffered - get typed reader from channel and call ReadAllAsync
+            if (!edgeChannelReaders.ContainsKey(edge))
+            {
+                throw new InvalidOperationException($"Channels not found for edge: {edge}");
+            }
+            
+            var readers = edgeChannelReaders[edge];
+            if (!readers.ContainsKey(targetBlock))
+            {
+                throw new InvalidOperationException(
+                    $"Channel not found for target block '{targetBlock.Name}' in edge: {edge}");
+            }
+            
+            // Get the typed ChannelReader<T> and call its ReadAllAsync method
+            var typedReader = readers[targetBlock];
+            
+            // Use reflection to call ReadAllAsync on the typed reader
+            var readerType = typeof(ChannelReader<>).MakeGenericType(itemType);
+            var readAllAsyncMethod = readerType.GetMethod("ReadAllAsync");
+            if (readAllAsyncMethod == null)
+            {
+                throw new InvalidOperationException($"Could not find ReadAllAsync method on {readerType.Name}");
+            }
+            
+            // Invoke ReadAllAsync(CancellationToken.None) - returns IAsyncEnumerable<T>
+            var typedEnumerable = readAllAsyncMethod.Invoke(typedReader, new object[] { CancellationToken.None });
+            if (typedEnumerable == null)
+            {
+                throw new InvalidOperationException("ReadAllAsync returned null");
+            }
+            
+            return typedEnumerable;
+        }
+    }
+    
+    /// <summary>
+    /// Merges multiple typed streams into one.
+    /// Uses reflection to call generic method at runtime.
+    /// </summary>
+    private object MergeTypedStreams(List<object> typedStreams, Type itemType)
+    {
+        var method = typeof(DataFlowGraph).GetMethod(nameof(MergeTypedStreamsGeneric),
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        var genericMethod = method!.MakeGenericMethod(itemType);
+        return genericMethod.Invoke(null, new object[] { typedStreams })!;
+    }
+    
+    private static IAsyncEnumerable<T> MergeTypedStreamsGeneric<T>(List<object> typedStreams)
+    {
+        var typed = typedStreams.Cast<IAsyncEnumerable<T>>().ToList();
+        return MergeAsyncEnumerables(typed);
+    }
+    
+    /// <summary>
+    /// Enumerates a typed stream and routes items to typed routers without boxing.
+    /// Uses reflection to call generic method at runtime.
+    /// </summary>
+    private async Task EnumerateAndRouteTypedStreamAsync(
+        object typedStream,
+        Type itemType,
+        List<ITypedEdgeRouter> routers,
+        CancellationToken cancellationToken)
+    {
+        var method = typeof(DataFlowGraph).GetMethod(nameof(EnumerateAndRouteTypedStreamGenericAsync),
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        var genericMethod = method!.MakeGenericMethod(itemType);
+        var task = (Task)genericMethod.Invoke(null, new object[] { typedStream, routers, cancellationToken })!;
+        await task;
+    }
+    
+    private static async Task EnumerateAndRouteTypedStreamGenericAsync<T>(
+        object typedStream,
+        List<ITypedEdgeRouter> routers,
+        CancellationToken cancellationToken)
+    {
+        var stream = (IAsyncEnumerable<T>)typedStream;
+        await foreach (var item in stream.WithCancellation(cancellationToken))
+        {
+            // Route to all routers - using internal typed method when available
+            foreach (var router in routers)
+            {
+                if (router is TypedEdgeRouter<T> typedRouter)
+                {
+                    // Use internal method for zero-boxing routing
+                    await typedRouter.RouteTypedItemAsync(item, cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    // Fallback: box once and use public interface
+                    await router.RouteItemAsync(item!, cancellationToken).ConfigureAwait(false);
+                }
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Enumerates a typed stream to completion (for terminal blocks).
+    /// Uses reflection to call generic method at runtime.
+    /// </summary>
+    private async Task EnumerateTypedStreamAsync(
+        object typedStream,
+        Type itemType,
+        CancellationToken cancellationToken)
+    {
+        var method = typeof(DataFlowGraph).GetMethod(nameof(EnumerateTypedStreamGenericAsync),
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        var genericMethod = method!.MakeGenericMethod(itemType);
+        var task = (Task)genericMethod.Invoke(null, new object[] { typedStream, cancellationToken })!;
+        await task;
+    }
+    
+    private static async Task EnumerateTypedStreamGenericAsync<T>(
+        object typedStream,
+        CancellationToken cancellationToken)
+    {
+        var stream = (IAsyncEnumerable<T>)typedStream;
+        await foreach (var _ in stream.WithCancellation(cancellationToken))
+        {
+            // Terminal consumption - items are fully processed
+        }
+    }
+    
+    /// <summary>
+    /// Completes a typed channel writer using reflection.
+    /// </summary>
+    private void CompleteTypedWriter(object writerObj, Exception? exception = null)
+    {
+        // Get the Complete method: ChannelWriter<T>.Complete(Exception? exception)
+        var completeMethod = writerObj.GetType().GetMethod(nameof(ChannelWriter<int>.Complete), new[] { typeof(Exception) });
+        if (completeMethod == null)
+        {
+            throw new InvalidOperationException($"Could not find Complete method on {writerObj.GetType().Name}");
+        }
+        
+        completeMethod.Invoke(writerObj, new object?[] { exception });
     }
 }

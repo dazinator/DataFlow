@@ -5,9 +5,9 @@ using System.Reflection;
 using System.Threading.Channels;
 
 /// <summary>
-/// Factory for creating typed channel adapters using reflection with caching.
+/// Factory for creating typed channels using reflection with caching.
 /// This eliminates boxing overhead for value types while maintaining flexibility.
-/// Returns TypedChannelAdapter instances that encapsulate all reflection work.
+/// Returns typed Channel<T> writers and readers directly.
 /// </summary>
 public static class TypedChannelFactory
 {
@@ -15,17 +15,17 @@ public static class TypedChannelFactory
     private static readonly ConcurrentDictionary<(Type dataType, BufferMode mode, int capacity), MethodInfo> _cachedCreateMethods = new();
     
     /// <summary>
-    /// Creates a typed channel adapter for the specified data type and buffer configuration.
+    /// Creates a typed channel for the specified data type and buffer configuration.
     /// Uses reflection with caching to create Channel&lt;T&gt; instances at runtime.
-    /// Returns a TypedChannelAdapter that wraps the channel and provides efficient non-generic access.
+    /// Returns typed writer and reader objects that can be cast to ChannelWriter&lt;T&gt; and ChannelReader&lt;T&gt;.
     /// </summary>
     /// <param name="dataType">The type of data flowing through the channel</param>
     /// <param name="bufferMode">The buffering mode (None or Bounded)</param>
     /// <param name="bufferCapacity">The capacity for bounded channels</param>
     /// <param name="singleReader">Whether the channel has a single reader</param>
     /// <param name="singleWriter">Whether the channel has a single writer</param>
-    /// <returns>A TypedChannelAdapter that wraps the typed channel</returns>
-    public static TypedChannelAdapter CreateTypedChannel(
+    /// <returns>A tuple containing the typed writer and reader objects</returns>
+    public static (object writer, object reader) CreateTypedChannel(
         Type dataType,
         BufferMode bufferMode,
         int bufferCapacity,
@@ -84,7 +84,7 @@ public static class TypedChannelFactory
         var reader = readerProperty.GetValue(channel) 
             ?? throw new InvalidOperationException("Failed to get Reader from channel");
         
-        // Return an adapter that encapsulates the channel and caches all reflection work
-        return new TypedChannelAdapter(writer, reader, dataType);
+        // Return typed writer and reader directly (they are ChannelWriter<T> and ChannelReader<T>)
+        return (writer, reader);
     }
 }
