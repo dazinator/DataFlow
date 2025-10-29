@@ -1,5 +1,6 @@
 namespace DataFlow.POC.Core;
 
+using System.Collections.Concurrent;
 using System.Threading.Channels;
 
 /// <summary>
@@ -145,28 +146,61 @@ public class BroadcastEdgeStrategy : EdgeStrategy
     /// <summary>
     /// Routes an item to all target channels using typed writers.
     /// Performs cloning if configured to ensure mutation isolation.
+    /// Writes to all channels concurrently to avoid serialization bottleneck.
     /// </summary>
     public override async Task RouteTypedItemAsync<T>(
         T item,
         Dictionary<IBlock, ChannelWriter<T>> typedWriters,
         CancellationToken cancellationToken)
     {
-        if (_cloneFunc != null)
+        if (typedWriters.Count == 0)
         {
-            // Clone for each target to ensure isolation
-            foreach (var writer in typedWriters.Values)
+            return;
+        }
+
+        if (typedWriters.Count == 1)
+        {
+            // Optimization: single writer doesn't need Task.WhenAll overhead
+            // Use direct enumeration instead of First() to avoid creating enumerator
+            using var enumerator = typedWriters.Values.GetEnumerator();
+            enumerator.MoveNext();
+            var writer = enumerator.Current;
+            
+            if (_cloneFunc != null)
             {
                 var clonedItem = (T)_cloneFunc(item!);
                 await writer.WriteAsync(clonedItem, cancellationToken).ConfigureAwait(false);
             }
-        }
-        else
-        {
-            // Write same reference to all channels (standard broadcast)
-            foreach (var writer in typedWriters.Values)
+            else
             {
                 await writer.WriteAsync(item, cancellationToken).ConfigureAwait(false);
             }
+        }
+        else
+        {
+            // Multiple writers: write concurrently to avoid serialization bottleneck
+            var writeTasks = new Task[typedWriters.Count];
+            int index = 0;
+            
+            if (_cloneFunc != null)
+            {
+                // Clone for each target to ensure isolation
+                foreach (var writer in typedWriters.Values)
+                {
+                    var clonedItem = (T)_cloneFunc(item!);
+                    writeTasks[index++] = writer.WriteAsync(clonedItem, cancellationToken).AsTask();
+                }
+            }
+            else
+            {
+                // Write same reference to all channels (standard broadcast)
+                foreach (var writer in typedWriters.Values)
+                {
+                    writeTasks[index++] = writer.WriteAsync(item, cancellationToken).AsTask();
+                }
+            }
+            
+            await Task.WhenAll(writeTasks).ConfigureAwait(false);
         }
     }
 }
@@ -223,6 +257,111 @@ public class CompetingEdgeStrategy : EdgeStrategy
         {
             var writer = typedWriters.Values.First();
             await writer.WriteAsync(item, cancellationToken).ConfigureAwait(false);
+        }
+    }
+}
+
+/// <summary>
+/// Routing edge strategy for RouterBlock output - writes RoutedItem<T> to channels based on route key.
+/// Each target block is associated with a route key and gets its own channel.
+/// Only items matching the route key are written to that channel.
+/// This eliminates the need for downstream RouteFilterBlock instances to iterate through all items.
+/// Uses a compiled generic delegate to extract route keys efficiently without reflection overhead.
+/// 
+/// Note: The static route key extractor cache grows unbounded as new types are routed.
+/// For typical applications with a fixed set of data types, this is acceptable.
+/// For long-running applications with dynamically generated types, consider the memory implications.
+/// </summary>
+public class RoutedItemEdgeStrategy : EdgeStrategy
+{
+    private readonly Dictionary<string, IBlock> _routeKeyToBlock;
+    private static readonly ConcurrentDictionary<Type, Func<object, string>> _routeKeyExtractorCache = new();
+
+    /// <summary>
+    /// Creates a routing edge strategy for RoutedItem<T> types.
+    /// </summary>
+    /// <param name="routeKeyToBlock">Mapping of route keys to target blocks</param>
+    /// <param name="bufferMode">Buffering mode for channels</param>
+    /// <param name="bufferCapacity">Capacity of channels</param>
+    public RoutedItemEdgeStrategy(
+        Dictionary<string, IBlock> routeKeyToBlock,
+        BufferMode bufferMode = BufferMode.Bounded,
+        int bufferCapacity = 100)
+        : base(EdgeType.Routed, bufferMode, bufferCapacity)
+    {
+        _routeKeyToBlock = routeKeyToBlock ?? throw new ArgumentNullException(nameof(routeKeyToBlock));
+    }
+
+    public override (Dictionary<IBlock, object> writers, Dictionary<IBlock, object> readers) CreateTypedChannels(
+        Type dataType,
+        IBlock sourceBlock,
+        IReadOnlyList<IBlock> targetBlocks)
+    {
+        var writers = new Dictionary<IBlock, object>();
+        var readers = new Dictionary<IBlock, object>();
+
+        // Create a separate channel for each target block (each route)
+        foreach (var target in targetBlocks)
+        {
+            var (writer, reader) = TypedChannelFactory.CreateTypedChannel(
+                dataType,
+                BufferMode,
+                BufferCapacity,
+                singleReader: true,  // Each route has one consumer
+                singleWriter: false); // Router is single writer but uses shared strategy instance
+            
+            writers[target] = writer;
+            readers[target] = reader;
+        }
+
+        return (writers, readers);
+    }
+
+    /// <summary>
+    /// Routes a RoutedItem<T> to the channel corresponding to its route key.
+    /// If the route key doesn't match any target, the item is dropped.
+    /// Uses a compiled delegate for efficient route key extraction.
+    /// </summary>
+    public override async Task RouteTypedItemAsync<T>(
+        T item,
+        Dictionary<IBlock, ChannelWriter<T>> typedWriters,
+        CancellationToken cancellationToken)
+    {
+        // Get or create a compiled route key extractor for this type
+        var extractor = _routeKeyExtractorCache.GetOrAdd(typeof(T), type =>
+        {
+            // Create a compiled delegate: item => ((RoutedItem<?>)item).RouteKey
+            var routeKeyProperty = type.GetProperty("RouteKey");
+            if (routeKeyProperty == null || routeKeyProperty.PropertyType != typeof(string))
+            {
+                // Not a RoutedItem or wrong property type - this is a configuration error
+                throw new InvalidOperationException(
+                    $"Type {type.FullName} does not have a 'RouteKey' property of type string, which is required for routed delivery.");
+            }
+
+            var param = System.Linq.Expressions.Expression.Parameter(typeof(object), "item");
+            var cast = System.Linq.Expressions.Expression.Convert(param, type);
+            var property = System.Linq.Expressions.Expression.Property(cast, routeKeyProperty);
+            var lambda = System.Linq.Expressions.Expression.Lambda<Func<object, string>>(property, param);
+            return lambda.Compile();
+        });
+
+        var routeKey = extractor(item!);
+        
+        // Find the target block for this route key
+        if (_routeKeyToBlock.TryGetValue(routeKey, out var targetBlock))
+        {
+            // Write to the specific channel for this route
+            if (typedWriters.TryGetValue(targetBlock, out var writer))
+            {
+                await writer.WriteAsync(item, cancellationToken).ConfigureAwait(false);
+            }
+        }
+        else
+        {
+            // Route not found - this is a configuration error (static routing only)
+            throw new InvalidOperationException(
+                $"Route '{routeKey}' not found. Available routes: {string.Join(", ", _routeKeyToBlock.Keys)}");
         }
     }
 }

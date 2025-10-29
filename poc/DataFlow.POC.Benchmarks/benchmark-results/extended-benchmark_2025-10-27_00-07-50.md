@@ -1,6 +1,6 @@
 # DataFlow POC vs Non-POC - Extended Performance Comparison
 
-**Date:** 2025-10-26 21:01:19 UTC
+**Date:** 2025-10-27 00:07:50 UTC
 **Platform:** Unix 6.11.0.1018
 **.NET Version:** 8.0.20
 **Processor Count:** 2
@@ -18,9 +18,9 @@ This benchmark tests various parameter combinations to understand performance ch
 
 | Metric | Non-POC | POC | Ratio | Winner |
 |--------|---------|-----|-------|--------|
-| Execution Time | 574 ms | 1,144 ms | 1.993x | Non-POC |
-| Throughput | 1,742 rec/sec | 874 rec/sec | 0.502x | Non-POC |
-| Memory Usage | 2,776.77 KB | 2,089.16 KB | 0.752x | POC |
+| Execution Time | 483 ms | 374 ms | 0.774x | POC |
+| Throughput | 2,068 rec/sec | 2,673 rec/sec | 1.293x | POC |
+| Memory Usage | 2,759.88 KB | 2,097.13 KB | 0.760x | POC |
 | Gen0 Collections | 0 | 0 | - | - |
 | Gen1 Collections | 0 | 0 | - | - |
 | Gen2 Collections | 0 | 0 | - | - |
@@ -31,9 +31,9 @@ This benchmark tests various parameter combinations to understand performance ch
 
 | Metric | Non-POC | POC | Ratio | Winner |
 |--------|---------|-----|-------|--------|
-| Execution Time | 1,480 ms | 5,242 ms | 3.542x | Non-POC |
-| Throughput | 3,378 rec/sec | 954 rec/sec | 0.282x | Non-POC |
-| Memory Usage | 12,053.24 KB | 9,839.73 KB | 0.816x | POC |
+| Execution Time | 1,472 ms | 1,463 ms | 0.994x | POC |
+| Throughput | 3,396 rec/sec | 3,416 rec/sec | 1.006x | POC |
+| Memory Usage | 12,256.72 KB | 8,634.62 KB | 0.704x | POC |
 | Gen0 Collections | 0 | 0 | - | - |
 | Gen1 Collections | 0 | 0 | - | - |
 | Gen2 Collections | 0 | 0 | - | - |
@@ -44,9 +44,9 @@ This benchmark tests various parameter combinations to understand performance ch
 
 | Metric | Non-POC | POC | Ratio | Winner |
 |--------|---------|-----|-------|--------|
-| Execution Time | 2,974 ms | 10,484 ms | 3.525x | Non-POC |
-| Throughput | 3,361 rec/sec | 954 rec/sec | 0.284x | Non-POC |
-| Memory Usage | 8,128.48 KB | 3,654.47 KB | 0.450x | POC |
+| Execution Time | 2,908 ms | 2,928 ms | 1.007x | Non-POC |
+| Throughput | 3,438 rec/sec | 3,415 rec/sec | 0.993x | Non-POC |
+| Memory Usage | 7,982.62 KB | 966.28 KB | 0.121x | POC |
 | Gen0 Collections | 1 | 1 | - | - |
 | Gen1 Collections | 0 | 0 | - | - |
 | Gen2 Collections | 0 | 0 | - | - |
@@ -57,9 +57,9 @@ This benchmark tests various parameter combinations to understand performance ch
 
 | Metric | Non-POC | POC | Ratio | Winner |
 |--------|---------|-----|-------|--------|
-| Execution Time | 11,777 ms | 11,785 ms | 1.001x | Non-POC |
-| Throughput | 849 rec/sec | 849 rec/sec | 0.999x | Non-POC |
-| Memory Usage | 5,620.62 KB | 14,389.63 KB | 2.560x | Non-POC |
+| Execution Time | 11,654 ms | 11,785 ms | 1.011x | Non-POC |
+| Throughput | 858 rec/sec | 848 rec/sec | 0.989x | Non-POC |
+| Memory Usage | 5,636.92 KB | 15,507.16 KB | 2.751x | Non-POC |
 | Gen0 Collections | 1 | 0 | - | - |
 | Gen1 Collections | 0 | 0 | - | - |
 | Gen2 Collections | 0 | 0 | - | - |
@@ -70,10 +70,10 @@ This benchmark tests various parameter combinations to understand performance ch
 
 | Metric | Non-POC | POC | Ratio | Winner |
 |--------|---------|-----|-------|--------|
-| Execution Time | 6,071 ms | 10,460 ms | 1.723x | Non-POC |
-| Throughput | 1,647 rec/sec | 956 rec/sec | 0.580x | Non-POC |
-| Memory Usage | 7,289.75 KB | 2,009.49 KB | 0.276x | POC |
-| Gen0 Collections | 1 | 1 | - | - |
+| Execution Time | 5,945 ms | 5,930 ms | 0.997x | POC |
+| Throughput | 1,682 rec/sec | 1,686 rec/sec | 1.002x | POC |
+| Memory Usage | 7,219.43 KB | 16,055.37 KB | 2.224x | Non-POC |
+| Gen0 Collections | 1 | 0 | - | - |
 | Gen1 Collections | 0 | 0 | - | - |
 | Gen2 Collections | 0 | 0 | - | - |
 
@@ -83,9 +83,9 @@ This benchmark tests various parameter combinations to understand performance ch
 
 | Metric | Non-POC | POC | Ratio | Winner |
 |--------|---------|-----|-------|--------|
-| Execution Time | 1,515 ms | 10,448 ms | 6.896x | Non-POC |
-| Throughput | 6,599 rec/sec | 957 rec/sec | 0.145x | Non-POC |
-| Memory Usage | 10,330.49 KB | 6,071.80 KB | 0.588x | POC |
+| Execution Time | 1,471 ms | 1,515 ms | 1.030x | Non-POC |
+| Throughput | 6,794 rec/sec | 6,598 rec/sec | 0.971x | Non-POC |
+| Memory Usage | 10,263.59 KB | 1,675.87 KB | 0.163x | POC |
 | Gen0 Collections | 1 | 1 | - | - |
 | Gen1 Collections | 0 | 0 | - | - |
 | Gen2 Collections | 0 | 0 | - | - |
@@ -96,9 +96,9 @@ This benchmark tests various parameter combinations to understand performance ch
 
 | Metric | Non-POC | POC | Ratio | Winner |
 |--------|---------|-----|-------|--------|
-| Execution Time | 2,991 ms | 10,464 ms | 3.498x | Non-POC |
-| Throughput | 3,343 rec/sec | 956 rec/sec | 0.286x | Non-POC |
-| Memory Usage | 8,200.70 KB | 3,657.26 KB | 0.446x | POC |
+| Execution Time | 3,011 ms | 3,032 ms | 1.007x | Non-POC |
+| Throughput | 3,321 rec/sec | 3,298 rec/sec | 0.993x | Non-POC |
+| Memory Usage | 8,153.26 KB | 1,001.43 KB | 0.123x | POC |
 | Gen0 Collections | 1 | 1 | - | - |
 | Gen1 Collections | 0 | 0 | - | - |
 | Gen2 Collections | 0 | 0 | - | - |
@@ -109,9 +109,9 @@ This benchmark tests various parameter combinations to understand performance ch
 
 | Metric | Non-POC | POC | Ratio | Winner |
 |--------|---------|-----|-------|--------|
-| Execution Time | 3,030 ms | 10,460 ms | 3.452x | Non-POC |
-| Throughput | 3,300 rec/sec | 956 rec/sec | 0.290x | Non-POC |
-| Memory Usage | 8,156.82 KB | 3,654.23 KB | 0.448x | POC |
+| Execution Time | 3,100 ms | 3,128 ms | 1.009x | Non-POC |
+| Throughput | 3,225 rec/sec | 3,196 rec/sec | 0.991x | Non-POC |
+| Memory Usage | 8,099.99 KB | 1,026.40 KB | 0.127x | POC |
 | Gen0 Collections | 1 | 1 | - | - |
 | Gen1 Collections | 0 | 0 | - | - |
 | Gen2 Collections | 0 | 0 | - | - |
@@ -122,9 +122,9 @@ This benchmark tests various parameter combinations to understand performance ch
 
 | Metric | Non-POC | POC | Ratio | Winner |
 |--------|---------|-----|-------|--------|
-| Execution Time | 3,040 ms | 10,505 ms | 3.456x | Non-POC |
-| Throughput | 3,289 rec/sec | 952 rec/sec | 0.289x | Non-POC |
-| Memory Usage | 8,118.30 KB | 3,688.45 KB | 0.454x | POC |
+| Execution Time | 2,994 ms | 3,015 ms | 1.007x | Non-POC |
+| Throughput | 3,340 rec/sec | 3,316 rec/sec | 0.993x | Non-POC |
+| Memory Usage | 8,031.48 KB | 976.46 KB | 0.122x | POC |
 | Gen0 Collections | 1 | 1 | - | - |
 | Gen1 Collections | 0 | 0 | - | - |
 | Gen2 Collections | 0 | 0 | - | - |

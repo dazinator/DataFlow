@@ -91,16 +91,22 @@ public static class ComplexEtlPOC
 
         // TypeB route: Batch and aggregate records
         var typeBFilter = new RouteFilterBlock<EnrichedRecord>("typeB-filter", "TypeB");
+        var typeBFilterBuffer = builder.Buffer<EnrichedRecord>(capacity: 100, name: "typeB-filter-buffer");
         var typeBBatcher = new BatchBlock<EnrichedRecord>("typeB-batcher", batchSize, TimeSpan.FromMilliseconds(100));
         var typeBAggregator = new TransformerBlock<EnrichedRecord[], AggregatedBatch>("typeB-aggregator",
             (batch, ctx) => AggregateRecords(batch));
         var typeBWriter = new ProcessorBlock<AggregatedBatch>("typeB-writer",
             (batch, ctx) => WriteAggregation(batch, ctx.CancellationToken));
 
-        // TypeC route: Store directly
+        // TypeC route: Store directly - use multiple writers for concurrency
         var typeCFilter = new RouteFilterBlock<EnrichedRecord>("typeC-filter", "TypeC");
-        var typeCWriter = new ProcessorBlock<EnrichedRecord>("typeC-writer",
-            (record, ctx) => WriteCategoryRecord(record, "TypeC", ctx.CancellationToken));
+        var typeCFilterBuffer = builder.Buffer<EnrichedRecord>(capacity: 100, name: "typeC-filter-buffer");
+        var typeCWriters = new List<ProcessorBlock<EnrichedRecord>>();
+        for (int i = 0; i < maxConcurrency; i++)
+        {
+            typeCWriters.Add(new ProcessorBlock<EnrichedRecord>($"typeC-writer-{i}",
+                (record, ctx) => WriteCategoryRecord(record, "TypeC", ctx.CancellationToken)));
+        }
 
         // Add all blocks to the graph
         builder.AddBlock(dataSource);
@@ -132,8 +138,10 @@ public static class ComplexEtlPOC
             .AddBlock(typeBAggregator)
             .AddBlock(typeBWriter)
             // TypeC route
-            .AddBlock(typeCFilter)
-            .AddBlock(typeCWriter);
+            .AddBlock(typeCFilter);
+        
+        foreach (var writer in typeCWriters)
+            builder.AddBlock(writer);
 
         // Connect blocks using CompetingEdgeStrategy for concurrent processing
         // Source to buffer - single producer to shared buffer
@@ -172,11 +180,15 @@ public static class ComplexEtlPOC
             .Connect(broadcast, auditLogger, 100)
             .Connect(broadcast, router, 100);
 
-        // Router to type-specific routes
-        builder
-            .Connect(router, typeAFilter)
-            .Connect(router, typeBFilter)
-            .Connect(router, typeCFilter);
+        // Router to type-specific routes using routing strategy
+        // This routes items directly to the correct filter based on route key,
+        // eliminating the need for filters to iterate through all items
+        builder.ConnectRouted(router, new Dictionary<string, IBlock>
+        {
+            ["TypeA"] = typeAFilter,
+            ["TypeB"] = typeBFilter,
+            ["TypeC"] = typeCFilter
+        }, bufferCapacity: 100);
 
         // TypeA route: filter -> processors (competing) -> buffer -> writers (competing)
         builder.ConnectCompeting(typeAFilter, typeAProcessors.Cast<IBlock>().ToList(), 100);
@@ -193,14 +205,20 @@ public static class ComplexEtlPOC
             builder.Connect(typeAProcessorBuffer, writer);
         }
 
-        // TypeB route connections
+        // TypeB route connections: filter -> buffer -> batcher -> aggregator -> writer
         builder
-            .Connect(typeBFilter, typeBBatcher)
+            .Connect(typeBFilter, typeBFilterBuffer)
+            .Connect(typeBFilterBuffer, typeBBatcher)
             .Connect(typeBBatcher, typeBAggregator)
             .Connect(typeBAggregator, typeBWriter);
 
-        // TypeC route connections
-        builder.Connect(typeCFilter, typeCWriter);
+        // TypeC route connections: filter -> buffer -> writers (competing)
+        builder.Connect(typeCFilter, typeCFilterBuffer);
+        
+        foreach (var writer in typeCWriters)
+        {
+            builder.Connect(typeCFilterBuffer, writer);
+        }
 
         return builder.Build();
     }

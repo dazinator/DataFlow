@@ -139,6 +139,22 @@ The POC implements edge strategies to formalize how data flows from source to ta
 │  └────────────────────────────────────────────────────┘    │
 │                                                              │
 │  ┌────────────────────────────────────────────────────┐    │
+│  │  RoutedItemEdgeStrategy (NEW)                      │    │
+│  │  • Route key-based delivery                        │    │
+│  │  • One channel per route key                       │    │
+│  │  • Only matching items delivered to each route     │    │
+│  │  • Eliminates filter iteration overhead            │    │
+│  │                                                     │    │
+│  │  RouterBlock ──┬─[Channel "TypeA"]──▶ TypeAFilter │    │
+│  │                ├─[Channel "TypeB"]──▶ TypeBFilter │    │
+│  │                └─[Channel "TypeC"]──▶ TypeCFilter │    │
+│  │                                                     │    │
+│  │  • Uses compiled delegate for route key extraction │    │
+│  │  • Throws exception if route not found             │    │
+│  │  • Static routing only (no dynamic routes)         │    │
+│  └────────────────────────────────────────────────────┘    │
+│                                                              │
+│  ┌────────────────────────────────────────────────────┐    │
 │  │  RoutingEdge (Existing)                            │    │
 │  │  • Route-based filtering                           │    │
 │  │  • Each route has own channel                      │    │
@@ -167,6 +183,26 @@ var cloningEdge = new Edge(
     producer,
     new[] { mutator1, mutator2 },
     new CloningEdgeStrategy(BufferMode.Bounded, 100));
+
+// RoutedItem - efficient routing based on route key (NEW)
+// Used with RouterBlock that produces RoutedItem<T>
+var routedEdge = new RoutedItemEdgeStrategy(
+    new Dictionary<string, IBlock>
+    {
+        ["TypeA"] = typeAFilter,
+        ["TypeB"] = typeBFilter,
+        ["TypeC"] = typeCFilter
+    },
+    BufferMode.Bounded,
+    100);
+
+// Or use the builder API for cleaner syntax:
+builder.ConnectRouted(router, new Dictionary<string, IBlock>
+{
+    ["TypeA"] = typeAFilter,
+    ["TypeB"] = typeBFilter,
+    ["TypeC"] = typeCFilter
+}, bufferCapacity: 100);
 ```
 
 ### CompetingEdge Enables True Concurrent Processing

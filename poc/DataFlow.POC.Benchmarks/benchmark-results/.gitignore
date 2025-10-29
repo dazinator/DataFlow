@@ -1,0 +1,10 @@
+# Ignore all benchmark result files by default
+*.md
+
+# Keep only specific benchmark files we want to preserve
+!README.md
+!CONCURRENCY_ANALYSIS.txt
+!extended-benchmark_2025-10-26_23-42-06.md
+!extended-benchmark_2025-10-27_00-07-50.md
+!simple-benchmark_2025-10-26_23-39-13.md
+!simple-benchmark_2025-10-27_00-09-08.md

@@ -17,11 +17,16 @@ on:
           - transform-model
           - transform-memory
           - memory-rate
+          - poc-simple
+          - poc-extended
+          - poc-all
 
 env:
   DOTNET_VERSION: '8.0.x'
   BENCHMARK_PROJECT: 'src/Benchmarks/Benchmarks.csproj'
+  POC_BENCHMARK_PROJECT: 'poc/DataFlow.POC.Benchmarks/DataFlow.POC.Benchmarks.csproj'
   RESULTS_DIR: 'docs/benchmarks'
+  POC_RESULTS_DIR: 'poc/DataFlow.POC.Benchmarks/benchmark-results'
 
 jobs:
   run-benchmarks:
@@ -51,37 +56,46 @@ jobs:
     
     - name: Run benchmarks
       run: |
-        TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-        BENCHMARK="${{ github.event.inputs.benchmark }}"
-        
-        if [ "$BENCHMARK" = "all" ]; then
-          # Run all benchmarks sequentially
-          for bench in minimal simple batch transform-model transform-memory memory-rate; do
-            echo "Running $bench benchmark..."
-            dotnet run --project ${{ env.BENCHMARK_PROJECT }} --configuration Release -- $bench > ${{ env.RESULTS_DIR }}/${bench}_${TIMESTAMP}.txt 2>&1 || true
-          done
-        else
-          # Run selected benchmark
-          echo "Running $BENCHMARK benchmark..."
-          dotnet run --project ${{ env.BENCHMARK_PROJECT }} --configuration Release -- $BENCHMARK > ${{ env.RESULTS_DIR }}/${BENCHMARK}_${TIMESTAMP}.txt 2>&1
-        fi
+        chmod +x .github/scripts/run-benchmarks.sh
+        .github/scripts/run-benchmarks.sh \
+          "${{ github.event.inputs.benchmark }}" \
+          "${{ env.BENCHMARK_PROJECT }}" \
+          "${{ env.POC_BENCHMARK_PROJECT }}" \
+          "${{ env.RESULTS_DIR }}" \
+          "${{ env.POC_RESULTS_DIR }}"
     
     - name: Upload benchmark results as artifact
       uses: actions/upload-artifact@v4
       if: always()
       with:
         name: benchmark-results
-        path: ${{ env.RESULTS_DIR }}/*.txt
+        path: |
+          ${{ env.RESULTS_DIR }}/*.txt
+          ${{ env.POC_RESULTS_DIR }}/*.md
         retention-days: 90
         if-no-files-found: warn
     
     - name: Commit benchmark results
       id: commit
       run: |
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        
+        COMMITTED=false
+        
+        # Add non-POC benchmark results if they exist
         if [ -n "$(ls -A ${{ env.RESULTS_DIR }}/*.txt 2>/dev/null)" ]; then
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
           git add ${{ env.RESULTS_DIR }}/*.txt
+          COMMITTED=true
+        fi
+        
+        # Add POC benchmark results if they exist (respecting .gitignore)
+        if [ -n "$(ls -A ${{ env.POC_RESULTS_DIR }}/*.md 2>/dev/null)" ]; then
+          git add -f ${{ env.POC_RESULTS_DIR }}/*.md
+          COMMITTED=true
+        fi
+        
+        if [ "$COMMITTED" = true ]; then
           if git diff --staged --quiet; then
             echo "No changes to commit"
             echo "committed=false" >> $GITHUB_OUTPUT

@@ -210,19 +210,40 @@ public static class ReflectionHelper
         var stream = (IAsyncEnumerable<T>)typedStream;
         await foreach (var item in stream.WithCancellation(cancellationToken))
         {
-            // Route to all routers - using internal typed method when available for zero-boxing
-            foreach (var router in routers)
+            // Route to all routers concurrently - this enables parallel broadcast/routing
+            // Each router writes to its channel(s) in parallel, avoiding serialization bottleneck
+            if (routers.Count == 1)
             {
+                // Optimization: single router doesn't need Task.WhenAll overhead
+                var router = routers[0];
                 if (router is TypedEdgeRouter<T> typedRouter)
                 {
-                    // Use internal method for zero-boxing routing
                     await typedRouter.RouteTypedItemAsync(item, cancellationToken).ConfigureAwait(false);
                 }
                 else
                 {
-                    // Fallback: box once and use public interface
                     await router.RouteItemAsync(item!, cancellationToken).ConfigureAwait(false);
                 }
+            }
+            else
+            {
+                // Multiple routers: route concurrently to avoid serialization
+                var routingTasks = new Task[routers.Count];
+                for (int i = 0; i < routers.Count; i++)
+                {
+                    var router = routers[i];
+                    if (router is TypedEdgeRouter<T> typedRouter)
+                    {
+                        // Use internal method for zero-boxing routing
+                        routingTasks[i] = typedRouter.RouteTypedItemAsync(item, cancellationToken);
+                    }
+                    else
+                    {
+                        // Fallback: box once and use public interface
+                        routingTasks[i] = router.RouteItemAsync(item!, cancellationToken);
+                    }
+                }
+                await Task.WhenAll(routingTasks).ConfigureAwait(false);
             }
         }
     }
