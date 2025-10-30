@@ -122,7 +122,7 @@ public class SimpleComparisonBenchmark
             await dataflow.ExecuteAsync(context);
             sw.Stop();
             
-            var memoryAfter = GC.GetTotalMemory(forceFullCollection: false);
+            var memoryAfter = GC.GetTotalMemory(forceFullCollection: true);
             var memoryUsed = (memoryAfter - memoryBefore) / 1024.0;
 
             var result = new BenchmarkResult
@@ -168,7 +168,7 @@ public class SimpleComparisonBenchmark
             await graph.ExecuteAsync(context);
             sw.Stop();
             
-            var memoryAfter = GC.GetTotalMemory(forceFullCollection: false);
+            var memoryAfter = GC.GetTotalMemory(forceFullCollection: true);
             var memoryUsed = (memoryAfter - memoryBefore) / 1024.0;
 
             var result = new BenchmarkResult

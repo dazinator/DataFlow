@@ -269,7 +269,7 @@ public static class ComplexEtlPOC
 
     private static async IAsyncEnumerable<EnrichedRecord> EnrichRecord(
         ValidatedRecord record,
-        CancellationToken cancellation)
+        [EnumeratorCancellation] CancellationToken cancellation)
     {
         // Simulate enrichment with external data lookup
         await Task.Delay(1, cancellation);

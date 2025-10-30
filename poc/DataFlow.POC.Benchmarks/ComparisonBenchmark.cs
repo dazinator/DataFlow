@@ -150,7 +150,7 @@ public class ComparisonBenchmark
             Console.WriteLine($"  [Non-POC] ERROR: {ex.Message}");
         }
 
-        var finalMemory = GC.GetTotalMemory(false);
+        var finalMemory = GC.GetTotalMemory(true);
         result.MemoryUsedBytes = finalMemory - initialMemory;
         result.Gen0Collections = GC.CollectionCount(0) - gen0Before;
         result.Gen1Collections = GC.CollectionCount(1) - gen1Before;
@@ -224,7 +224,7 @@ public class ComparisonBenchmark
             Console.WriteLine($"  [POC] ERROR: {ex.Message}");
         }
 
-        var finalMemory = GC.GetTotalMemory(false);
+        var finalMemory = GC.GetTotalMemory(true);
         result.MemoryUsedBytes = finalMemory - initialMemory;
         result.Gen0Collections = GC.CollectionCount(0) - gen0Before;
         result.Gen1Collections = GC.CollectionCount(1) - gen1Before;

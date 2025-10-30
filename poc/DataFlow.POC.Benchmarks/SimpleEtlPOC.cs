@@ -146,7 +146,7 @@ public static class SimpleEtlPOC
 
     private static async IAsyncEnumerable<EnrichedRecord> EnrichRecord(
         ValidatedRecord record,
-        CancellationToken cancellation)
+        [EnumeratorCancellation] CancellationToken cancellation)
     {
         // Simulate enrichment with external data lookup (1ms delay)
         await Task.Delay(1, cancellation);
