@@ -1,0 +1,281 @@
+namespace DataFlow.POC.Tests;
+
+using DataFlow.POC.Blocks;
+using DataFlow.POC.Builder;
+using DataFlow.POC.Core;
+using Microsoft.Extensions.DependencyInjection;
+using Shouldly;
+using Xunit;
+
+public class EnvelopeEdgeStrategyTests
+{
+    [Fact]
+    public async Task EnvelopeBroadcast_Should_Broadcast_Data_And_Control_Signals()
+    {
+        // Arrange
+        var services = new ServiceCollection().BuildServiceProvider();
+        var consumer1Items = new List<IDataEnvelope>();
+        var consumer2Items = new List<IDataEnvelope>();
+
+        var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceEnvelopes(ctx));
+
+        var consumer1 = new ProcessorBlock<IDataEnvelope>("consumer1", async (item, ctx) =>
+        {
+            consumer1Items.Add(item);
+            await Task.CompletedTask;
+        });
+
+        var consumer2 = new ProcessorBlock<IDataEnvelope>("consumer2", async (item, ctx) =>
+        {
+            consumer2Items.Add(item);
+            await Task.CompletedTask;
+        });
+
+        var builder = new DataFlowGraphBuilder("broadcast-envelope-flow");
+        builder.AddBlock(producer)
+            .AddBlock(consumer1)
+            .AddBlock(consumer2);
+
+        // Use envelope broadcast strategy
+        var envelopeStrategy = EnvelopeEdgeStrategyFactory.CreateBroadcast();
+        builder.AddEdge(new Edge(producer, new[] { consumer1, consumer2 }, envelopeStrategy));
+
+        var graph = builder.Build();
+        var context = new ExecutionContext(services, CancellationToken.None);
+
+        // Act
+        await graph.ExecuteAsync(context);
+
+        // Assert
+        consumer1Items.Count.ShouldBe(4); // 2 data + 2 control signals
+        consumer2Items.Count.ShouldBe(4); // 2 data + 2 control signals
+
+        // Both consumers should receive all items in order
+        consumer1Items[0].ShouldBeOfType<DataItem<int>>();
+        consumer1Items[0].GetValue<int>().ShouldBe(1);
+        consumer1Items[1].ShouldBeOfType<CheckpointBarrier>();
+        consumer1Items[2].ShouldBeOfType<DataItem<int>>();
+        consumer1Items[2].GetValue<int>().ShouldBe(2);
+        consumer1Items[3].ShouldBeOfType<Heartbeat>();
+
+        consumer2Items[0].ShouldBeOfType<DataItem<int>>();
+        consumer2Items[1].ShouldBeOfType<CheckpointBarrier>();
+        consumer2Items[2].ShouldBeOfType<DataItem<int>>();
+        consumer2Items[3].ShouldBeOfType<Heartbeat>();
+    }
+
+    [Fact]
+    public async Task EnvelopeCompeting_Should_Compete_Data_And_Control_Goes_To_First_Consumer()
+    {
+        // Note: This test demonstrates the known limitation of competing edges with envelopes.
+        // Control signals in competing edges follow competing semantics (first consumer gets it).
+        // For guaranteed control signal delivery to all consumers, use broadcast edges.
+        
+        // Arrange
+        var services = new ServiceCollection().BuildServiceProvider();
+        var consumer1Items = new List<IDataEnvelope>();
+        var consumer2Items = new List<IDataEnvelope>();
+
+        var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceEnvelopes(ctx));
+
+        var consumer1 = new ProcessorBlock<IDataEnvelope>("consumer1", async (item, ctx) =>
+        {
+            consumer1Items.Add(item);
+            await Task.Delay(5); // Small delay to encourage competition
+        });
+
+        var consumer2 = new ProcessorBlock<IDataEnvelope>("consumer2", async (item, ctx) =>
+        {
+            consumer2Items.Add(item);
+            await Task.Delay(5);
+        });
+
+        var builder = new DataFlowGraphBuilder("competing-envelope-flow");
+        builder.AddBlock(producer)
+            .AddBlock(consumer1)
+            .AddBlock(consumer2);
+
+        // Use envelope competing strategy
+        var envelopeStrategy = EnvelopeEdgeStrategyFactory.CreateCompeting();
+        builder.AddEdge(new Edge(producer, new[] { consumer1, consumer2 }, envelopeStrategy));
+
+        var graph = builder.Build();
+        var context = new ExecutionContext(services, CancellationToken.None);
+
+        // Act
+        await graph.ExecuteAsync(context);
+
+        // Assert
+        // All items (data + control) compete between consumers
+        var totalItems = consumer1Items.Count + consumer2Items.Count;
+        totalItems.ShouldBe(4); // 2 data + 2 control signals
+        
+        // Control signals and data items compete (each goes to one consumer)
+        // We just verify the total count is correct
+        var allItems = consumer1Items.Concat(consumer2Items).ToList();
+        var dataItemCount = allItems.Count(e => e.IsDataItem());
+        var controlSignalCount = allItems.Count(e => e.IsControlSignal());
+        
+        dataItemCount.ShouldBe(2);
+        controlSignalCount.ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task EnvelopeEdge_Should_Preserve_Control_Signal_Order()
+    {
+        // Arrange
+        var services = new ServiceCollection().BuildServiceProvider();
+        var receivedItems = new List<IDataEnvelope>();
+
+        var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceOrderedEnvelopes(ctx));
+
+        var consumer = new ProcessorBlock<IDataEnvelope>("consumer", async (item, ctx) =>
+        {
+            receivedItems.Add(item);
+            await Task.CompletedTask;
+        });
+
+        var builder = new DataFlowGraphBuilder("ordered-envelope-flow");
+        builder.AddBlock(producer)
+            .AddBlock(consumer);
+
+        var envelopeStrategy = EnvelopeEdgeStrategyFactory.CreateBroadcast();
+        builder.AddEdge(new Edge(producer, consumer, envelopeStrategy));
+
+        var graph = builder.Build();
+        var context = new ExecutionContext(services, CancellationToken.None);
+
+        // Act
+        await graph.ExecuteAsync(context);
+
+        // Assert
+        receivedItems.Count.ShouldBe(6);
+        
+        // Verify order is preserved
+        receivedItems[0].ShouldBeOfType<DataItem<int>>();
+        receivedItems[0].GetValue<int>().ShouldBe(1);
+        
+        receivedItems[1].ShouldBeOfType<CheckpointBarrier>();
+        
+        receivedItems[2].ShouldBeOfType<DataItem<int>>();
+        receivedItems[2].GetValue<int>().ShouldBe(2);
+        
+        receivedItems[3].ShouldBeOfType<DataItem<int>>();
+        receivedItems[3].GetValue<int>().ShouldBe(3);
+        
+        receivedItems[4].ShouldBeOfType<Heartbeat>();
+        
+        receivedItems[5].ShouldBeOfType<DataItem<int>>();
+        receivedItems[5].GetValue<int>().ShouldBe(4);
+    }
+
+    [Fact]
+    public async Task EnvelopeEdge_Should_Handle_Only_Control_Signals()
+    {
+        // Arrange
+        var services = new ServiceCollection().BuildServiceProvider();
+        var receivedItems = new List<IDataEnvelope>();
+
+        var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceOnlyControlSignals(ctx));
+
+        var consumer = new ProcessorBlock<IDataEnvelope>("consumer", async (item, ctx) =>
+        {
+            receivedItems.Add(item);
+            await Task.CompletedTask;
+        });
+
+        var builder = new DataFlowGraphBuilder("control-only-flow");
+        builder.AddBlock(producer)
+            .AddBlock(consumer);
+
+        var envelopeStrategy = EnvelopeEdgeStrategyFactory.CreateBroadcast();
+        builder.AddEdge(new Edge(producer, consumer, envelopeStrategy));
+
+        var graph = builder.Build();
+        var context = new ExecutionContext(services, CancellationToken.None);
+
+        // Act
+        await graph.ExecuteAsync(context);
+
+        // Assert
+        receivedItems.Count.ShouldBe(2);
+        receivedItems.All(e => e.IsControlSignal()).ShouldBeTrue();
+        receivedItems[0].ShouldBeOfType<CheckpointBarrier>();
+        receivedItems[1].ShouldBeOfType<Heartbeat>();
+    }
+
+    [Fact]
+    public async Task EnvelopeEdge_Should_Handle_Only_Data_Items()
+    {
+        // Arrange
+        var services = new ServiceCollection().BuildServiceProvider();
+        var receivedItems = new List<IDataEnvelope>();
+
+        var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceOnlyData(ctx));
+
+        var consumer = new ProcessorBlock<IDataEnvelope>("consumer", async (item, ctx) =>
+        {
+            receivedItems.Add(item);
+            await Task.CompletedTask;
+        });
+
+        var builder = new DataFlowGraphBuilder("data-only-flow");
+        builder.AddBlock(producer)
+            .AddBlock(consumer);
+
+        var envelopeStrategy = EnvelopeEdgeStrategyFactory.CreateBroadcast();
+        builder.AddEdge(new Edge(producer, consumer, envelopeStrategy));
+
+        var graph = builder.Build();
+        var context = new ExecutionContext(services, CancellationToken.None);
+
+        // Act
+        await graph.ExecuteAsync(context);
+
+        // Assert
+        receivedItems.Count.ShouldBe(5);
+        receivedItems.All(e => e.IsDataItem()).ShouldBeTrue();
+        for (int i = 0; i < 5; i++)
+        {
+            receivedItems[i].GetValue<int>().ShouldBe(i + 1);
+        }
+    }
+
+    // Helper methods to produce test data
+
+    private static async IAsyncEnumerable<IDataEnvelope> ProduceEnvelopes(IExecutionContext ctx)
+    {
+        yield return new DataItem<int>(1);
+        yield return new CheckpointBarrier(Guid.NewGuid(), DateTime.UtcNow);
+        yield return new DataItem<int>(2);
+        yield return new Heartbeat(DateTime.UtcNow);
+        await Task.CompletedTask;
+    }
+
+    private static async IAsyncEnumerable<IDataEnvelope> ProduceOrderedEnvelopes(IExecutionContext ctx)
+    {
+        yield return new DataItem<int>(1);
+        yield return new CheckpointBarrier(Guid.NewGuid(), DateTime.UtcNow);
+        yield return new DataItem<int>(2);
+        yield return new DataItem<int>(3);
+        yield return new Heartbeat(DateTime.UtcNow);
+        yield return new DataItem<int>(4);
+        await Task.CompletedTask;
+    }
+
+    private static async IAsyncEnumerable<IDataEnvelope> ProduceOnlyControlSignals(IExecutionContext ctx)
+    {
+        yield return new CheckpointBarrier(Guid.NewGuid(), DateTime.UtcNow);
+        yield return new Heartbeat(DateTime.UtcNow);
+        await Task.CompletedTask;
+    }
+
+    private static async IAsyncEnumerable<IDataEnvelope> ProduceOnlyData(IExecutionContext ctx)
+    {
+        for (int i = 1; i <= 5; i++)
+        {
+            yield return new DataItem<int>(i);
+        }
+        await Task.CompletedTask;
+    }
+}
