@@ -23,14 +23,26 @@ if [ "$BENCHMARK" = "all" ]; then
   done
   
 elif [ "$BENCHMARK" = "poc-simple" ]; then
-  # Run POC simple benchmark
+  # Run POC simple benchmark (old approach)
   echo "Running POC simple benchmark..."
   dotnet run --project "$POC_BENCHMARK_PROJECT" --configuration Release -- simple > "${POC_RESULTS_DIR}/simple-benchmark_${TIMESTAMP}.md" 2>&1
   
 elif [ "$BENCHMARK" = "poc-extended" ]; then
-  # Run POC extended benchmark
+  # Run POC extended benchmark (old approach)
   echo "Running POC extended benchmark..."
   dotnet run --project "$POC_BENCHMARK_PROJECT" --configuration Release -- extended > "${POC_RESULTS_DIR}/extended-benchmark_${TIMESTAMP}.md" 2>&1
+
+elif [ "$BENCHMARK" = "poc-comparison-simple" ]; then
+  # Run POC comparison with dotnet-counters (simple pipeline)
+  echo "Running POC comparison benchmark (simple) with dotnet-counters..."
+  chmod +x .github/scripts/run-poc-comparison.sh
+  .github/scripts/run-poc-comparison.sh simple "${POC_RESULTS_DIR}"
+
+elif [ "$BENCHMARK" = "poc-comparison-extended" ]; then
+  # Run POC comparison with dotnet-counters (extended pipeline)
+  echo "Running POC comparison benchmark (extended) with dotnet-counters..."
+  chmod +x .github/scripts/run-poc-comparison.sh
+  .github/scripts/run-poc-comparison.sh extended "${POC_RESULTS_DIR}"
   
 elif [ "$BENCHMARK" = "poc-all" ]; then
   # Run all POC benchmarks

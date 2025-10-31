@@ -1,5 +1,9 @@
 # Benchmark Memory Usage Analysis
 
+> **📢 Important Update**: This document describes issues with the old GC-based memory measurement approach. 
+> **For current best practices, see [README-COMPARISON.md](./README-COMPARISON.md)** which describes the new 
+> time-series measurement approach using `dotnet-counters`.
+
 ## Problem Summary
 
 The POC extended benchmarks showed highly sporadic memory usage compared to Non-POC implementation:

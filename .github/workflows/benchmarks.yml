@@ -20,6 +20,8 @@ on:
           - poc-simple
           - poc-extended
           - poc-all
+          - poc-comparison-simple
+          - poc-comparison-extended
 
 env:
   DOTNET_VERSION: '8.0.x'
@@ -44,6 +46,19 @@ jobs:
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
+    
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.x'
+    
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install matplotlib pandas
+    
+    - name: Install dotnet-counters
+      run: dotnet tool install -g dotnet-counters
     
     - name: Restore dependencies
       run: dotnet restore ${{ env.BENCHMARK_PROJECT }}
@@ -72,6 +87,9 @@ jobs:
         path: |
           ${{ env.RESULTS_DIR }}/*.txt
           ${{ env.POC_RESULTS_DIR }}/*.md
+          ${{ env.POC_RESULTS_DIR }}/*.png
+          ${{ env.POC_RESULTS_DIR }}/*.csv
+          ${{ env.POC_RESULTS_DIR }}/charts_*/**
         retention-days: 90
         if-no-files-found: warn
     
@@ -92,6 +110,13 @@ jobs:
         # Add POC benchmark results if they exist (respecting .gitignore)
         if [ -n "$(ls -A ${{ env.POC_RESULTS_DIR }}/*.md 2>/dev/null)" ]; then
           git add -f ${{ env.POC_RESULTS_DIR }}/*.md
+          COMMITTED=true
+        fi
+        
+        # Add POC comparison visualizations and summary files
+        if find "${{ env.POC_RESULTS_DIR }}" -type d -name "charts_*" -print -quit 2>/dev/null | grep -q .; then
+          git add -f ${{ env.POC_RESULTS_DIR }}/charts_*/*.png 2>/dev/null || true
+          git add -f ${{ env.POC_RESULTS_DIR }}/charts_*/*.md 2>/dev/null || true
           COMMITTED=true
         fi
         
