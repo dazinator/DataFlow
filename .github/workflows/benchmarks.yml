@@ -65,7 +65,9 @@ jobs:
       run: dotnet tool install -g dotnet-counters
     
     - name: Restore dependencies
-      run: dotnet restore ${{ env.BENCHMARK_PROJECT }}
+      run: |
+        dotnet restore ${{ env.BENCHMARK_PROJECT }}
+        dotnet restore ${{ env.POC_BENCHMARK_PROJECT }}
     
     - name: Build benchmark project
       run: dotnet build ${{ env.BENCHMARK_PROJECT }} --configuration Release --no-restore
