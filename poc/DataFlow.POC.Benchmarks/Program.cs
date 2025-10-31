@@ -42,6 +42,32 @@ else if (args.Length > 0 && args[0] == "direct-extended")
     await DataFlow.POC.Benchmarks.DirectComparisonBenchmark.RunDirectComparisonAsync(
         recordCount, maxConcurrency, batchSize, iterations, useSimplePipeline: false);
 }
+else if (args.Length > 0 && args[0] == "actor-steady")
+{
+    // Run ActorBlock steady-state benchmark (no rotation) for external profiling with dotnet-counters
+    // Usage: actor-steady <itemCount>
+    int itemCount = args.Length > 1 ? int.Parse(args[1]) : 10000;
+    
+    await DataFlow.POC.Benchmarks.ActorBlockBenchmark.RunSteadyStateAsync(itemCount);
+}
+else if (args.Length > 0 && args[0] == "actor-rotation")
+{
+    // Run ActorBlock rotation benchmark for external profiling with dotnet-counters
+    // Usage: actor-rotation <itemCount> <rotateAfter>
+    int itemCount = args.Length > 1 ? int.Parse(args[1]) : 10000;
+    int rotateAfter = args.Length > 2 ? int.Parse(args[2]) : 100;
+    
+    await DataFlow.POC.Benchmarks.ActorBlockBenchmark.RunRotationAsync(itemCount, rotateAfter);
+}
+else if (args.Length > 0 && args[0] == "actor-memory")
+{
+    // Run ActorBlock memory-intensive benchmark for external profiling with dotnet-counters
+    // Usage: actor-memory <itemCount> <rotateAfter>
+    int itemCount = args.Length > 1 ? int.Parse(args[1]) : 10000;
+    int rotateAfter = args.Length > 2 ? int.Parse(args[2]) : 50;
+    
+    await DataFlow.POC.Benchmarks.ActorBlockBenchmark.RunMemoryIntensiveAsync(itemCount, rotateAfter);
+}
 else
 {
     // Run simple performance tests

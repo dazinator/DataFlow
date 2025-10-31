@@ -43,6 +43,32 @@ elif [ "$BENCHMARK" = "poc-comparison-extended" ]; then
   echo "Running POC comparison benchmark (extended) with dotnet-counters..."
   chmod +x .github/scripts/run-poc-comparison.sh
   .github/scripts/run-poc-comparison.sh extended "${POC_RESULTS_DIR}"
+
+elif [ "$BENCHMARK" = "poc-actor-steady" ]; then
+  # Run ActorBlock steady-state benchmark with dotnet-counters
+  echo "Running ActorBlock steady-state benchmark with dotnet-counters..."
+  chmod +x .github/scripts/run-actor-benchmark.sh
+  .github/scripts/run-actor-benchmark.sh steady "${POC_RESULTS_DIR}"
+
+elif [ "$BENCHMARK" = "poc-actor-rotation" ]; then
+  # Run ActorBlock rotation benchmark with dotnet-counters
+  echo "Running ActorBlock rotation benchmark with dotnet-counters..."
+  chmod +x .github/scripts/run-actor-benchmark.sh
+  .github/scripts/run-actor-benchmark.sh rotation "${POC_RESULTS_DIR}"
+
+elif [ "$BENCHMARK" = "poc-actor-memory" ]; then
+  # Run ActorBlock memory-intensive benchmark with dotnet-counters
+  echo "Running ActorBlock memory-intensive benchmark with dotnet-counters..."
+  chmod +x .github/scripts/run-actor-benchmark.sh
+  .github/scripts/run-actor-benchmark.sh memory "${POC_RESULTS_DIR}"
+
+elif [ "$BENCHMARK" = "poc-actor-all" ]; then
+  # Run all ActorBlock benchmarks
+  echo "Running all ActorBlock benchmarks with dotnet-counters..."
+  chmod +x .github/scripts/run-actor-benchmark.sh
+  .github/scripts/run-actor-benchmark.sh steady "${POC_RESULTS_DIR}"
+  .github/scripts/run-actor-benchmark.sh rotation "${POC_RESULTS_DIR}"
+  .github/scripts/run-actor-benchmark.sh memory "${POC_RESULTS_DIR}"
   
 elif [ "$BENCHMARK" = "poc-all" ]; then
   # Run all POC benchmarks

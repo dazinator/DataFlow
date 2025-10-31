@@ -50,6 +50,41 @@ Results uploaded as artifacts with CSV data and visualizations.
 
 ## Available Benchmarks
 
+### ActorBlock Benchmarks (Time-Series with dotnet-counters)
+
+| Benchmark | Description | Command |
+|-----------|-------------|---------|
+| **actor-steady** | Steady-state (no rotation) | `dotnet run -c Release -- actor-steady 10000` |
+| **actor-rotation** | With rotation (every N items) | `dotnet run -c Release -- actor-rotation 10000 100` |
+| **actor-memory** | Memory-intensive with rotation | `dotnet run -c Release -- actor-memory 10000 50` |
+
+**What it measures:**
+- Time-series memory usage patterns (GC heap, working set)
+- Allocation rates and GC collection frequency
+- Throughput with and without rotation
+- Memory growth/release patterns during rotation cycles
+
+**Recommended approach:** Use with dotnet-counters profiling for accurate time-series metrics:
+
+```bash
+# Linux/macOS
+./profile-actor.sh rotation 10000 100
+
+# Windows
+.\profile-actor.ps1 -Mode rotation -ItemCount 10000 -RotateAfter 100
+```
+
+This generates:
+- CSV file with time-series metrics
+- Visualization charts (GC heap, allocation rate, etc.)
+- Summary report with analysis
+
+**Via GitHub Actions:**
+- `poc-actor-steady` - Steady-state benchmark
+- `poc-actor-rotation` - Rotation benchmark (100 items)
+- `poc-actor-memory` - Memory-intensive benchmark (50 items)
+- `poc-actor-all` - Run all three benchmarks
+
 ### Comparison Benchmarks (Recommended)
 
 | Benchmark | Pipeline | Measurement | Command |
@@ -76,6 +111,33 @@ Results uploaded as artifacts with CSV data and visualizations.
 | Performance Tests | Basic POC performance validation | `dotnet run -c Release` (default) |
 
 ## Benchmark Types Explained
+
+### ActorBlock Benchmarks (Time-Series)
+
+**What it does:**
+- Runs ActorBlock with continuous dotnet-counters metric collection
+- Captures memory patterns, GC behavior, and allocation rates over time
+- Generates visualization charts showing performance characteristics
+- Compares steady-state vs rotation overhead
+
+**When to use:**
+- Evaluating ActorBlock for your use case
+- Tuning rotation frequency based on memory patterns
+- Understanding memory management benefits of rotation
+- Visualizing GC behavior and memory growth
+
+**Key metrics collected:**
+- **GC Heap Size (MB)** - Shows memory growth and rotation impact
+- **Allocation Rate (MB/s)** - Indicates allocation pressure
+- **GC Collections** - Frequency of Gen 0, 1, 2 collections
+- **Working Set (MB)** - Total process memory
+- **ThreadPool Threads** - Concurrency verification
+- **CPU Usage** - Computational load
+
+**Expected patterns:**
+- **Steady-state**: Gradual memory growth, infrequent collections
+- **Rotation**: Periodic memory drops as scopes disposed, regular collections
+- **Memory-intensive**: Sawtooth pattern with clear rotation boundaries
 
 ### BenchmarkDotNet Approach
 

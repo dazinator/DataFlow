@@ -73,6 +73,7 @@ public class DataFlowGraph
 - **Batch** - Accumulates items into batches
 - **Router** - Routes items to different downstream targets based on criteria
 - **Broadcast** - Sends each item to multiple downstream targets
+- **ActorBlock** - Scoped DI execution with rotation for memory management ([see guide](./ACTOR_BLOCK.md))
 
 ## Testing Strategy
 
@@ -82,6 +83,7 @@ The POC includes comprehensive tests demonstrating:
 3. Routing with multiple downstream paths
 4. Broadcasting to multiple consumers
 5. Complex topologies combining multiple patterns
+6. ActorBlock with DI scope rotation and memory management
 
 ## Comparison with Current Design
 

@@ -22,6 +22,10 @@ on:
           - poc-all
           - poc-comparison-simple
           - poc-comparison-extended
+          - poc-actor-steady
+          - poc-actor-rotation
+          - poc-actor-memory
+          - poc-actor-all
 
 env:
   DOTNET_VERSION: '8.0.x'

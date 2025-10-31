@@ -14,27 +14,34 @@ poc/
 ├── 🏆 SUMMARY.md                     ← ⭐ START HERE - Executive summary
 ├── 📊 COMPARISON.md                  ← Detailed comparison with current design
 ├── 🏗️ ARCHITECTURE.md                ← Visual diagrams and architecture
+├── 🎭 ACTOR_BLOCK.md                 ← ActorBlock guide with rotation patterns
 │
 ├── DataFlow.POC/                     ← Core library implementation
 │   ├── Core/                         ← Core abstractions (IBlock, Edge, Graph)
-│   ├── Blocks/                       ← Block implementations (all 6 types)
+│   ├── Blocks/                       ← Block implementations (all types)
 │   └── Builder/                      ← Fluent builder API
 │
-└── DataFlow.POC.Tests/               ← Comprehensive test suite
-    ├── BasicFlowTests.cs             ← 3 tests: producer, transform, buffering
-    ├── BatchFlowTests.cs             ← 2 tests: size-based, time-window
-    ├── BroadcastFlowTests.cs         ← 1 test: fanout to multiple targets
-    ├── RoutingFlowTests.cs           ← 2 tests: 2-way, 3-way routing
-    └── ComplexFlowTests.cs           ← 2 tests: pipeline, diamond topology
+├── DataFlow.POC.Tests/               ← Comprehensive test suite
+│   ├── BasicFlowTests.cs             ← 3 tests: producer, transform, buffering
+│   ├── BatchFlowTests.cs             ← 2 tests: size-based, time-window
+│   ├── BroadcastFlowTests.cs         ← 1 test: fanout to multiple targets
+│   ├── RoutingFlowTests.cs           ← 2 tests: 2-way, 3-way routing
+│   ├── ComplexFlowTests.cs           ← 2 tests: pipeline, diamond topology
+│   └── ActorBlockTests.cs            ← ActorBlock with rotation tests
+│
+└── DataFlow.POC.Benchmarks/          ← Performance benchmarks
+    ├── README.md                     ← Benchmark documentation
+    ├── ActorBlockBenchmark.cs        ← Actor rotation performance
+    └── [other benchmarks...]         ← Various performance tests
 ```
 
 ## 📊 Quick Stats
 
 | Metric | Value |
 |--------|-------|
-| **Tests** | 10/10 passing ✅ |
-| **Block Types** | 6 (Producer, Transform, Processor, Batch, Router, Broadcast) |
-| **Code Lines** | ~1,657 lines (library + tests) |
+| **Tests** | 82 passing ✅ (including ActorBlock tests) |
+| **Block Types** | 7 (Producer, Transform, Processor, Batch, Router, Broadcast, Actor) |
+| **Code Lines** | ~1,800+ lines (library + tests) |
 | **Code Reduction** | 40-84% per block vs current design |
 | **Feature Parity** | 100% for core scenarios |
 
@@ -57,6 +64,7 @@ All major patterns working:
 - Broadcasting (fanout to multiple consumers)
 - Routing (dynamic path selection)
 - Complex topologies (diamond, merge, split)
+- ActorBlock with DI scope rotation for memory management
 
 ## 📖 Reading Guide
 
@@ -66,6 +74,13 @@ All major patterns working:
 ### For Design Understanding
 1. [README.md](./README.md) - Design goals and principles
 2. [ARCHITECTURE.md](./ARCHITECTURE.md) - Visual diagrams
+
+### For ActorBlock (DI Scope Rotation)
+1. [ACTOR_BLOCK.md](./ACTOR_BLOCK.md) - ⭐ Complete guide to ActorBlock
+   - Usage patterns and best practices
+   - Memory management strategies
+   - Performance characteristics
+   - Common patterns (EF Core, batching, caching)
 
 ### For Detailed Comparison
 1. [COMPARISON.md](./COMPARISON.md) - Side-by-side code comparison
