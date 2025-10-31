@@ -1,5 +1,10 @@
 // Check command line arguments
-if (args.Length > 0 && args[0] == "comparison")
+if (args.Length > 0 && args[0] == "comparative")
+{
+    // Run comparative benchmark (outputs results compatible with Python benchmarks)
+    await DataFlow.POC.Benchmarks.PythonComparativeBenchmark.RunComparativeBenchmarkAsync(args);
+}
+else if (args.Length > 0 && args[0] == "comparison")
 {
     // Run standard comparison benchmark
     await DataFlow.POC.Benchmarks.ComparisonBenchmark.RunComparisonAsync();

@@ -1,0 +1,11 @@
+# Core Python packages for benchmarking
+ray==2.31.0
+pydantic==2.8.2
+psutil==5.9.8
+memory-profiler==0.61.0
+matplotlib==3.9.0
+pandas==2.2.2
+numpy==1.26.4
+
+# Note: streamsconcept doesn't appear to be a published package
+# We'll implement a simple async streaming DAG ourselves as an alternative

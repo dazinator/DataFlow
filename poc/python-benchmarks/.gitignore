@@ -1,0 +1,24 @@
+# Python virtual environment
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Benchmark results - keep only visualizations, not raw data
+results/*.json
+results/*.csv
+results/benchmark_*.md
+results/comprehensive_*.md
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
