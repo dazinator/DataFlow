@@ -30,6 +30,17 @@ else if (args.Length > 0 && args[0] == "sidechannel-micro")
 {
     // Run BenchmarkDotNet microbenchmarks for side-channel mechanisms
     BenchmarkRunner.Run<DataFlow.POC.Benchmarks.SideChannelMicrobenchmark>();
+}
+else if (args.Length > 0 && args[0] == "control-signal-strategies")
+{
+    // Run comprehensive control signal strategy comparison benchmarks
+    BenchmarkRunner.Run<DataFlow.POC.Benchmarks.ControlSignalStrategyComparison>();
+}
+else if (args.Length > 0 && args[0] == "control-signal-routing")
+{
+    // Run microbenchmarks for control signal routing overhead
+    BenchmarkRunner.Run<DataFlow.POC.Benchmarks.ControlSignalRoutingMicrobenchmark>();
+}
 else if (args.Length > 0 && args[0] == "direct-simple")
 {
     // Run direct comparison (simple pipeline) for external profiling with dotnet-counters
