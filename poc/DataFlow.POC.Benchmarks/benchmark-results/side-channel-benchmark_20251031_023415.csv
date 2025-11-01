@@ -1,0 +1,13 @@
+Scenario,Strategy,ItemCount,ControlSignalCount,ConsumerCount,DurationMs,ThroughputPerSec,MemoryBytes
+10K items, no control signals,Standard Competing,10000,0,2,747.73,13373.89,1045568
+10K items, no control signals,Side-Channel (no control),10000,0,2,117.16,85350.08,1140880
+10K items, 10 control signals,Side-Channel (with control),10000,10,2,19.06,524758.09,1071448
+10K items, 100 control signals,Side-Channel (with control),10000,100,2,10.07,992674.07,1093472
+10K items, 1000 control signals,Side-Channel (with control),10000,1000,2,9.01,1110038.07,1558592
+50K items, no control signals,Standard Competing,50000,0,2,38.44,1300748.71,5711480
+50K items, no control signals,Side-Channel (no control),50000,0,2,22.80,2192761.26,5062856
+50K items, 50 control signals,Side-Channel (with control),50000,50,2,30.10,1661234.43,5151272
+50K items, 500 control signals,Side-Channel (with control),50000,500,2,28.80,1736267.86,5357008
+100K items, no control signals,Standard Competing,100000,0,2,86.20,1160045.71,11305104
+100K items, no control signals,Side-Channel (no control),100000,0,2,69.85,1431592.09,10239904
+100K items, 100 control signals,Side-Channel (with control),100000,100,2,45.86,2180711.17,10036120

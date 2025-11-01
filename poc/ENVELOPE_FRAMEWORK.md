@@ -68,6 +68,8 @@ builder.AddEdge(new Edge(source, new[] { target1, target2 }, envelopeStrategy));
 
 ### Competing Edges
 
+#### Standard Competing (Legacy)
+
 Data items compete (one consumer per item), control signals follow competing semantics:
 
 ```csharp
@@ -78,7 +80,70 @@ builder.AddEdge(new Edge(source, new[] { target1, target2 }, envelopeStrategy));
 - **Data items**: First available consumer gets the item
 - **Control signals**: First available consumer gets the signal
 
-> **Note**: For guaranteed control signal delivery to all competing consumers, use broadcast edges or implement a hybrid pattern.
+> **Note**: This strategy provides "best-effort" control signal delivery. For coordinated processing that requires all consumers to observe control signals, use the side-channel variant below.
+
+#### Competing with Side-Channel (Recommended for Control Signals)
+
+Data items compete (one consumer per item), but control signals are delivered to ALL consumers via dedicated side-channels:
+
+```csharp
+var envelopeStrategy = EnvelopeEdgeStrategyFactory.CreateCompetingWithSideChannel();
+builder.AddEdge(new Edge(source, new[] { target1, target2 }, envelopeStrategy));
+```
+
+- **Data items**: Compete via shared channel (one consumer per item)
+- **Control signals**: Broadcast via dedicated side-channels (all consumers receive)
+
+**Architecture**:
+- Single shared data channel for competing data items
+- Individual control signal channels per consumer for reliable broadcast
+- Merged reader transparently combines both streams for each consumer
+- Minimal performance overhead with non-blocking polling pattern
+
+**Use Cases**:
+- Checkpoint barriers for coordinated state snapshots
+- Heartbeat signals for progress tracking across all consumers
+- Watermarks for event-time processing
+- Adaptive scaling signals
+
+**Example with Barrier Alignment**:
+```csharp
+var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceWithBarriers(ctx));
+
+var consumer1 = new EnvelopeProcessorBlock<int>(
+    "consumer1",
+    processData: async (value, ctx) => { /* Process data */ },
+    processControl: async (signal, ctx) =>
+    {
+        if (signal is CheckpointBarrier barrier)
+        {
+            await SaveCheckpoint(barrier.Id);
+        }
+    });
+
+var consumer2 = new EnvelopeProcessorBlock<int>(
+    "consumer2", 
+    processData: async (value, ctx) => { /* Process data */ },
+    processControl: async (signal, ctx) =>
+    {
+        if (signal is CheckpointBarrier barrier)
+        {
+            await SaveCheckpoint(barrier.Id);
+        }
+    });
+
+var builder = new DataFlowGraphBuilder("coordinated-flow");
+builder.AddBlock(producer)
+    .AddBlock(consumer1)
+    .AddBlock(consumer2);
+
+// Both consumers receive all barriers, enabling coordinated checkpointing
+var strategy = EnvelopeEdgeStrategyFactory.CreateCompetingWithSideChannel();
+builder.AddEdge(new Edge(producer, new[] { consumer1, consumer2 }, strategy));
+
+var graph = builder.Build();
+await graph.ExecuteAsync(context);
+```
 
 ### Routed Edges
 
@@ -271,7 +336,7 @@ if (envelope.TryGetValue<int>(out var value))
 
 The envelope framework enables:
 
-1. **Checkpoint and Recovery**: Use CheckpointBarrier to coordinate state snapshots
+1. **Checkpoint and Recovery**: Use CheckpointBarrier with side-channel competing edges to coordinate state snapshots across all consumers
 2. **Adaptive Scaling**: Control signals to trigger scaling up/down
 3. **Watermarks**: Time-based progress tracking for event-time processing
 4. **Flow Control**: Backpressure signaling through control messages
@@ -279,17 +344,46 @@ The envelope framework enables:
 
 ## Known Limitations
 
-1. **Competing Edges**: Control signals follow competing semantics (not broadcast) in competing mode
-2. **Order Guarantees**: Control signal order relative to data depends on edge strategy
+1. **Legacy Competing Edges**: The standard `CreateCompeting()` strategy provides "best-effort" control signal delivery (one consumer per signal). Use `CreateCompetingWithSideChannel()` for reliable control signal broadcast.
+2. **Order Guarantees**: Control signal order relative to data depends on edge strategy. Side-channel competing edges may interleave control and data signals.
 3. **Type Constraints**: All blocks in an envelope pipeline must work with `IDataEnvelope`
+4. **Performance**: Side-channel competing edges add minimal overhead (~5-10%) due to merged channel reading. For maximum throughput without control signals, use standard competing edges.
 
 ## Best Practices
 
-1. **Use broadcast edges** when control signals must reach all consumers
-2. **Insert control signals judiciously** - they add overhead
-3. **Handle control signals at pipeline boundaries** for state management
-4. **Use typed envelope blocks** for compile-time safety
-5. **Document control signal semantics** in your pipeline design
+1. **Use `CreateCompetingWithSideChannel()`** when control signals must reach all competing consumers for coordinated processing
+2. **Use `CreateCompeting()`** for simple competing scenarios where control signals are not critical or when maximum throughput is required
+3. **Use broadcast edges** when all consumers should receive all data items and all control signals
+4. **Insert control signals judiciously** - they add overhead, especially in high-throughput scenarios
+5. **Handle control signals at pipeline boundaries** for state management and coordination
+6. **Use typed envelope blocks** for compile-time safety
+7. **Document control signal semantics** in your pipeline design, especially barrier alignment requirements
+
+## Architecture Insights
+
+### Side-Channel Design
+
+The side-channel architecture for competing edges solves the reliable control signal delivery problem:
+
+**Problem**: In standard competing edges, all consumers share a single channel. Due to `Channel<T>` semantics, each item (including control signals) is delivered to only one consumer, preventing coordinated processing.
+
+**Solution**: Dual-channel architecture:
+- **Shared data channel**: All consumers compete for data items (one consumer per item)
+- **Individual control channels**: Each consumer has their own control signal channel (broadcast semantics)
+- **Merged reader**: Transparently combines both channels for each consumer
+
+**Benefits**:
+- Reliable control signal delivery to all consumers
+- Maintains competing semantics for data items
+- Minimal performance overhead
+- Transparent to block implementations
+- Enables coordinated checkpointing and barrier alignment
+
+**Implementation**: The `SideChannelCompetingEdgeStrategy` creates:
+1. One shared `Channel<IDataEnvelope>` for data items
+2. N individual `Channel<IDataEnvelope>` for control signals (one per consumer)
+3. A composite writer that routes based on envelope type
+4. Merged readers that combine both channels per consumer
 
 ## Conclusion
 

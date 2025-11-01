@@ -1,3 +1,5 @@
+using BenchmarkDotNet.Running;
+
 // Check command line arguments
 if (args.Length > 0 && args[0] == "comparative")
 {
@@ -19,6 +21,15 @@ else if (args.Length > 0 && args[0] == "simple")
     // Run simplified comparison benchmark (DataSource → Validators → Enrichers only)
     await DataFlow.POC.Benchmarks.SimpleComparisonBenchmark.RunSimpleComparisonAsync();
 }
+else if (args.Length > 0 && args[0] == "sidechannel")
+{
+    // Run side-channel competing edge performance benchmark
+    await DataFlow.POC.Benchmarks.SideChannelBenchmark.RunBenchmarkAsync();
+}
+else if (args.Length > 0 && args[0] == "sidechannel-micro")
+{
+    // Run BenchmarkDotNet microbenchmarks for side-channel mechanisms
+    BenchmarkRunner.Run<DataFlow.POC.Benchmarks.SideChannelMicrobenchmark>();
 else if (args.Length > 0 && args[0] == "direct-simple")
 {
     // Run direct comparison (simple pipeline) for external profiling with dotnet-counters

@@ -149,4 +149,19 @@ public static class EnvelopeEdgeStrategyFactory
         var underlyingStrategy = new RoutedItemEdgeStrategy(routeKeyToBlock, bufferMode, bufferCapacity);
         return new EnvelopeEdgeStrategy(underlyingStrategy);
     }
+
+    /// <summary>
+    /// Creates a competing envelope edge strategy with dedicated side-channel for control signals.
+    /// Data items compete among targets (one consumer per item), but control signals are 
+    /// delivered to ALL targets via dedicated side-channels.
+    /// 
+    /// This ensures reliable control signal delivery (e.g., CheckpointBarrier, Heartbeat) 
+    /// to all competing consumers for coordinated processing.
+    /// </summary>
+    public static SideChannelCompetingEdgeStrategy CreateCompetingWithSideChannel(
+        BufferMode bufferMode = BufferMode.Bounded,
+        int bufferCapacity = 100)
+    {
+        return new SideChannelCompetingEdgeStrategy(bufferMode, bufferCapacity);
+    }
 }
