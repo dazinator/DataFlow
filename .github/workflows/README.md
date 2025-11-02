@@ -43,19 +43,23 @@ This document provides an overview of the GitHub Actions workflows implemented f
 
 **Input Parameter:**
 - `benchmark`: Choice of which benchmark to run
-  - Options: `all`, `diagnose`, `minimal`, `simple`, `batch`, `transform-model`, `transform-memory`, `memory-rate`
+  - **Non-POC Options:** `all`, `diagnose`, `minimal`, `simple`, `batch`, `transform-model`, `transform-memory`, `memory-rate`
+  - **POC Options:** `poc-simple`, `poc-extended`, `poc-all`, `poc-comparison-simple`, `poc-comparison-extended`, `poc-actor-steady`, `poc-actor-rotation`, `poc-actor-memory`, `poc-actor-all`, `poc-epoch-production-io`, `poc-epoch-all`
   - Default: `simple`
 
 **Job: run-benchmarks**
 - Checks out code with full git history
-- Sets up .NET 8.0
-- Restores and builds the Benchmarks project in Release mode
-- Creates `docs/benchmarks/` directory if needed
-- Runs selected benchmark(s) with timestamped output files
-  - Single benchmark: Creates one file `{benchmark}_{timestamp}.txt`
-  - All benchmarks: Creates multiple files, one per benchmark type
+- Sets up .NET 8.0 and Python (for visualization)
+- Installs dependencies (matplotlib, pandas, dotnet-counters)
+- Restores and builds both Benchmarks and POC Benchmarks projects in Release mode
+- Creates result directories if needed
+- Runs selected benchmark(s)
+  - Non-POC benchmarks: Output to `docs/benchmarks/*.txt`
+  - POC benchmarks: Output to `poc/DataFlow.POC.Benchmarks/benchmark-results/*.md` and BenchmarkDotNet artifacts
 - Uploads benchmark results as GitHub Actions artifacts (90-day retention)
-- Commits results to `docs/benchmarks/` directory
+  - Includes BenchmarkDotNet.Artifacts (markdown, CSV, HTML reports)
+  - Includes time-series metrics and visualizations
+- Commits results to repository
 - Pushes changes back to the triggering branch
 
 **Features:**
@@ -63,13 +67,15 @@ This document provides an overview of the GitHub Actions workflows implemented f
 - Conditional commit/push (only if files were created)
 - Results stored both as artifacts and in repository for historical tracking
 - Allows comparing performance over time via git history
+- POC epoch benchmarks are prefixed with `poc-` for easy identification
 
 ## Benchmark Results Storage
 
-Benchmark results are stored in `docs/benchmarks/`:
-- Each result file is timestamped: `{benchmark-name}_{YYYYMMDD_HHMMSS}.txt`
+Benchmark results are stored in multiple locations:
+- Non-POC benchmarks: `docs/benchmarks/` (timestamped .txt files)
+- POC benchmarks: `poc/DataFlow.POC.Benchmarks/benchmark-results/` (timestamped .md files)
+- BenchmarkDotNet results: `poc/DataFlow.POC.Benchmarks/BenchmarkDotNet.Artifacts/results/` (.md, .csv, .html files)
 - Files are committed to the repository for historical tracking
-- A `README.md` in that directory explains the structure and how to compare results
 - Results are also available as downloadable artifacts in the workflow run
 
 ## Usage

@@ -26,8 +26,8 @@ on:
           - poc-actor-rotation
           - poc-actor-memory
           - poc-actor-all
-          - epoch-production-io
-          - epoch-all
+          - poc-epoch-production-io
+          - poc-epoch-all
 
 env:
   DOTNET_VERSION: '8.0.x'
@@ -98,6 +98,9 @@ jobs:
           ${{ env.POC_RESULTS_DIR }}/*.png
           ${{ env.POC_RESULTS_DIR }}/*.csv
           ${{ env.POC_RESULTS_DIR }}/charts_*/**
+          poc/DataFlow.POC.Benchmarks/BenchmarkDotNet.Artifacts/results/*.md
+          poc/DataFlow.POC.Benchmarks/BenchmarkDotNet.Artifacts/results/*.csv
+          poc/DataFlow.POC.Benchmarks/BenchmarkDotNet.Artifacts/results/*.html
         retention-days: 90
         if-no-files-found: warn
     

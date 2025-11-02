@@ -77,12 +77,12 @@ elif [ "$BENCHMARK" = "poc-all" ]; then
   echo "Running POC extended benchmark..."
   dotnet run --project "$POC_BENCHMARK_PROJECT" --configuration Release -- extended > "${POC_RESULTS_DIR}/extended-benchmark_${TIMESTAMP}.md" 2>&1 || true
 
-elif [ "$BENCHMARK" = "epoch-production-io" ]; then
+elif [ "$BENCHMARK" = "poc-epoch-production-io" ]; then
   # Run Epoch Production I/O benchmark (KEY BENCHMARK - validates ≤5% overhead goal in production context)
   echo "Running Epoch Production I/O benchmark..."
   dotnet run --project "$POC_BENCHMARK_PROJECT" --configuration Release -- epoch-production-io
 
-elif [ "$BENCHMARK" = "epoch-all" ]; then
+elif [ "$BENCHMARK" = "poc-epoch-all" ]; then
   # Run all epoch-related benchmarks
   echo "Running all epoch benchmarks..."
   dotnet run --project "$POC_BENCHMARK_PROJECT" --configuration Release -- phase4

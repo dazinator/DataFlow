@@ -1,15 +1,8 @@
 # Ignore all benchmark result files by default
 *.md
+*.csv
+*.png
 
-# Keep only specific benchmark files we want to preserve
+# Keep only documentation and specific preserved benchmarks
 !README.md
 !CONCURRENCY_ANALYSIS.txt
-!extended-benchmark_2025-10-26_23-42-06.md
-!extended-benchmark_2025-10-27_00-07-50.md
-!simple-benchmark_2025-10-26_23-39-13.md
-!simple-benchmark_2025-10-27_00-09-08.md
-!phase4-streaming-benchmark_2025-11-02.md
-!phase4-async-scaling-analysis_2025-11-02.md
-!phase4-delay-investigation_2025-11-02.md
-!phase4-epoch-granularity_2025-11-02.md
-!phase4-realistic-io_2025-11-02.md
