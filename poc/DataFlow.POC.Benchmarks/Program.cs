@@ -90,6 +90,11 @@ else if (args.Length > 0 && args[0] == "actor-memory")
     
     await DataFlow.POC.Benchmarks.ActorBlockBenchmark.RunMemoryIntensiveAsync(itemCount, rotateAfter);
 }
+else if (args.Length > 0 && args[0] == "epoch-alignment")
+{
+    // Run Phase 3 epoch alignment benchmarks
+    BenchmarkRunner.Run<DataFlow.POC.Benchmarks.EpochAlignmentBenchmark>();
+}
 else
 {
     // Run simple performance tests
