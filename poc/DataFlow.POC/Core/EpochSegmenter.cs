@@ -27,11 +27,6 @@ public enum EpochExecutionPolicy
 public sealed class EpochSegmenterConfig
 {
     /// <summary>
-    /// Buffer capacity for each epoch stream.
-    /// </summary>
-    public int BufferCapacity { get; init; } = 256;
-
-    /// <summary>
     /// Maximum number of concurrent epochs in flight (for Overlapped policy).
     /// </summary>
     public int MaxConcurrentEpochs { get; init; } = 4;
@@ -51,8 +46,7 @@ public static class EpochSegmenter
 {
     /// <summary>
     /// Segments a continuous input stream into epoch streams based on an epoch clock.
-    /// Note: This is a simplified implementation that collects items into lists per epoch.
-    /// For production use, consider a more sophisticated buffering strategy.
+    /// Items are streamed directly to consumers without intermediate buffering.
     /// </summary>
     public static async IAsyncEnumerable<IEpochStream<T>> SegmentByEpoch<T>(
         IAsyncEnumerable<T> input,
@@ -65,54 +59,54 @@ public static class EpochSegmenter
 
         config ??= new EpochSegmenterConfig();
 
+        await using var enumerator = input.GetAsyncEnumerator(cancellationToken);
+        var hasMore = await enumerator.MoveNextAsync();
+        
+        if (!hasMore)
+            yield break;
+
         var currentEpoch = clock.CurrentEpochVector;
-        var currentItems = new List<T>();
-        var firstItem = true;
 
-        await foreach (var item in input.WithCancellation(cancellationToken))
+        while (hasMore)
         {
-            var now = clock.CurrentEpochVector;
+            var epochToYield = currentEpoch;
             
-            // Epoch changed - yield previous epoch and start new one
-            if (!firstItem && !now.Equals(currentEpoch))
-            {
-                var previousEpoch = currentEpoch;
-                var previousItems = currentItems.ToList();
-                
-                yield return new EpochStream<T>(
-                    previousEpoch,
-                    YieldItems(previousItems, cancellationToken));
-
-                currentEpoch = now;
-                currentItems = new List<T>();
-            }
-
-            currentItems.Add(item);
-            firstItem = false;
-        }
-
-        // Yield final epoch if we have items
-        if (!firstItem && currentItems.Count > 0)
-        {
+            // Create a streaming epoch that reads from the shared enumerator
+            // until the epoch changes
             yield return new EpochStream<T>(
-                currentEpoch,
-                YieldItems(currentItems, cancellationToken));
-        }
-    }
+                epochToYield,
+                StreamEpochItems());
 
-    private static async IAsyncEnumerable<T> YieldItems<T>(
-        List<T> items,
-        [EnumeratorCancellation] CancellationToken cancellationToken)
-    {
-        foreach (var item in items)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            yield return item;
+            async IAsyncEnumerable<T> StreamEpochItems()
+            {
+                // Yield the current item
+                yield return enumerator.Current;
+
+                // Continue yielding items while they belong to the same epoch
+                while (await enumerator.MoveNextAsync())
+                {
+                    var now = clock.CurrentEpochVector;
+                    
+                    if (!now.Equals(epochToYield))
+                    {
+                        // Epoch changed - update tracking and break
+                        currentEpoch = now;
+                        hasMore = true;
+                        yield break;
+                    }
+
+                    yield return enumerator.Current;
+                }
+
+                // No more items
+                hasMore = false;
+            }
         }
     }
 
     /// <summary>
     /// Segments a stream using a key selector function to determine epoch boundaries.
+    /// Items are streamed directly to consumers without intermediate buffering.
     /// </summary>
     public static async IAsyncEnumerable<IEpochStream<T>> SegmentByKey<T, TKey>(
         IAsyncEnumerable<T> input,
@@ -128,47 +122,51 @@ public static class EpochSegmenter
 
         config ??= new EpochSegmenterConfig();
 
-        TKey? currentKey = default;
-        long sequence = 0;
-        var currentItems = new List<T>();
-        var firstItem = true;
+        await using var enumerator = input.GetAsyncEnumerator(cancellationToken);
+        var hasMore = await enumerator.MoveNextAsync();
+        
+        if (!hasMore)
+            yield break;
 
-        await foreach (var item in input.WithCancellation(cancellationToken))
+        long sequence = 1;
+        var currentKey = epochKeySelector(enumerator.Current);
+
+        while (hasMore)
         {
-            var itemKey = epochKeySelector(item);
-
-            // Check for epoch boundary
-            if (!firstItem && !EqualityComparer<TKey>.Default.Equals(itemKey, currentKey))
-            {
-                // Yield previous epoch
-                var previousSequence = sequence;
-                var previousItems = currentItems.ToList();
-                
-                yield return new EpochStream<T>(
-                    EpochVector.FromSingleSource(sourceId, previousSequence),
-                    YieldItems(previousItems, cancellationToken));
-
-                // Start new epoch
-                sequence++;
-                currentKey = itemKey;
-                currentItems = new List<T>();
-            }
-            else if (firstItem)
-            {
-                sequence = 1;
-                currentKey = itemKey;
-                firstItem = false;
-            }
-
-            currentItems.Add(item);
-        }
-
-        // Yield final epoch
-        if (!firstItem && currentItems.Count > 0)
-        {
+            var epochSequence = sequence;
+            var epochKey = currentKey;
+            
+            // Create a streaming epoch that reads from the shared enumerator
+            // until the key changes
             yield return new EpochStream<T>(
-                EpochVector.FromSingleSource(sourceId, sequence),
-                YieldItems(currentItems, cancellationToken));
+                EpochVector.FromSingleSource(sourceId, epochSequence),
+                StreamEpochItems());
+
+            async IAsyncEnumerable<T> StreamEpochItems()
+            {
+                // Yield the current item
+                yield return enumerator.Current;
+
+                // Continue yielding items while they have the same key
+                while (await enumerator.MoveNextAsync())
+                {
+                    var itemKey = epochKeySelector(enumerator.Current);
+                    
+                    if (!EqualityComparer<TKey>.Default.Equals(itemKey, epochKey))
+                    {
+                        // Key changed - update tracking and break
+                        sequence++;
+                        currentKey = itemKey;
+                        hasMore = true;
+                        yield break;
+                    }
+
+                    yield return enumerator.Current;
+                }
+
+                // No more items
+                hasMore = false;
+            }
         }
     }
 }

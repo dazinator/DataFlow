@@ -73,7 +73,6 @@ public class EpochAlignmentBenchmark
             "source1",
             new EpochSegmenterConfig
             {
-                BufferCapacity = 1000,
                 ExecutionPolicy = EpochExecutionPolicy.Sequential
             });
 
@@ -105,7 +104,6 @@ public class EpochAlignmentBenchmark
             "source1",
             new EpochSegmenterConfig
             {
-                BufferCapacity = 1000,
                 ExecutionPolicy = EpochExecutionPolicy.Overlapped,
                 MaxConcurrentEpochs = 4
             });
@@ -140,7 +138,6 @@ public class EpochAlignmentBenchmark
             "source1",
             new EpochSegmenterConfig
             {
-                BufferCapacity = 1000,
                 ExecutionPolicy = EpochExecutionPolicy.Sequential
             });
 

@@ -15,7 +15,7 @@ public class EpochSegmenterTests
     {
         // Arrange
         var input = GenerateNumbersWithEpochKeys();
-        var config = new EpochSegmenterConfig { BufferCapacity = 10 };
+        var config = new EpochSegmenterConfig();
 
         // Act
         var epochs = new List<(EpochVector epoch, List<int> items)>();
@@ -78,7 +78,7 @@ public class EpochSegmenterTests
             }
         }
 
-        var config = new EpochSegmenterConfig { BufferCapacity = 10 };
+        var config = new EpochSegmenterConfig();
 
         // Act
         var epochs = new List<(EpochVector epoch, List<int> items)>();
@@ -209,7 +209,7 @@ public class EpochSegmenterTests
 
         var dataItemsPerEpoch = 10;
         var input = GenerateNumbers(dataItemsPerEpoch);
-        var config = new EpochSegmenterConfig { BufferCapacity = 10 };
+        var config = new EpochSegmenterConfig();
 
         // Act - Process epoch stream with slow processing
         await foreach (var epochStream in EpochSegmenter.SegmentByKey(
@@ -254,7 +254,6 @@ public class EpochSegmenterTests
         var input = GenerateNumbers(30);
         var config = new EpochSegmenterConfig 
         { 
-            BufferCapacity = 10,
             ExecutionPolicy = EpochExecutionPolicy.Sequential
         };
 

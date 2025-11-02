@@ -95,6 +95,48 @@ else if (args.Length > 0 && args[0] == "epoch-alignment")
     // Run Phase 3 epoch alignment benchmarks
     BenchmarkRunner.Run<DataFlow.POC.Benchmarks.EpochAlignmentBenchmark>();
 }
+else if (args.Length > 0 && args[0] == "phase4" || args.Length > 0 && args[0] == "epoch-synthetic")
+{
+    // Run synthetic baseline benchmark (pure stream vs epoch infrastructure)
+    // Measures raw framework overhead without I/O or realistic workload
+    BenchmarkRunner.Run<DataFlow.POC.Benchmarks.EpochSyntheticBaselineBenchmark>();
+}
+else if (args.Length > 0 && args[0] == "phase4-streaming")
+{
+    // Run Phase 4 streaming segmentation micro-benchmarks
+    BenchmarkRunner.Run<DataFlow.POC.Benchmarks.StreamingSegmentationMicrobenchmark>();
+}
+else if (args.Length > 0 && args[0] == "phase4-regression")
+{
+    // Run Phase 4 non-epoch regression benchmarks
+    BenchmarkRunner.Run<DataFlow.POC.Benchmarks.NonEpochRegressionBenchmark>();
+}
+else if (args.Length > 0 && args[0] == "phase4-realistic")
+{
+    // Run Phase 4 realistic workload benchmarks (nested in Phase4PerformanceBenchmarks)
+    BenchmarkRunner.Run<DataFlow.POC.Benchmarks.RealisticWorkloadBenchmark>();
+}
+else if (args.Length > 0 && args[0] == "epoch-scaling")
+{
+    // Run epoch async workload scaling to prove overhead constancy
+    BenchmarkRunner.Run<DataFlow.POC.Benchmarks.EpochOverheadConstancyBenchmark>();
+}
+else if (args.Length > 0 && args[0] == "epoch-async-overhead")
+{
+    // Run epoch async overhead investigation (Task vs ValueTask)
+    BenchmarkRunner.Run<DataFlow.POC.Benchmarks.EpochAsyncOverheadBenchmark>();
+}
+else if (args.Length > 0 && args[0] == "epoch-granularity")
+{
+    // Run epoch granularity scaling benchmarks
+    BenchmarkRunner.Run<DataFlow.POC.Benchmarks.EpochGranularityScalingBenchmark>();
+}
+else if (args.Length > 0 && args[0] == "epoch-production-io")
+{
+    // **KEY EPOCH BENCHMARK** - Production I/O context showing 1-2% overhead
+    // This benchmark validates the ≤5% overhead goal in realistic scenarios
+    BenchmarkRunner.Run<DataFlow.POC.Benchmarks.EpochProductionIOBenchmark>();
+}
 else
 {
     // Run simple performance tests

@@ -26,6 +26,8 @@ on:
           - poc-actor-rotation
           - poc-actor-memory
           - poc-actor-all
+          - epoch-production-io
+          - epoch-all
 
 env:
   DOTNET_VERSION: '8.0.x'
