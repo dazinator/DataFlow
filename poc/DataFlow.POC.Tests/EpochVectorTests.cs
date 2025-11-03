@@ -269,4 +269,124 @@ public class EpochVectorTests
         vector1.Equals(vector3).ShouldBeFalse();
         (vector1 == vector3).ShouldBeFalse();
     }
+
+    [Fact]
+    public void Subsumes_Should_ReturnTrue_WhenAllSourceSequencesAreGreaterOrEqual()
+    {
+        // Arrange - parent has source1=5, child has source1=10, source2=3
+        var parent = EpochVector.FromSingleSource("source1", 5);
+        var child = EpochVector.FromSources(new Dictionary<string, long>
+        {
+            ["source1"] = 10,
+            ["source2"] = 3
+        });
+
+        // Act & Assert - child subsumes parent (has same source with higher seq)
+        child.Subsumes(parent).ShouldBeTrue();
+    }
+
+    [Fact]
+    public void Subsumes_Should_ReturnFalse_WhenAnySourceSequenceIsLower()
+    {
+        // Arrange
+        var parent = EpochVector.FromSources(new Dictionary<string, long>
+        {
+            ["source1"] = 15,
+            ["source2"] = 5
+        });
+        
+        var child = EpochVector.FromSources(new Dictionary<string, long>
+        {
+            ["source1"] = 10,  // Lower than parent!
+            ["source2"] = 8
+        });
+
+        // Act & Assert - child does NOT subsume parent (source1 is lower)
+        child.Subsumes(parent).ShouldBeFalse();
+    }
+
+    [Fact]
+    public void Subsumes_Should_ReturnTrue_WhenVectorsAreEqual()
+    {
+        // Arrange
+        var vector1 = EpochVector.FromSources(new Dictionary<string, long>
+        {
+            ["source1"] = 10,
+            ["source2"] = 20
+        });
+        
+        var vector2 = EpochVector.FromSources(new Dictionary<string, long>
+        {
+            ["source1"] = 10,
+            ["source2"] = 20
+        });
+
+        // Act & Assert - equal vectors subsume each other
+        vector1.Subsumes(vector2).ShouldBeTrue();
+        vector2.Subsumes(vector1).ShouldBeTrue();
+    }
+
+    [Fact]
+    public void FindMostSpecificAncestor_Should_ReturnVectorWithMostSourcesInCommon()
+    {
+        // Arrange - child is a merge of two parents
+        var parent1 = EpochVector.FromSingleSource("source1", 5);
+        var parent2 = EpochVector.FromSingleSource("source2", 3);
+        var child = EpochVector.FromSources(new Dictionary<string, long>
+        {
+            ["source1"] = 5,
+            ["source2"] = 3
+        });
+
+        var potentialAncestors = new[] { parent1, parent2 };
+
+        // Act
+        var ancestor = child.FindMostSpecificAncestor(potentialAncestors);
+
+        // Assert - should find one of the parents (both are equally specific)
+        ancestor.ShouldNotBeNull();
+        (ancestor == parent1 || ancestor == parent2).ShouldBeTrue();
+    }
+
+    [Fact]
+    public void FindMostSpecificAncestor_Should_ReturnNull_WhenNoAncestorFound()
+    {
+        // Arrange - child has different sources than potential ancestors
+        var child = EpochVector.FromSingleSource("source1", 10);
+        var notAncestor = EpochVector.FromSingleSource("source2", 5);
+
+        var potentialAncestors = new[] { notAncestor };
+
+        // Act
+        var ancestor = child.FindMostSpecificAncestor(potentialAncestors);
+
+        // Assert
+        ancestor.ShouldBeNull();
+    }
+
+    [Fact]
+    public void FindMostSpecificAncestor_Should_PreferAncestorWithMoreSources()
+    {
+        // Arrange
+        var simpleAncestor = EpochVector.FromSingleSource("source1", 5);
+        var complexAncestor = EpochVector.FromSources(new Dictionary<string, long>
+        {
+            ["source1"] = 5,
+            ["source2"] = 3
+        });
+        var child = EpochVector.FromSources(new Dictionary<string, long>
+        {
+            ["source1"] = 10,
+            ["source2"] = 8,
+            ["source3"] = 2
+        });
+
+        var potentialAncestors = new[] { simpleAncestor, complexAncestor };
+
+        // Act
+        var ancestor = child.FindMostSpecificAncestor(potentialAncestors);
+
+        // Assert - should prefer the more complex ancestor
+        ancestor.ShouldBe(complexAncestor);
+    }
 }

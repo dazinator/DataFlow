@@ -163,4 +163,45 @@ public sealed record EpochVector
 
         return hash.ToHashCode();
     }
+
+    /// <summary>
+    /// Determines whether this epoch vector subsumes another epoch vector.
+    /// Subsumption is asymmetric: A.Subsumes(B) does not imply B.Subsumes(A).
+    /// This is useful for detecting when a merged epoch should reuse a context from a parent epoch.
+    /// </summary>
+    /// <param name="other">The epoch vector to check against</param>
+    /// <returns>True if this vector has equal or higher sequences for all sources in the other vector</returns>
+    public bool Subsumes(EpochVector other)
+    {
+        ArgumentNullException.ThrowIfNull(other);
+
+        // This vector subsumes other if:
+        // - For every source in 'other', this vector has the same or higher sequence
+        foreach (var (sourceId, otherSeq) in other.Sequences)
+        {
+            var thisSeq = GetSequence(sourceId);
+            if (thisSeq < otherSeq)
+            {
+                return false; // This vector has a lower sequence for this source
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Finds the most specific ancestor from a collection of potential ancestors.
+    /// Returns the ancestor that this vector subsumes and which has the most sources in common.
+    /// Uses O(N) MaxBy instead of O(N log N) sorting for better performance.
+    /// </summary>
+    /// <param name="potentialAncestors">Collection of potential ancestor vectors</param>
+    /// <returns>The most specific ancestor, or null if none found</returns>
+    public EpochVector? FindMostSpecificAncestor(IEnumerable<EpochVector> potentialAncestors)
+    {
+        ArgumentNullException.ThrowIfNull(potentialAncestors);
+
+        return potentialAncestors
+            .Where(ancestor => Subsumes(ancestor) && !Equals(ancestor))
+            .MaxBy(ancestor => (ancestor.Sequences.Count, ancestor.Sequences.Sum(kvp => kvp.Value)));
+    }
 }

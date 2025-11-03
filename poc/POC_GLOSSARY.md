@@ -1,0 +1,285 @@
+# DataFlow POC - Glossary of Terms
+
+## Core Concepts
+
+### Epoch
+A logical segment or batch of data items that flow together through the pipeline. Epochs provide:
+- Transaction boundaries
+- Checkpoint markers for recovery
+- Resource scoping (e.g., per-epoch DbContext)
+- Ordering guarantees within the segment
+
+**Example**: Process 1,000 records as Epoch 1, then next 1,000 as Epoch 2.
+
+### Epoch Vector
+A multi-dimensional identifier that tracks the progression of data across multiple independent sources.
+
+**Structure**: `Dictionary<int, long>` where:
+- **Key**: Source ID (which source produced this epoch)
+- **Value**: Sequence number (monotonically increasing per source)
+
+**Examples**:
+- `{sourceId=1, sequence=5}` - Epoch 5 from source 1
+- `{sourceId=1, sequence=5, sourceId=2, sequence=3}` - Merged epoch from sources 1 and 2
+
+**Operations**:
+- **Element-wise max**: Merge vectors by taking max sequence per source
+- **Subsumption**: One vector subsumes another if all its sequences are >= the other's
+- **Comparison**: Vectors can be partially ordered (some pairs incomparable)
+
+### Epoch Stream
+A typed data structure representing an epoch with its associated items.
+
+**Interface**: `IEpochStream<T>`
+- `Epoch` property: The `EpochVector` identifier
+- `Items` property: `IAsyncEnumerable<T>` of data items
+
+**Purpose**: Enables blocks to process data while maintaining epoch association.
+
+### Global Alignment  
+The point when **all blocks** in the pipeline have completed processing a specific epoch vector.
+
+**Key Properties**:
+- Indicates safe transaction boundary (all work done)
+- Enables consistent checkpoints
+- Calculated as the "watermark" - the minimum completed epoch across all blocks
+
+**Use Case**: Commit transactions only at global alignment to ensure atomicity.
+
+### Watermark
+The lowest epoch vector that has been completed by **all blocks** in the pipeline.
+
+**Calculation**: Element-wise minimum of all blocks' completion vectors.
+
+**Example**:
+- Block A completed: `{source1=5, source2=3}`
+- Block B completed: `{source1=4, source2=4}`
+- **Watermark**: `{source1=4, source2=3}` (min of each source)
+
+**Significance**: All epochs ≤ watermark are globally complete and safe to checkpoint/commit.
+
+## Lifecycle Events
+
+### OnEpochCreatedAsync
+Triggered when a block begins processing a new epoch.
+
+**Parameters**:
+- `EpochVector epoch` - The epoch identifier
+- `IBlockContext block` - Which block is processing this epoch
+- `CancellationToken ct` - Cancellation token
+
+**Use Case**: Create per-epoch resources (DbContext, transaction, cache).
+
+**Scope**: Per-block event (each block gets notified independently).
+
+### OnEpochCompletedAsync
+Triggered when **a single block** completes processing an epoch.
+
+**⚠️ Important**: This is a per-block event, **NOT a safe transaction boundary**.
+
+**Parameters**:
+- `EpochVector epoch` - The completed epoch
+- `IBlockContext block` - Which block completed
+- `CancellationToken ct` - Cancellation token
+
+**Use Case**: 
+- Track progression for metrics
+- Signal readiness (but don't commit yet!)
+- Useful for monitoring and diagnostics
+
+**Anti-pattern**: ❌ Do NOT commit transactions here - other blocks may still be processing.
+
+### OnGlobalEpochAlignedAsync
+Triggered when **ALL blocks** have completed an epoch (watermark advances).
+
+**✅ Safe Transaction Boundary**: This is the only safe point to commit transactions.
+
+**Parameters**:
+- `EpochVector watermark` - The globally completed epoch
+- `CancellationToken ct` - Cancellation token
+
+**Use Case**:
+- Commit transactions (e.g., `DbContext.SaveChangesAsync()`)
+- Create checkpoints for recovery
+- Dispose per-epoch resources
+- Publish events/notifications
+
+**Guarantee**: All blocks have processed all items for this epoch.
+
+## Transaction Concepts
+
+### Transaction Boundary
+A point in the pipeline where it is safe to commit database transactions or persist state.
+
+**In Epoch Model**:
+- ✅ **Global Alignment** = Safe transaction boundary
+- ❌ **Per-Block Completion** = NOT safe (other blocks still processing)
+
+**Rationale**: Committing before global alignment could result in partial state if downstream blocks fail.
+
+### Per-Epoch DbContext
+A database context instance scoped to a single epoch's lifetime.
+
+**Lifecycle**:
+1. Created on `OnEpochCreatedAsync`
+2. Tracks entities as epoch items flow through
+3. Kept alive through per-block completions
+4. Committed and disposed on `OnGlobalEpochAlignedAsync`
+
+**Benefits**:
+- Natural transaction boundaries
+- Bounded entity count (per epoch size)
+- Automatic cleanup
+- Isolation between epochs
+
+### Context Promotion (Merge Handling)
+The process of reusing a parent DbContext when epoch vectors merge.
+
+**Scenario**:
+- `Epoch {source1=1}` → creates `DbContext1`
+- `Epoch {source2=1}` → creates `DbContext2`
+- `Epoch {source1=1, source2=1}` → **promotes** `DbContext1` (reuses it)
+
+**Purpose**: Prevents context fragmentation, keeps all merged entities in one transaction.
+
+**Implementation**: `FindMostSpecificAncestor()` detects parent epochs.
+
+## Advanced Concepts
+
+### Epoch Ancestry
+The relationship where one epoch vector subsumes (contains) another.
+
+**Definition**: Epoch A subsumes epoch B if:
+- For every source in B, A has the same source
+- For every source in B, A's sequence >= B's sequence
+
+**Example**:
+- `{s1=2, s2=3}` subsumes `{s1=1, s2=2}` ✓
+- `{s1=2, s2=3}` subsumes `{s1=2}` ✓
+- `{s1=2}` does NOT subsume `{s1=2, s2=1}` ✗ (missing source)
+
+**Use Case**: Detect when merged epochs should reuse existing DbContext instances.
+
+### Element-Wise Max
+Operation used to merge epoch vectors at fan-in points.
+
+**Algorithm**:
+```
+max({s1=2, s2=3}, {s1=1, s2=4}) = {s1=2, s2=4}
+```
+
+**Property**: Monotonic - result is always >= both inputs.
+
+**Use Case**: Combining epochs from multiple upstream sources.
+
+### Checkpoint
+A persistent snapshot of pipeline state enabling recovery from failures.
+
+**Components**:
+- Watermark (last globally completed epoch)
+- Per-source anchors (where each source should resume)
+- Block state (if any)
+
+**Guarantee**: Can resume from checkpoint without data loss or duplication.
+
+## Block Concepts
+
+### IBlockContext
+An interface identifying a block within lifecycle events.
+
+**Properties**:
+- `string BlockId` - Unique block identifier
+- `string BlockName` - Human-readable name
+- `Dictionary<string, object> Metadata` - Extensibility
+
+**Purpose**: Enables fine-grained tracking of which block triggered which lifecycle event.
+
+### Lifecycle Participant
+A component (block or external system) that subscribes to epoch lifecycle events.
+
+**Interface**: `IEpochLifecycleParticipant`
+
+**Examples**:
+- `EntityTrackingBlock` - Manages per-epoch DbContext
+- Checkpoint manager - Records watermarks
+- Metrics collector - Tracks progression
+- External notification system - Publishes events
+
+### Tracking Block
+A downstream block that manages per-epoch state (typically DbContext) and participates in lifecycle events.
+
+**Responsibilities**:
+- Create resources on epoch start
+- Track/modify entities as items flow
+- Commit on global alignment
+- Dispose resources after commit
+
+**Pattern**: Composable - can have multiple tracking blocks in same pipeline (multi-sink).
+
+## Performance Concepts
+
+### Fast Path (Single-Source)
+An optimization that skips ancestor detection when an epoch has only one source.
+
+**Condition**: `epochVector.Sequences.Count == 1`
+
+**Benefit**: O(1) check instead of O(N×M) ancestor search.
+
+**Rationale**: Single-source linear progressions never need context promotion.
+
+### Subsumption Check
+Algorithm to determine if one epoch vector contains another.
+
+**Complexity**: O(M) where M = number of sources in candidate ancestor.
+
+**Used In**: `FindMostSpecificAncestor()` to detect merge scenarios.
+
+## Coordinator Concepts
+
+### EpochLifecycleCoordinator
+Central registry and broadcaster for lifecycle events.
+
+**Responsibilities**:
+- Register participants (blocks, external systems)
+- Broadcast events to all participants
+- Serialize or parallelize notifications (configuration)
+
+**Pattern**: Pub/Sub - participants register, coordinator notifies.
+
+## Future Concepts (Planned)
+
+### EventChannelNode
+A graph node that broadcasts lifecycle events as data flowing through channels.
+
+**Benefit**: Unifies event handling with dataflow semantics, removes locking.
+
+### Per-Epoch Cache
+A cache system that maintains separate cache instances per epoch.
+
+**Use Case**: Share cached data across blocks within epoch boundary.
+
+**Challenge**: Cache promotion strategy for merged epochs.
+
+---
+
+## Quick Reference
+
+| Term | One-line Summary |
+|------|------------------|
+| **Epoch** | Logical batch of data with transaction boundary |
+| **EpochVector** | Multi-source identifier with sequence numbers |
+| **Global Alignment** | All blocks completed epoch - safe for commit |
+| **Watermark** | Minimum epoch completed by all blocks |
+| **OnEpochCompletedAsync** | Per-block completion - NOT safe boundary |
+| **OnGlobalEpochAlignedAsync** | Global completion - SAFE boundary |
+| **Context Promotion** | Reusing parent DbContext at merge points |
+| **Subsumption** | One epoch contains another (ancestry) |
+| **Transaction Boundary** | Safe point to commit (= global alignment) |
+| **Tracking Block** | Block managing per-epoch state (e.g., DbContext) |
+
+---
+
+**See Also**:
+- `PHASE5_EFCORE_ANCHORING_DEMO.md` - Epoch anchoring implementation
+- `PHASE6_EPOCH_LIFECYCLE.md` - Lifecycle model and patterns
+- `POC_DOCUMENTATION_STRUCTURE.md` - Documentation organization
