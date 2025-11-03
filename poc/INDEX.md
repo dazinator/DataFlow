@@ -233,6 +233,47 @@ See [SUMMARY.md](./SUMMARY.md) for:
 
 ---
 
+## 📚 Epoch-Based Coordination Documentation
+
+The POC also includes an epoch-based coordination system for managing transaction boundaries and multi-source synchronization. This documentation is now organized by purpose:
+
+### 🎓 Learning Concepts
+**Start here if you want to understand the epoch system:**
+
+📁 **[/concepts](./concepts/)** - Stable conceptual documentation
+- [Epochs](./concepts/epochs.md) - What are epochs and why use them?
+- [Epoch Vectors](./concepts/epoch-vectors.md) - Multi-source coordination
+- [Global Alignment](./concepts/global-alignment.md) - Computing safe checkpoint boundaries
+- [Transaction Boundaries](./concepts/transaction-boundaries.md) - When to commit safely
+- [Lifecycle Events](./concepts/lifecycle-events.md) - Event-driven coordination
+
+### 🛠️ Implementing Features  
+**Practical guides for using the epoch system:**
+
+📁 **[/guides](./guides/)** - How-to guides and patterns
+- [Creating Tracking Blocks](./guides/creating-tracking-blocks.md) - EntityTrackingBlock pattern for per-epoch transactions
+
+### 📖 API Reference
+**Detailed technical specifications:**
+
+📁 **[/reference](./reference/)** - API reference and specifications
+- (To be populated with API documentation)
+
+### 🕰️ Historical Context
+**Understanding the evolution of the epoch system:**
+
+📁 **[/phases](./phases/)** - Historical phase progression (archived)
+- [Phase Index](./phases/PHASE_INDEX.md) - Navigation through historical phases
+- [Phases README](./phases/README.md) - Why phases exist and how to use them
+
+Phase 2-6 documents have been moved to `/phases` for historical reference.
+
+### 📝 Quick Reference
+- **[POC_GLOSSARY.md](./POC_GLOSSARY.md)** - Terminology reference
+- **[POC_DOCUMENTATION_STRUCTURE.md](./POC_DOCUMENTATION_STRUCTURE.md)** - Documentation organization
+
+---
+
 **POC Status: ✅ Complete and Successful**
 
 **All 10 tests passing - Ready for stakeholder review**
