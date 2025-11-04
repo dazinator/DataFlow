@@ -248,3 +248,26 @@ When suggesting code changes, ensure they are compatible with AGPL-3.0 requireme
 - The builder pattern is fluent and chainable - maintain this style
 - Blocks are connected via `.ReceiveFrom()` - this creates the pipeline topology
 - The library emphasizes correctness and composability over raw speed
+
+## POC Work Guidelines
+
+If you are working on a POC (Proof-of-Concept) issue related to the `/poc` folder:
+
+**🔗 READ FIRST**: See `.github/copilot-instructions-poc.md` for comprehensive POC workflow guidelines.
+
+**Quick Start**:
+1. Read `/poc/README.md` and `/poc/docs/` to understand the POC context
+2. Create a plan in `/poc/docs/plans/` before starting work
+3. Document research and benchmarks in `/poc/docs/research/`
+4. Maintain `/poc/docs/POC_GLOSSARY.md` with new terminology
+5. Validate designs through testing and benchmarking
+6. Track architectural decisions in `/poc/docs/adr/`
+
+**Key POC Folders**:
+- `/poc/docs/plans/` - Action plans and proposals (create one for each POC issue)
+- `/poc/docs/design/` - Architecture and design documentation
+- `/poc/docs/research/` - Investigations, explorations, and benchmark results
+- `/poc/docs/guides/` - Implementation patterns and how-to guides
+- `/poc/docs/adr/` - Architecture Decision Records
+
+The POC has different workflows and documentation requirements than the main library. Always follow the POC guidelines when working on POC-related issues.
