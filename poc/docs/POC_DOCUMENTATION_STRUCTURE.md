@@ -4,6 +4,8 @@
 
 This document describes the current POC documentation structure. The structure organizes documentation by purpose and audience, making it easy to find relevant information whether you're learning concepts, implementing features, conducting research, or reviewing historical decisions.
 
+**📖 For POC Research Workflow**: See [POC_RESEARCH_WORKFLOW.md](POC_RESEARCH_WORKFLOW.md) for detailed guidance on conducting research, handling pivots, and managing exploratory code/documentation.
+
 ## Current Structure
 
 ```
@@ -14,11 +16,26 @@ This document describes the current POC documentation structure. The structure o
 │   ├── /guides                          # How-to guides and implementation patterns
 │   ├── /reference                       # API reference and specifications
 │   ├── /research                        # Exploratory documentation, investigations, and performance analysis
-│   ├── /adr                             # Architecture Decision Records
+│   ├── /adr                             # Architecture Decision Records (adopted decisions)
 │   ├── /plans                           # Action plans, proposals, and phased plans
-│   ├── POC_GLOSSARY.md                  # Terminology reference
+│   │   └── /PHASE_X_NAME/               # Individual phase plan folders
+│   │       ├── plan.md                  # The plan itself
+│   │       ├── /proposed-docs           # Docs staged for integration (if adopted)
+│   │       └── /archived                # Dismissed approaches with rationale
+│   ├── POC_GLOSSARY.md                  # Terminology reference (adopted terms)
+│   ├── RESEARCH_GLOSSARY.md             # Explored but not adopted terms
+│   ├── POC_RESEARCH_WORKFLOW.md         # Research and exploration workflow guide
 │   ├── POC_DOCUMENTATION_STRUCTURE.md   # This file - structure guide
 │   └── INDEX.md                         # Navigation hub
+├── /DataFlow.POC                        # Production-track POC code
+│   ├── /Core                            # Production code
+│   └── /Exploratory                     # Exploratory implementations (compilable)
+│       └── /PhaseXName                  # Phase-specific exploratory code
+├── /DataFlow.POC.Tests                  # Tests
+│   ├── /Integration                     # Production-track integration tests
+│   ├── /Unit                            # Production-track unit tests
+│   └── /Exploratory                     # Exploratory tests (marked with [Category("Exploratory")])
+│       └── /PhaseXName                  # Phase-specific exploratory tests
 └── README.md                            # Quick start and overview (entry point)
 ```
 
@@ -159,28 +176,46 @@ This document describes the current POC documentation structure. The structure o
 - Encapsulate complete actionable plans
 - Includes historical phase-by-phase evolution (immutable once complete)
 - Chronological organization for phased plans
+- **New**: Individual phase folders with staged documentation workflow
 
 **Content Scope**:
 - Action plans and migration plans
 - Feature proposals and refactoring plans
 - Organizational improvements
-- Historical phased development plans (PHASE1-6)
+- Historical phased development plans (PHASE1-7+)
 - Phase summaries and indices
 
-**Current Files**:
+**Phase Folder Structure** (Phase 7+):
+```
+/docs/plans/PHASE_X_NAME/
+├── plan.md                          # The plan itself
+├── /proposed-docs/                  # Docs staged for adoption (during research)
+│   ├── glossary-additions.md       # Terms to add if adopted
+│   ├── adr-*.md                    # ADRs being considered
+│   ├── design-*.md                 # Design docs being proposed
+│   └── research-findings.md        # Research findings
+└── /archived/                       # Dismissed approaches
+    ├── README.md                    # Pivot rationale
+    ├── adr-*-dismissed.md          # Dismissed ADRs
+    └── design-*-dismissed.md       # Dismissed designs
+```
+
+**Workflow**: See [POC_RESEARCH_WORKFLOW.md](POC_RESEARCH_WORKFLOW.md) for detailed guidance on:
+- How to structure phase folders during research
+- Handling pivots and archiving dismissed approaches
+- Promoting adopted documentation after PR approval
+- Managing exploratory code and tests
+
+**Legacy Files** (Phases 1-6):
 ```
 /docs/plans
-├── DOCUMENTATION_MIGRATION_ACTION_PLAN.md
-├── future-enhancements.md
 ├── PHASE2_CONTROL_SIGNAL_INVESTIGATION.md
-├── PHASE2_SUMMARY.md
 ├── PHASE3_EPOCH_STREAM_SEGMENTATION.md
-├── PHASE3_PART1_PERFORMANCE_REPORT.md
-├── PHASE3_PART1_SUMMARY.md
-├── PHASE3_SUMMARY.md
 ├── PHASE4_SOURCE_ACTOR_AND_STREAMING_BUFFERS.md
 ├── PHASE5_EFCORE_ANCHORING_DEMO.md
 ├── PHASE6_EPOCH_LIFECYCLE.md
+└── ... (phase summaries and indices)
+```
 ├── PHASE_INDEX.md
 └── README.md
 ```
@@ -198,11 +233,46 @@ This document describes the current POC documentation structure. The structure o
 ### POC_GLOSSARY.md
 **Location**: `/docs/POC_GLOSSARY.md`
 
-**Purpose**: Central terminology reference.
+**Purpose**: Central terminology reference for **adopted** terms that are part of current POC architecture.
 
 **Status**: Active
 
-**Updates**: Add terms as concepts emerge.
+**Updates**: Add terms as concepts are adopted into the codebase.
+
+**Format**: Terms marked with ✅ status indicating they are part of current architecture.
+
+---
+
+### RESEARCH_GLOSSARY.md
+**Location**: `/docs/RESEARCH_GLOSSARY.md`
+
+**Purpose**: Terminology reference for **explored but not adopted** terms.
+
+**Status**: Active
+
+**Updates**: Add terms for approaches explored during research that were ultimately dismissed.
+
+**Format**: Terms marked with ❌ status, including exploration date, dismissal reason, and what superseded them.
+
+**Rationale**: Preserves exploration history and prevents re-exploration of dismissed approaches while keeping main glossary focused on current architecture.
+
+---
+
+### POC_RESEARCH_WORKFLOW.md
+**Location**: `/docs/POC_RESEARCH_WORKFLOW.md`
+
+**Purpose**: Comprehensive guide for conducting research and exploration within the POC.
+
+**Status**: Active
+
+**Content**:
+- How to structure plan folders during research
+- Managing proposed documentation vs archived (dismissed) documentation
+- Handling exploratory code and tests
+- Pivot workflow and knowledge preservation
+- Documentation promotion after PR approval
+
+**Target Audience**: Contributors conducting POC research and exploration work.
 
 ---
 

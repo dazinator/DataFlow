@@ -246,12 +246,54 @@ Central registry and broadcaster for lifecycle events.
 
 **Pattern**: Pub/Sub - participants register, coordinator notifies.
 
-## Future Concepts (Planned)
+## Event Channel Concepts (Phase 7 - In Exploration)
 
 ### EventChannelNode
-A graph node that broadcasts lifecycle events as data flowing through channels.
+A graph-native node that propagates events (particularly epoch lifecycle events) through channels rather than centralized coordinators.
 
-**Benefit**: Unifies event handling with dataflow semantics, removes locking.
+**Purpose**: Model event distribution as first-class graph connections using async channels.
+
+**Benefits**:
+- No centralized locking required
+- Events visible in graph topology
+- Natural backpressure handling
+- Composable with standard blocks (transform, route, etc.)
+
+**Example**: 
+```csharp
+var epochCreated = builder.EventChannel<EpochCreatedEvent>(capacity: 100, name: "epoch-created");
+builder.ConnectEvents(epochCreated, trackingBlock);
+```
+
+**Similar To**: `BufferNode`, but for event propagation rather than data buffering.
+
+### Event Routing Strategy
+The pattern for delivering events to subscribers: sequential (one at a time) or broadcast (all simultaneously).
+
+**Sequential Delivery**: Events sent to consumers one at a time, maintaining order. Used for transaction boundaries.
+
+**Broadcast Delivery**: Events sent to all consumers in parallel. Used for metrics, logging.
+
+### EpochCreatedEvent
+Event emitted when a block begins processing a new epoch.
+
+**Properties**: `EpochVector`, `IBlockContext`
+
+**Use Case**: Initialize per-epoch resources (DbContext, cache).
+
+### EpochCompletedEvent
+Event emitted when a single block completes processing an epoch.
+
+**Properties**: `EpochVector`, `IBlockContext`
+
+**⚠️ Note**: Per-block event, NOT a safe transaction boundary.
+
+### GlobalAlignmentEvent
+Event emitted when ALL blocks have completed an epoch (watermark advances).
+
+**Properties**: `EpochVector` (watermark)
+
+**✅ Safe Transaction Boundary**: This is the only safe point to commit transactions.
 
 ### Per-Epoch Cache
 A cache system that maintains separate cache instances per epoch.
@@ -276,10 +318,16 @@ A cache system that maintains separate cache instances per epoch.
 | **Subsumption** | One epoch contains another (ancestry) |
 | **Transaction Boundary** | Safe point to commit (= global alignment) |
 | **Tracking Block** | Block managing per-epoch state (e.g., DbContext) |
+| **EventChannelNode** | Graph node for event propagation via channels |
+| **Event Routing Strategy** | Sequential or broadcast event delivery |
+| **EpochCreatedEvent** | Event when epoch starts (per-block) |
+| **GlobalAlignmentEvent** | Event when all blocks complete (safe boundary) |
 
 ---
 
 **See Also**:
 - `PHASE5_EFCORE_ANCHORING_DEMO.md` - Epoch anchoring implementation
 - `PHASE6_EPOCH_LIFECYCLE.md` - Lifecycle model and patterns
+- `PHASE7_EVENT_CHANNEL_NODE_EXPLORATION.md` - EventChannelNode POC exploration
+- `event-channel-node.md` - EventChannelNode design (in exploration)
 - `POC_DOCUMENTATION_STRUCTURE.md` - Documentation organization
