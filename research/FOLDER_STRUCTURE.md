@@ -17,7 +17,9 @@ This document defines the canonical folder structure for research projects in th
 ├── benchmarks/                     # Benchmark data and analysis
 │   └── benchmark-results.md
 └── handover/                       # Implementation handoff materials
-    └── github-issue-[description].md
+    ├── github-issue-[description].md
+    └── prototype/                  # (Optional) Reference prototype code
+        └── [code-files].cs
 ```
 
 ## Path Reference Guide
@@ -33,6 +35,7 @@ For quick reference when documenting paths:
 | **ADRs** | `/research/[topic]/adr/YYYY-MM-DD-[decision].md` |
 | **Benchmarks** | `/research/[topic]/benchmarks/` |
 | **Implementation issue** | `/research/[topic]/handover/github-issue-[description].md` |
+| **Prototype code** (optional) | `/research/[topic]/handover/prototype/` |
 
 ## Example: Distributed Epochs Research
 
@@ -47,7 +50,10 @@ For quick reference when documenting paths:
 ├── benchmarks/
 │   └── coordination-benchmarks.md
 └── handover/
-    └── github-issue-implement-distributed-epochs.md
+    ├── github-issue-implement-distributed-epochs.md
+    └── prototype/                  # (Optional) Key prototype code files
+        ├── CoordinatorPrototype.cs
+        └── ConsensusHelper.cs
 ```
 
 ## Creation Phases

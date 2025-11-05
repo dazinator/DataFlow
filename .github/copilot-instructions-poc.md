@@ -109,45 +109,17 @@ Create and maintain a plan document:
 
 ### 2A. Research-to-Implementation Workflow (When Applicable)
 
-If following the Research-to-Implementation workflow:
+If following the Research-to-Implementation workflow, follow the complete process documented in `/research/RESEARCH_WORKFLOW.md`. This includes:
 
-1. **Create Research Folder Structure**:
-   - See `/research/FOLDER_STRUCTURE.md` for the canonical structure
-   - Create folders progressively as research progresses
-   - Start with research plan and notes
+- Creating research folder structure (see `/research/FOLDER_STRUCTURE.md`)
+- Exploring freely with prototypes (code will be reverted)
+- Documenting research findings comprehensively
+- Creating supporting docs (design, ADRs)
+- Creating implementation-ready issue using `/research/IMPLEMENTATION_ISSUE_TEMPLATE.md`
+- Optionally capturing key prototype code files to `/research/[topic]/handover/prototype/` before code reversion
+- Reverting all exploratory code changes (only when PR reviewer approves)
 
-2. **Explore Freely**:
-   - Write exploratory code in POC projects (will be reverted)
-   - Create prototypes to validate approaches
-   - Run benchmarks to measure performance
-   - Document findings in working notes
-
-3. **Document Research**:
-   - Create comprehensive research doc as README.md in research folder
-   - Document approaches explored, findings, recommendations
-   - Include comparative analysis and performance data
-   - Save benchmark data in benchmarks subfolder
-
-4. **Create Supporting Documentation**:
-   - Design docs in design subfolder
-   - ADRs in adr subfolder
-   - Test implementation guides
-   - Follow paths in folder structure reference
-
-5. **Create Implementation-Ready Issue**:
-   - Use template: `/research/IMPLEMENTATION_ISSUE_TEMPLATE.md`
-   - Create in handover subfolder of research
-   - Include all context, guidance, test scenarios, references
-   - See example: `/poc/docs/plans/IMPLEMENTATION_ISSUE_EXAMPLE.md`
-
-6. **Code Reversion** (only when PR reviewer approves):
-   - Code reversion happens at a specific point - when PR reviewer approves research and explicitly requests it
-   - This is NOT automatic
-   - Revert all exploratory code changes (POC or non-POC)
-   - Keep documentation: research, design, ADRs, handover issue
-   - Only documentation files remain in PR after reversion
-
-**See `/research/RESEARCH_WORKFLOW.md` for complete details.**
+**See `/research/RESEARCH_WORKFLOW.md` for complete step-by-step details.**
 
 ### 3. Documentation During Development
 

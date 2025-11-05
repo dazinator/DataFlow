@@ -117,6 +117,11 @@ Critical points identified during research:
 // This approach handled edge case X effectively
 ```
 
+**Prototype Code Reference** (if available):
+- See `/research/[topic]/handover/prototype/` for reference implementation files
+- These files demonstrate key patterns and approaches validated during research
+- Use as reference, adapt as needed for production implementation
+
 ### Integration Points
 [How this integrates with existing codebase]
 
@@ -220,6 +225,7 @@ All supporting documentation created during research:
 - **Architecture Decision Record**: `/poc/docs/adr/YYYY-MM-DD-[topic].md`
 - **Test Implementation Guide**: [If separate document created]
 - **Glossary**: Updated terms in `/poc/docs/POC_GLOSSARY.md`
+- **Prototype Code**: `/research/[topic]/handover/prototype/` (if available)
 
 ### Prior Work
 Related issues and PRs:

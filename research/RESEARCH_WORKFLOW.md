@@ -318,17 +318,39 @@ Before the PR is merged (and only after reviewer approval), revert all explorato
 - ✅ Benchmark data and analysis in `/research/[topic]/benchmarks/`
 - ✅ Test implementation guides (as documentation)
 - ✅ Updated glossary entries in `/poc/docs/POC_GLOSSARY.md` (if applicable)
+- ✅ Prototype code files in `/research/[topic]/handover/prototype/` (if applicable)
 
 **What to Revert** (only when reviewer approves):
 - ❌ All exploratory code changes (POC or non-POC)
 - ❌ All exploratory test files
 - ❌ Benchmark code (keep benchmark results documentation)
-- ❌ Prototype implementations
+- ❌ Prototype implementations in source tree
 - ❌ Temporary helper code
+
+**Optional: Capturing Prototype Code for Handover**
+
+If there is important reference code from your prototypes that would be valuable for the implementation team, you can capture it before reverting:
+
+1. **Identify Key Prototype Code**: Select individual code files or code snippets that demonstrate critical patterns, algorithms, or approaches
+2. **Copy to Handover Folder**: Copy these files to `/research/[topic]/handover/prototype/`
+3. **Keep It Focused**: Only include files that provide clear reference value - don't copy entire projects
+4. **Document Context**: In your implementation issue or README, reference these prototype files and explain their purpose
+
+Example:
+```bash
+# Create prototype folder in handover
+mkdir -p research/[topic]/handover/prototype/
+
+# Copy key prototype files (not entire projects)
+cp poc/DataFlow.POC/Exploratory/CoordinatorPrototype.cs research/[topic]/handover/prototype/
+cp poc/DataFlow.POC/Exploratory/ConsensusHelper.cs research/[topic]/handover/prototype/
+```
+
+These prototype files serve as concrete reference implementations for the implementation team, showing proven approaches from your research.
 
 **Reversion Process** (execute only after reviewer approval):
 ```bash
-# 1. Commit all documentation first
+# 1. Commit all documentation first (including any prototype files)
 git add research/
 git add poc/docs/
 git commit -m "Research documentation and implementation handover materials"
@@ -355,8 +377,10 @@ git status
 - [ ] Handover materials are ready for implementation team
 - [ ] Test scenarios are documented (not implemented)
 - [ ] Benchmark findings are documented (benchmark code removed)
+- [ ] Prototype code captured in handover folder (if needed)
 
 **After Reviewer Approval**:
+- [ ] Important prototype code copied to handover folder (if applicable)
 - [ ] All exploratory code changes have been reverted
 - [ ] Only documentation and handover files remain in changes
 - [ ] Ready for merge and implementation team handoff
@@ -505,6 +529,7 @@ git checkout HEAD -- poc/DataFlow.POC.Benchmarks/
 - ✅ `/research/distributed-epochs/design/distributed-epoch-architecture.md`
 - ✅ `/research/distributed-epochs/adr/2025-11-04-hybrid-epoch-coordination.md`
 - ✅ `/research/distributed-epochs/handover/github-issue-implement-distributed-epochs.md`
+- ✅ `/research/distributed-epochs/handover/prototype/` (optional - key reference code files)
 - ✅ Updated `/poc/docs/POC_GLOSSARY.md` (if applicable)
 - ❌ No exploratory code changes (reverted after approval)
 

@@ -29,6 +29,7 @@ assignees: ''
 - [ ] Research plan, documentation, design docs, and ADRs
 - [ ] Implementation-ready issue in handover folder
 - [ ] Updated glossary (if new concepts)
+- [ ] Prototype code in handover folder (if applicable)
 - [ ] After reviewer approval: All exploratory code changes reverted
 
 **Note**: This research will produce a comprehensive implementation issue for handoff to engineering. Code reversion happens at a specific point when the PR reviewer approves the research findings and explicitly requests it - NOT automatically.
@@ -50,4 +51,5 @@ assignees: ''
 - [ ] Research comprehensively documented
 - [ ] Implementation issue contains complete context
 - [ ] All supporting documentation created
+- [ ] Prototype code captured (if needed)
 - [ ] Code changes reverted, only docs remain
