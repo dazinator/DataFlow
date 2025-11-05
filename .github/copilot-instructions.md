@@ -322,25 +322,180 @@ flowchart LR
 
 **When in doubt:** Ask "Is this validating an approach (research) or implementing a validated design (implementation)?"
 
+## Implementation Team Workflow
+
+**⚠️ CRITICAL**: Implementation issues work on VALIDATED designs from research handover or direct requirements.
+
+### How to Identify Implementation Issues
+
+1. **Issue contains** "⚠️ This is an implementation issue" → Follow implementation workflow
+2. **Issue references** handover document in `/research/[topic]/handover/` → Implementation from research
+3. **Issue has** clear requirements without need for validation → Direct implementation
+
+### Implementation Workflow Overview
+
+Implementation work can target either:
+- **POC code** (`/poc/`) - Proof-of-concept implementations
+- **Production code** (`/src/`) - Library implementations  
+- **Both** - Changes spanning multiple codebases
+
+**The handover document or issue context MUST clearly indicate the target codebase.**
+
+### Starting Implementation Work
+
+**Step 1: Identify Target Codebase**
+
+Check the issue for:
+- Explicit statement: "Target: POC" or "Target: Production" or "Target: Both"
+- Handover document path (e.g., `/research/[topic]/handover/github-issue-*.md`)
+- Context clues about which code is being modified
+
+**⚠️ If target is unclear: STOP and ask the user to clarify before proceeding.**
+
+**Step 2: Read Handover Document (if from research)**
+
+If the issue references a handover document in `/research/[topic]/handover/`:
+1. Read the handover document completely - it contains:
+   - Problem context and background
+   - Implementation guidance and recommended approach
+   - API/interface designs
+   - Test scenarios and edge cases
+   - Performance requirements
+   - Design references and ADRs
+2. Read referenced documentation:
+   - Research findings: `/research/[topic]/README.md`
+   - Design docs: `/research/[topic]/design/`
+   - ADRs: `/poc/docs/adr/` or `/src/docs/adr/`
+   - Prototype code (if available): `/research/[topic]/handover/prototype/`
+
+**Step 3: Understand the Codebase**
+
+For **POC implementation** (`/poc/`):
+- Read `/poc/README.md` - POC goals and architecture
+- Review `/poc/docs/POC_GLOSSARY.md` - terminology
+- Check relevant design docs in `/poc/docs/design/`
+- Review existing ADRs in `/poc/docs/adr/`
+
+For **Production implementation** (`/src/`):
+- Review existing architecture in the target area
+- Check existing tests and patterns
+- Review relevant documentation in `/src/docs/`
+
+**Step 4: Create Implementation Plan (for POC targets)**
+
+If implementing in POC codebase, create a plan document:
+- **Location**: `/poc/docs/plans/[descriptive-name].md`
+- **Content**:
+  - Objectives (from handover or requirements)
+  - Implementation approach
+  - Milestones with validation criteria
+  - Testing strategy
+  - Links to handover document and supporting docs
+
+For production code, plan can be tracked in the issue itself.
+
+**Step 5: Implement with Tests**
+
+- Follow the guidance in the handover document (if applicable)
+- Implement test scenarios documented in handover
+- Handle edge cases identified in research
+- Validate performance requirements (if specified)
+- Update documentation as needed
+
+**Step 6: Validate and Document**
+
+- Run all tests (create new tests per handover guidance)
+- Run benchmarks if performance requirements specified
+- Update glossary if new concepts introduced (POC only)
+- Update relevant documentation
+- Create ADR if significant decisions made during implementation
+
+### Implementation Without Research Handover
+
+For direct implementation (no research phase):
+1. Ensure requirements are clear in the issue
+2. Identify target codebase explicitly
+3. Follow same implementation process
+4. Create plan document for POC work
+5. Document decisions and findings
+
+### Key Differences: POC vs Production Implementation
+
+| Aspect | POC Implementation | Production Implementation |
+|--------|-------------------|--------------------------|
+| **Planning** | Create plan in `/poc/docs/plans/` | Plan in issue or brief doc |
+| **Documentation** | Update glossary, create guides | Update API docs, guides |
+| **Testing** | POC test projects | Production test projects |
+| **Benchmarks** | POC benchmarks, research folder | Production benchmarks |
+| **ADRs** | `/poc/docs/adr/` | `/src/docs/adr/` |
+| **Exploratory** | More flexible, can iterate | More structured, stable APIs |
+
+### Documentation Requirements by Target
+
+**For POC Implementation:**
+- Create or update plan in `/poc/docs/plans/`
+- Update `/poc/docs/POC_GLOSSARY.md` with new terminology
+- Create guides in `/poc/docs/guides/` for patterns
+- Document benchmarks in `/research/` if conducting performance analysis
+- Create ADRs in `/poc/docs/adr/` for significant decisions
+
+**For Production Implementation:**
+- Update API documentation
+- Update user guides if needed
+- Create ADRs in `/src/docs/adr/` for significant decisions
+- Update CHANGELOG for breaking changes
+
+### When to Ask for Clarification
+
+**STOP and ask the user if:**
+- Target codebase is not explicitly stated and cannot be inferred
+- Handover document is referenced but doesn't exist or is incomplete
+- Requirements are unclear or missing critical information
+- Design decisions are needed but no guidance provided
+
+### Success Criteria for Implementation
+
+Implementation is complete when:
+- [ ] All objectives from handover/requirements met
+- [ ] Tests passing (including new tests from handover guidance)
+- [ ] Performance requirements validated (if applicable)
+- [ ] Edge cases handled (as documented in handover)
+- [ ] Documentation updated (glossary, guides, API docs)
+- [ ] Code review ready
+
 ## POC Work Guidelines
 
-If you are working on a POC (Proof-of-Concept) issue related to the `/poc` folder:
+**⚠️ POC Context**: This section provides guidelines for understanding POC (Proof-of-Concept) work context.
 
-**🔗 READ FIRST**: See `.github/copilot-instructions-poc.md` for comprehensive POC workflow guidelines.
+The `/poc` folder contains evolving architectural explorations for the DataFlow library. Implementation work targeting POC code follows the **Implementation Team Workflow** above with POC-specific documentation requirements.
 
-**Quick Start**:
-1. Read `/poc/README.md` and `/poc/docs/` to understand the POC context
-2. Create a plan in `/poc/docs/plans/` before starting work
-3. Document research and benchmarks in `/research/`
-4. Maintain `/poc/docs/POC_GLOSSARY.md` with new terminology
-5. Validate designs through testing and benchmarking
-6. Track architectural decisions in `/poc/docs/adr/`
+### When Working on POC Code
 
-**Key POC Folders**:
-- `/poc/docs/plans/` - Action plans and proposals (create one for each POC issue)
-- `/poc/docs/design/` - Architecture and design documentation
-- `/research/` - Investigations, explorations, and benchmark results
+If you are implementing features or fixes in the `/poc` codebase:
+
+**Follow the Implementation Team Workflow above**, noting these POC-specific requirements:
+
+**Documentation Structure** (`/poc/docs/`):
+- `/poc/docs/plans/` - Action plans and proposals (create one for each implementation)
+- `/poc/docs/design/` - Architecture and design documentation  
 - `/poc/docs/guides/` - Implementation patterns and how-to guides
 - `/poc/docs/adr/` - Architecture Decision Records
+- `/poc/docs/POC_GLOSSARY.md` - Terminology reference (keep updated)
 
-The POC has different workflows and documentation requirements than the main library. Always follow the POC guidelines when working on POC-related issues.
+**Key POC Guidelines**:
+1. **Read First**: `/poc/README.md` and `/poc/docs/POC_GLOSSARY.md`
+2. **Create Plan**: For each POC implementation, create a plan in `/poc/docs/plans/`
+3. **Document Decisions**: Use ADRs in `/poc/docs/adr/` for significant choices
+4. **Update Glossary**: Add new terminology to `/poc/docs/POC_GLOSSARY.md`
+5. **Testing**: Use POC test projects (`DataFlow.POC.Tests`)
+6. **Benchmarking**: Use POC benchmark projects, document results in `/research/`
+
+**Research vs Implementation in POC**:
+- Research on POC → Exploratory code, will be reverted, produces handover docs
+- Implementation in POC → Code merged to POC codebase, guided by handover or requirements
+
+For comprehensive POC workflow details, the information is integrated into:
+- Implementation Team Workflow (this document, above)
+- Research Workflow (`/research/RESEARCH_WORKFLOW.md`)
+
+The POC has different documentation requirements than production code. Always maintain POC documentation structure when working in `/poc`.

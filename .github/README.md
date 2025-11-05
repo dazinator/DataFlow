@@ -11,46 +11,64 @@ Main guidelines for GitHub Copilot when working on this repository. These instru
 - Repository overview and architecture
 - Coding standards and conventions
 - Testing patterns
-- Building and testing procedures
+- Research workflow identification
+- **Implementation Team Workflow** (new unified workflow)
+- POC work guidelines
 - Common patterns and anti-patterns
 
-### POC-Specific Instructions
-**File**: `copilot-instructions-poc.md`
+### Issue Templates
+**Folder**: `ISSUE_TEMPLATE/`
 
-Specialized guidelines for working on POC (Proof-of-Concept) issues in the `/poc` folder. These instructions cover:
-- POC documentation structure and organization
-- Workflow for POC issues (planning, research, validation)
-- Documentation requirements during development
-- Testing and benchmarking expectations
-- How to maintain plans, research docs, and ADRs
+GitHub issue templates for creating structured issues:
+- `research.md` - For research/investigation issues
+- `implementation.md` - For implementation issues (with or without research handover)
 
-**When to use**: Any issue related to the `/poc` folder should reference these instructions.
-
-### POC Issue Template
+### Issue Template Guide
 **File**: `POC_ISSUE_TEMPLATE.md`
 
-Template and examples for creating GitHub issues that involve POC work. Provides:
-- Quick reference templates for POC issues
-- Examples of well-structured POC issues
-- Ways to trigger POC workflow from issue comments
-- Tips for effective POC issue creation
+Comprehensive guide for creating issues with templates and examples:
+- Research workflow templates
+- Implementation workflow templates
+- Examples for each workflow type
+- Tips for effective issue creation
 
-**How to use**: Copy the template when creating POC-related issues, or reference it in issue comments.
+**How to use**: Reference when creating issues to understand template usage.
+
+### Workflow Examples
+**File**: `EXAMPLE_WORKFLOWS.md`
+
+Complete examples showing how to use workflows:
+- Research workflow with example
+- Implementation workflow with research handover
+- Implementation workflow without handover
+- Tips for success
+
+### Quick Start
+**File**: `QUICK_START.md`
+
+Quick reference for creating issues with the right workflow:
+- Research issue format
+- Implementation issue format
+- What happens next
+- Simple examples
 
 ## How GitHub Copilot Uses These Files
 
-GitHub Copilot automatically loads `.github/copilot-instructions.md` for context. The POC-specific instructions and templates provide additional context when explicitly referenced.
+GitHub Copilot automatically loads `.github/copilot-instructions.md` for context.
 
-### For Main Library Work
-Copilot automatically follows `copilot-instructions.md` - no additional setup needed.
-
-### For POC Work
-Reference the POC guidelines in your issue:
+### For Research Work
+Create issues using the Research template or reference:
 ```markdown
-@copilot Follow POC guidelines (`.github/copilot-instructions-poc.md`)
+⚠️ This is a research issue. @copilot Follow `/research/RESEARCH_WORKFLOW.md`
 ```
 
-Or use the template in `POC_ISSUE_TEMPLATE.md` when creating POC issues.
+### For Implementation Work
+Create issues using the Implementation template or reference:
+```markdown
+⚠️ This is an implementation issue. @copilot Follow Implementation workflow in `.github/copilot-instructions.md`
+```
+
+Specify target codebase (POC / Production / Both) and link handover document if from research.
 
 ## Other Folders
 
@@ -62,6 +80,7 @@ Helper scripts for CI/CD and automation.
 
 ## See Also
 
+- [Main Copilot Instructions](.github/copilot-instructions.md) - Comprehensive workflow guidance
+- [Research Workflow](/research/RESEARCH_WORKFLOW.md) - Complete research workflow
 - [POC README](/poc/README.md) - Overview of the POC
 - [POC Documentation Structure](/poc/docs/POC_DOCUMENTATION_STRUCTURE.md) - How POC docs are organized
-- [Contributing Guide](/CONTRIBUTING.md) - General contribution guidelines (if exists)

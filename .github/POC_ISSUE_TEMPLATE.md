@@ -1,21 +1,26 @@
 # Issue Templates for GitHub Copilot
 
-Use these templates when creating GitHub issues for research or POC work. This helps GitHub Copilot understand the context and follow the appropriate workflow.
+Use these templates when creating GitHub issues. This helps GitHub Copilot understand the context and follow the appropriate workflow.
 
 ## Workflow Selection
 
 Work in this repository follows two workflows:
 
-1. **Research-to-Implementation**: Research validates approach, produces implementation-ready GitHub issue (code reverted at PR review approval)
+1. **Research Workflow**: Research validates approach, produces implementation-ready GitHub issue (code reverted at PR review approval)
    - Use for: Researching any code (POC or production) where outcome is specification for implementation
-2. **Direct Integration**: Research and implementation together, code integrated into codebase
-   - Use for: POC-contained changes where code will be directly merged
+   - Template: `.github/ISSUE_TEMPLATE/research.md`
+   
+2. **Implementation Workflow**: Implementation based on research handover or direct requirements
+   - Use for: Implementing features in POC or production code based on validated designs
+   - Template: `.github/ISSUE_TEMPLATE/implementation.md`
 
-Choose based on the issue type (see `.github/copilot-instructions-poc.md` for guidance).
+Choose based on the issue type (see `.github/copilot-instructions.md` for guidance).
 
-## Template for Research-to-Implementation Issues
+## Template 1: Research Issues
 
-Use when research will produce a handoff issue for implementation team (applies to any codebase):
+Use when research will produce a handoff issue for implementation team (applies to any codebase).
+
+**GitHub Template**: Use `.github/ISSUE_TEMPLATE/research.md` or copy below:
 
 ```markdown
 ## Research Context
@@ -58,34 +63,65 @@ Use when research will produce a handoff issue for implementation team (applies 
 - [ ] Code changes reverted, only docs remain
 ```
 
-## Template for Direct Integration Issues
+## Template 2: Implementation Issues
 
-Use when research and implementation will be directly integrated into POC:
+Use when implementing based on research handover or direct requirements.
+
+**GitHub Template**: Use `.github/ISSUE_TEMPLATE/implementation.md` or copy below:
 
 ```markdown
-## POC Context
+## Implementation Context
 
-⚠️ This is a POC issue. @copilot Please follow the POC workflow guidelines in `.github/copilot-instructions-poc.md`.
+⚠️ **This is an implementation issue.** @copilot Please follow the Implementation workflow guidelines in `.github/copilot-instructions.md`.
 
-**Key Requirements**:
-- Read `/poc/README.md` and relevant documentation in `/poc/docs/`
-- Create a plan in `/poc/docs/plans/` for this work
-- Document research and findings in `/research/`
-- Update `/poc/docs/POC_GLOSSARY.md` with new terminology
-- Validate through testing and benchmarking
-- Track decisions in `/poc/docs/adr/` where appropriate
+### Handover Document (if from research team)
 
-## Expected Deliverables
+**Handover Document Path**: [e.g., `/research/flow-composability/handover/github-issue-implement-feature.md`]
 
-- [ ] Plan document in `/poc/docs/plans/`
-- [ ] Implementation with tests in POC projects
-- [ ] Research/benchmark documentation (if applicable) in `/research/`
-- [ ] Glossary updates (if new concepts introduced)
-- [ ] ADR (if significant decisions made)
+If this implementation is based on research team handover, the handover document contains:
+- Complete problem context and background
+- Implementation guidance and recommended approach
+- Test scenarios and performance requirements
+- Design references and supporting documentation
 
-## Issue Details
+**@copilot**: Read the handover document first to understand the complete scope and context.
 
-[Describe the specific problem or feature to implement]
+### Target Codebase
+
+**Target**: [ ] POC (`/poc`) or [ ] Production (`/src`) or [ ] Both
+
+The handover document or context below should clearly indicate which codebase this implementation targets.
+
+**@copilot**: If the target codebase is unclear from the handover document and context, **STOP** and ask the user to clarify before proceeding.
+
+## Problem Statement
+
+[If NOT from research handover: Describe the specific problem or feature to implement]
+
+[If from research handover: Reference the handover document - most context is there]
+
+## Implementation Checklist
+
+Based on the handover document (or requirements below), the implementation should include:
+
+- [ ] Implementation with tests
+- [ ] Performance validation (if benchmarks specified)
+- [ ] Documentation updates
+- [ ] Edge cases handled (as specified in handover)
+- [ ] Code review and validation
+
+## Additional Context (if needed)
+
+[Any additional context not in the handover document]
+
+[If this is direct implementation without research handover, provide full requirements here]
+
+## Success Criteria
+
+- [ ] All objectives from handover document met (or requirements met if direct implementation)
+- [ ] Tests passing
+- [ ] Performance requirements met (if applicable)
+- [ ] Documentation updated
 ```
 
 ## Alternative: Minimal Template
@@ -93,7 +129,9 @@ Use when research and implementation will be directly integrated into POC:
 For simpler issues where the full template might be too verbose:
 
 ```markdown
-⚠️ **POC Issue**: @copilot Follow POC guidelines (`.github/copilot-instructions-poc.md`)
+⚠️ **Implementation Issue**: @copilot Follow implementation guidelines (`.github/copilot-instructions.md`)
+
+**Target**: [POC / Production]
 
 [Your issue description here]
 ```
@@ -103,76 +141,79 @@ For simpler issues where the full template might be too verbose:
 You can also add this as a comment on an existing issue to inform Copilot:
 
 ```markdown
-@copilot This is a POC issue. Please:
-1. Follow the POC workflow in `.github/copilot-instructions-poc.md`
+@copilot This is an implementation issue for POC. Please:
+1. Follow the Implementation workflow in `.github/copilot-instructions.md`
 2. Create a plan in `/poc/docs/plans/`
-3. Document research in `/research/`
-4. Update the glossary as needed
+3. Update documentation as needed
 ```
 
-## Example: Complete POC Issue
+## Example: Complete Implementation Issue
 
-Here's a complete example showing how to write a well-structured POC issue:
+Here's a complete example showing implementation from research handover:
 
 ```markdown
 # Implement Epoch-Based Cache Management
 
-## POC Context
+## Implementation Context
 
-⚠️ This is a POC issue. @copilot Please follow the POC workflow guidelines in `.github/copilot-instructions-poc.md`.
+⚠️ **This is an implementation issue.** @copilot Please follow the Implementation workflow guidelines in `.github/copilot-instructions.md`.
 
-**Key Requirements**:
-- Read `/poc/README.md` and epoch-related documentation in `/poc/docs/design/`
-- Review `/poc/docs/POC_GLOSSARY.md` for epoch terminology
-- Create a plan in `/poc/docs/plans/implement-epoch-cache.md`
-- Document research and benchmark results in `/research/`
-- Update glossary with any new caching-related terms
-- Create ADR for major design decisions
+### Handover Document (if from research team)
+
+**Handover Document Path**: `/research/epoch-caching/handover/github-issue-implement-epoch-cache.md`
+
+The handover document contains complete context, design, and requirements.
+
+### Target Codebase
+
+**Target**: [x] POC (`/poc`) [ ] Production (`/src`)
 
 ## Problem Statement
 
-The POC needs a caching mechanism that aligns with epoch boundaries to:
-- Share cached data across blocks within the same epoch
-- Properly dispose/clear cache at epoch completion
-- Support cache promotion during epoch merges (similar to DbContext promotion)
+Research validated approach for epoch-scoped caching. See handover document for complete context.
 
-## Requirements
+## Implementation Checklist
 
-1. Cache should be scoped to epoch lifecycle
-2. Multiple blocks should be able to access the same epoch cache
-3. Cache should be cleared at global epoch alignment
-4. Performance should not degrade with cache enabled
-5. Memory usage should be bounded and predictable
+Based on the handover document:
 
-## Expected Deliverables
-
-- [ ] Plan document in `/poc/docs/plans/implement-epoch-cache.md`
-  - Document design alternatives considered
-  - Include performance validation milestones
-- [ ] Cache implementation with tests in `DataFlow.POC.Tests`
-- [ ] Benchmark comparison (with/without cache) in `/research/`
-- [ ] Implementation guide in `/poc/docs/guides/using-epoch-cache.md`
-- [ ] Update `/poc/docs/POC_GLOSSARY.md` with caching terms
-- [ ] ADR for cache design decisions in `/poc/docs/adr/`
+- [ ] Implement EpochCache<TKey, TValue> as designed
+- [ ] Handle cache promotion during epoch merges
+- [ ] Implement all test scenarios from handover
+- [ ] Performance validation with benchmarks
+- [ ] Update glossary with caching terminology
+- [ ] Create usage guide
 
 ## Success Criteria
 
-- All tests pass
-- Benchmark shows cache improves performance in test scenario
-- Cache memory usage is bounded
-- Documentation is complete and clear
+- [ ] All objectives from handover met
+- [ ] Tests passing (including edge cases)
+- [ ] Performance requirements met
+- [ ] Documentation updated (glossary, guides)
 ```
+
+## Choosing the Right Template
+
+**Use Research Template when:**
+- Exploring/validating new approaches
+- Need to compare alternatives
+- Outcome is specification for implementation team
+
+**Use Implementation Template when:**
+- Implementing based on research handover
+- Direct implementation with clear requirements
+- Building on validated designs
 
 ## Tips
 
-1. **Be explicit about POC context** - Don't assume Copilot will know
-2. **Reference the POC guidelines file** - Makes it easy for Copilot to find
-3. **List expected deliverables** - Helps Copilot plan the work
-4. **Include documentation requirements** - POC emphasizes documentation
-5. **Mention validation needs** - Testing and benchmarking are important
+1. **Be explicit about workflow type** - Research vs Implementation
+2. **Link handover documents** - For implementation from research
+3. **Specify target codebase** - POC vs Production vs Both
+4. **List expected deliverables** - Helps Copilot plan the work
+5. **Include documentation requirements** - Important for both workflows
 
 ## See Also
 
-- **POC Workflow Guidelines**: `.github/copilot-instructions-poc.md`
+- **Main Instructions**: `.github/copilot-instructions.md`
+- **Research Workflow**: `/research/RESEARCH_WORKFLOW.md`
 - **POC Overview**: `/poc/README.md`
-- **POC Documentation Structure**: `/poc/docs/POC_DOCUMENTATION_STRUCTURE.md`
+- **Workflow Examples**: `.github/EXAMPLE_WORKFLOWS.md`
