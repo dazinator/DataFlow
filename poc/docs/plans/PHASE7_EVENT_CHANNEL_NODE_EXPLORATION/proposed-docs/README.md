@@ -42,4 +42,4 @@ After PR approval:
 
 3. **Remove this folder** once promotion is complete
 
-See [POC_RESEARCH_WORKFLOW.md](/poc/docs/POC_RESEARCH_WORKFLOW.md) for complete workflow details.
+See [RESEARCH_WORKFLOW.md](/research/RESEARCH_WORKFLOW.md) for complete workflow details.

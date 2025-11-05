@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: POC Documentation
+    url: https://github.com/uniun-technology/lib-dataflow/tree/main/poc/docs
+    about: Read the POC documentation for context and guidelines
+  - name: POC Research Workflow
+    url: https://github.com/uniun-technology/lib-dataflow/blob/main/research/RESEARCH_WORKFLOW.md
+    about: Learn about the research-to-implementation workflow

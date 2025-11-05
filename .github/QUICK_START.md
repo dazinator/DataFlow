@@ -13,7 +13,7 @@ When creating a GitHub issue for POC work, simply add one of these references:
 **Key Requirements**:
 - Read `/poc/README.md` and relevant documentation
 - Create a plan in `/poc/docs/plans/`
-- Document research in `/poc/docs/research/`
+- Document research in `/research/`
 - Update `/poc/docs/POC_GLOSSARY.md` with new terminology
 - Track decisions in `/poc/docs/adr/`
 
@@ -69,7 +69,7 @@ Need caching mechanism aligned with epoch boundaries.
 ## Deliverables
 - [ ] Plan in `/poc/docs/plans/implement-epoch-caching.md`
 - [ ] Implementation with tests
-- [ ] Benchmark results in `/poc/docs/research/`
+- [ ] Benchmark results in `/research/`
 - [ ] Update glossary if needed
 ```
 

@@ -4,7 +4,7 @@
 
 This document describes the current POC documentation structure. The structure organizes documentation by purpose and audience, making it easy to find relevant information whether you're learning concepts, implementing features, conducting research, or reviewing historical decisions.
 
-**📖 For POC Research Workflow**: See [POC_RESEARCH_WORKFLOW.md](POC_RESEARCH_WORKFLOW.md) for detailed guidance on conducting research, handling pivots, and managing exploratory code/documentation.
+**📖 For Research Workflow**: See [/research/RESEARCH_WORKFLOW.md](/research/RESEARCH_WORKFLOW.md) for detailed guidance on conducting research, handling pivots, and managing exploratory code/documentation.
 
 ## Current Structure
 
@@ -24,7 +24,6 @@ This document describes the current POC documentation structure. The structure o
 │   │       └── /archived                # Dismissed approaches with rationale
 │   ├── POC_GLOSSARY.md                  # Terminology reference (adopted terms)
 │   ├── RESEARCH_GLOSSARY.md             # Explored but not adopted terms
-│   ├── POC_RESEARCH_WORKFLOW.md         # Research and exploration workflow guide
 │   ├── POC_DOCUMENTATION_STRUCTURE.md   # This file - structure guide
 │   └── INDEX.md                         # Navigation hub
 ├── /DataFlow.POC                        # Production-track POC code
@@ -200,7 +199,7 @@ This document describes the current POC documentation structure. The structure o
     └── design-*-dismissed.md       # Dismissed designs
 ```
 
-**Workflow**: See [POC_RESEARCH_WORKFLOW.md](POC_RESEARCH_WORKFLOW.md) for detailed guidance on:
+**Workflow**: See [/research/RESEARCH_WORKFLOW.md](/research/RESEARCH_WORKFLOW.md) for detailed guidance on:
 - How to structure phase folders during research
 - Handling pivots and archiving dismissed approaches
 - Promoting adopted documentation after PR approval
@@ -258,21 +257,24 @@ This document describes the current POC documentation structure. The structure o
 
 ---
 
-### POC_RESEARCH_WORKFLOW.md
-**Location**: `/docs/POC_RESEARCH_WORKFLOW.md`
+## Repository-Level Documentation
 
-**Purpose**: Comprehensive guide for conducting research and exploration within the POC.
+### RESEARCH_WORKFLOW.md
+**Location**: `/research/RESEARCH_WORKFLOW.md` (repository root)
+
+**Purpose**: Comprehensive guide for conducting research and exploration across the entire repository (POC or production code).
 
 **Status**: Active
 
 **Content**:
-- How to structure plan folders during research
-- Managing proposed documentation vs archived (dismissed) documentation
-- Handling exploratory code and tests
+- Research-to-implementation workflow
+- How to structure research folders
+- Managing exploratory code vs documentation
 - Pivot workflow and knowledge preservation
-- Documentation promotion after PR approval
+- Code reversion process (reviewer-controlled)
+- Creating implementation-ready GitHub issues
 
-**Target Audience**: Contributors conducting POC research and exploration work.
+**Target Audience**: All contributors conducting research work.
 
 ---
 

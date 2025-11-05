@@ -37,6 +37,28 @@ The POC has a well-organized documentation structure under `/poc/docs/`:
 
 ## Workflow for POC Issues
 
+POC work follows two distinct workflows depending on the expected outcome:
+
+1. **Research-to-Implementation Workflow**: Research validates approach and produces implementation-ready GitHub issue
+2. **Direct Integration Workflow**: Research and implementation happen together, code is integrated into POC
+
+**See `/research/RESEARCH_WORKFLOW.md` for detailed workflow documentation.**
+
+### Choosing the Right Workflow
+
+**Use Research-to-Implementation When**:
+- Exploring new architectural approaches
+- Need to validate multiple alternatives
+- Outcome requires main codebase changes (in `src/`)
+- Want to separate research validation from implementation
+- Implementation will be significant effort requiring handoff
+
+**Use Direct Integration When**:
+- Changes are contained to POC codebase
+- Approach is fairly certain, just needs execution
+- Iterative refinement during implementation is expected
+- Research and implementation are tightly coupled
+
 ### 1. Initial Understanding
 Before starting any POC work:
 - Read `/poc/README.md` to understand the POC goals and architecture
@@ -85,6 +107,48 @@ Create and maintain a plan document:
 [Performance validation needed, if applicable]
 ```
 
+### 2A. Research-to-Implementation Workflow (When Applicable)
+
+If following the Research-to-Implementation workflow:
+
+1. **Create Research Folder Structure**:
+   - See `/research/FOLDER_STRUCTURE.md` for the canonical structure
+   - Create folders progressively as research progresses
+   - Start with research plan and notes
+
+2. **Explore Freely**:
+   - Write exploratory code in POC projects (will be reverted)
+   - Create prototypes to validate approaches
+   - Run benchmarks to measure performance
+   - Document findings in working notes
+
+3. **Document Research**:
+   - Create comprehensive research doc as README.md in research folder
+   - Document approaches explored, findings, recommendations
+   - Include comparative analysis and performance data
+   - Save benchmark data in benchmarks subfolder
+
+4. **Create Supporting Documentation**:
+   - Design docs in design subfolder
+   - ADRs in adr subfolder
+   - Test implementation guides
+   - Follow paths in folder structure reference
+
+5. **Create Implementation-Ready Issue**:
+   - Use template: `/research/IMPLEMENTATION_ISSUE_TEMPLATE.md`
+   - Create in handover subfolder of research
+   - Include all context, guidance, test scenarios, references
+   - See example: `/poc/docs/plans/IMPLEMENTATION_ISSUE_EXAMPLE.md`
+
+6. **Code Reversion** (only when PR reviewer approves):
+   - Code reversion happens at a specific point - when PR reviewer approves research and explicitly requests it
+   - This is NOT automatic
+   - Revert all exploratory code changes (POC or non-POC)
+   - Keep documentation: research, design, ADRs, handover issue
+   - Only documentation files remain in PR after reversion
+
+**See `/research/RESEARCH_WORKFLOW.md` for complete details.**
+
 ### 3. Documentation During Development
 
 As you implement the solution, maintain appropriate documentation:
@@ -95,7 +159,7 @@ As you implement the solution, maintain appropriate documentation:
 - **Style**: High-level explanations with diagrams, stable documentation
 - **Example topics**: New block types, epoch handling patterns, transaction boundaries
 
-#### Research Documentation (`/poc/docs/research/`)
+#### Research Documentation (`/research/`)
 - **When**: Conducting investigations, explorations, or performance analysis
 - **What**: Exploratory findings, benchmark results, approaches tried
 - **Style**: Document question, approaches, findings, recommendations
@@ -155,7 +219,7 @@ Testing and benchmarking are critical milestones:
 - Use POC benchmark projects (`DataFlow.POC.Benchmarks`)
 - Run benchmarks for performance-sensitive changes
 - Document methodology and environment
-- Save benchmark output to `/poc/docs/research/`
+- Save benchmark output to `/research/`
 - Compare against baseline where applicable
 - Reference benchmark results from your plan
 
@@ -176,8 +240,8 @@ Keep your plan document updated:
 | Action plans and proposals | `/poc/docs/plans/` | Start of work on any POC issue |
 | Architectural concepts | `/poc/docs/design/` | New design patterns or major changes |
 | Implementation patterns | `/poc/docs/guides/` | Reusable "how-to" documentation |
-| Performance analysis | `/poc/docs/research/` | After benchmarking |
-| Investigations/explorations | `/poc/docs/research/` | During discovery/research phase |
+| Performance analysis | `/research/` | After benchmarking |
+| Investigations/explorations | `/research/` | During discovery/research phase |
 | Architecture decisions | `/poc/docs/adr/` | When making significant decisions |
 | New terminology | `/poc/docs/POC_GLOSSARY.md` | When introducing new concepts |
 
@@ -230,7 +294,7 @@ To have GitHub Copilot follow these POC guidelines, you can:
    ```markdown
    @copilot Please follow the POC documentation workflow:
    - Create a plan in /poc/docs/plans/
-   - Document research in /poc/docs/research/
+   - Document research in /research/
    - Update the glossary as needed
    ```
 
@@ -251,10 +315,10 @@ Here's a concrete example of working on a POC issue:
    - Milestones with validation criteria
    - Testing and benchmarking requirements
 4. **Investigate** different caching strategies:
-   - Document findings in `/poc/docs/research/caching-strategy-investigation.md`
+   - Document findings in `/research/caching-strategy-investigation.md`
 5. **Benchmark** candidate approaches:
    - Run benchmarks in `DataFlow.POC.Benchmarks`
-   - Save results to `/poc/docs/research/epoch-caching-benchmarks.md`
+   - Save results to `/research/epoch-caching-benchmarks.md`
 6. **Decide** on approach:
    - Create ADR in `/poc/docs/adr/2025-11-03-epoch-based-cache-design.md`
 7. **Implement** with tests in `DataFlow.POC.Tests`

@@ -29,7 +29,7 @@ This phase follows the new POC Research Workflow. Documentation is organized as:
     └── design-event-channel-dismissed.md
 ```
 
-See [POC_RESEARCH_WORKFLOW.md](/poc/docs/POC_RESEARCH_WORKFLOW.md) for complete workflow details.
+See [RESEARCH_WORKFLOW.md](/research/RESEARCH_WORKFLOW.md) for complete workflow details.
 
 ## Overview
 

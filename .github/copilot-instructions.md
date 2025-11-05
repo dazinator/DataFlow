@@ -258,7 +258,7 @@ If you are working on a POC (Proof-of-Concept) issue related to the `/poc` folde
 **Quick Start**:
 1. Read `/poc/README.md` and `/poc/docs/` to understand the POC context
 2. Create a plan in `/poc/docs/plans/` before starting work
-3. Document research and benchmarks in `/poc/docs/research/`
+3. Document research and benchmarks in `/research/`
 4. Maintain `/poc/docs/POC_GLOSSARY.md` with new terminology
 5. Validate designs through testing and benchmarking
 6. Track architectural decisions in `/poc/docs/adr/`
@@ -266,7 +266,7 @@ If you are working on a POC (Proof-of-Concept) issue related to the `/poc` folde
 **Key POC Folders**:
 - `/poc/docs/plans/` - Action plans and proposals (create one for each POC issue)
 - `/poc/docs/design/` - Architecture and design documentation
-- `/poc/docs/research/` - Investigations, explorations, and benchmark results
+- `/research/` - Investigations, explorations, and benchmark results
 - `/poc/docs/guides/` - Implementation patterns and how-to guides
 - `/poc/docs/adr/` - Architecture Decision Records
 
