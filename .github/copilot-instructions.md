@@ -249,6 +249,79 @@ When suggesting code changes, ensure they are compatible with AGPL-3.0 requireme
 - Blocks are connected via `.ReceiveFrom()` - this creates the pipeline topology
 - The library emphasizes correctness and composability over raw speed
 
+## Research Issue Identification
+
+**⚠️ CRITICAL**: Before starting any work, check if the issue is labeled `research` or contains "⚠️ This is a research issue":
+
+### How to Identify Research Issues
+
+1. **Issue contains** "⚠️ This is a research issue" → Follow `/research/RESEARCH_WORKFLOW.md`
+2. **Issue is about** validating/investigating approaches → Likely research
+3. **Issue asks to** "validate", "explore", "investigate", "compare approaches" → Research workflow
+
+### Documentation Standards for Research
+
+#### Diagram Preferences
+**ALWAYS prefer Mermaid diagrams** in documentation where visualization helps understanding:
+- ✅ Use mermaid flowcharts for process flows and decision trees
+- ✅ Use mermaid sequence diagrams for interaction flows  
+- ✅ Use mermaid graphs for architecture and data flow
+- ❌ Avoid ASCII art diagrams (hard to maintain, less clear)
+
+**Example**:
+````markdown
+```mermaid
+flowchart LR
+    A[Source] --> B[Transform]
+    B --> C[Sink]
+```
+````
+
+#### Workflow Improvement Feedback Loop
+
+**⚠️ IMPORTANT**: When reviewers raise workflow-related feedback during research:
+
+1. **Acknowledge the feedback** in your response
+2. **Make requested changes** to research artifacts
+3. **Update workflow documentation** to prevent the issue in future research:
+   - Update `.github/copilot-instructions.md` if it's a general Copilot guidance issue
+   - Update `/research/RESEARCH_WORKFLOW.md` if it's a research-specific process issue
+   - Update issue templates in `.github/ISSUE_TEMPLATE/` if relevant
+4. **Make the enhancement prominent** so it won't be missed by future agents
+
+**Examples of workflow feedback**:
+- "Prefer mermaid diagrams" → Update copilot instructions with diagram standards
+- "Add test consolidation guidance" → Update research workflow with testing best practices
+- "Clarify when to create ADRs" → Update research workflow decision documentation section
+
+**Goal**: Continuous improvement of research processes based on real reviewer feedback.
+
+### Research vs Implementation - Key Differences
+
+| Aspect | Research Issue | Implementation Issue |
+|--------|---------------|---------------------|
+| **Purpose** | Validate approach, create specifications | Implement validated design |
+| **Code Location During Work** | Can write in `/poc/` or `/src/` to validate | Code in `/poc/` or `/src/` for integration |
+| **Code Fate** | **REVERTED** after reviewer approval | **MERGED** into codebase |
+| **Primary Output** | Documentation + implementation issue | Working code |
+| **Deliverables** | `/research/[topic]/` with docs + specs; ADRs in `/poc/docs/adr/` or `/src/docs/adr/` | Code changes in `/poc/` or `/src/` |
+
+### Research Workflow Summary
+
+**During Research:**
+- ✅ Create `/research/[topic-name]/` folder structure
+- ✅ Write exploratory code in `/poc/` or `/src/` to validate approaches
+- ✅ Create tests to validate concepts
+- ✅ Document findings, design decisions, and recommendations
+
+**Before PR Merge (After Reviewer Approval):**
+- ✅ Save important prototype code to `/research/[topic]/handover/prototype/`
+- ✅ Create implementation-ready issue in `/research/[topic]/handover/`
+- ✅ **REVERT all exploratory code changes** in `/poc/` and `/src/`
+- ✅ Keep all documentation in `/research/[topic]/`
+
+**When in doubt:** Ask "Is this validating an approach (research) or implementing a validated design (implementation)?"
+
 ## POC Work Guidelines
 
 If you are working on a POC (Proof-of-Concept) issue related to the `/poc` folder:

@@ -1,5 +1,37 @@
 # Research and Exploration Workflow
 
+---
+
+## ⚠️ CRITICAL: This is NOT Direct Implementation
+
+**If you're a Copilot agent working on a research issue:**
+
+### DO (During Research):
+- ✅ Create `/research/[topic]/` with research plan, findings, design docs
+- ✅ **Place ADRs in `/poc/docs/adr/` or `/src/docs/adr/`** (with the codebase they govern, NOT in research folder)
+- ✅ Write exploratory code in `/poc/` or `/src/` to validate approaches
+- ✅ Create tests to validate concepts
+- ✅ Run benchmarks to measure performance
+- ✅ Document everything you try and learn
+
+### DO (Before PR Merge - After Reviewer Approval):
+- ✅ Save important prototype code to `/research/[topic]/handover/prototype/`
+- ✅ Create implementation-ready issue in `/research/[topic]/handover/`
+- ✅ **REVERT all exploratory code changes** from `/poc/` and `/src/`
+- ✅ Keep all documentation in `/research/[topic]/`
+- ✅ **Keep ADRs in `/poc/docs/adr/` or `/src/docs/adr/`** (ADRs are NOT reverted - they belong with the codebase)
+
+### DON'T:
+- ❌ Merge exploratory code into `/poc/` or `/src/` (it will be reverted)
+- ❌ Skip creating the research folder structure
+- ❌ Skip documenting your findings and rationale
+- ❌ Revert code before reviewer approval
+
+### OUTCOME:
+Research produces **documentation + implementation issue**, not merged code. The exploratory code is for validation and learning, then gets reverted. The engineering team implements based on your specifications.
+
+---
+
 This document describes the recommended workflow for conducting research and exploration work within the repository. It addresses how to handle pivots, preserve exploration history, and deliver implementation-ready outcomes to engineering teams.
 
 **Scope**: This workflow applies to research on any code in the repository - whether POC code (evolving architecture) or existing production code. The process is the same regardless of which codebase you're researching.
@@ -65,7 +97,8 @@ Create `/research/[topic]/research-plan.md` with your research objectives:
 ## Expected Outcomes
 - Research documentation in /research/[topic]/
 - Implementation-ready GitHub issue in /research/[topic]/handover/
-- Supporting design/ADR documentation in /research/[topic]/
+- Supporting design documentation in /research/[topic]/design/
+- **ADRs in /poc/docs/adr/ or /src/docs/adr/** (with the codebase they govern)
 
 ## Timeline
 [Estimated research duration]
@@ -151,7 +184,7 @@ Based on research findings, create supporting documentation alongside the resear
 - System interactions and data flows
 - Design principles to follow
 
-**Architecture Decision Records** (create in `/research/[topic]/adr/` folder with format `YYYY-MM-DD-[topic].md`):
+**Architecture Decision Records** (create in `/poc/docs/adr/` or `/src/docs/adr/` based on which codebase, with format `YYYY-MM-DD-[topic].md`):
 ```markdown
 # ADR-[N]: [Decision Title]
 

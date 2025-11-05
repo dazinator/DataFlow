@@ -6,9 +6,29 @@ labels: ['research']
 assignees: ''
 ---
 
-## Research Context
+## ⚠️ IMPORTANT: Research Workflow
 
-⚠️ This is a research issue. @copilot Please follow the Research-to-Implementation workflow in `/research/RESEARCH_WORKFLOW.md`.
+**This is a RESEARCH issue, not a direct implementation issue.**
+
+@copilot **MUST** follow the Research-to-Implementation workflow in `/research/RESEARCH_WORKFLOW.md`.
+
+### Checklist for @copilot
+
+Before starting work on this research issue:
+- [ ] I have read `/research/RESEARCH_WORKFLOW.md` 
+- [ ] I will create `/research/[topic-name]/` folder structure
+- [ ] I understand exploratory code in `/poc/` or `/src/` will be REVERTED after reviewer approval
+- [ ] I will create implementation-ready issue in `/research/[topic]/handover/` folder
+- [ ] I will save important prototype code in `/research/[topic]/handover/prototype/` before reversion
+
+### Key Points for @copilot:
+- **Research folder**: Create `/research/[topic-name]/` with research plan, findings, design docs, ADRs
+- **Exploratory code**: You MAY write code in `/poc/` or `/src/` to validate approaches
+- **Code reversion**: After reviewer approval, exploratory code will be REVERTED (not merged)
+- **Prototype preservation**: Save reference implementations in `/research/[topic]/handover/prototype/`
+- **Outcome**: Documentation + implementation-ready issue for engineering team
+
+## Research Context
 
 **Research Objective**: [What needs to be validated/explored]
 
