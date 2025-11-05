@@ -216,6 +216,166 @@ A downstream block that manages per-epoch state (typically DbContext) and partic
 
 **Pattern**: Composable - can have multiple tracking blocks in same pipeline (multi-sink).
 
+### PlainSourceBlock
+A source block that produces a continuous stream of items without epoch knowledge.
+
+**Type**: `PlainSourceBlock<T, TActor>` where `TActor : IPlainSourceActor<T>`
+
+**Purpose**: 
+- Produces plain `IAsyncEnumerable<T>` streams
+- Epoch segmentation applied externally via `EpochSegmenterBlock`
+- Enables decoupled epoch concerns
+
+**Pattern**: Source → (optional transformations) → EpochSegmenterBlock → epoch-aware blocks
+
+**Example**:
+```csharp
+var sourceBlock = new PlainSourceBlock<int, MyProducer>(
+    "plain-source",
+    serviceScopeFactory);
+```
+
+### EpochSegmenterBlock
+A block that segments plain item streams into epoch streams.
+
+**Type**: `EpochSegmenterBlock<T>`
+
+**Purpose**:
+- Converts `IAsyncEnumerable<T>` to `IAsyncEnumerable<IEpochStream<T>>`
+- Applies segmentation policy (by count, by time, by predicate)
+- Creates epoch boundaries for downstream processing
+
+**Configuration**: `EpochSegmentationPolicy`
+- `ByCount(n, sourceId)` - Every N items forms an epoch
+- Custom policies via predicate
+
+**Example**:
+```csharp
+var segmenter = new EpochSegmenterBlock<int>(
+    "segmenter",
+    EpochSegmentationPolicy.ByCount(1000, "my-source"));
+```
+
+### EpochActorBlock
+**⭐ RECOMMENDED** primary block for epoch-aware stream processing.
+
+**Type**: `EpochActorBlock<TIn, TOut, TActor>` where `TActor : IStreamActor<TIn, TOut>`
+
+**Purpose**:
+- Process items within epoch boundaries using actor pattern
+- Provides DI scope isolation (each actor in own async scope)
+- Supports scope rotation for stateful dependencies
+- Consolidates transformation and processing capabilities
+
+**Key Features**:
+- **DI Safety**: Prevents concurrent dependency sharing bugs
+- **Scope Rotation**: Optional via `context.RequestRotation()`
+- **Flexible**: Supports 1-to-1, 1-to-many, filtering, and processing
+- **Epoch Preservation**: Never mixes items across epoch boundaries
+
+**Example**:
+```csharp
+// Define actor
+public class MyActor : IStreamActor<int, string>
+{
+    public async IAsyncEnumerable<string> RunAsync(
+        IAsyncEnumerable<int> input,
+        IActorExecutionContext context)
+    {
+        await foreach (var item in input.WithCancellation(context.CancellationToken))
+        {
+            yield return $"Item-{item}";
+        }
+    }
+}
+
+// Use in pipeline
+var actorBlock = new EpochActorBlock<int, string, MyActor>(
+    "actor",
+    serviceScopeFactory);
+```
+
+### EpochBatchBlock
+A block that batches items within epoch boundaries.
+
+**Type**: `EpochBatchBlock<T>`
+
+**Purpose**:
+- Accumulates items into batches of configurable size
+- **Critical**: Batches NEVER span across epoch boundaries
+- Supports time-based batching (window period)
+
+**Configuration**:
+- `maxBatchSize` - Maximum items per batch
+- `windowPeriod` (optional) - Emit batch after duration
+
+**Behavior**:
+- Emits batch when full OR window expires
+- **Always** breaks at epoch boundaries (may emit underfilled batches)
+- Maintains streaming semantics (no buffering beyond batch size)
+
+**Example**:
+```csharp
+var batchBlock = new EpochBatchBlock<int>(
+    "batcher",
+    maxBatchSize: 100,
+    windowPeriod: TimeSpan.FromSeconds(5));
+```
+
+## Composability Patterns
+
+### Plain Pipeline Pattern
+Processing without epochs - for stateless transformations.
+
+**Structure**: `PlainSourceBlock → TransformerBlock → ProcessorBlock`
+
+**Use When**: No transactional boundaries or checkpointing needed
+
+### Full Epoch Pipeline Pattern
+Processing with epochs throughout the pipeline.
+
+**Structure**: `PlainSourceBlock → EpochSegmenterBlock → EpochActorBlock → EpochBatchBlock → EpochActorBlock`
+
+**Use When**: Transactional processing, checkpointing, or bulk operations with boundaries
+
+### Mixed Pipeline Pattern
+Combine plain and epoch-aware processing.
+
+**Structure**: `PlainSourceBlock → TransformerBlock → EpochSegmenterBlock → EpochActorBlock`
+
+**Use When**: Some stateless processing, some requiring transaction boundaries
+
+### Unified-Then-Segment Pattern
+Merge multiple plain sources, then segment (recommended for multi-source).
+
+**Structure**:
+```
+Source1 → ┐
+         ├→ UnionBlock → EpochSegmenterBlock("unified") → EpochActorBlock
+Source2 → ┘
+```
+
+**Advantages**:
+- Simple single-source epochs
+- No ancestry tracking needed
+- Easier to implement
+
+### Segment-Then-Merge Pattern
+Segment each source independently, then merge (advanced multi-source).
+
+**Structure**:
+```
+Source1 → EpochSegmenterBlock("s1") → ┐
+                                      ├→ MergeBlock → EpochActorBlock
+Source2 → EpochSegmenterBlock("s2") → ┘
+```
+
+**Advantages**:
+- Per-source checkpointing
+- Independent progress tracking
+
+**Complexity**: Requires lifecycle-aware blocks for multi-source epochs
+
 ## Performance Concepts
 
 ### Fast Path (Single-Source)

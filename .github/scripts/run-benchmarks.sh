@@ -90,6 +90,12 @@ elif [ "$BENCHMARK" = "poc-epoch-all" ]; then
   dotnet run --project "$POC_BENCHMARK_PROJECT" --configuration Release -- epoch-granularity
   dotnet run --project "$POC_BENCHMARK_PROJECT" --configuration Release -- epoch-scaling
   dotnet run --project "$POC_BENCHMARK_PROJECT" --configuration Release -- epoch-async-overhead
+
+elif [ "$BENCHMARK" = "poc-batch-comparison" ]; then
+  # Run BatchBlock comparison benchmark
+  echo "Running BatchBlock comparison benchmark..."
+  cd "$POC_BENCHMARK_PROJECT" && cd ..
+  dotnet run -c Release --filter "BatchBlockComparisonBenchmark" --exporters markdown,csv
   
 else
   # Run selected non-POC benchmark

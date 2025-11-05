@@ -278,6 +278,8 @@ Located in: `poc/DataFlow.POC.Benchmarks/`
 
 ## Building and Running
 
+### Basic Commands
+
 ```bash
 # Restore dependencies
 dotnet restore
@@ -291,6 +293,48 @@ dotnet run -c Release
 # Run specific benchmark
 dotnet run -c Release -- direct-simple 10000 4 3
 ```
+
+### Running BenchmarkDotNet Benchmarks
+
+BenchmarkDotNet benchmarks can be filtered and configured:
+
+```bash
+# Run all benchmarks
+dotnet run -c Release --filter "*"
+
+# Run specific benchmark class
+dotnet run -c Release --filter "EpochAwareBlockBenchmark"
+
+# Run specific method
+dotnet run -c Release --filter "*Transform*"
+
+# Export results to multiple formats
+dotnet run -c Release --filter "*EpochAwareBlock*" --exporters csv,html,markdown
+
+# Run with specific job configuration
+dotnet run -c Release --filter "*" --job short  # Faster but less accurate
+```
+
+### Common Benchmark Filters
+
+| Filter | Description |
+|--------|-------------|
+| `"*EpochAwareBlock*"` | All epoch-aware block benchmarks |
+| `"*ActorBlock*"` | All actor block benchmarks |
+| `"*Batch*"` | All batching benchmarks |
+| `"*Transform*"` | All transformation benchmarks |
+| `"DecoupledEpochBenchmark"` | Specific benchmark class |
+
+### Export Formats
+
+| Format | Flag | Output |
+|--------|------|--------|
+| CSV | `--exporters csv` | Machine-readable data |
+| HTML | `--exporters html` | Web viewable results |
+| Markdown | `--exporters markdown` | Documentation friendly |
+| JSON | `--exporters json` | Programmatic access |
+
+Results are saved to `BenchmarkDotNet.Artifacts/results/`
 
 ## Architecture
 

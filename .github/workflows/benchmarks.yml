@@ -28,6 +28,7 @@ on:
           - poc-actor-all
           - poc-epoch-production-io
           - poc-epoch-all
+          - poc-batch-comparison
 
 env:
   DOTNET_VERSION: '8.0.x'
