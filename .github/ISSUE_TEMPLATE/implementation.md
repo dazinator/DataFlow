@@ -45,6 +45,7 @@ Based on the handover document (or requirements below), the implementation shoul
 - [ ] Documentation updates
 - [ ] Edge cases handled (as specified in handover)
 - [ ] Code review and validation
+- [ ] **Before PR review: Complete self-improvement evaluation in `.github/workflow-improvements.md`**
 
 ## Additional Context (if needed)
 
@@ -58,3 +59,4 @@ Based on the handover document (or requirements below), the implementation shoul
 - [ ] Tests passing
 - [ ] Performance requirements met (if applicable)
 - [ ] Documentation updated
+- [ ] **Self-improvement evaluation completed in `.github/workflow-improvements.md`**

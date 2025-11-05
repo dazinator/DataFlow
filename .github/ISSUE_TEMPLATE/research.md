@@ -20,6 +20,7 @@ Before starting work on this research issue:
 - [ ] I understand exploratory code in `/poc/` or `/src/` will be REVERTED after reviewer approval
 - [ ] I will create implementation-ready issue in `/research/[topic]/handover/` folder
 - [ ] I will save important prototype code in `/research/[topic]/handover/prototype/` before reversion
+- [ ] **Before PR review: I will complete self-improvement evaluation in `.github/workflow-improvements.md`**
 
 ### Key Points for @copilot:
 - **Research folder**: Create `/research/[topic-name]/` with research plan, findings, design docs, ADRs
@@ -73,3 +74,4 @@ Before starting work on this research issue:
 - [ ] All supporting documentation created
 - [ ] Prototype code captured (if needed)
 - [ ] Code changes reverted, only docs remain
+- [ ] **Self-improvement evaluation completed in `.github/workflow-improvements.md`**

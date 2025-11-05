@@ -4,6 +4,53 @@
 
 This is **DataFlow** - a high-performance, pull-based data processing pipeline library built on modern .NET features using `System.Threading.Channels`. It provides a fluent API for building concurrent data processing pipelines with efficient backpressure handling.
 
+## Self-Improvement Loop
+
+**⚠️ CRITICAL**: Before marking any PR ready for review, you MUST complete the self-improvement evaluation:
+
+### Required Steps Before PR Review
+
+1. **Evaluate Workflow Effectiveness**: Reflect on the workflow you followed for this task
+   - Which workflow did you use? (Research, Implementation, POC, etc.)
+   - Did the workflow guidance help or hinder your progress?
+   - Were there missing instructions that would have been helpful?
+   
+2. **Document What Worked Well**: Identify positive aspects
+   - What workflow steps were clear and effective?
+   - What guidance helped you avoid mistakes?
+   - What tools or processes worked smoothly?
+
+3. **Document What Didn't Work Well**: Identify pain points
+   - What was unclear or confusing in the workflow?
+   - What steps were missing or incomplete?
+   - What caused delays or required iteration?
+
+4. **Propose Specific Improvements**: Be actionable and concrete
+   - How could the workflow documentation be improved?
+   - What new guidance should be added?
+   - Should issue templates be updated?
+   - Should copilot instructions be clarified?
+
+5. **Add to Workflow Improvements File**: 
+   - Open `.github/workflow-improvements.md`
+   - Check if your suggestion already exists in the relevant section
+   - If new, add your evaluation using the template format provided
+   - Include: date, issue/PR number, what worked, what didn't, specific improvement suggestion
+
+### Example Entry
+
+```markdown
+- **Date**: 2025-11-05
+- **Issue/PR**: #123
+- **What worked well**: The research workflow's handover document template was comprehensive
+- **What didn't work well**: No guidance on when to create benchmarks vs when to skip them
+- **Suggested improvement**: Add a decision tree in RESEARCH_WORKFLOW.md for "When to Create Benchmarks" with criteria: performance-sensitive features (required), API design validation (optional), exploratory prototypes (skip)
+```
+
+### Why This Matters
+
+This self-improvement loop ensures our workflows continuously evolve based on real experiences. Every agent's feedback helps improve the process for future work, making the team more effective over time.
+
 ## Key Architecture Principles
 
 ### Pull-Based Architecture
@@ -461,6 +508,7 @@ Implementation is complete when:
 - [ ] Performance requirements validated (if applicable)
 - [ ] Edge cases handled (as documented in handover)
 - [ ] Documentation updated (glossary, guides, API docs)
+- [ ] Self-improvement evaluation completed (see Self-Improvement Loop section at top)
 - [ ] Code review ready
 
 ## POC Work Guidelines

@@ -20,6 +20,18 @@
 - ✅ **REVERT all exploratory code changes** from `/poc/` and `/src/`
 - ✅ Keep all documentation in `/research/[topic]/`
 - ✅ **Keep ADRs in `/poc/docs/adr/` or `/src/docs/adr/`** (ADRs are NOT reverted - they belong with the codebase)
+- ✅ **Complete self-improvement evaluation** (see below)
+
+### DO (Self-Improvement Loop - Required Before PR Review):
+- ✅ **Evaluate research workflow effectiveness** for this task
+- ✅ **Document what worked well** and what didn't in the research process
+- ✅ **Propose specific improvements** to the research workflow documentation
+- ✅ **Add suggestions to `.github/workflow-improvements.md`** in the Research Workflow section
+- ✅ Check if your suggestion already exists before adding
+
+**Example**: "The handover template was clear, but lacked guidance on when to create benchmarks. Suggest adding decision criteria: performance-sensitive (required), API validation (optional), prototypes (skip)."
+
+See `.github/copilot-instructions.md` for detailed guidance on the self-improvement loop.
 
 ### DON'T:
 - ❌ Merge exploratory code into `/poc/` or `/src/` (it will be reverted)
@@ -652,3 +664,16 @@ This workflow supports POC work that will be directly integrated:
 - **Promote on approval** to production locations
 
 **Result**: Clean POC codebase, comprehensive research documentation, and excellent handoff to implementation teams.
+
+---
+
+## Before PR Review: Self-Improvement Loop
+
+**⚠️ REMINDER**: Before marking your PR ready for review, complete the self-improvement evaluation:
+
+1. Reflect on the research workflow you followed
+2. Document what worked well and what didn't
+3. Propose specific, actionable improvements
+4. Add your suggestions to `.github/workflow-improvements.md` in the Research Workflow section
+
+This continuous feedback loop helps evolve our research processes based on real experiences. Your insights directly improve the workflow for future research work.
