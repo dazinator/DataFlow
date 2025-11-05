@@ -137,6 +137,17 @@ else if (args.Length > 0 && args[0] == "epoch-production-io")
     // This benchmark validates the ≤5% overhead goal in realistic scenarios
     BenchmarkRunner.Run<DataFlow.POC.Benchmarks.EpochProductionIOBenchmark>();
 }
+else if (args.Length > 0 && args[0] == "decoupled-epoch")
+{
+    // Run decoupled epoch segmentation benchmarks
+    // Compares source-centric vs decoupled approach performance
+    BenchmarkRunner.Run<DataFlow.POC.Benchmarks.DecoupledEpochBenchmark>();
+}
+else if (args.Length > 0 && args[0] == "tracking-block")
+{
+    // Run epoch tracking block benchmarks
+    DataFlow.POC.Benchmarks.RunTrackingBlockBenchmarks.Run();
+}
 else
 {
     // Run simple performance tests
