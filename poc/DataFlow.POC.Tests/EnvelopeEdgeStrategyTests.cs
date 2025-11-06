@@ -9,27 +9,84 @@ using Xunit;
 
 public class EnvelopeEdgeStrategyTests
 {
+    /// <summary>
+    /// Collector actor for IDataEnvelope items.
+    /// </summary>
+    private class EnvelopeCollectorActor : IStreamActor<IDataEnvelope, object>
+    {
+        private readonly List<IDataEnvelope> _collected;
+
+        public EnvelopeCollectorActor(List<IDataEnvelope> collected)
+        {
+            _collected = collected;
+        }
+
+        public async IAsyncEnumerable<object> RunAsync(
+            IAsyncEnumerable<IDataEnvelope> input,
+            IActorExecutionContext context)
+        {
+            await foreach (var item in input.WithCancellation(context.CancellationToken))
+            {
+                _collected.Add(item);
+            }
+            yield break;
+        }
+    }
+
+    /// <summary>
+    /// Collector actor with simulated work delay.
+    /// </summary>
+    private class DelayedEnvelopeCollectorActor : IStreamActor<IDataEnvelope, object>
+    {
+        private readonly List<IDataEnvelope> _collected;
+        private readonly int _delayMs;
+
+        public DelayedEnvelopeCollectorActor(List<IDataEnvelope> collected, int delayMs = 5)
+        {
+            _collected = collected;
+            _delayMs = delayMs;
+        }
+
+        public async IAsyncEnumerable<object> RunAsync(
+            IAsyncEnumerable<IDataEnvelope> input,
+            IActorExecutionContext context)
+        {
+            await foreach (var item in input.WithCancellation(context.CancellationToken))
+            {
+                _collected.Add(item);
+                await Task.Delay(_delayMs, context.CancellationToken);
+            }
+            yield break;
+        }
+    }
+
     [Fact]
     public async Task EnvelopeBroadcast_Should_Broadcast_Data_And_Control_Signals()
     {
         // Arrange
-        var services = new ServiceCollection().BuildServiceProvider();
         var consumer1Items = new List<IDataEnvelope>();
         var consumer2Items = new List<IDataEnvelope>();
 
+        // Create separate service providers for each consumer
+        var services1 = new ServiceCollection();
+        services1.AddScoped(_ => new EnvelopeCollectorActor(consumer1Items));
+        var serviceProvider1 = services1.BuildServiceProvider();
+
+        var services2 = new ServiceCollection();
+        services2.AddScoped(_ => new EnvelopeCollectorActor(consumer2Items));
+        var serviceProvider2 = services2.BuildServiceProvider();
+
+        var commonServices = new ServiceCollection().BuildServiceProvider();
+
         var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceEnvelopes(ctx));
 
-        var consumer1 = new ProcessorBlock<IDataEnvelope>("consumer1", async (item, ctx) =>
-        {
-            consumer1Items.Add(item);
-            await Task.CompletedTask;
-        });
+        var consumer1 = new ActorBlock<IDataEnvelope, object, EnvelopeCollectorActor>(
+            "consumer1",
+            serviceProvider1.GetRequiredService<IServiceScopeFactory>());
 
-        var consumer2 = new ProcessorBlock<IDataEnvelope>("consumer2", async (item, ctx) =>
-        {
-            consumer2Items.Add(item);
-            await Task.CompletedTask;
-        });
+        var consumer2 = new ActorBlock<IDataEnvelope, object, EnvelopeCollectorActor>(
+            "consumer2",
+            serviceProvider2.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("broadcast-envelope-flow");
         builder.AddBlock(producer)
@@ -41,7 +98,7 @@ public class EnvelopeEdgeStrategyTests
         builder.AddEdge(new Edge(producer, new[] { consumer1, consumer2 }, envelopeStrategy));
 
         var graph = builder.Build();
-        var context = new ExecutionContext(services, CancellationToken.None);
+        var context = new ExecutionContext(commonServices, CancellationToken.None);
 
         // Act
         await graph.ExecuteAsync(context);
@@ -72,23 +129,29 @@ public class EnvelopeEdgeStrategyTests
         // For guaranteed control signal delivery to all consumers, use broadcast edges.
         
         // Arrange
-        var services = new ServiceCollection().BuildServiceProvider();
         var consumer1Items = new List<IDataEnvelope>();
         var consumer2Items = new List<IDataEnvelope>();
 
+        // Create separate service providers for each consumer
+        var services1 = new ServiceCollection();
+        services1.AddScoped(_ => new DelayedEnvelopeCollectorActor(consumer1Items));
+        var serviceProvider1 = services1.BuildServiceProvider();
+
+        var services2 = new ServiceCollection();
+        services2.AddScoped(_ => new DelayedEnvelopeCollectorActor(consumer2Items));
+        var serviceProvider2 = services2.BuildServiceProvider();
+
+        var commonServices = new ServiceCollection().BuildServiceProvider();
+
         var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceEnvelopes(ctx));
 
-        var consumer1 = new ProcessorBlock<IDataEnvelope>("consumer1", async (item, ctx) =>
-        {
-            consumer1Items.Add(item);
-            await Task.Delay(5); // Small delay to encourage competition
-        });
+        var consumer1 = new ActorBlock<IDataEnvelope, object, DelayedEnvelopeCollectorActor>(
+            "consumer1",
+            serviceProvider1.GetRequiredService<IServiceScopeFactory>());
 
-        var consumer2 = new ProcessorBlock<IDataEnvelope>("consumer2", async (item, ctx) =>
-        {
-            consumer2Items.Add(item);
-            await Task.Delay(5);
-        });
+        var consumer2 = new ActorBlock<IDataEnvelope, object, DelayedEnvelopeCollectorActor>(
+            "consumer2",
+            serviceProvider2.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("competing-envelope-flow");
         builder.AddBlock(producer)
@@ -100,7 +163,7 @@ public class EnvelopeEdgeStrategyTests
         builder.AddEdge(new Edge(producer, new[] { consumer1, consumer2 }, envelopeStrategy));
 
         var graph = builder.Build();
-        var context = new ExecutionContext(services, CancellationToken.None);
+        var context = new ExecutionContext(commonServices, CancellationToken.None);
 
         // Act
         await graph.ExecuteAsync(context);
@@ -124,16 +187,18 @@ public class EnvelopeEdgeStrategyTests
     public async Task EnvelopeEdge_Should_Preserve_Control_Signal_Order()
     {
         // Arrange
-        var services = new ServiceCollection().BuildServiceProvider();
         var receivedItems = new List<IDataEnvelope>();
+        
+        var services = new ServiceCollection();
+        services.AddScoped(_ => new EnvelopeCollectorActor(receivedItems));
+        var serviceProvider = services.BuildServiceProvider();
+        var commonServices = new ServiceCollection().BuildServiceProvider();
 
         var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceOrderedEnvelopes(ctx));
 
-        var consumer = new ProcessorBlock<IDataEnvelope>("consumer", async (item, ctx) =>
-        {
-            receivedItems.Add(item);
-            await Task.CompletedTask;
-        });
+        var consumer = new ActorBlock<IDataEnvelope, object, EnvelopeCollectorActor>(
+            "consumer",
+            serviceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("ordered-envelope-flow");
         builder.AddBlock(producer)
@@ -143,7 +208,7 @@ public class EnvelopeEdgeStrategyTests
         builder.AddEdge(new Edge(producer, consumer, envelopeStrategy));
 
         var graph = builder.Build();
-        var context = new ExecutionContext(services, CancellationToken.None);
+        var context = new ExecutionContext(commonServices, CancellationToken.None);
 
         // Act
         await graph.ExecuteAsync(context);
@@ -173,16 +238,18 @@ public class EnvelopeEdgeStrategyTests
     public async Task EnvelopeEdge_Should_Handle_Only_Control_Signals()
     {
         // Arrange
-        var services = new ServiceCollection().BuildServiceProvider();
         var receivedItems = new List<IDataEnvelope>();
+        
+        var services = new ServiceCollection();
+        services.AddScoped(_ => new EnvelopeCollectorActor(receivedItems));
+        var serviceProvider = services.BuildServiceProvider();
+        var commonServices = new ServiceCollection().BuildServiceProvider();
 
         var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceOnlyControlSignals(ctx));
 
-        var consumer = new ProcessorBlock<IDataEnvelope>("consumer", async (item, ctx) =>
-        {
-            receivedItems.Add(item);
-            await Task.CompletedTask;
-        });
+        var consumer = new ActorBlock<IDataEnvelope, object, EnvelopeCollectorActor>(
+            "consumer",
+            serviceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("control-only-flow");
         builder.AddBlock(producer)
@@ -192,7 +259,7 @@ public class EnvelopeEdgeStrategyTests
         builder.AddEdge(new Edge(producer, consumer, envelopeStrategy));
 
         var graph = builder.Build();
-        var context = new ExecutionContext(services, CancellationToken.None);
+        var context = new ExecutionContext(commonServices, CancellationToken.None);
 
         // Act
         await graph.ExecuteAsync(context);
@@ -208,16 +275,18 @@ public class EnvelopeEdgeStrategyTests
     public async Task EnvelopeEdge_Should_Handle_Only_Data_Items()
     {
         // Arrange
-        var services = new ServiceCollection().BuildServiceProvider();
         var receivedItems = new List<IDataEnvelope>();
+        
+        var services = new ServiceCollection();
+        services.AddScoped(_ => new EnvelopeCollectorActor(receivedItems));
+        var serviceProvider = services.BuildServiceProvider();
+        var commonServices = new ServiceCollection().BuildServiceProvider();
 
         var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceOnlyData(ctx));
 
-        var consumer = new ProcessorBlock<IDataEnvelope>("consumer", async (item, ctx) =>
-        {
-            receivedItems.Add(item);
-            await Task.CompletedTask;
-        });
+        var consumer = new ActorBlock<IDataEnvelope, object, EnvelopeCollectorActor>(
+            "consumer",
+            serviceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("data-only-flow");
         builder.AddBlock(producer)
@@ -227,7 +296,7 @@ public class EnvelopeEdgeStrategyTests
         builder.AddEdge(new Edge(producer, consumer, envelopeStrategy));
 
         var graph = builder.Build();
-        var context = new ExecutionContext(services, CancellationToken.None);
+        var context = new ExecutionContext(commonServices, CancellationToken.None);
 
         // Act
         await graph.ExecuteAsync(context);

@@ -16,6 +16,56 @@ using Xunit;
 /// </summary>
 public class EnvelopeAdvancedTests
 {
+    /// <summary>
+    /// Collector actor for IDataEnvelope items.
+    /// </summary>
+    private class EnvelopeCollectorActor : IStreamActor<IDataEnvelope, object>
+    {
+        private readonly List<IDataEnvelope> _collected;
+
+        public EnvelopeCollectorActor(List<IDataEnvelope> collected)
+        {
+            _collected = collected;
+        }
+
+        public async IAsyncEnumerable<object> RunAsync(
+            IAsyncEnumerable<IDataEnvelope> input,
+            IActorExecutionContext context)
+        {
+            await foreach (var item in input.WithCancellation(context.CancellationToken))
+            {
+                _collected.Add(item);
+            }
+            yield break;
+        }
+    }
+
+    /// <summary>
+    /// Collector actor that tracks position of items.
+    /// </summary>
+    private class PositionTrackingEnvelopeCollectorActor : IStreamActor<IDataEnvelope, object>
+    {
+        private readonly List<(int position, IDataEnvelope envelope)> _collected;
+        private int _position;
+
+        public PositionTrackingEnvelopeCollectorActor(List<(int position, IDataEnvelope envelope)> collected)
+        {
+            _collected = collected;
+            _position = 0;
+        }
+
+        public async IAsyncEnumerable<object> RunAsync(
+            IAsyncEnumerable<IDataEnvelope> input,
+            IActorExecutionContext context)
+        {
+            await foreach (var item in input.WithCancellation(context.CancellationToken))
+            {
+                _collected.Add((_position++, item));
+            }
+            yield break;
+        }
+    }
+
     [Fact]
     public async Task MultiPath_Broadcast_Should_Deliver_Control_Signals_To_All_Paths()
     {
@@ -24,27 +74,33 @@ public class EnvelopeAdvancedTests
         // Both data and control signals reach all consumers in broadcast mode.
         
         // Arrange
-        var services = new ServiceCollection().BuildServiceProvider();
         var path1Results = new List<IDataEnvelope>();
         var path2Results = new List<IDataEnvelope>();
+
+        // Create separate service providers for each consumer
+        var services1 = new ServiceCollection();
+        services1.AddScoped(_ => new EnvelopeCollectorActor(path1Results));
+        var serviceProvider1 = services1.BuildServiceProvider();
+
+        var services2 = new ServiceCollection();
+        services2.AddScoped(_ => new EnvelopeCollectorActor(path2Results));
+        var serviceProvider2 = services2.BuildServiceProvider();
+
+        var commonServices = new ServiceCollection().BuildServiceProvider();
 
         var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceWithBarriers(ctx));
         
         var path1Transform = new SimpleEnvelopeTransformerBlock<int, string>(
             "path1-transform", i => $"Path1-{i}");
-        var path1Consumer = new ProcessorBlock<IDataEnvelope>("path1-consumer", async (item, ctx) =>
-        {
-            path1Results.Add(item);
-            await Task.CompletedTask;
-        });
+        var path1Consumer = new ActorBlock<IDataEnvelope, object, EnvelopeCollectorActor>(
+            "path1-consumer",
+            serviceProvider1.GetRequiredService<IServiceScopeFactory>());
 
         var path2Transform = new SimpleEnvelopeTransformerBlock<int, string>(
             "path2-transform", i => $"Path2-{i}");
-        var path2Consumer = new ProcessorBlock<IDataEnvelope>("path2-consumer", async (item, ctx) =>
-        {
-            path2Results.Add(item);
-            await Task.CompletedTask;
-        });
+        var path2Consumer = new ActorBlock<IDataEnvelope, object, EnvelopeCollectorActor>(
+            "path2-consumer",
+            serviceProvider2.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("multipath-flow");
         builder.AddBlock(producer)
@@ -61,7 +117,7 @@ public class EnvelopeAdvancedTests
         builder.AddEdge(new Edge(path2Transform, path2Consumer, envelopeStrategy));
 
         var graph = builder.Build();
-        var context = new ExecutionContext(services, CancellationToken.None);
+        var context = new ExecutionContext(commonServices, CancellationToken.None);
 
         // Act
         await graph.ExecuteAsync(context);
@@ -153,9 +209,12 @@ public class EnvelopeAdvancedTests
         // Verifies that control signals maintain their position relative to data items
         
         // Arrange
-        var services = new ServiceCollection().BuildServiceProvider();
         var outputItems = new List<(int position, IDataEnvelope envelope)>();
-        int position = 0;
+
+        var services = new ServiceCollection();
+        services.AddScoped(_ => new EnvelopeCollectorActor(outputItems.Select(x => x.envelope).ToList()));
+        var serviceProvider = services.BuildServiceProvider();
+        var commonServices = new ServiceCollection().BuildServiceProvider();
 
         var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceComplexStream(ctx));
         
@@ -165,11 +224,15 @@ public class EnvelopeAdvancedTests
         var projector = new EnvelopeProjectorBlock<int, int>(
             "projector", (i, ctx) => DuplicateAsync(i));
         
-        var processor = new ProcessorBlock<IDataEnvelope>("processor", async (item, ctx) =>
-        {
-            outputItems.Add((position++, item));
-            await Task.CompletedTask;
-        });
+        // Create a custom actor that tracks position
+        var processorActor = new PositionTrackingEnvelopeCollectorActor(outputItems);
+        var processorServices = new ServiceCollection();
+        processorServices.AddScoped(_ => processorActor);
+        var processorServiceProvider = processorServices.BuildServiceProvider();
+        
+        var processor = new ActorBlock<IDataEnvelope, object, PositionTrackingEnvelopeCollectorActor>(
+            "processor",
+            processorServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("complex-pipeline-flow");
         builder.AddBlock(producer)
@@ -183,7 +246,7 @@ public class EnvelopeAdvancedTests
         builder.AddEdge(new Edge(projector, processor, envelopeStrategy));
 
         var graph = builder.Build();
-        var context = new ExecutionContext(services, CancellationToken.None);
+        var context = new ExecutionContext(commonServices, CancellationToken.None);
 
         // Act
         await graph.ExecuteAsync(context);

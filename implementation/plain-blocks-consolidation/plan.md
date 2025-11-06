@@ -86,9 +86,9 @@ Consolidate TransformerBlock and ProcessorBlock around the ActorBlock pattern to
 
 ### 🚧 Phase 4: Migrate and Consolidate Tests (IN PROGRESS)
 
-**Status**: In Progress (39% complete)  
-**Estimated Effort**: 4-8 hours total (3-5 hours remaining)
-**Current Session**: Migrated 7/18 files
+**Status**: In Progress (94% complete - 17/18 files migrated)  
+**Estimated Effort**: 4-8 hours total (~1-2 hours remaining for final file)
+**Current Session**: Migrated 10 additional files (7/18 → 17/18)
 
 **Objectives**:
 1. Migrate all tests using TransformerBlock and ProcessorBlock to ActorBlock
@@ -96,7 +96,7 @@ Consolidate TransformerBlock and ProcessorBlock around the ActorBlock pattern to
 3. Ensure all tests pass after migration
 4. Document test consolidation decisions
 
-**Progress** (7/18 files migrated):
+**Progress** (17/18 files migrated):
 - ✅ BasicFlowTests.cs (3 tests)
 - ✅ BatchFlowTests.cs (2 tests)
 - ✅ BroadcastFlowTests.cs (1 test)
@@ -104,19 +104,22 @@ Consolidate TransformerBlock and ProcessorBlock around the ActorBlock pattern to
 - ✅ ComplexFlowTests.cs (2 tests)
 - ✅ EpochControlPlaneTests.cs (1 test)
 - ✅ ActorBlockTests.cs (1 test)
+- ✅ EdgeStrategyTests.cs (10 tests)
+- ✅ AsyncLocalPropagationTests.cs (9 tests)
+- ✅ BufferNodeTests.cs (11 tests)
+- ✅ BufferNodeControlSignalTests.cs (10 tests)
+- ✅ OptimizedSideChannelTests.cs (8 tests)
+- ✅ SideChannelCompetingEdgeTests.cs (8 tests)
+- ✅ EnvelopeAdvancedTests.cs (3 usages eliminated)
+- ✅ EnvelopeBlocksTests.cs (4 usages eliminated)
+- ✅ EnvelopeEdgeStrategyTests.cs (7 usages eliminated)
+- ✅ BufferNodeDemonstrationTests.cs (5 usages eliminated)
 
-**Remaining Files** (11 files, ~160 obsolete usages):
-1. EdgeStrategyTests.cs - 10 usages
-2. AsyncLocalPropagationTests.cs - 9 usages
-3. BufferNodeTests.cs - 11 usages
-4. BufferNodeDemonstrationTests.cs - 7 usages
-5. BufferNodeControlSignalTests.cs - 10 usages
-6. EnvelopeBlocksTests.cs - 10 usages
-7. EnvelopeAdvancedTests.cs - 8 usages
-8. EnvelopeEdgeStrategyTests.cs - 7 usages
-9. OptimizedSideChannelTests.cs - 8 usages
-10. SideChannelCompetingEdgeTests.cs - 8 usages
-11. **ConcurrencyScalingTests.cs - 63 usages** ⚠️ (largest, dedicated session recommended)
+**Remaining Files** (1 file, ~130 obsolete warnings):
+- ⏳ **ConcurrencyScalingTests.cs - 40 usages** (largest file, 1231 lines)
+  - Recommended: Dedicated 1-2 hour session
+  - Complex test scenarios with concurrency validation
+  - May require additional specialized actor patterns
 
 **Objectives**:
 1. Migrate all tests using TransformerBlock and ProcessorBlock to ActorBlock
@@ -125,10 +128,9 @@ Consolidate TransformerBlock and ProcessorBlock around the ActorBlock pattern to
 4. Document test consolidation decisions
 
 **Current Metrics**:
-- Warnings: 197 → 176 (21 eliminated, 11% reduction)
-- Files migrated: 7/18 (39%)
+- Obsolete warnings: 197 → 130 (67 eliminated, 34% reduction)
+- Files migrated: 17/18 (94%)
 - All 174 tests passing ✅
-- Obsolete usages eliminated: ~21
 
 **Established Migration Patterns**:
 ```csharp
@@ -205,24 +207,25 @@ var processor1 = new ActorBlock<int, object, IntCollectorActor>(
 
 **Success Criteria**:
 - [x] Migration patterns established (CollectorActor, separate DI scopes)
-- [ ] All tests using ActorBlock pattern (7/18 files complete, 39%)
-- [ ] Test count reduced by 20-40%
-- [ ] All tests passing ✅ (currently passing)
-- [ ] Test consolidation report created
+- [ ] All tests using ActorBlock pattern (17/18 files complete, 94%)
+- [ ] Test count reduced by 20-40% (deferred until after ConcurrencyScalingTests migration)
+- [x] All tests passing ✅ (currently passing)
+- [ ] Test consolidation report created (pending)
 
 **How to Continue**:
-The remaining 11 files should be migrated systematically:
-1. Start with smaller files (7-10 usages each)
-2. Save ConcurrencyScalingTests.cs for last (largest, 63 usages)
-3. After all migrations, assess for test consolidation opportunities
-4. Document consolidation decisions
+The final file ConcurrencyScalingTests.cs requires dedicated focus:
+1. Large file: 1231 lines with 40 obsolete block usages
+2. Complex concurrency validation scenarios
+3. Estimate: 1-2 hours for careful migration
+4. After migration, assess for test consolidation opportunities
+5. Document consolidation decisions in `/implementation/plain-blocks-consolidation/test-consolidation-report.md`
 
 **Next Session Actions**:
 ```bash
-# Continue migrating remaining files
+# Continue migrating final file
 cd /home/runner/work/lib-dataflow/lib-dataflow
 dotnet build poc/DataFlow.POC.Tests/DataFlow.POC.Tests.csproj
-dotnet test poc/DataFlow.POC.Tests/DataFlow.POC.Tests.csproj
+dotnet test poc/DataFlow.POC.Tests/DataFlow.POC.Tests.csproj --filter "FullyQualifiedName~ConcurrencyScalingTests"
 ```
 
 **Migration Commands**:

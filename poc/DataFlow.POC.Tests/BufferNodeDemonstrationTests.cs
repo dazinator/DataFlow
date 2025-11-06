@@ -20,6 +20,133 @@ public class BufferNodeDemonstrationTests
         _output = output;
     }
 
+    /// <summary>
+    /// Actor that collects integers with source tracking.
+    /// </summary>
+    private class SourceTrackingCollectorActor : IStreamActor<int, object>
+    {
+        private readonly List<(int value, string source)> _collected;
+        private readonly ITestOutputHelper _output;
+
+        public SourceTrackingCollectorActor(List<(int value, string source)> collected, ITestOutputHelper output)
+        {
+            _collected = collected;
+            _output = output;
+        }
+
+        public async IAsyncEnumerable<object> RunAsync(
+            IAsyncEnumerable<int> input,
+            IActorExecutionContext context)
+        {
+            await foreach (var item in input.WithCancellation(context.CancellationToken))
+            {
+                var source = item < 100 ? "A" : (item < 200 ? "B" : "C");
+                lock (_collected)
+                {
+                    _collected.Add((item, source));
+                    _output.WriteLine($"  Processed: {item} from Producer-{source}");
+                }
+            }
+            yield break;
+        }
+    }
+
+    /// <summary>
+    /// Actor that collects integers with worker name tracking.
+    /// </summary>
+    private class WorkerCollectorActor : IStreamActor<int, object>
+    {
+        private readonly List<(int item, string worker)> _collected;
+        private readonly string _workerName;
+        private readonly ITestOutputHelper _output;
+
+        public WorkerCollectorActor(List<(int item, string worker)> collected, string workerName, ITestOutputHelper output)
+        {
+            _collected = collected;
+            _workerName = workerName;
+            _output = output;
+        }
+
+        public async IAsyncEnumerable<object> RunAsync(
+            IAsyncEnumerable<int> input,
+            IActorExecutionContext context)
+        {
+            await foreach (var item in input.WithCancellation(context.CancellationToken))
+            {
+                lock (_collected)
+                {
+                    _collected.Add((item, _workerName));
+                    _output.WriteLine($"  Worker {_workerName}: Processed item {item}");
+                }
+                await Task.Delay(10, context.CancellationToken); // Simulate work
+            }
+            yield break;
+        }
+    }
+
+    /// <summary>
+    /// Actor that collects integers with work simulation.
+    /// </summary>
+    private class DelayedIntCollectorActor : IStreamActor<int, object>
+    {
+        private readonly List<int> _collected;
+        private readonly string _workerName;
+        private readonly ITestOutputHelper _output;
+
+        public DelayedIntCollectorActor(List<int> collected, string workerName, ITestOutputHelper output)
+        {
+            _collected = collected;
+            _workerName = workerName;
+            _output = output;
+        }
+
+        public async IAsyncEnumerable<object> RunAsync(
+            IAsyncEnumerable<int> input,
+            IActorExecutionContext context)
+        {
+            await foreach (var item in input.WithCancellation(context.CancellationToken))
+            {
+                lock (_collected)
+                {
+                    _collected.Add(item);
+                    _output.WriteLine($"  {_workerName} processed: {item}");
+                }
+                await Task.Delay(10, context.CancellationToken); // Simulate work
+            }
+            yield break;
+        }
+    }
+
+    /// <summary>
+    /// Actor that collects strings with logging.
+    /// </summary>
+    private class StringCollectorActor : IStreamActor<string, object>
+    {
+        private readonly List<string> _collected;
+        private readonly ITestOutputHelper _output;
+
+        public StringCollectorActor(List<string> collected, ITestOutputHelper output)
+        {
+            _collected = collected;
+            _output = output;
+        }
+
+        public async IAsyncEnumerable<object> RunAsync(
+            IAsyncEnumerable<string> input,
+            IActorExecutionContext context)
+        {
+            await foreach (var item in input.WithCancellation(context.CancellationToken))
+            {
+                lock (_collected)
+                {
+                    _collected.Add(item);
+                    _output.WriteLine($"  Final output: {item}");
+                }
+            }
+            yield break;
+        }
+    }
+
     private static async IAsyncEnumerable<int> ProduceIntegers(IExecutionContext ctx, int start, int count)
     {
         for (int i = start; i < start + count; i++)
@@ -40,7 +167,11 @@ public class BufferNodeDemonstrationTests
         _output.WriteLine("=== Fan-In Scenario: Multiple Producers → Single Buffer → Single Consumer ===");
 
         var processedItems = new List<(int value, string source)>();
-        var services = new ServiceCollection().BuildServiceProvider();
+        
+        var services = new ServiceCollection();
+        services.AddScoped(_ => new SourceTrackingCollectorActor(processedItems, _output));
+        var serviceProvider = services.BuildServiceProvider();
+        var commonServices = new ServiceCollection().BuildServiceProvider();
 
         // Create three producers that generate different ranges of numbers
         var producer1 = new ProducerBlock<int>("producer-A", ctx => ProduceIntegers(ctx, 1, 3));
@@ -48,16 +179,9 @@ public class BufferNodeDemonstrationTests
         var producer3 = new ProducerBlock<int>("producer-C", ctx => ProduceIntegers(ctx, 200, 3));
 
         // Create a processor that tracks which items it receives
-        var processor = new ProcessorBlock<int>("processor", async (item, ctx) =>
-        {
-            var source = item < 100 ? "A" : (item < 200 ? "B" : "C");
-            lock (processedItems)
-            {
-                processedItems.Add((item, source));
-                _output.WriteLine($"  Processed: {item} from Producer-{source}");
-            }
-            await Task.CompletedTask;
-        });
+        var processor = new ActorBlock<int, object, SourceTrackingCollectorActor>(
+            "processor",
+            serviceProvider.GetRequiredService<IServiceScopeFactory>());
 
         // Build the graph with a shared buffer
         var builder = new DataFlowGraphBuilder("fan-in-demo");
@@ -73,7 +197,7 @@ public class BufferNodeDemonstrationTests
             .Connect(sharedBuffer, processor);
 
         var graph = builder.Build();
-        var context = new ExecutionContext(services, CancellationToken.None);
+        var context = new ExecutionContext(commonServices, CancellationToken.None);
 
         // Execute
         await graph.ExecuteAsync(context);
@@ -104,41 +228,37 @@ public class BufferNodeDemonstrationTests
         var worker1Items = new List<int>();
         var worker2Items = new List<int>();
         var worker3Items = new List<int>();
-        var services = new ServiceCollection().BuildServiceProvider();
+
+        // Create separate service providers for each worker
+        var services1 = new ServiceCollection();
+        services1.AddScoped(_ => new DelayedIntCollectorActor(worker1Items, "Worker-1", _output));
+        var serviceProvider1 = services1.BuildServiceProvider();
+
+        var services2 = new ServiceCollection();
+        services2.AddScoped(_ => new DelayedIntCollectorActor(worker2Items, "Worker-2", _output));
+        var serviceProvider2 = services2.BuildServiceProvider();
+
+        var services3 = new ServiceCollection();
+        services3.AddScoped(_ => new DelayedIntCollectorActor(worker3Items, "Worker-3", _output));
+        var serviceProvider3 = services3.BuildServiceProvider();
+
+        var commonServices = new ServiceCollection().BuildServiceProvider();
 
         // Create a single producer
         var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(ctx, 1, 15));
 
         // Create three workers that compete for items
-        var worker1 = new ProcessorBlock<int>("worker-1", async (item, ctx) =>
-        {
-            lock (worker1Items)
-            {
-                worker1Items.Add(item);
-                _output.WriteLine($"  Worker-1 processed: {item}");
-            }
-            await Task.Delay(10); // Simulate work
-        });
+        var worker1 = new ActorBlock<int, object, DelayedIntCollectorActor>(
+            "worker-1",
+            serviceProvider1.GetRequiredService<IServiceScopeFactory>());
 
-        var worker2 = new ProcessorBlock<int>("worker-2", async (item, ctx) =>
-        {
-            lock (worker2Items)
-            {
-                worker2Items.Add(item);
-                _output.WriteLine($"  Worker-2 processed: {item}");
-            }
-            await Task.Delay(10); // Simulate work
-        });
+        var worker2 = new ActorBlock<int, object, DelayedIntCollectorActor>(
+            "worker-2",
+            serviceProvider2.GetRequiredService<IServiceScopeFactory>());
 
-        var worker3 = new ProcessorBlock<int>("worker-3", async (item, ctx) =>
-        {
-            lock (worker3Items)
-            {
-                worker3Items.Add(item);
-                _output.WriteLine($"  Worker-3 processed: {item}");
-            }
-            await Task.Delay(10); // Simulate work
-        });
+        var worker3 = new ActorBlock<int, object, DelayedIntCollectorActor>(
+            "worker-3",
+            serviceProvider3.GetRequiredService<IServiceScopeFactory>());
 
         // Build the graph with a shared buffer
         var builder = new DataFlowGraphBuilder("fan-out-demo");
@@ -154,7 +274,7 @@ public class BufferNodeDemonstrationTests
             .Connect(workQueue, worker3);
 
         var graph = builder.Build();
-        var context = new ExecutionContext(services, CancellationToken.None);
+        var context = new ExecutionContext(commonServices, CancellationToken.None);
 
         // Execute
         await graph.ExecuteAsync(context);
@@ -188,7 +308,11 @@ public class BufferNodeDemonstrationTests
         _output.WriteLine("=== Complex Pipeline: Multi-stage with Buffer Nodes ===");
 
         var finalResults = new List<string>();
-        var services = new ServiceCollection().BuildServiceProvider();
+        
+        var services = new ServiceCollection();
+        services.AddScoped(_ => new StringCollectorActor(finalResults, _output));
+        var serviceProvider = services.BuildServiceProvider();
+        var commonServices = new ServiceCollection().BuildServiceProvider();
 
         // Stage 1: Two producers generate numbers
         var producer1 = new ProducerBlock<int>("producer-1", ctx => ProduceIntegers(ctx, 1, 5));
@@ -207,15 +331,9 @@ public class BufferNodeDemonstrationTests
         });
 
         // Stage 3: Final processor
-        var finalProcessor = new ProcessorBlock<string>("final-processor", async (item, ctx) =>
-        {
-            lock (finalResults)
-            {
-                finalResults.Add(item);
-                _output.WriteLine($"  Final: {item}");
-            }
-            await Task.CompletedTask;
-        });
+        var finalProcessor = new ActorBlock<string, object, StringCollectorActor>(
+            "final-processor",
+            serviceProvider.GetRequiredService<IServiceScopeFactory>());
 
         // Build the graph with two buffer nodes
         var builder = new DataFlowGraphBuilder("complex-pipeline-demo");
@@ -239,7 +357,7 @@ public class BufferNodeDemonstrationTests
             .Connect(outputBuffer, finalProcessor);
 
         var graph = builder.Build();
-        var context = new ExecutionContext(services, CancellationToken.None);
+        var context = new ExecutionContext(commonServices, CancellationToken.None);
 
         // Execute
         _output.WriteLine("\nExecuting pipeline...\n");

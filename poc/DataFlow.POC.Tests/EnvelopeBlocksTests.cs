@@ -9,20 +9,46 @@ using Xunit;
 
 public class EnvelopeBlocksTests
 {
+    /// <summary>
+    /// Collector actor for IDataEnvelope items.
+    /// </summary>
+    private class EnvelopeCollectorActor : IStreamActor<IDataEnvelope, object>
+    {
+        private readonly List<IDataEnvelope> _collected;
+
+        public EnvelopeCollectorActor(List<IDataEnvelope> collected)
+        {
+            _collected = collected;
+        }
+
+        public async IAsyncEnumerable<object> RunAsync(
+            IAsyncEnumerable<IDataEnvelope> input,
+            IActorExecutionContext context)
+        {
+            await foreach (var item in input.WithCancellation(context.CancellationToken))
+            {
+                _collected.Add(item);
+            }
+            yield break;
+        }
+    }
+
     [Fact]
     public async Task SimpleEnvelopeTransformer_Should_Transform_Data_And_Forward_Control()
     {
         // Arrange
-        var services = new ServiceCollection().BuildServiceProvider();
         var outputEnvelopes = new List<IDataEnvelope>();
+        
+        var services = new ServiceCollection();
+        services.AddScoped(_ => new EnvelopeCollectorActor(outputEnvelopes));
+        var serviceProvider = services.BuildServiceProvider();
+        var commonServices = new ServiceCollection().BuildServiceProvider();
 
         var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceMixedEnvelopes(ctx));
         var transformer = new SimpleEnvelopeTransformerBlock<int, string>("transformer", i => $"Value-{i}");
-        var consumer = new ProcessorBlock<IDataEnvelope>("consumer", async (item, ctx) =>
-        {
-            outputEnvelopes.Add(item);
-            await Task.CompletedTask;
-        });
+        var consumer = new ActorBlock<IDataEnvelope, object, EnvelopeCollectorActor>(
+            "consumer",
+            serviceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("transform-flow");
         builder.AddBlock(producer)
@@ -34,7 +60,7 @@ public class EnvelopeBlocksTests
         builder.AddEdge(new Edge(transformer, consumer, envelopeStrategy));
 
         var graph = builder.Build();
-        var context = new ExecutionContext(services, CancellationToken.None);
+        var context = new ExecutionContext(commonServices, CancellationToken.None);
 
         // Act
         await graph.ExecuteAsync(context);
@@ -62,8 +88,12 @@ public class EnvelopeBlocksTests
     public async Task AsyncEnvelopeTransformer_Should_Transform_With_Async_Logic()
     {
         // Arrange
-        var services = new ServiceCollection().BuildServiceProvider();
         var outputEnvelopes = new List<IDataEnvelope>();
+        
+        var services = new ServiceCollection();
+        services.AddScoped(_ => new EnvelopeCollectorActor(outputEnvelopes));
+        var serviceProvider = services.BuildServiceProvider();
+        var commonServices = new ServiceCollection().BuildServiceProvider();
 
         var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceDataOnly(ctx));
         var transformer = new AsyncEnvelopeTransformerBlock<int, int>("transformer", async (i, ctx) =>
@@ -71,11 +101,9 @@ public class EnvelopeBlocksTests
             await Task.Delay(1); // Simulate async work
             return i * 2;
         });
-        var consumer = new ProcessorBlock<IDataEnvelope>("consumer", async (item, ctx) =>
-        {
-            outputEnvelopes.Add(item);
-            await Task.CompletedTask;
-        });
+        var consumer = new ActorBlock<IDataEnvelope, object, EnvelopeCollectorActor>(
+            "consumer",
+            serviceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("async-transform-flow");
         builder.AddBlock(producer)
@@ -87,7 +115,7 @@ public class EnvelopeBlocksTests
         builder.AddEdge(new Edge(transformer, consumer, envelopeStrategy));
 
         var graph = builder.Build();
-        var context = new ExecutionContext(services, CancellationToken.None);
+        var context = new ExecutionContext(commonServices, CancellationToken.None);
 
         // Act
         await graph.ExecuteAsync(context);
@@ -104,8 +132,12 @@ public class EnvelopeBlocksTests
     public async Task EnvelopeProjector_Should_Project_One_To_Many()
     {
         // Arrange
-        var services = new ServiceCollection().BuildServiceProvider();
         var outputEnvelopes = new List<IDataEnvelope>();
+        
+        var services = new ServiceCollection();
+        services.AddScoped(_ => new EnvelopeCollectorActor(outputEnvelopes));
+        var serviceProvider = services.BuildServiceProvider();
+        var commonServices = new ServiceCollection().BuildServiceProvider();
 
         var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceDataWithControl(ctx));
         var projector = new EnvelopeProjectorBlock<int, int>("projector", (i, ctx) =>
@@ -113,11 +145,9 @@ public class EnvelopeBlocksTests
             // Each input produces multiple outputs
             return AsyncEnumerable(i, i * 10, i * 100);
         });
-        var consumer = new ProcessorBlock<IDataEnvelope>("consumer", async (item, ctx) =>
-        {
-            outputEnvelopes.Add(item);
-            await Task.CompletedTask;
-        });
+        var consumer = new ActorBlock<IDataEnvelope, object, EnvelopeCollectorActor>(
+            "consumer",
+            serviceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("projector-flow");
         builder.AddBlock(producer)
@@ -129,7 +159,7 @@ public class EnvelopeBlocksTests
         builder.AddEdge(new Edge(projector, consumer, envelopeStrategy));
 
         var graph = builder.Build();
-        var context = new ExecutionContext(services, CancellationToken.None);
+        var context = new ExecutionContext(commonServices, CancellationToken.None);
 
         // Act
         await graph.ExecuteAsync(context);
@@ -235,17 +265,19 @@ public class EnvelopeBlocksTests
     public async Task EnvelopeBlocks_Should_Preserve_Order_In_Pipeline()
     {
         // Arrange
-        var services = new ServiceCollection().BuildServiceProvider();
         var outputEnvelopes = new List<IDataEnvelope>();
+        
+        var services = new ServiceCollection();
+        services.AddScoped(_ => new EnvelopeCollectorActor(outputEnvelopes));
+        var serviceProvider = services.BuildServiceProvider();
+        var commonServices = new ServiceCollection().BuildServiceProvider();
 
         var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceOrderedStream(ctx));
         var transformer1 = new SimpleEnvelopeTransformerBlock<int, int>("transformer1", i => i + 1);
         var transformer2 = new SimpleEnvelopeTransformerBlock<int, int>("transformer2", i => i * 10);
-        var consumer = new ProcessorBlock<IDataEnvelope>("consumer", async (item, ctx) =>
-        {
-            outputEnvelopes.Add(item);
-            await Task.CompletedTask;
-        });
+        var consumer = new ActorBlock<IDataEnvelope, object, EnvelopeCollectorActor>(
+            "consumer",
+            serviceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("pipeline-flow");
         builder.AddBlock(producer)
@@ -259,7 +291,7 @@ public class EnvelopeBlocksTests
         builder.AddEdge(new Edge(transformer2, consumer, envelopeStrategy));
 
         var graph = builder.Build();
-        var context = new ExecutionContext(services, CancellationToken.None);
+        var context = new ExecutionContext(commonServices, CancellationToken.None);
 
         // Act
         await graph.ExecuteAsync(context);
