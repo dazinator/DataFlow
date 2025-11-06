@@ -9,6 +9,46 @@ using Xunit;
 
 public class BasicFlowTests
 {
+    /// <summary>
+    /// Simple processor actor that collects items into a list.
+    /// </summary>
+    private class CollectorActor<T> : IStreamActor<T, object>
+    {
+        private readonly List<T> _collected;
+
+        public CollectorActor(List<T> collected)
+        {
+            _collected = collected;
+        }
+
+        public async IAsyncEnumerable<object> RunAsync(
+            IAsyncEnumerable<T> input,
+            IActorExecutionContext context)
+        {
+            await foreach (var item in input.WithCancellation(context.CancellationToken))
+            {
+                _collected.Add(item);
+            }
+            yield break;
+        }
+    }
+
+    /// <summary>
+    /// Simple transformer actor that formats integers as strings.
+    /// </summary>
+    private class IntToStringActor : IStreamActor<int, string>
+    {
+        public async IAsyncEnumerable<string> RunAsync(
+            IAsyncEnumerable<int> input,
+            IActorExecutionContext context)
+        {
+            await foreach (var item in input.WithCancellation(context.CancellationToken))
+            {
+                yield return $"Item-{item}";
+            }
+        }
+    }
+
     private static async IAsyncEnumerable<int> ProduceIntegers(IExecutionContext ctx, int count)
     {
         for (int i = 1; i <= count; i++)
@@ -23,15 +63,15 @@ public class BasicFlowTests
     {
         // Arrange
         var processedItems = new List<int>();
-        var services = new ServiceCollection().BuildServiceProvider();
+        var services = new ServiceCollection();
+        services.AddScoped(_ => new CollectorActor<int>(processedItems));
+        var serviceProvider = services.BuildServiceProvider();
 
         var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(ctx, 10));
 
-        var processor = new ProcessorBlock<int>("processor", async (item, ctx) =>
-        {
-            processedItems.Add(item);
-            await Task.CompletedTask;
-        });
+        var processor = new ActorBlock<int, object, CollectorActor<int>>(
+            "processor",
+            serviceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("basic-flow");
         builder.AddBlock(producer)
@@ -39,7 +79,7 @@ public class BasicFlowTests
             .Connect(producer, processor);
 
         var graph = builder.Build();
-        var context = new ExecutionContext(services, CancellationToken.None);
+        var context = new ExecutionContext(serviceProvider, CancellationToken.None);
 
         // Act
         await graph.ExecuteAsync(context);
@@ -54,17 +94,20 @@ public class BasicFlowTests
     {
         // Arrange
         var processedItems = new List<string>();
-        var services = new ServiceCollection().BuildServiceProvider();
+        var services = new ServiceCollection();
+        services.AddScoped<IntToStringActor>();
+        services.AddScoped(_ => new CollectorActor<string>(processedItems));
+        var serviceProvider = services.BuildServiceProvider();
 
         var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(ctx, 5));
 
-        var transformer = new SimpleTransformerBlock<int, string>("transformer", i => $"Item-{i}");
+        var transformer = new ActorBlock<int, string, IntToStringActor>(
+            "transformer",
+            serviceProvider.GetRequiredService<IServiceScopeFactory>());
 
-        var processor = new ProcessorBlock<string>("processor", async (item, ctx) =>
-        {
-            processedItems.Add(item);
-            await Task.CompletedTask;
-        });
+        var processor = new ActorBlock<string, object, CollectorActor<string>>(
+            "processor",
+            serviceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("transform-flow");
         builder.AddBlock(producer)
@@ -74,7 +117,7 @@ public class BasicFlowTests
             .AutoConnect(); // Connects processor to transformer
 
         var graph = builder.Build();
-        var context = new ExecutionContext(services, CancellationToken.None);
+        var context = new ExecutionContext(serviceProvider, CancellationToken.None);
 
         // Act
         await graph.ExecuteAsync(context);
@@ -92,15 +135,15 @@ public class BasicFlowTests
         
         // Arrange
         var processedItems = new List<int>();
-        var services = new ServiceCollection().BuildServiceProvider();
+        var services = new ServiceCollection();
+        services.AddScoped(_ => new CollectorActor<int>(processedItems));
+        var serviceProvider = services.BuildServiceProvider();
 
         var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(ctx, 5));
 
-        var processor = new ProcessorBlock<int>("processor", async (item, ctx) =>
-        {
-            processedItems.Add(item);
-            await Task.CompletedTask;
-        });
+        var processor = new ActorBlock<int, object, CollectorActor<int>>(
+            "processor",
+            serviceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("unbuffered-flow");
         builder.AddBlock(producer)
@@ -108,7 +151,7 @@ public class BasicFlowTests
             .Connect(producer, processor, bufferCapacity: 1); // Small buffer
 
         var graph = builder.Build();
-        var context = new ExecutionContext(services, CancellationToken.None);
+        var context = new ExecutionContext(serviceProvider, CancellationToken.None);
 
         // Act
         await graph.ExecuteAsync(context);

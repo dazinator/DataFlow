@@ -13,6 +13,29 @@ using Xunit;
 /// </summary>
 public class EpochControlPlaneTests
 {
+    /// <summary>
+    /// Simple actor that collects integers.
+    /// </summary>
+    private class SimpleIntCollectorActor : IStreamActor<int, object>
+    {
+        private readonly List<int> _collected;
+
+        public SimpleIntCollectorActor(List<int> collected)
+        {
+            _collected = collected;
+        }
+
+        public async IAsyncEnumerable<object> RunAsync(
+            IAsyncEnumerable<int> input,
+            IActorExecutionContext context)
+        {
+            await foreach (var item in input.WithCancellation(context.CancellationToken))
+            {
+                _collected.Add(item);
+            }
+            yield break;
+        }
+    }
     [Fact]
     public async Task EpochManager_Should_BroadcastEpoch_To_All_Subscribers()
     {
@@ -119,16 +142,18 @@ public class EpochControlPlaneTests
     public async Task EpochControlPlaneEdgeStrategy_Should_PropagateData_Without_TypeChecks()
     {
         // Arrange
+        var receivedItems = new List<int>();
+        var receivedItemsServices = new ServiceCollection();
+        receivedItemsServices.AddScoped(_ => new SimpleIntCollectorActor(receivedItems));
+        var receivedItemsServiceProvider = receivedItemsServices.BuildServiceProvider();
+        
         var services = new ServiceCollection().BuildServiceProvider();
         var epochManager = new EpochManager();
-        var receivedItems = new List<int>();
 
         var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(ctx));
-        var consumer = new ProcessorBlock<int>("consumer", async (value, ctx) =>
-        {
-            receivedItems.Add(value);
-            await Task.CompletedTask;
-        });
+        var consumer = new ActorBlock<int, object, SimpleIntCollectorActor>(
+            "consumer",
+            receivedItemsServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("epoch-control-plane-flow");
         builder.AddBlock(producer)

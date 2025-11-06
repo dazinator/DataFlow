@@ -9,6 +9,30 @@ using Xunit;
 
 public class RoutingFlowTests
 {
+    /// <summary>
+    /// Simple collector actor for integers.
+    /// </summary>
+    private class IntCollectorActor : IStreamActor<int, object>
+    {
+        private readonly List<int> _collected;
+
+        public IntCollectorActor(List<int> collected)
+        {
+            _collected = collected;
+        }
+
+        public async IAsyncEnumerable<object> RunAsync(
+            IAsyncEnumerable<int> input,
+            IActorExecutionContext context)
+        {
+            await foreach (var item in input.WithCancellation(context.CancellationToken))
+            {
+                _collected.Add(item);
+            }
+            yield break;
+        }
+    }
+
     private static async IAsyncEnumerable<int> ProduceIntegers(IExecutionContext ctx, int count)
     {
         for (int i = 1; i <= count; i++)
@@ -24,7 +48,17 @@ public class RoutingFlowTests
         // Arrange
         var evenItems = new List<int>();
         var oddItems = new List<int>();
-        var services = new ServiceCollection().BuildServiceProvider();
+        
+        // Create separate service providers for isolated collectors
+        var evenServices = new ServiceCollection();
+        evenServices.AddScoped(_ => new IntCollectorActor(evenItems));
+        var evenServiceProvider = evenServices.BuildServiceProvider();
+
+        var oddServices = new ServiceCollection();
+        oddServices.AddScoped(_ => new IntCollectorActor(oddItems));
+        var oddServiceProvider = oddServices.BuildServiceProvider();
+
+        var commonServices = new ServiceCollection().BuildServiceProvider();
 
         var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(ctx, 10));
 
@@ -33,17 +67,13 @@ public class RoutingFlowTests
         var evenFilter = new RouteFilterBlock<int>("even-filter", "even");
         var oddFilter = new RouteFilterBlock<int>("odd-filter", "odd");
 
-        var evenProcessor = new ProcessorBlock<int>("even-processor", async (item, ctx) =>
-        {
-            evenItems.Add(item);
-            await Task.CompletedTask;
-        });
+        var evenProcessor = new ActorBlock<int, object, IntCollectorActor>(
+            "even-processor",
+            evenServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
-        var oddProcessor = new ProcessorBlock<int>("odd-processor", async (item, ctx) =>
-        {
-            oddItems.Add(item);
-            await Task.CompletedTask;
-        });
+        var oddProcessor = new ActorBlock<int, object, IntCollectorActor>(
+            "odd-processor",
+            oddServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("routing-flow");
         builder.AddBlock(producer)
@@ -58,7 +88,7 @@ public class RoutingFlowTests
             .Connect(oddFilter, oddProcessor);
 
         var graph = builder.Build();
-        var context = new ExecutionContext(services, CancellationToken.None);
+        var context = new ExecutionContext(commonServices, CancellationToken.None);
 
         // Act
         await graph.ExecuteAsync(context);
@@ -77,7 +107,21 @@ public class RoutingFlowTests
         var lowItems = new List<int>();
         var mediumItems = new List<int>();
         var highItems = new List<int>();
-        var services = new ServiceCollection().BuildServiceProvider();
+        
+        // Create separate service providers for isolated collectors
+        var lowServices = new ServiceCollection();
+        lowServices.AddScoped(_ => new IntCollectorActor(lowItems));
+        var lowServiceProvider = lowServices.BuildServiceProvider();
+
+        var mediumServices = new ServiceCollection();
+        mediumServices.AddScoped(_ => new IntCollectorActor(mediumItems));
+        var mediumServiceProvider = mediumServices.BuildServiceProvider();
+
+        var highServices = new ServiceCollection();
+        highServices.AddScoped(_ => new IntCollectorActor(highItems));
+        var highServiceProvider = highServices.BuildServiceProvider();
+
+        var commonServices = new ServiceCollection().BuildServiceProvider();
 
         var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(ctx, 15));
 
@@ -90,23 +134,17 @@ public class RoutingFlowTests
         var mediumFilter = new RouteFilterBlock<int>("medium-filter", "medium");
         var highFilter = new RouteFilterBlock<int>("high-filter", "high");
 
-        var lowProcessor = new ProcessorBlock<int>("low-processor", async (item, ctx) =>
-        {
-            lowItems.Add(item);
-            await Task.CompletedTask;
-        });
+        var lowProcessor = new ActorBlock<int, object, IntCollectorActor>(
+            "low-processor",
+            lowServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
-        var mediumProcessor = new ProcessorBlock<int>("medium-processor", async (item, ctx) =>
-        {
-            mediumItems.Add(item);
-            await Task.CompletedTask;
-        });
+        var mediumProcessor = new ActorBlock<int, object, IntCollectorActor>(
+            "medium-processor",
+            mediumServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
-        var highProcessor = new ProcessorBlock<int>("high-processor", async (item, ctx) =>
-        {
-            highItems.Add(item);
-            await Task.CompletedTask;
-        });
+        var highProcessor = new ActorBlock<int, object, IntCollectorActor>(
+            "high-processor",
+            highServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("three-route-flow");
         builder.AddBlock(producer)
@@ -124,7 +162,7 @@ public class RoutingFlowTests
             .Connect(highFilter, highProcessor);
 
         var graph = builder.Build();
-        var context = new ExecutionContext(services, CancellationToken.None);
+        var context = new ExecutionContext(commonServices, CancellationToken.None);
 
         // Act
         await graph.ExecuteAsync(context);

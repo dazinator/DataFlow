@@ -9,6 +9,30 @@ using Xunit;
 
 public class BatchFlowTests
 {
+    /// <summary>
+    /// Simple collector actor for batch arrays.
+    /// </summary>
+    private class BatchCollectorActor : IStreamActor<int[], object>
+    {
+        private readonly List<int[]> _batches;
+
+        public BatchCollectorActor(List<int[]> batches)
+        {
+            _batches = batches;
+        }
+
+        public async IAsyncEnumerable<object> RunAsync(
+            IAsyncEnumerable<int[]> input,
+            IActorExecutionContext context)
+        {
+            await foreach (var batch in input.WithCancellation(context.CancellationToken))
+            {
+                _batches.Add(batch);
+            }
+            yield break;
+        }
+    }
+
     private static async IAsyncEnumerable<int> ProduceIntegers(IExecutionContext ctx, int count, int delayMs = 0)
     {
         for (int i = 1; i <= count; i++)
@@ -26,17 +50,17 @@ public class BatchFlowTests
     {
         // Arrange
         var batches = new List<int[]>();
-        var services = new ServiceCollection().BuildServiceProvider();
+        var services = new ServiceCollection();
+        services.AddScoped(_ => new BatchCollectorActor(batches));
+        var serviceProvider = services.BuildServiceProvider();
 
         var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(ctx, 10));
 
         var batcher = new BatchBlock<int>("batcher", maxBatchSize: 3, windowPeriod: null);
 
-        var processor = new ProcessorBlock<int[]>("processor", async (batch, ctx) =>
-        {
-            batches.Add(batch);
-            await Task.CompletedTask;
-        });
+        var processor = new ActorBlock<int[], object, BatchCollectorActor>(
+            "processor",
+            serviceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("batch-flow");
         builder.AddBlock(producer)
@@ -46,7 +70,7 @@ public class BatchFlowTests
             .Connect(batcher, processor);
 
         var graph = builder.Build();
-        var context = new ExecutionContext(services, CancellationToken.None);
+        var context = new ExecutionContext(serviceProvider, CancellationToken.None);
 
         // Act
         await graph.ExecuteAsync(context);
@@ -64,17 +88,17 @@ public class BatchFlowTests
     {
         // Arrange
         var batches = new List<int[]>();
-        var services = new ServiceCollection().BuildServiceProvider();
+        var services = new ServiceCollection();
+        services.AddScoped(_ => new BatchCollectorActor(batches));
+        var serviceProvider = services.BuildServiceProvider();
 
         var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(ctx, 5, delayMs: 50));
 
         var batcher = new BatchBlock<int>("batcher", maxBatchSize: 100, windowPeriod: TimeSpan.FromMilliseconds(120));
 
-        var processor = new ProcessorBlock<int[]>("processor", async (batch, ctx) =>
-        {
-            batches.Add(batch);
-            await Task.CompletedTask;
-        });
+        var processor = new ActorBlock<int[], object, BatchCollectorActor>(
+            "processor",
+            serviceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("batch-window-flow");
         builder.AddBlock(producer)
@@ -84,7 +108,7 @@ public class BatchFlowTests
             .Connect(batcher, processor);
 
         var graph = builder.Build();
-        var context = new ExecutionContext(services, CancellationToken.None);
+        var context = new ExecutionContext(serviceProvider, CancellationToken.None);
 
         // Act
         await graph.ExecuteAsync(context);

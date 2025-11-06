@@ -86,9 +86,75 @@ Consolidate TransformerBlock and ProcessorBlock around the ActorBlock pattern to
 
 ### 🚧 Phase 4: Migrate and Consolidate Tests (IN PROGRESS)
 
-**Status**: Not Started - Ready to Begin  
-**Estimated Effort**: 4-8 hours  
-**Next Action**: Systematic test migration using documented patterns
+**Status**: In Progress (39% complete)  
+**Estimated Effort**: 4-8 hours total (3-5 hours remaining)
+**Current Session**: Migrated 7/18 files
+
+**Objectives**:
+1. Migrate all tests using TransformerBlock and ProcessorBlock to ActorBlock
+2. Consolidate redundant tests (target: 20-40% reduction)
+3. Ensure all tests pass after migration
+4. Document test consolidation decisions
+
+**Progress** (7/18 files migrated):
+- ✅ BasicFlowTests.cs (3 tests)
+- ✅ BatchFlowTests.cs (2 tests)
+- ✅ BroadcastFlowTests.cs (1 test)
+- ✅ RoutingFlowTests.cs (2 tests)
+- ✅ ComplexFlowTests.cs (2 tests)
+- ✅ EpochControlPlaneTests.cs (1 test)
+- ✅ ActorBlockTests.cs (1 test)
+
+**Remaining Files** (11 files, ~160 obsolete usages):
+1. EdgeStrategyTests.cs - 10 usages
+2. AsyncLocalPropagationTests.cs - 9 usages
+3. BufferNodeTests.cs - 11 usages
+4. BufferNodeDemonstrationTests.cs - 7 usages
+5. BufferNodeControlSignalTests.cs - 10 usages
+6. EnvelopeBlocksTests.cs - 10 usages
+7. EnvelopeAdvancedTests.cs - 8 usages
+8. EnvelopeEdgeStrategyTests.cs - 7 usages
+9. OptimizedSideChannelTests.cs - 8 usages
+10. SideChannelCompetingEdgeTests.cs - 8 usages
+11. **ConcurrencyScalingTests.cs - 63 usages** ⚠️ (largest, dedicated session recommended)
+
+**Objectives**:
+1. Migrate all tests using TransformerBlock and ProcessorBlock to ActorBlock
+2. Consolidate redundant tests (target: 20-40% reduction)
+3. Ensure all tests pass after migration
+4. Document test consolidation decisions
+
+**Current Metrics**:
+- Warnings: 197 → 176 (21 eliminated, 11% reduction)
+- Files migrated: 7/18 (39%)
+- All 174 tests passing ✅
+- Obsolete usages eliminated: ~21
+
+**Established Migration Patterns**:
+```csharp
+// Pattern 1: Simple Collector Actor
+private class IntCollectorActor : IStreamActor<int, object>
+{
+    private readonly List<int> _collected;
+    public IntCollectorActor(List<int> collected) => _collected = collected;
+    
+    public async IAsyncEnumerable<object> RunAsync(
+        IAsyncEnumerable<int> input, IActorExecutionContext context)
+    {
+        await foreach (var item in input.WithCancellation(context.CancellationToken))
+            _collected.Add(item);
+        yield break;
+    }
+}
+
+// Pattern 2: Separate DI Scopes for Multiple Collectors
+var services1 = new ServiceCollection();
+services1.AddScoped(_ => new IntCollectorActor(list1));
+var sp1 = services1.BuildServiceProvider();
+
+var processor1 = new ActorBlock<int, object, IntCollectorActor>(
+    "proc1", sp1.GetRequiredService<IServiceScopeFactory>());
+```
 
 **Objectives**:
 1. Migrate all tests using TransformerBlock and ProcessorBlock to ActorBlock
@@ -102,11 +168,12 @@ Consolidate TransformerBlock and ProcessorBlock around the ActorBlock pattern to
    grep -r "TransformerBlock\|ProcessorBlock" /poc/DataFlow.POC.Tests --include="*.cs" -l
    ```
 
-2. **Migration Pattern** (see `/poc/docs/migrations/actor-block-migration.md` for details):
+2. **Migration Strategy** (see `/poc/docs/migrations/actor-block-migration.md` for details):
    - Create actor classes implementing `IStreamActor<TIn, TOut>`
    - Register actors as scoped services in DI
    - Replace block instantiation with ActorBlock
    - Update tests to set up service collection
+   - Use separate DI scopes for multiple blocks with isolated state
 
 3. **Test Consolidation Guidelines**:
    - Identify duplicate scenarios across different block types
@@ -114,24 +181,49 @@ Consolidate TransformerBlock and ProcessorBlock around the ActorBlock pattern to
    - Create test coverage matrix to identify redundancies
    - Document consolidation decisions in `/implementation/plain-blocks-consolidation/test-consolidation-report.md`
 
-4. **Files to Migrate** (estimated):
-   - BasicFlowTests.cs
-   - BatchFlowTests.cs
-   - RoutingFlowTests.cs
-   - BroadcastFlowTests.cs
-   - ActorBlockTests.cs
-   - AsyncLocalPropagationTests.cs
-   - ComplexFlowTests.cs
-   - EdgeStrategyTests.cs
-   - BufferNodeTests.cs
-   - EnvelopeBlocksTests.cs
-   - (and ~7 more test files)
+4. **Files Migrated** (7/18 complete):
+   - ✅ BasicFlowTests.cs
+   - ✅ BatchFlowTests.cs
+   - ✅ BroadcastFlowTests.cs
+   - ✅ RoutingFlowTests.cs
+   - ✅ ComplexFlowTests.cs
+   - ✅ EpochControlPlaneTests.cs
+   - ✅ ActorBlockTests.cs
+
+5. **Files Remaining** (11/18):
+   - EdgeStrategyTests.cs (10 usages)
+   - AsyncLocalPropagationTests.cs (9 usages)
+   - BufferNodeTests.cs (11 usages)
+   - BufferNodeDemonstrationTests.cs (7 usages)
+   - BufferNodeControlSignalTests.cs (10 usages)
+   - EnvelopeBlocksTests.cs (10 usages)
+   - EnvelopeAdvancedTests.cs (8 usages)
+   - EnvelopeEdgeStrategyTests.cs (7 usages)
+   - OptimizedSideChannelTests.cs (8 usages)
+   - SideChannelCompetingEdgeTests.cs (8 usages)
+   - ConcurrencyScalingTests.cs (63 usages - largest, dedicated session)
 
 **Success Criteria**:
-- [ ] All tests using ActorBlock pattern
+- [x] Migration patterns established (CollectorActor, separate DI scopes)
+- [ ] All tests using ActorBlock pattern (7/18 files complete, 39%)
 - [ ] Test count reduced by 20-40%
-- [ ] All tests passing
+- [ ] All tests passing ✅ (currently passing)
 - [ ] Test consolidation report created
+
+**How to Continue**:
+The remaining 11 files should be migrated systematically:
+1. Start with smaller files (7-10 usages each)
+2. Save ConcurrencyScalingTests.cs for last (largest, 63 usages)
+3. After all migrations, assess for test consolidation opportunities
+4. Document consolidation decisions
+
+**Next Session Actions**:
+```bash
+# Continue migrating remaining files
+cd /home/runner/work/lib-dataflow/lib-dataflow
+dotnet build poc/DataFlow.POC.Tests/DataFlow.POC.Tests.csproj
+dotnet test poc/DataFlow.POC.Tests/DataFlow.POC.Tests.csproj
+```
 
 **Migration Commands**:
 ```bash

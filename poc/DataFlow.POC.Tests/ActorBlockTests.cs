@@ -10,6 +10,30 @@ using Xunit;
 public class ActorBlockTests
 {
     /// <summary>
+    /// Simple collector actor for integers.
+    /// </summary>
+    private class IntCollectorActor : IStreamActor<int, object>
+    {
+        private readonly List<int> _collected;
+
+        public IntCollectorActor(List<int> collected)
+        {
+            _collected = collected;
+        }
+
+        public async IAsyncEnumerable<object> RunAsync(
+            IAsyncEnumerable<int> input,
+            IActorExecutionContext context)
+        {
+            await foreach (var item in input.WithCancellation(context.CancellationToken))
+            {
+                _collected.Add(item);
+            }
+            yield break;
+        }
+    }
+
+    /// <summary>
     /// Simple test actor that counts processed items.
     /// </summary>
     private class CountingActor : IStreamActor<int, int>
@@ -302,15 +326,17 @@ public class ActorBlockTests
         var serviceProvider = services.BuildServiceProvider();
 
         var processedItems = new List<int>();
+        var processorServices = new ServiceCollection();
+        processorServices.AddScoped(_ => new IntCollectorActor(processedItems));
+        var processorServiceProvider = processorServices.BuildServiceProvider();
+        
         var scopeFactory = serviceProvider.GetRequiredService<IServiceScopeFactory>();
 
         var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(12));
         var actorBlock = new ActorBlock<int, int, InstanceTrackingActor>("actor", scopeFactory);
-        var processor = new ProcessorBlock<int>("processor", async (item, ctx) =>
-        {
-            processedItems.Add(item);
-            await Task.CompletedTask;
-        });
+        var processor = new ActorBlock<int, object, IntCollectorActor>(
+            "processor",
+            processorServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("actor-flow");
         builder.AddBlock(producer)
