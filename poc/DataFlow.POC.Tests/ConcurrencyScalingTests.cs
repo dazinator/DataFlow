@@ -24,6 +24,345 @@ public class ConcurrencyScalingTests
         _output = output;
     }
 
+    #region Actor Implementations
+
+    /// <summary>
+    /// Actor that transforms integers to strings with logging.
+    /// </summary>
+    private class TransformWithLoggingActor : IStreamActor<int, string>
+    {
+        private readonly string _blockName;
+        private readonly ConcurrentBag<(string, int, long)> _log;
+        private readonly int _delayMs;
+
+        public TransformWithLoggingActor(string blockName, ConcurrentBag<(string, int, long)> log, int delayMs)
+        {
+            _blockName = blockName;
+            _log = log;
+            _delayMs = delayMs;
+        }
+
+        public async IAsyncEnumerable<string> RunAsync(
+            IAsyncEnumerable<int> input,
+            IActorExecutionContext context)
+        {
+            await foreach (var item in input.WithCancellation(context.CancellationToken))
+            {
+                var timestamp = Stopwatch.GetTimestamp() / (Stopwatch.Frequency / 1000);
+                _log.Add((_blockName, item, timestamp));
+                
+                await Task.Delay(_delayMs, context.CancellationToken);
+                yield return $"{_blockName}:{item}";
+            }
+        }
+    }
+
+    /// <summary>
+    /// Actor that processes items with timing tracking.
+    /// </summary>
+    private class ProcessWithTimingActor : IStreamActor<int, object>
+    {
+        private readonly string _processorName;
+        private readonly int _delayMs;
+        private readonly ConcurrentBag<(string, int, long, long)> _log;
+
+        public ProcessWithTimingActor(
+            string processorName, 
+            int delayMs, 
+            ConcurrentBag<(string, int, long, long)> log)
+        {
+            _processorName = processorName;
+            _delayMs = delayMs;
+            _log = log;
+        }
+
+        public async IAsyncEnumerable<object> RunAsync(
+            IAsyncEnumerable<int> input,
+            IActorExecutionContext context)
+        {
+            await foreach (var item in input.WithCancellation(context.CancellationToken))
+            {
+                var start = Stopwatch.GetTimestamp() / (Stopwatch.Frequency / 1000);
+                await Task.Delay(_delayMs, context.CancellationToken);
+                var end = Stopwatch.GetTimestamp() / (Stopwatch.Frequency / 1000);
+                
+                _log.Add((_processorName, item, start, end));
+            }
+            yield break;
+        }
+    }
+
+    /// <summary>
+    /// Actor for validation with logging.
+    /// </summary>
+    private class ValidateWithLoggingActor : IStreamActor<int, int>
+    {
+        private readonly string _name;
+        private readonly ConcurrentBag<string> _log;
+        private readonly int _delayMs;
+
+        public ValidateWithLoggingActor(string name, ConcurrentBag<string> log, int delayMs)
+        {
+            _name = name;
+            _log = log;
+            _delayMs = delayMs;
+        }
+
+        public async IAsyncEnumerable<int> RunAsync(
+            IAsyncEnumerable<int> input,
+            IActorExecutionContext context)
+        {
+            await foreach (var item in input.WithCancellation(context.CancellationToken))
+            {
+                _log.Add($"{_name}:{item}");
+                await Task.Delay(_delayMs, context.CancellationToken);
+                yield return item;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Actor for enrichment with logging.
+    /// </summary>
+    private class EnrichWithLoggingActor : IStreamActor<int, string>
+    {
+        private readonly string _name;
+        private readonly ConcurrentBag<string> _log;
+        private readonly int _delayMs;
+
+        public EnrichWithLoggingActor(string name, ConcurrentBag<string> log, int delayMs)
+        {
+            _name = name;
+            _log = log;
+            _delayMs = delayMs;
+        }
+
+        public async IAsyncEnumerable<string> RunAsync(
+            IAsyncEnumerable<int> input,
+            IActorExecutionContext context)
+        {
+            await foreach (var item in input.WithCancellation(context.CancellationToken))
+            {
+                _log.Add($"{_name}:{item}");
+                await Task.Delay(_delayMs, context.CancellationToken);
+                yield return $"enriched-{item}";
+            }
+        }
+    }
+
+    /// <summary>
+    /// Actor that transforms with delay.
+    /// </summary>
+    private class TransformWithDelayActor : IStreamActor<int, string>
+    {
+        private readonly int _delayMs;
+
+        public TransformWithDelayActor(int delayMs)
+        {
+            _delayMs = delayMs;
+        }
+
+        public async IAsyncEnumerable<string> RunAsync(
+            IAsyncEnumerable<int> input,
+            IActorExecutionContext context)
+        {
+            await foreach (var item in input.WithCancellation(context.CancellationToken))
+            {
+                await Task.Delay(_delayMs, context.CancellationToken);
+                yield return $"item-{item}";
+            }
+        }
+    }
+
+    /// <summary>
+    /// Actor that transforms with delay and routing prefix.
+    /// </summary>
+    private class TransformWithDelayAndRouteActor : IStreamActor<int, string>
+    {
+        private readonly int _delayMs;
+
+        public TransformWithDelayAndRouteActor(int delayMs)
+        {
+            _delayMs = delayMs;
+        }
+
+        public async IAsyncEnumerable<string> RunAsync(
+            IAsyncEnumerable<int> input,
+            IActorExecutionContext context)
+        {
+            await foreach (var item in input.WithCancellation(context.CancellationToken))
+            {
+                await Task.Delay(_delayMs, context.CancellationToken);
+                var prefix = item % 2 == 0 ? "even" : "odd";
+                yield return $"{prefix}-{item}";
+            }
+        }
+    }
+
+    /// <summary>
+    /// Actor that processes integers with delay.
+    /// </summary>
+    private class ProcessWithDelayActor : IStreamActor<int, int>
+    {
+        private readonly int _delayMs;
+
+        public ProcessWithDelayActor(int delayMs)
+        {
+            _delayMs = delayMs;
+        }
+
+        public async IAsyncEnumerable<int> RunAsync(
+            IAsyncEnumerable<int> input,
+            IActorExecutionContext context)
+        {
+            await foreach (var item in input.WithCancellation(context.CancellationToken))
+            {
+                await Task.Delay(_delayMs, context.CancellationToken);
+                yield return item;
+            }
+        }
+    }
+
+    /// <summary>
+    /// No-op processor actor for strings.
+    /// </summary>
+    private class NoOpStringProcessorActor : IStreamActor<string, object>
+    {
+        public async IAsyncEnumerable<object> RunAsync(
+            IAsyncEnumerable<string> input,
+            IActorExecutionContext context)
+        {
+            await foreach (var item in input.WithCancellation(context.CancellationToken))
+            {
+                // No-op
+            }
+            yield break;
+        }
+    }
+
+    /// <summary>
+    /// Actor for enriching for routing.
+    /// </summary>
+    private class EnrichForRoutingActor : IStreamActor<int, string>
+    {
+        private readonly int _delayMs;
+
+        public EnrichForRoutingActor(int delayMs)
+        {
+            _delayMs = delayMs;
+        }
+
+        public async IAsyncEnumerable<string> RunAsync(
+            IAsyncEnumerable<int> input,
+            IActorExecutionContext context)
+        {
+            await foreach (var item in input.WithCancellation(context.CancellationToken))
+            {
+                await Task.Delay(_delayMs, context.CancellationToken);
+                var type = item % 3 == 0 ? "TypeA" : (item % 3 == 1 ? "TypeB" : "TypeC");
+                yield return $"{type}-{item}";
+            }
+        }
+    }
+
+    /// <summary>
+    /// Actor for processing TypeA items.
+    /// </summary>
+    private class ProcessTypeAActor : IStreamActor<string, string>
+    {
+        private readonly int _delayMs;
+
+        public ProcessTypeAActor(int delayMs)
+        {
+            _delayMs = delayMs;
+        }
+
+        public async IAsyncEnumerable<string> RunAsync(
+            IAsyncEnumerable<string> input,
+            IActorExecutionContext context)
+        {
+            await foreach (var item in input.WithCancellation(context.CancellationToken))
+            {
+                await Task.Delay(_delayMs, context.CancellationToken);
+                yield return $"processed-{item}";
+            }
+        }
+    }
+
+    /// <summary>
+    /// Actor for aggregating batches.
+    /// </summary>
+    private class AggregateBatchActor : IStreamActor<string[], string>
+    {
+        private readonly int _delayMs;
+
+        public AggregateBatchActor(int delayMs)
+        {
+            _delayMs = delayMs;
+        }
+
+        public async IAsyncEnumerable<string> RunAsync(
+            IAsyncEnumerable<string[]> input,
+            IActorExecutionContext context)
+        {
+            await foreach (var batch in input.WithCancellation(context.CancellationToken))
+            {
+                await Task.Delay(_delayMs, context.CancellationToken);
+                yield return $"batch-{batch.Length}";
+            }
+        }
+    }
+
+    /// <summary>
+    /// Actor that collects strings into a bag.
+    /// </summary>
+    private class StringBagCollectorActor : IStreamActor<string, object>
+    {
+        private readonly ConcurrentBag<string> _results;
+
+        public StringBagCollectorActor(ConcurrentBag<string> results)
+        {
+            _results = results;
+        }
+
+        public async IAsyncEnumerable<object> RunAsync(
+            IAsyncEnumerable<string> input,
+            IActorExecutionContext context)
+        {
+            await foreach (var item in input.WithCancellation(context.CancellationToken))
+            {
+                _results.Add(item);
+            }
+            yield break;
+        }
+    }
+
+    /// <summary>
+    /// Processor actor with configurable delay.
+    /// </summary>
+    private class DelayProcessorActor : IStreamActor<string, object>
+    {
+        private readonly int _delayMs;
+
+        public DelayProcessorActor(int delayMs)
+        {
+            _delayMs = delayMs;
+        }
+
+        public async IAsyncEnumerable<object> RunAsync(
+            IAsyncEnumerable<string> input,
+            IActorExecutionContext context)
+        {
+            await foreach (var item in input.WithCancellation(context.CancellationToken))
+            {
+                await Task.Delay(_delayMs, context.CancellationToken);
+            }
+            yield break;
+        }
+    }
+
+    #endregion
+
     [Fact]
     public async Task Multiple_Transformers_With_CompetingEdge_Should_Process_Concurrently()
     {
@@ -36,23 +375,32 @@ public class ConcurrencyScalingTests
         var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(itemCount));
 
         // Create N transformer instances that will compete for items
-        var transformers = new List<TransformerBlock<int, string>>();
+        var transformers = new List<ActorBlock<int, string, TransformWithLoggingActor>>();
         var processingLog = new ConcurrentBag<(string BlockName, int Item, long TimestampMs)>();
         
         for (int i = 0; i < concurrency; i++)
         {
             var blockName = $"transformer-{i}";
-            var localLog = processingLog; // Capture for closure
-            var transformer = new TransformerBlock<int, string>(
+            
+            // Create separate service provider for each transformer
+            var transformerServices = new ServiceCollection();
+            transformerServices.AddScoped(_ => new TransformWithLoggingActor(blockName, processingLog, processingDelayMs));
+            var transformerServiceProvider = transformerServices.BuildServiceProvider();
+            
+            var transformer = new ActorBlock<int, string, TransformWithLoggingActor>(
                 blockName,
-                (item, ctx) => TransformWithLogging(blockName, item, localLog, processingDelayMs));
+                transformerServiceProvider.GetRequiredService<IServiceScopeFactory>());
             transformers.Add(transformer);
         }
 
-        var collector = new ProcessorBlock<string>("collector", async (result, ctx) =>
-        {
-            await Task.CompletedTask;
-        });
+        // Create service provider for collector
+        var collectorServices = new ServiceCollection();
+        collectorServices.AddScoped<NoOpStringProcessorActor>();
+        var collectorServiceProvider = collectorServices.BuildServiceProvider();
+
+        var collector = new ActorBlock<string, object, NoOpStringProcessorActor>(
+            "collector",
+            collectorServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("concurrency-test");
         builder.AddBlock(producer);
@@ -153,18 +501,19 @@ public class ConcurrencyScalingTests
         // Track which processor handles which item and when
         var processingLog = new ConcurrentBag<(string ProcessorName, int Item, long StartMs, long EndMs)>();
         
-        var processors = new List<ProcessorBlock<int>>();
+        var processors = new List<ActorBlock<int, object, ProcessWithTimingActor>>();
         for (int i = 0; i < concurrency; i++)
         {
             var processorName = $"processor-{i}";
-            var processor = new ProcessorBlock<int>(processorName, async (item, ctx) =>
-            {
-                var start = Stopwatch.GetTimestamp() / (Stopwatch.Frequency / 1000);
-                await Task.Delay(processingDelayMs);
-                var end = Stopwatch.GetTimestamp() / (Stopwatch.Frequency / 1000);
-                
-                processingLog.Add((processorName, item, start, end));
-            });
+            
+            // Create separate service provider for each processor
+            var processorServices = new ServiceCollection();
+            processorServices.AddScoped(_ => new ProcessWithTimingActor(processorName, processingDelayMs, processingLog));
+            var processorServiceProvider = processorServices.BuildServiceProvider();
+            
+            var processor = new ActorBlock<int, object, ProcessWithTimingActor>(
+                processorName,
+                processorServiceProvider.GetRequiredService<IServiceScopeFactory>());
             processors.Add(processor);
         }
 
@@ -241,34 +590,48 @@ public class ConcurrencyScalingTests
         var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(itemCount));
 
         // Stage 1: Validators
-        var validators = new List<TransformerBlock<int, int>>();
+        var validators = new List<ActorBlock<int, int, ValidateWithLoggingActor>>();
         var validatorLog = new ConcurrentBag<string>();
         for (int i = 0; i < concurrencyPerStage; i++)
         {
             var name = $"validator-{i}";
-            var localLog = validatorLog;
-            validators.Add(new TransformerBlock<int, int>(name, 
-                (item, ctx) => ValidateWithLogging(name, item, localLog, delayMs)));
+            
+            // Create separate service provider for each validator
+            var validatorServices = new ServiceCollection();
+            validatorServices.AddScoped(_ => new ValidateWithLoggingActor(name, validatorLog, delayMs));
+            var validatorServiceProvider = validatorServices.BuildServiceProvider();
+            
+            validators.Add(new ActorBlock<int, int, ValidateWithLoggingActor>(
+                name,
+                validatorServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
         // Stage 2: Enrichers
-        var enrichers = new List<TransformerBlock<int, string>>();
+        var enrichers = new List<ActorBlock<int, string, EnrichWithLoggingActor>>();
         var enricherLog = new ConcurrentBag<string>();
         for (int i = 0; i < concurrencyPerStage; i++)
         {
             var name = $"enricher-{i}";
-            var localLog = enricherLog;
-            enrichers.Add(new TransformerBlock<int, string>(name, 
-                (item, ctx) => EnrichWithLogging(name, item, localLog, delayMs)));
+            
+            // Create separate service provider for each enricher
+            var enricherServices = new ServiceCollection();
+            enricherServices.AddScoped(_ => new EnrichWithLoggingActor(name, enricherLog, delayMs));
+            var enricherServiceProvider = enricherServices.BuildServiceProvider();
+            
+            enrichers.Add(new ActorBlock<int, string, EnrichWithLoggingActor>(
+                name,
+                enricherServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
         // Collector
         var results = new ConcurrentBag<string>();
-        var collector = new ProcessorBlock<string>("collector", async (item, ctx) =>
-        {
-            results.Add(item);
-            await Task.CompletedTask;
-        });
+        var collectorServices = new ServiceCollection();
+        collectorServices.AddScoped(_ => new StringBagCollectorActor(results));
+        var collectorServiceProvider = collectorServices.BuildServiceProvider();
+        
+        var collector = new ActorBlock<string, object, StringBagCollectorActor>(
+            "collector",
+            collectorServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("chained-concurrency-test");
         builder.AddBlock(producer);
@@ -412,23 +775,31 @@ public class ConcurrencyScalingTests
         var services = new ServiceCollection().BuildServiceProvider();
         var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(itemCount));
 
-        var transformers = new List<TransformerBlock<int, string>>();
+        var transformers = new List<ActorBlock<int, string, TransformWithLoggingActor>>();
         var processingLog = new ConcurrentBag<(string BlockName, int Item, long TimestampMs)>();
         
         for (int i = 0; i < concurrency; i++)
         {
             var blockName = $"transformer-{i}";
-            var localLog = processingLog;
-            var transformer = new TransformerBlock<int, string>(
+            
+            // Create separate service provider for each transformer
+            var transformerServices = new ServiceCollection();
+            transformerServices.AddScoped(_ => new TransformWithLoggingActor(blockName, processingLog, processingDelayMs));
+            var transformerServiceProvider = transformerServices.BuildServiceProvider();
+            
+            var transformer = new ActorBlock<int, string, TransformWithLoggingActor>(
                 blockName,
-                (item, ctx) => TransformWithLogging(blockName, item, localLog, processingDelayMs));
+                transformerServiceProvider.GetRequiredService<IServiceScopeFactory>());
             transformers.Add(transformer);
         }
 
-        var collector = new ProcessorBlock<string>("collector", async (result, ctx) =>
-        {
-            await Task.CompletedTask;
-        });
+        var collectorServices = new ServiceCollection();
+        collectorServices.AddScoped<NoOpStringProcessorActor>();
+        var collectorServiceProvider = collectorServices.BuildServiceProvider();
+        
+        var collector = new ActorBlock<string, object, NoOpStringProcessorActor>(
+            "collector",
+            collectorServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("level1-test");
         builder.AddBlock(producer);
@@ -488,27 +859,42 @@ public class ConcurrencyScalingTests
         var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(itemCount));
 
         // Stage 1: Validators
-        var validators = new List<TransformerBlock<int, int>>();
+        var validators = new List<ActorBlock<int, int, ProcessWithDelayActor>>();
         for (int i = 0; i < concurrency; i++)
         {
             var name = $"validator-{i}";
-            validators.Add(new TransformerBlock<int, int>(name, 
-                (item, ctx) => ProcessWithDelay(item, delayMs)));
+            
+            var validatorServices = new ServiceCollection();
+            validatorServices.AddScoped(_ => new ProcessWithDelayActor(delayMs));
+            var validatorServiceProvider = validatorServices.BuildServiceProvider();
+            
+            validators.Add(new ActorBlock<int, int, ProcessWithDelayActor>(
+                name,
+                validatorServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
         // Stage 2: Enrichers
-        var enrichers = new List<TransformerBlock<int, string>>();
+        var enrichers = new List<ActorBlock<int, string, TransformWithDelayActor>>();
         for (int i = 0; i < concurrency; i++)
         {
             var name = $"enricher-{i}";
-            enrichers.Add(new TransformerBlock<int, string>(name, 
-                (item, ctx) => TransformWithDelay(item, delayMs)));
+            
+            var enricherServices = new ServiceCollection();
+            enricherServices.AddScoped(_ => new TransformWithDelayActor(delayMs));
+            var enricherServiceProvider = enricherServices.BuildServiceProvider();
+            
+            enrichers.Add(new ActorBlock<int, string, TransformWithDelayActor>(
+                name,
+                enricherServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
-        var collector = new ProcessorBlock<string>("collector", async (item, ctx) =>
-        {
-            await Task.CompletedTask;
-        });
+        var collectorServices = new ServiceCollection();
+        collectorServices.AddScoped<NoOpStringProcessorActor>();
+        var collectorServiceProvider = collectorServices.BuildServiceProvider();
+        
+        var collector = new ActorBlock<string, object, NoOpStringProcessorActor>(
+            "collector",
+            collectorServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("level2-test");
         builder.AddBlock(producer);
@@ -567,31 +953,47 @@ public class ConcurrencyScalingTests
         var services = new ServiceCollection().BuildServiceProvider();
         var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(itemCount));
 
-        var validators = new List<TransformerBlock<int, int>>();
+        var validators = new List<ActorBlock<int, int, ProcessWithDelayActor>>();
         for (int i = 0; i < concurrency; i++)
         {
-            validators.Add(new TransformerBlock<int, int>($"validator-{i}", 
-                (item, ctx) => ProcessWithDelay(item, delayMs)));
+            var validatorServices = new ServiceCollection();
+            validatorServices.AddScoped(_ => new ProcessWithDelayActor(delayMs));
+            var validatorServiceProvider = validatorServices.BuildServiceProvider();
+            
+            validators.Add(new ActorBlock<int, int, ProcessWithDelayActor>(
+                $"validator-{i}",
+                validatorServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
-        var enrichers = new List<TransformerBlock<int, string>>();
+        var enrichers = new List<ActorBlock<int, string, TransformWithDelayActor>>();
         for (int i = 0; i < concurrency; i++)
         {
-            enrichers.Add(new TransformerBlock<int, string>($"enricher-{i}", 
-                (item, ctx) => TransformWithDelay(item, delayMs)));
+            var enricherServices = new ServiceCollection();
+            enricherServices.AddScoped(_ => new TransformWithDelayActor(delayMs));
+            var enricherServiceProvider = enricherServices.BuildServiceProvider();
+            
+            enrichers.Add(new ActorBlock<int, string, TransformWithDelayActor>(
+                $"enricher-{i}",
+                enricherServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
         var broadcast = new BroadcastBlock<string>("broadcast");
 
-        var collector1 = new ProcessorBlock<string>("collector1", async (item, ctx) =>
-        {
-            await Task.CompletedTask;
-        });
+        var collector1Services = new ServiceCollection();
+        collector1Services.AddScoped<NoOpStringProcessorActor>();
+        var collector1ServiceProvider = collector1Services.BuildServiceProvider();
+        
+        var collector1 = new ActorBlock<string, object, NoOpStringProcessorActor>(
+            "collector1",
+            collector1ServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
-        var collector2 = new ProcessorBlock<string>("collector2", async (item, ctx) =>
-        {
-            await Task.CompletedTask;
-        });
+        var collector2Services = new ServiceCollection();
+        collector2Services.AddScoped<NoOpStringProcessorActor>();
+        var collector2ServiceProvider = collector2Services.BuildServiceProvider();
+        
+        var collector2 = new ActorBlock<string, object, NoOpStringProcessorActor>(
+            "collector2",
+            collector2ServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("level3-test");
         builder.AddBlock(producer);
@@ -652,18 +1054,28 @@ public class ConcurrencyScalingTests
         var services = new ServiceCollection().BuildServiceProvider();
         var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(itemCount));
 
-        var validators = new List<TransformerBlock<int, int>>();
+        var validators = new List<ActorBlock<int, int, ProcessWithDelayActor>>();
         for (int i = 0; i < concurrency; i++)
         {
-            validators.Add(new TransformerBlock<int, int>($"validator-{i}", 
-                (item, ctx) => ProcessWithDelay(item, delayMs)));
+            var validatorServices = new ServiceCollection();
+            validatorServices.AddScoped(_ => new ProcessWithDelayActor(delayMs));
+            var validatorServiceProvider = validatorServices.BuildServiceProvider();
+            
+            validators.Add(new ActorBlock<int, int, ProcessWithDelayActor>(
+                $"validator-{i}",
+                validatorServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
-        var enrichers = new List<TransformerBlock<int, string>>();
+        var enrichers = new List<ActorBlock<int, string, TransformWithDelayAndRouteActor>>();
         for (int i = 0; i < concurrency; i++)
         {
-            enrichers.Add(new TransformerBlock<int, string>($"enricher-{i}", 
-                (item, ctx) => TransformWithDelayAndRoute(item, delayMs)));
+            var enricherServices = new ServiceCollection();
+            enricherServices.AddScoped(_ => new TransformWithDelayAndRouteActor(delayMs));
+            var enricherServiceProvider = enricherServices.BuildServiceProvider();
+            
+            enrichers.Add(new ActorBlock<int, string, TransformWithDelayAndRouteActor>(
+                $"enricher-{i}",
+                enricherServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
         var router = new RouterBlock<string>("router", item => item.StartsWith("even") ? "even" : "odd");
@@ -671,15 +1083,21 @@ public class ConcurrencyScalingTests
         var evenFilter = new RouteFilterBlock<string>("even-filter", "even");
         var oddFilter = new RouteFilterBlock<string>("odd-filter", "odd");
         
-        var evenCollector = new ProcessorBlock<string>("even-collector", async (item, ctx) =>
-        {
-            await Task.CompletedTask;
-        });
+        var evenCollectorServices = new ServiceCollection();
+        evenCollectorServices.AddScoped<NoOpStringProcessorActor>();
+        var evenCollectorServiceProvider = evenCollectorServices.BuildServiceProvider();
         
-        var oddCollector = new ProcessorBlock<string>("odd-collector", async (item, ctx) =>
-        {
-            await Task.CompletedTask;
-        });
+        var evenCollector = new ActorBlock<string, object, NoOpStringProcessorActor>(
+            "even-collector",
+            evenCollectorServiceProvider.GetRequiredService<IServiceScopeFactory>());
+        
+        var oddCollectorServices = new ServiceCollection();
+        oddCollectorServices.AddScoped<NoOpStringProcessorActor>();
+        var oddCollectorServiceProvider = oddCollectorServices.BuildServiceProvider();
+        
+        var oddCollector = new ActorBlock<string, object, NoOpStringProcessorActor>(
+            "odd-collector",
+            oddCollectorServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("level4-test");
         builder.AddBlock(producer);
@@ -744,28 +1162,41 @@ public class ConcurrencyScalingTests
         var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(itemCount));
 
         // Validators
-        var validators = new List<TransformerBlock<int, int>>();
+        var validators = new List<ActorBlock<int, int, ProcessWithDelayActor>>();
         for (int i = 0; i < concurrency; i++)
         {
-            validators.Add(new TransformerBlock<int, int>($"validator-{i}", 
-                (item, ctx) => ProcessWithDelay(item, delayMs)));
+            var validatorServices = new ServiceCollection();
+            validatorServices.AddScoped(_ => new ProcessWithDelayActor(delayMs));
+            var validatorServiceProvider = validatorServices.BuildServiceProvider();
+            
+            validators.Add(new ActorBlock<int, int, ProcessWithDelayActor>(
+                $"validator-{i}",
+                validatorServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
         // Enrichers
-        var enrichers = new List<TransformerBlock<int, string>>();
+        var enrichers = new List<ActorBlock<int, string, TransformWithDelayAndRouteActor>>();
         for (int i = 0; i < concurrency; i++)
         {
-            enrichers.Add(new TransformerBlock<int, string>($"enricher-{i}", 
-                (item, ctx) => TransformWithDelayAndRoute(item, delayMs)));
+            var enricherServices = new ServiceCollection();
+            enricherServices.AddScoped(_ => new TransformWithDelayAndRouteActor(delayMs));
+            var enricherServiceProvider = enricherServices.BuildServiceProvider();
+            
+            enrichers.Add(new ActorBlock<int, string, TransformWithDelayAndRouteActor>(
+                $"enricher-{i}",
+                enricherServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
         var broadcast = new BroadcastBlock<string>("broadcast");
         
         // Broadcast path 1: Collector
-        var metricsCollector = new ProcessorBlock<string>("metrics", async (item, ctx) =>
-        {
-            await Task.CompletedTask;
-        });
+        var metricsCollectorServices = new ServiceCollection();
+        metricsCollectorServices.AddScoped<NoOpStringProcessorActor>();
+        var metricsCollectorServiceProvider = metricsCollectorServices.BuildServiceProvider();
+        
+        var metricsCollector = new ActorBlock<string, object, NoOpStringProcessorActor>(
+            "metrics",
+            metricsCollectorServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         // Broadcast path 2: Router
         var router = new RouterBlock<string>("router", item => item.StartsWith("even") ? "even" : "odd");
@@ -774,23 +1205,29 @@ public class ConcurrencyScalingTests
         var oddFilter = new RouteFilterBlock<string>("odd-filter", "odd");
         
         // Even route: Multiple processors competing
-        var evenProcessors = new List<ProcessorBlock<string>>();
+        var evenProcessors = new List<ActorBlock<string, object, DelayProcessorActor>>();
         for (int i = 0; i < concurrency; i++)
         {
-            evenProcessors.Add(new ProcessorBlock<string>($"even-proc-{i}", async (item, ctx) =>
-            {
-                await Task.Delay(delayMs / 2); // Less delay to not dominate
-            }));
+            var evenProcServices = new ServiceCollection();
+            evenProcServices.AddScoped(_ => new DelayProcessorActor(delayMs / 2));
+            var evenProcServiceProvider = evenProcServices.BuildServiceProvider();
+            
+            evenProcessors.Add(new ActorBlock<string, object, DelayProcessorActor>(
+                $"even-proc-{i}",
+                evenProcServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
         
         // Odd route: Multiple processors competing
-        var oddProcessors = new List<ProcessorBlock<string>>();
+        var oddProcessors = new List<ActorBlock<string, object, DelayProcessorActor>>();
         for (int i = 0; i < concurrency; i++)
         {
-            oddProcessors.Add(new ProcessorBlock<string>($"odd-proc-{i}", async (item, ctx) =>
-            {
-                await Task.Delay(delayMs / 2);
-            }));
+            var oddProcServices = new ServiceCollection();
+            oddProcServices.AddScoped(_ => new DelayProcessorActor(delayMs / 2));
+            var oddProcServiceProvider = oddProcServices.BuildServiceProvider();
+            
+            oddProcessors.Add(new ActorBlock<string, object, DelayProcessorActor>(
+                $"odd-proc-{i}",
+                oddProcServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
         var builder = new DataFlowGraphBuilder("level5-test");
@@ -873,26 +1310,39 @@ public class ConcurrencyScalingTests
         var services = new ServiceCollection().BuildServiceProvider();
         var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(itemCount));
 
-        var validators = new List<TransformerBlock<int, int>>();
+        var validators = new List<ActorBlock<int, int, ProcessWithDelayActor>>();
         for (int i = 0; i < concurrency; i++)
         {
-            validators.Add(new TransformerBlock<int, int>($"validator-{i}", 
-                (item, ctx) => ProcessWithDelay(item, delayMs)));
+            var validatorServices = new ServiceCollection();
+            validatorServices.AddScoped(_ => new ProcessWithDelayActor(delayMs));
+            var validatorServiceProvider = validatorServices.BuildServiceProvider();
+            
+            validators.Add(new ActorBlock<int, int, ProcessWithDelayActor>(
+                $"validator-{i}",
+                validatorServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
-        var enrichers = new List<TransformerBlock<int, string>>();
+        var enrichers = new List<ActorBlock<int, string, TransformWithDelayAndRouteActor>>();
         for (int i = 0; i < concurrency; i++)
         {
-            enrichers.Add(new TransformerBlock<int, string>($"enricher-{i}", 
-                (item, ctx) => TransformWithDelayAndRoute(item, delayMs)));
+            var enricherServices = new ServiceCollection();
+            enricherServices.AddScoped(_ => new TransformWithDelayAndRouteActor(delayMs));
+            var enricherServiceProvider = enricherServices.BuildServiceProvider();
+            
+            enrichers.Add(new ActorBlock<int, string, TransformWithDelayAndRouteActor>(
+                $"enricher-{i}",
+                enricherServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
         var broadcast = new BroadcastBlock<string>("broadcast");
         
-        var metricsCollector = new ProcessorBlock<string>("metrics", async (item, ctx) =>
-        {
-            await Task.CompletedTask;
-        });
+        var metricsCollectorServices = new ServiceCollection();
+        metricsCollectorServices.AddScoped<NoOpStringProcessorActor>();
+        var metricsCollectorServiceProvider = metricsCollectorServices.BuildServiceProvider();
+        
+        var metricsCollector = new ActorBlock<string, object, NoOpStringProcessorActor>(
+            "metrics",
+            metricsCollectorServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         // Batch path
         var router = new RouterBlock<string>("router", item => item.StartsWith("even") ? "even" : "odd");
@@ -901,13 +1351,21 @@ public class ConcurrencyScalingTests
         // KEY DIFFERENCE: Add BatchBlock
         var batcher = new BatchBlock<string>("batcher", batchSize, TimeSpan.FromMilliseconds(50));
         
-        var aggregator = new TransformerBlock<string[], string>("aggregator", 
-            (batch, ctx) => AggregateSimple(batch, delayMs));
+        var aggregatorServices = new ServiceCollection();
+        aggregatorServices.AddScoped(_ => new AggregateBatchActor(delayMs));
+        var aggregatorServiceProvider = aggregatorServices.BuildServiceProvider();
         
-        var writer = new ProcessorBlock<string>("writer", async (item, ctx) =>
-        {
-            await Task.CompletedTask;
-        });
+        var aggregator = new ActorBlock<string[], string, AggregateBatchActor>(
+            "aggregator",
+            aggregatorServiceProvider.GetRequiredService<IServiceScopeFactory>());
+        
+        var writerServices = new ServiceCollection();
+        writerServices.AddScoped<NoOpStringProcessorActor>();
+        var writerServiceProvider = writerServices.BuildServiceProvider();
+        
+        var writer = new ActorBlock<string, object, NoOpStringProcessorActor>(
+            "writer",
+            writerServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("level6-test");
         builder.AddBlock(producer);
@@ -978,24 +1436,37 @@ public class ConcurrencyScalingTests
         var services = new ServiceCollection().BuildServiceProvider();
         var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(itemCount));
 
-        var validators = new List<TransformerBlock<int, int>>();
+        var validators = new List<ActorBlock<int, int, ProcessWithDelayActor>>();
         for (int i = 0; i < concurrency; i++)
         {
-            validators.Add(new TransformerBlock<int, int>($"validator-{i}", 
-                (item, ctx) => ProcessWithDelay(item, delayMs)));
+            var validatorServices = new ServiceCollection();
+            validatorServices.AddScoped(_ => new ProcessWithDelayActor(delayMs));
+            var validatorServiceProvider = validatorServices.BuildServiceProvider();
+            
+            validators.Add(new ActorBlock<int, int, ProcessWithDelayActor>(
+                $"validator-{i}",
+                validatorServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
-        var enrichers = new List<TransformerBlock<int, string>>();
+        var enrichers = new List<ActorBlock<int, string, TransformWithDelayActor>>();
         for (int i = 0; i < concurrency; i++)
         {
-            enrichers.Add(new TransformerBlock<int, string>($"enricher-{i}", 
-                (item, ctx) => TransformWithDelay(item, delayMs)));
+            var enricherServices = new ServiceCollection();
+            enricherServices.AddScoped(_ => new TransformWithDelayActor(delayMs));
+            var enricherServiceProvider = enricherServices.BuildServiceProvider();
+            
+            enrichers.Add(new ActorBlock<int, string, TransformWithDelayActor>(
+                $"enricher-{i}",
+                enricherServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
-        var collector = new ProcessorBlock<string>("collector", async (item, ctx) =>
-        {
-            await Task.CompletedTask;
-        });
+        var collectorServices = new ServiceCollection();
+        collectorServices.AddScoped<NoOpStringProcessorActor>();
+        var collectorServiceProvider = collectorServices.BuildServiceProvider();
+        
+        var collector = new ActorBlock<string, object, NoOpStringProcessorActor>(
+            "collector",
+            collectorServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("level7-test");
         builder.AddBlock(producer);
@@ -1059,27 +1530,40 @@ public class ConcurrencyScalingTests
         var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(itemCount));
 
         // Stage 1: Validators
-        var validators = new List<TransformerBlock<int, int>>();
+        var validators = new List<ActorBlock<int, int, ProcessWithDelayActor>>();
         for (int i = 0; i < concurrency; i++)
         {
-            validators.Add(new TransformerBlock<int, int>($"validator-{i}", 
-                (item, ctx) => ProcessWithDelay(item, delayMs)));
+            var validatorServices = new ServiceCollection();
+            validatorServices.AddScoped(_ => new ProcessWithDelayActor(delayMs));
+            var validatorServiceProvider = validatorServices.BuildServiceProvider();
+            
+            validators.Add(new ActorBlock<int, int, ProcessWithDelayActor>(
+                $"validator-{i}",
+                validatorServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
         // Stage 2: Enrichers  
-        var enrichers = new List<TransformerBlock<int, string>>();
+        var enrichers = new List<ActorBlock<int, string, EnrichForRoutingActor>>();
         for (int i = 0; i < concurrency; i++)
         {
-            enrichers.Add(new TransformerBlock<int, string>($"enricher-{i}", 
-                (item, ctx) => EnrichForRouting(item, delayMs)));
+            var enricherServices = new ServiceCollection();
+            enricherServices.AddScoped(_ => new EnrichForRoutingActor(delayMs));
+            var enricherServiceProvider = enricherServices.BuildServiceProvider();
+            
+            enrichers.Add(new ActorBlock<int, string, EnrichForRoutingActor>(
+                $"enricher-{i}",
+                enricherServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
         var broadcast = new BroadcastBlock<string>("broadcast");
         
-        var metricsCollector = new ProcessorBlock<string>("metrics", async (item, ctx) =>
-        {
-            await Task.CompletedTask;
-        });
+        var metricsCollectorServices = new ServiceCollection();
+        metricsCollectorServices.AddScoped<NoOpStringProcessorActor>();
+        var metricsCollectorServiceProvider = metricsCollectorServices.BuildServiceProvider();
+        
+        var metricsCollector = new ActorBlock<string, object, NoOpStringProcessorActor>(
+            "metrics",
+            metricsCollectorServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var router = new RouterBlock<string>("router", item =>
         {
@@ -1090,37 +1574,59 @@ public class ConcurrencyScalingTests
         
         // TypeA path: filter → processors (competing)
         var typeAFilter = new RouteFilterBlock<string>("typeA-filter", "TypeA");
-        var typeAProcessors = new List<TransformerBlock<string, string>>();
+        var typeAProcessors = new List<ActorBlock<string, string, ProcessTypeAActor>>();
         for (int i = 0; i < concurrency; i++)
         {
-            typeAProcessors.Add(new TransformerBlock<string, string>($"typeA-proc-{i}",
-                (item, ctx) => ProcessTypeA(item, delayMs)));
+            var typeAProcServices = new ServiceCollection();
+            typeAProcServices.AddScoped(_ => new ProcessTypeAActor(delayMs));
+            var typeAProcServiceProvider = typeAProcServices.BuildServiceProvider();
+            
+            typeAProcessors.Add(new ActorBlock<string, string, ProcessTypeAActor>(
+                $"typeA-proc-{i}",
+                typeAProcServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
-        var typeAWriters = new List<ProcessorBlock<string>>();
+        var typeAWriters = new List<ActorBlock<string, object, NoOpStringProcessorActor>>();
         for (int i = 0; i < concurrency; i++)
         {
-            typeAWriters.Add(new ProcessorBlock<string>($"typeA-writer-{i}", async (item, ctx) =>
-            {
-                await Task.CompletedTask;
-            }));
+            var typeAWriterServices = new ServiceCollection();
+            typeAWriterServices.AddScoped<NoOpStringProcessorActor>();
+            var typeAWriterServiceProvider = typeAWriterServices.BuildServiceProvider();
+            
+            typeAWriters.Add(new ActorBlock<string, object, NoOpStringProcessorActor>(
+                $"typeA-writer-{i}",
+                typeAWriterServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
         // TypeB path: filter → BATCHER → aggregator → writer
         var typeBFilter = new RouteFilterBlock<string>("typeB-filter", "TypeB");
         var typeBBatcher = new BatchBlock<string>("typeB-batcher", batchSize, TimeSpan.FromMilliseconds(100));
-        var typeBAggregator = new TransformerBlock<string[], string>("typeB-aggregator",
-            (batch, ctx) => AggregateSimple(batch, delayMs));
-        var typeBWriter = new ProcessorBlock<string>("typeB-writer", async (item, ctx) =>
-        {
-            await Task.CompletedTask;
-        });
+        
+        var typeBAggregatorServices = new ServiceCollection();
+        typeBAggregatorServices.AddScoped(_ => new AggregateBatchActor(delayMs));
+        var typeBAggregatorServiceProvider = typeBAggregatorServices.BuildServiceProvider();
+        
+        var typeBAggregator = new ActorBlock<string[], string, AggregateBatchActor>(
+            "typeB-aggregator",
+            typeBAggregatorServiceProvider.GetRequiredService<IServiceScopeFactory>());
+        
+        var typeBWriterServices = new ServiceCollection();
+        typeBWriterServices.AddScoped<NoOpStringProcessorActor>();
+        var typeBWriterServiceProvider = typeBWriterServices.BuildServiceProvider();
+        
+        var typeBWriter = new ActorBlock<string, object, NoOpStringProcessorActor>(
+            "typeB-writer",
+            typeBWriterServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         // TypeC path: filter → writer
         var typeCFilter = new RouteFilterBlock<string>("typeC-filter", "TypeC");
-        var typeCWriter = new ProcessorBlock<string>("typeC-writer", async (item, ctx) =>
-        {
-            await Task.CompletedTask;
-        });
+        
+        var typeCWriterServices = new ServiceCollection();
+        typeCWriterServices.AddScoped<NoOpStringProcessorActor>();
+        var typeCWriterServiceProvider = typeCWriterServices.BuildServiceProvider();
+        
+        var typeCWriter = new ActorBlock<string, object, NoOpStringProcessorActor>(
+            "typeC-writer",
+            typeCWriterServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("level8-exact-match");
         builder.AddBlock(producer);

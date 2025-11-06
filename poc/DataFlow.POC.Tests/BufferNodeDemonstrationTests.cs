@@ -147,6 +147,33 @@ public class BufferNodeDemonstrationTests
         }
     }
 
+    /// <summary>
+    /// Actor that transforms integers to formatted strings.
+    /// </summary>
+    private class IntToStringTransformerActor : IStreamActor<int, string>
+    {
+        private readonly string _prefix;
+        private readonly ITestOutputHelper _output;
+
+        public IntToStringTransformerActor(string prefix, ITestOutputHelper output)
+        {
+            _prefix = prefix;
+            _output = output;
+        }
+
+        public async IAsyncEnumerable<string> RunAsync(
+            IAsyncEnumerable<int> input,
+            IActorExecutionContext context)
+        {
+            await foreach (var item in input.WithCancellation(context.CancellationToken))
+            {
+                var result = $"{_prefix}-{item}";
+                _output.WriteLine($"  {_prefix}: {item} → '{result}'");
+                yield return result;
+            }
+        }
+    }
+
     private static async IAsyncEnumerable<int> ProduceIntegers(IExecutionContext ctx, int start, int count)
     {
         for (int i = start; i < start + count; i++)
@@ -309,9 +336,19 @@ public class BufferNodeDemonstrationTests
 
         var finalResults = new List<string>();
         
-        var services = new ServiceCollection();
-        services.AddScoped(_ => new StringCollectorActor(finalResults, _output));
-        var serviceProvider = services.BuildServiceProvider();
+        var finalServices = new ServiceCollection();
+        finalServices.AddScoped(_ => new StringCollectorActor(finalResults, _output));
+        var finalServiceProvider = finalServices.BuildServiceProvider();
+
+        // Create separate service providers for each transformer
+        var transformer1Services = new ServiceCollection();
+        transformer1Services.AddScoped(_ => new IntToStringTransformerActor("T1", _output));
+        var transformer1ServiceProvider = transformer1Services.BuildServiceProvider();
+
+        var transformer2Services = new ServiceCollection();
+        transformer2Services.AddScoped(_ => new IntToStringTransformerActor("T2", _output));
+        var transformer2ServiceProvider = transformer2Services.BuildServiceProvider();
+
         var commonServices = new ServiceCollection().BuildServiceProvider();
 
         // Stage 1: Two producers generate numbers
@@ -319,21 +356,17 @@ public class BufferNodeDemonstrationTests
         var producer2 = new ProducerBlock<int>("producer-2", ctx => ProduceIntegers(ctx, 100, 5));
 
         // Stage 2: Two workers transform numbers to strings
-        var transformer1 = new SimpleTransformerBlock<int, string>("transformer-1", x =>
-        {
-            _output.WriteLine($"  Transformer-1: {x} → '{x}'");
-            return $"T1-{x}";
-        });
-        var transformer2 = new SimpleTransformerBlock<int, string>("transformer-2", x =>
-        {
-            _output.WriteLine($"  Transformer-2: {x} → '{x}'");
-            return $"T2-{x}";
-        });
+        var transformer1 = new ActorBlock<int, string, IntToStringTransformerActor>(
+            "transformer-1",
+            transformer1ServiceProvider.GetRequiredService<IServiceScopeFactory>());
+        var transformer2 = new ActorBlock<int, string, IntToStringTransformerActor>(
+            "transformer-2",
+            transformer2ServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         // Stage 3: Final processor
         var finalProcessor = new ActorBlock<string, object, StringCollectorActor>(
             "final-processor",
-            serviceProvider.GetRequiredService<IServiceScopeFactory>());
+            finalServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         // Build the graph with two buffer nodes
         var builder = new DataFlowGraphBuilder("complex-pipeline-demo");
