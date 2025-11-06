@@ -9,6 +9,114 @@ using Xunit;
 
 public class BufferNodeTests
 {
+    /// <summary>
+    /// Simple collector actor for integers.
+    /// </summary>
+    private class IntCollectorActor : IStreamActor<int, object>
+    {
+        private readonly List<int> _collected;
+
+        public IntCollectorActor(List<int> collected)
+        {
+            _collected = collected;
+        }
+
+        public async IAsyncEnumerable<object> RunAsync(
+            IAsyncEnumerable<int> input,
+            IActorExecutionContext context)
+        {
+            await foreach (var item in input.WithCancellation(context.CancellationToken))
+            {
+                _collected.Add(item);
+            }
+            yield break;
+        }
+    }
+
+    /// <summary>
+    /// Collector actor for strings.
+    /// </summary>
+    private class StringCollectorActor : IStreamActor<string, object>
+    {
+        private readonly List<string> _collected;
+
+        public StringCollectorActor(List<string> collected)
+        {
+            _collected = collected;
+        }
+
+        public async IAsyncEnumerable<object> RunAsync(
+            IAsyncEnumerable<string> input,
+            IActorExecutionContext context)
+        {
+            await foreach (var item in input.WithCancellation(context.CancellationToken))
+            {
+                _collected.Add(item);
+            }
+            yield break;
+        }
+    }
+
+    /// <summary>
+    /// Thread-safe collector actor for integers.
+    /// </summary>
+    private class ThreadSafeIntCollectorActor : IStreamActor<int, object>
+    {
+        private readonly List<int> _collected;
+        private readonly int _delayMs;
+
+        public ThreadSafeIntCollectorActor(List<int> collected, int delayMs = 0)
+        {
+            _collected = collected;
+            _delayMs = delayMs;
+        }
+
+        public async IAsyncEnumerable<object> RunAsync(
+            IAsyncEnumerable<int> input,
+            IActorExecutionContext context)
+        {
+            await foreach (var item in input.WithCancellation(context.CancellationToken))
+            {
+                lock (_collected)
+                {
+                    _collected.Add(item);
+                }
+                if (_delayMs > 0)
+                {
+                    await Task.Delay(_delayMs, context.CancellationToken);
+                }
+            }
+            yield break;
+        }
+    }
+
+    /// <summary>
+    /// Collector actor with configurable delay (for backpressure testing).
+    /// </summary>
+    private class DelayingIntCollectorActor : IStreamActor<int, object>
+    {
+        private readonly List<int> _collected;
+        private readonly int _delayMs;
+
+        public DelayingIntCollectorActor(List<int> collected, int delayMs)
+        {
+            _collected = collected;
+            _delayMs = delayMs;
+        }
+
+        public async IAsyncEnumerable<object> RunAsync(
+            IAsyncEnumerable<int> input,
+            IActorExecutionContext context)
+        {
+            await foreach (var item in input.WithCancellation(context.CancellationToken))
+            {
+                _collected.Add(item);
+                await Task.Delay(_delayMs, context.CancellationToken);
+            }
+            yield break;
+        }
+    }
+
     private static async IAsyncEnumerable<int> ProduceIntegers(IExecutionContext ctx, int start, int count)
     {
         for (int i = start; i < start + count; i++)
@@ -23,14 +131,18 @@ public class BufferNodeTests
     {
         // Arrange
         var processedItems = new List<int>();
-        var services = new ServiceCollection().BuildServiceProvider();
+        
+        // Create service provider for processor
+        var processorServices = new ServiceCollection();
+        processorServices.AddScoped(_ => new IntCollectorActor(processedItems));
+        var processorSP = processorServices.BuildServiceProvider();
+
+        var commonServices = new ServiceCollection().BuildServiceProvider();
 
         var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(ctx, 1, 10));
-        var processor = new ProcessorBlock<int>("processor", async (item, ctx) =>
-        {
-            processedItems.Add(item);
-            await Task.CompletedTask;
-        });
+        var processor = new ActorBlock<int, object, IntCollectorActor>(
+            "processor",
+            processorSP.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("buffer-node-flow");
         var buffer = builder.Buffer<int>(capacity: 5);
@@ -41,7 +153,7 @@ public class BufferNodeTests
             .Connect(buffer, processor);
 
         var graph = builder.Build();
-        var context = new ExecutionContext(services, CancellationToken.None);
+        var context = new ExecutionContext(commonServices, CancellationToken.None);
 
         // Act
         await graph.ExecuteAsync(context);
@@ -56,18 +168,19 @@ public class BufferNodeTests
     {
         // Arrange
         var processedItems = new List<int>();
-        var services = new ServiceCollection().BuildServiceProvider();
+        
+        // Create service provider for processor (thread-safe)
+        var processorServices = new ServiceCollection();
+        processorServices.AddScoped(_ => new ThreadSafeIntCollectorActor(processedItems));
+        var processorSP = processorServices.BuildServiceProvider();
+
+        var commonServices = new ServiceCollection().BuildServiceProvider();
 
         var producer1 = new ProducerBlock<int>("producer1", ctx => ProduceIntegers(ctx, 1, 5));
         var producer2 = new ProducerBlock<int>("producer2", ctx => ProduceIntegers(ctx, 100, 5));
-        var processor = new ProcessorBlock<int>("processor", async (item, ctx) =>
-        {
-            lock (processedItems)
-            {
-                processedItems.Add(item);
-            }
-            await Task.CompletedTask;
-        });
+        var processor = new ActorBlock<int, object, ThreadSafeIntCollectorActor>(
+            "processor",
+            processorSP.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("multi-producer-buffer-flow");
         var buffer = builder.Buffer<int>(capacity: 10);
@@ -80,7 +193,7 @@ public class BufferNodeTests
             .Connect(buffer, processor);
 
         var graph = builder.Build();
-        var context = new ExecutionContext(services, CancellationToken.None);
+        var context = new ExecutionContext(commonServices, CancellationToken.None);
 
         // Act
         await graph.ExecuteAsync(context);
@@ -102,27 +215,27 @@ public class BufferNodeTests
         // Arrange
         var processor1Items = new List<int>();
         var processor2Items = new List<int>();
-        var services = new ServiceCollection().BuildServiceProvider();
+        
+        // Create separate service providers for each processor
+        var processor1Services = new ServiceCollection();
+        processor1Services.AddScoped(_ => new ThreadSafeIntCollectorActor(processor1Items, delayMs: 10));
+        var processor1SP = processor1Services.BuildServiceProvider();
+
+        var processor2Services = new ServiceCollection();
+        processor2Services.AddScoped(_ => new ThreadSafeIntCollectorActor(processor2Items, delayMs: 10));
+        var processor2SP = processor2Services.BuildServiceProvider();
+
+        var commonServices = new ServiceCollection().BuildServiceProvider();
 
         var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(ctx, 1, 10));
         
-        var processor1 = new ProcessorBlock<int>("processor1", async (item, ctx) =>
-        {
-            lock (processor1Items)
-            {
-                processor1Items.Add(item);
-            }
-            await Task.Delay(10); // Simulate work
-        });
+        var processor1 = new ActorBlock<int, object, ThreadSafeIntCollectorActor>(
+            "processor1",
+            processor1SP.GetRequiredService<IServiceScopeFactory>());
 
-        var processor2 = new ProcessorBlock<int>("processor2", async (item, ctx) =>
-        {
-            lock (processor2Items)
-            {
-                processor2Items.Add(item);
-            }
-            await Task.Delay(10); // Simulate work
-        });
+        var processor2 = new ActorBlock<int, object, ThreadSafeIntCollectorActor>(
+            "processor2",
+            processor2SP.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("single-producer-multi-consumer-buffer-flow");
         var buffer = builder.Buffer<int>(capacity: 5);
@@ -135,7 +248,7 @@ public class BufferNodeTests
             .Connect(buffer, processor2);
 
         var graph = builder.Build();
-        var context = new ExecutionContext(services, CancellationToken.None);
+        var context = new ExecutionContext(commonServices, CancellationToken.None);
 
         // Act
         await graph.ExecuteAsync(context);
@@ -159,28 +272,28 @@ public class BufferNodeTests
         // Arrange
         var processor1Items = new List<int>();
         var processor2Items = new List<int>();
-        var services = new ServiceCollection().BuildServiceProvider();
+        
+        // Create separate service providers for each processor
+        var processor1Services = new ServiceCollection();
+        processor1Services.AddScoped(_ => new ThreadSafeIntCollectorActor(processor1Items, delayMs: 5));
+        var processor1SP = processor1Services.BuildServiceProvider();
+
+        var processor2Services = new ServiceCollection();
+        processor2Services.AddScoped(_ => new ThreadSafeIntCollectorActor(processor2Items, delayMs: 5));
+        var processor2SP = processor2Services.BuildServiceProvider();
+
+        var commonServices = new ServiceCollection().BuildServiceProvider();
 
         var producer1 = new ProducerBlock<int>("producer1", ctx => ProduceIntegers(ctx, 1, 5));
         var producer2 = new ProducerBlock<int>("producer2", ctx => ProduceIntegers(ctx, 100, 5));
 
-        var processor1 = new ProcessorBlock<int>("processor1", async (item, ctx) =>
-        {
-            lock (processor1Items)
-            {
-                processor1Items.Add(item);
-            }
-            await Task.Delay(5);
-        });
+        var processor1 = new ActorBlock<int, object, ThreadSafeIntCollectorActor>(
+            "processor1",
+            processor1SP.GetRequiredService<IServiceScopeFactory>());
 
-        var processor2 = new ProcessorBlock<int>("processor2", async (item, ctx) =>
-        {
-            lock (processor2Items)
-            {
-                processor2Items.Add(item);
-            }
-            await Task.Delay(5);
-        });
+        var processor2 = new ActorBlock<int, object, ThreadSafeIntCollectorActor>(
+            "processor2",
+            processor2SP.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("multi-producer-multi-consumer-buffer-flow");
         var buffer = builder.Buffer<int>(capacity: 10);
@@ -195,7 +308,7 @@ public class BufferNodeTests
             .Connect(buffer, processor2);
 
         var graph = builder.Build();
-        var context = new ExecutionContext(services, CancellationToken.None);
+        var context = new ExecutionContext(commonServices, CancellationToken.None);
 
         // Act
         await graph.ExecuteAsync(context);
@@ -219,14 +332,18 @@ public class BufferNodeTests
     {
         // Arrange
         var processedItems = new List<int>();
-        var services = new ServiceCollection().BuildServiceProvider();
+        
+        // Create service provider for processor with delay
+        var processorServices = new ServiceCollection();
+        processorServices.AddScoped(_ => new DelayingIntCollectorActor(processedItems, delayMs: 50));
+        var processorSP = processorServices.BuildServiceProvider();
+
+        var commonServices = new ServiceCollection().BuildServiceProvider();
 
         var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(ctx, 1, 100));
-        var processor = new ProcessorBlock<int>("processor", async (item, ctx) =>
-        {
-            processedItems.Add(item);
-            await Task.Delay(50); // Slow consumer to test backpressure
-        });
+        var processor = new ActorBlock<int, object, DelayingIntCollectorActor>(
+            "processor",
+            processorSP.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("backpressure-flow");
         var buffer = builder.Buffer<int>(capacity: 5); // Small buffer
@@ -237,7 +354,7 @@ public class BufferNodeTests
             .Connect(buffer, processor);
 
         var graph = builder.Build();
-        var context = new ExecutionContext(services, CancellationToken.None);
+        var context = new ExecutionContext(commonServices, CancellationToken.None);
 
         // Act
         await graph.ExecuteAsync(context);
@@ -274,10 +391,15 @@ public class BufferNodeTests
         // Arrange
         var builder = new DataFlowGraphBuilder("type-mismatch-flow");
         var buffer = builder.Buffer<int>(capacity: 10);
-        var processor = new ProcessorBlock<string>("processor", async (item, ctx) =>
-        {
-            await Task.CompletedTask;
-        });
+        
+        // Create a string collector actor for the validation test
+        var processorServices = new ServiceCollection();
+        processorServices.AddScoped(_ => new StringCollectorActor(new List<string>()));
+        var processorSP = processorServices.BuildServiceProvider();
+        
+        var processor = new ActorBlock<string, object, StringCollectorActor>(
+            "processor",
+            processorSP.GetRequiredService<IServiceScopeFactory>());
         
         builder.AddBlock(processor);
 
@@ -302,29 +424,37 @@ public class BufferNodeTests
         var edgeConsumerItems = new List<int>();
         var bufferConsumer1Items = new List<int>();
         var bufferConsumer2Items = new List<int>();
-        var services = new ServiceCollection().BuildServiceProvider();
+        
+        // Create separate service providers for each consumer
+        var edgeConsumerServices = new ServiceCollection();
+        edgeConsumerServices.AddScoped(_ => new IntCollectorActor(edgeConsumerItems));
+        var edgeConsumerSP = edgeConsumerServices.BuildServiceProvider();
+
+        var bufferConsumer1Services = new ServiceCollection();
+        bufferConsumer1Services.AddScoped(_ => new IntCollectorActor(bufferConsumer1Items));
+        var bufferConsumer1SP = bufferConsumer1Services.BuildServiceProvider();
+
+        var bufferConsumer2Services = new ServiceCollection();
+        bufferConsumer2Services.AddScoped(_ => new IntCollectorActor(bufferConsumer2Items));
+        var bufferConsumer2SP = bufferConsumer2Services.BuildServiceProvider();
+
+        var commonServices = new ServiceCollection().BuildServiceProvider();
 
         var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(ctx, 1, 10));
         
         // Edge consumer - directly connected via edge
-        var edgeConsumer = new ProcessorBlock<int>("edge-consumer", async (item, ctx) =>
-        {
-            edgeConsumerItems.Add(item);
-            await Task.CompletedTask;
-        });
+        var edgeConsumer = new ActorBlock<int, object, IntCollectorActor>(
+            "edge-consumer",
+            edgeConsumerSP.GetRequiredService<IServiceScopeFactory>());
         
         // Buffer consumers - connected via buffer node (competing)
-        var bufferConsumer1 = new ProcessorBlock<int>("buffer-consumer1", async (item, ctx) =>
-        {
-            bufferConsumer1Items.Add(item);
-            await Task.CompletedTask;
-        });
+        var bufferConsumer1 = new ActorBlock<int, object, IntCollectorActor>(
+            "buffer-consumer1",
+            bufferConsumer1SP.GetRequiredService<IServiceScopeFactory>());
         
-        var bufferConsumer2 = new ProcessorBlock<int>("buffer-consumer2", async (item, ctx) =>
-        {
-            bufferConsumer2Items.Add(item);
-            await Task.CompletedTask;
-        });
+        var bufferConsumer2 = new ActorBlock<int, object, IntCollectorActor>(
+            "buffer-consumer2",
+            bufferConsumer2SP.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("broadcast-flow");
         var buffer = builder.Buffer<int>(capacity: 10);
@@ -339,7 +469,7 @@ public class BufferNodeTests
             .Connect(buffer, bufferConsumer2);
 
         var graph = builder.Build();
-        var context = new ExecutionContext(services, CancellationToken.None);
+        var context = new ExecutionContext(commonServices, CancellationToken.None);
 
         // Act
         await graph.ExecuteAsync(context);

@@ -143,21 +143,27 @@ public class EdgeStrategyTests
         // Arrange
         var processor1Items = new List<int>();
         var processor2Items = new List<int>();
-        var services = new ServiceCollection().BuildServiceProvider();
+        
+        // Create separate service providers for each processor
+        var services1 = new ServiceCollection();
+        services1.AddScoped(_ => new WorkSimulatingCollectorActor(processor1Items, delayMs: 0));
+        var serviceProvider1 = services1.BuildServiceProvider();
+
+        var services2 = new ServiceCollection();
+        services2.AddScoped(_ => new WorkSimulatingCollectorActor(processor2Items, delayMs: 0));
+        var serviceProvider2 = services2.BuildServiceProvider();
+
+        var commonServices = new ServiceCollection().BuildServiceProvider();
 
         var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(ctx, 5));
 
-        var processor1 = new ProcessorBlock<int>("processor1", async (item, ctx) =>
-        {
-            processor1Items.Add(item);
-            await Task.CompletedTask;
-        });
+        var processor1 = new ActorBlock<int, object, WorkSimulatingCollectorActor>(
+            "processor1",
+            serviceProvider1.GetRequiredService<IServiceScopeFactory>());
 
-        var processor2 = new ProcessorBlock<int>("processor2", async (item, ctx) =>
-        {
-            processor2Items.Add(item);
-            await Task.CompletedTask;
-        });
+        var processor2 = new ActorBlock<int, object, WorkSimulatingCollectorActor>(
+            "processor2",
+            serviceProvider2.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("broadcast-flow");
         builder.AddBlock(producer)
@@ -173,7 +179,7 @@ public class EdgeStrategyTests
         builder.AddEdge(broadcastEdge);
 
         var graph = builder.Build();
-        var context = new ExecutionContext(services, CancellationToken.None);
+        var context = new ExecutionContext(commonServices, CancellationToken.None);
 
         // Act
         await graph.ExecuteAsync(context);
@@ -186,29 +192,60 @@ public class EdgeStrategyTests
         processor2Items.ShouldBe(Enumerable.Range(1, 5));
     }
 
+    /// <summary>
+    /// Collector actor for CloneableItem that modifies the value.
+    /// </summary>
+    private class ModifyingCloneableItemCollectorActor : IStreamActor<CloneableItem, object>
+    {
+        private readonly List<CloneableItem> _collected;
+        private readonly int _multiplier;
+
+        public ModifyingCloneableItemCollectorActor(List<CloneableItem> collected, int multiplier)
+        {
+            _collected = collected;
+            _multiplier = multiplier;
+        }
+
+        public async IAsyncEnumerable<object> RunAsync(
+            IAsyncEnumerable<CloneableItem> input,
+            IActorExecutionContext context)
+        {
+            await foreach (var item in input.WithCancellation(context.CancellationToken))
+            {
+                item.Value *= _multiplier; // Modify the item
+                _collected.Add(item);
+            }
+            yield break;
+        }
+    }
+
     [Fact]
     public async Task BroadcastEdge_With_Cloning_Should_Clone_Items_For_Each_Consumer()
     {
         // Arrange
         var processor1Items = new List<CloneableItem>();
         var processor2Items = new List<CloneableItem>();
-        var services = new ServiceCollection().BuildServiceProvider();
+        
+        // Create separate service providers for each processor
+        var services1 = new ServiceCollection();
+        services1.AddScoped(_ => new ModifyingCloneableItemCollectorActor(processor1Items, multiplier: 10));
+        var serviceProvider1 = services1.BuildServiceProvider();
+
+        var services2 = new ServiceCollection();
+        services2.AddScoped(_ => new ModifyingCloneableItemCollectorActor(processor2Items, multiplier: 100));
+        var serviceProvider2 = services2.BuildServiceProvider();
+
+        var commonServices = new ServiceCollection().BuildServiceProvider();
 
         var producer = new ProducerBlock<CloneableItem>("producer", ProduceCloneableItems);
 
-        var processor1 = new ProcessorBlock<CloneableItem>("processor1", async (item, ctx) =>
-        {
-            item.Value *= 10; // Modify the item
-            processor1Items.Add(item);
-            await Task.CompletedTask;
-        });
+        var processor1 = new ActorBlock<CloneableItem, object, ModifyingCloneableItemCollectorActor>(
+            "processor1",
+            serviceProvider1.GetRequiredService<IServiceScopeFactory>());
 
-        var processor2 = new ProcessorBlock<CloneableItem>("processor2", async (item, ctx) =>
-        {
-            item.Value *= 100; // Modify the item differently
-            processor2Items.Add(item);
-            await Task.CompletedTask;
-        });
+        var processor2 = new ActorBlock<CloneableItem, object, ModifyingCloneableItemCollectorActor>(
+            "processor2",
+            serviceProvider2.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("cloning-flow");
         builder.AddBlock(producer)
@@ -227,7 +264,7 @@ public class EdgeStrategyTests
         builder.AddEdge(cloningEdge);
 
         var graph = builder.Build();
-        var context = new ExecutionContext(services, CancellationToken.None);
+        var context = new ExecutionContext(commonServices, CancellationToken.None);
 
         // Act
         await graph.ExecuteAsync(context);
@@ -259,41 +296,45 @@ public class EdgeStrategyTests
         var broadcastProcessor2Items = new List<int>();
         var competingProcessor1Items = new List<int>();
         var competingProcessor2Items = new List<int>();
-        var services = new ServiceCollection().BuildServiceProvider();
+        
+        // Create separate service providers for each processor
+        var broadcastServices1 = new ServiceCollection();
+        broadcastServices1.AddScoped(_ => new WorkSimulatingCollectorActor(broadcastProcessor1Items, delayMs: 0));
+        var broadcastSP1 = broadcastServices1.BuildServiceProvider();
+
+        var broadcastServices2 = new ServiceCollection();
+        broadcastServices2.AddScoped(_ => new WorkSimulatingCollectorActor(broadcastProcessor2Items, delayMs: 0));
+        var broadcastSP2 = broadcastServices2.BuildServiceProvider();
+
+        var competingServices1 = new ServiceCollection();
+        competingServices1.AddScoped(_ => new WorkSimulatingCollectorActor(competingProcessor1Items, delayMs: 5));
+        var competingSP1 = competingServices1.BuildServiceProvider();
+
+        var competingServices2 = new ServiceCollection();
+        competingServices2.AddScoped(_ => new WorkSimulatingCollectorActor(competingProcessor2Items, delayMs: 5));
+        var competingSP2 = competingServices2.BuildServiceProvider();
+
+        var commonServices = new ServiceCollection().BuildServiceProvider();
 
         var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(ctx, 10));
 
         // Broadcast path processors
-        var broadcastProc1 = new ProcessorBlock<int>("broadcast-proc1", async (item, ctx) =>
-        {
-            broadcastProcessor1Items.Add(item);
-            await Task.CompletedTask;
-        });
+        var broadcastProc1 = new ActorBlock<int, object, WorkSimulatingCollectorActor>(
+            "broadcast-proc1",
+            broadcastSP1.GetRequiredService<IServiceScopeFactory>());
 
-        var broadcastProc2 = new ProcessorBlock<int>("broadcast-proc2", async (item, ctx) =>
-        {
-            broadcastProcessor2Items.Add(item);
-            await Task.CompletedTask;
-        });
+        var broadcastProc2 = new ActorBlock<int, object, WorkSimulatingCollectorActor>(
+            "broadcast-proc2",
+            broadcastSP2.GetRequiredService<IServiceScopeFactory>());
 
         // Competing path processors
-        var competingProc1 = new ProcessorBlock<int>("competing-proc1", async (item, ctx) =>
-        {
-            lock (competingProcessor1Items)
-            {
-                competingProcessor1Items.Add(item);
-            }
-            await Task.Delay(5);
-        });
+        var competingProc1 = new ActorBlock<int, object, WorkSimulatingCollectorActor>(
+            "competing-proc1",
+            competingSP1.GetRequiredService<IServiceScopeFactory>());
 
-        var competingProc2 = new ProcessorBlock<int>("competing-proc2", async (item, ctx) =>
-        {
-            lock (competingProcessor2Items)
-            {
-                competingProcessor2Items.Add(item);
-            }
-            await Task.Delay(5);
-        });
+        var competingProc2 = new ActorBlock<int, object, WorkSimulatingCollectorActor>(
+            "competing-proc2",
+            competingSP2.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("mixed-strategy-flow");
         builder.AddBlock(producer)
@@ -318,7 +359,7 @@ public class EdgeStrategyTests
         builder.AddEdge(competingEdge);
 
         var graph = builder.Build();
-        var context = new ExecutionContext(services, CancellationToken.None);
+        var context = new ExecutionContext(commonServices, CancellationToken.None);
 
         // Act
         await graph.ExecuteAsync(context);

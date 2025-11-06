@@ -19,6 +19,60 @@ using Xunit;
 public class AsyncLocalPropagationTests
 {
     /// <summary>
+    /// Actor that collects items and captures their execution context IDs.
+    /// </summary>
+    private class ContextCapturingCollectorActor<T> : IStreamActor<T, object>
+    {
+        private readonly ConcurrentBag<Guid> _capturedContextIds;
+
+        public ContextCapturingCollectorActor(ConcurrentBag<Guid> capturedContextIds)
+        {
+            _capturedContextIds = capturedContextIds;
+        }
+
+        public async IAsyncEnumerable<object> RunAsync(
+            IAsyncEnumerable<T> input,
+            IActorExecutionContext context)
+        {
+            await foreach (var item in input.WithCancellation(context.CancellationToken))
+            {
+                var current = ExecutionContext.Current;
+                if (current != null)
+                {
+                    _capturedContextIds.Add(current.InvocationId);
+                }
+            }
+            yield break;
+        }
+    }
+
+    /// <summary>
+    /// Actor that transforms items and captures execution context IDs.
+    /// </summary>
+    private class ContextCapturingTransformerActor : IStreamActor<int, string>
+    {
+        private readonly ConcurrentBag<Guid> _capturedContextIds;
+
+        public ContextCapturingTransformerActor(ConcurrentBag<Guid> capturedContextIds)
+        {
+            _capturedContextIds = capturedContextIds;
+        }
+
+        public async IAsyncEnumerable<string> RunAsync(
+            IAsyncEnumerable<int> input,
+            IActorExecutionContext context)
+        {
+            await foreach (var item in input.WithCancellation(context.CancellationToken))
+            {
+                await foreach (var result in TransformWithContextCapture(item, _capturedContextIds))
+                {
+                    yield return result;
+                }
+            }
+        }
+    }
+
+    /// <summary>
     /// Tests that AsyncLocal propagates in a simple producer-processor flow
     /// </summary>
     [Fact]
@@ -27,22 +81,22 @@ public class AsyncLocalPropagationTests
         // Arrange
         var expectedContextId = Guid.NewGuid();
         var capturedContextIds = new ConcurrentBag<Guid>();
-        var services = new ServiceCollection().BuildServiceProvider();
+        
+        // Create service provider for the processor
+        var processorServices = new ServiceCollection();
+        processorServices.AddScoped(_ => new ContextCapturingCollectorActor<int>(capturedContextIds));
+        var processorSP = processorServices.BuildServiceProvider();
+
+        var commonServices = new ServiceCollection().BuildServiceProvider();
 
         var producer = new ProducerBlock<int>("producer", ctx =>
         {
             return ProduceWithContextCapture(5, capturedContextIds);
         });
 
-        var processor = new ProcessorBlock<int>("processor", async (item, ctx) =>
-        {
-            var current = ExecutionContext.Current;
-            if (current != null)
-            {
-                capturedContextIds.Add(current.InvocationId);
-            }
-            await Task.CompletedTask;
-        });
+        var processor = new ActorBlock<int, object, ContextCapturingCollectorActor<int>>(
+            "processor",
+            processorSP.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("simple-flow");
         builder.AddBlock(producer)
@@ -50,7 +104,7 @@ public class AsyncLocalPropagationTests
             .Connect(producer, processor);
 
         var graph = builder.Build();
-        var context = new ExecutionContext(services, CancellationToken.None, expectedContextId);
+        var context = new ExecutionContext(commonServices, CancellationToken.None, expectedContextId);
 
         // Act
         ExecutionContext.Current = context;
@@ -72,7 +126,13 @@ public class AsyncLocalPropagationTests
         // Arrange
         var expectedContextId = Guid.NewGuid();
         var capturedContextIds = new ConcurrentBag<Guid>();
-        var services = new ServiceCollection().BuildServiceProvider();
+        
+        // Create service provider for the processor
+        var processorServices = new ServiceCollection();
+        processorServices.AddScoped(_ => new ContextCapturingCollectorActor<int>(capturedContextIds));
+        var processorSP = processorServices.BuildServiceProvider();
+
+        var commonServices = new ServiceCollection().BuildServiceProvider();
 
         var concurrentProducer = new ConcurrentProducerBlock<int>("concurrent-producer",
             ctx => new[]
@@ -82,15 +142,9 @@ public class AsyncLocalPropagationTests
             },
             maxConcurrency: 2);
 
-        var processor = new ProcessorBlock<int>("processor", async (item, ctx) =>
-        {
-            var current = ExecutionContext.Current;
-            if (current != null)
-            {
-                capturedContextIds.Add(current.InvocationId);
-            }
-            await Task.CompletedTask;
-        });
+        var processor = new ActorBlock<int, object, ContextCapturingCollectorActor<int>>(
+            "processor",
+            processorSP.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("concurrent-flow");
         builder.AddBlock(concurrentProducer)
@@ -98,7 +152,7 @@ public class AsyncLocalPropagationTests
             .Connect(concurrentProducer, processor);
 
         var graph = builder.Build();
-        var context = new ExecutionContext(services, CancellationToken.None, expectedContextId);
+        var context = new ExecutionContext(commonServices, CancellationToken.None, expectedContextId);
 
         // Act
         ExecutionContext.Current = context;
@@ -121,28 +175,30 @@ public class AsyncLocalPropagationTests
         var producerContextIds = new ConcurrentBag<Guid>();
         var transformerContextIds = new ConcurrentBag<Guid>();
         var processorContextIds = new ConcurrentBag<Guid>();
-        var services = new ServiceCollection().BuildServiceProvider();
+        
+        // Create service providers for transformer and processor
+        var transformerServices = new ServiceCollection();
+        transformerServices.AddScoped(_ => new ContextCapturingTransformerActor(transformerContextIds));
+        var transformerSP = transformerServices.BuildServiceProvider();
+
+        var processorServices = new ServiceCollection();
+        processorServices.AddScoped(_ => new ContextCapturingCollectorActor<string>(processorContextIds));
+        var processorSP = processorServices.BuildServiceProvider();
+
+        var commonServices = new ServiceCollection().BuildServiceProvider();
 
         var producer = new ProducerBlock<int>("producer", ctx =>
         {
             return ProduceWithContextCapture(5, producerContextIds);
         });
 
-        var transformer = new TransformerBlock<int, string>("transformer",
-            (item, ctx) =>
-            {
-                return TransformWithContextCapture(item, transformerContextIds);
-            });
+        var transformer = new ActorBlock<int, string, ContextCapturingTransformerActor>(
+            "transformer",
+            transformerSP.GetRequiredService<IServiceScopeFactory>());
 
-        var processor = new ProcessorBlock<string>("processor", async (item, ctx) =>
-        {
-            var current = ExecutionContext.Current;
-            if (current != null)
-            {
-                processorContextIds.Add(current.InvocationId);
-            }
-            await Task.CompletedTask;
-        });
+        var processor = new ActorBlock<string, object, ContextCapturingCollectorActor<string>>(
+            "processor",
+            processorSP.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("pipeline-flow");
         builder.AddBlock(producer)
@@ -152,7 +208,7 @@ public class AsyncLocalPropagationTests
             .AutoConnect();
 
         var graph = builder.Build();
-        var context = new ExecutionContext(services, CancellationToken.None, expectedContextId);
+        var context = new ExecutionContext(commonServices, CancellationToken.None, expectedContextId);
 
         // Act
         ExecutionContext.Current = context;
@@ -179,37 +235,35 @@ public class AsyncLocalPropagationTests
         var context2Id = Guid.NewGuid();
         var capturedIds1 = new ConcurrentBag<Guid>();
         var capturedIds2 = new ConcurrentBag<Guid>();
-        var services = new ServiceCollection().BuildServiceProvider();
+        
+        // Create separate service providers for each flow's processor
+        var processor1Services = new ServiceCollection();
+        processor1Services.AddScoped(_ => new ContextCapturingCollectorActor<int>(capturedIds1));
+        var processor1SP = processor1Services.BuildServiceProvider();
+
+        var processor2Services = new ServiceCollection();
+        processor2Services.AddScoped(_ => new ContextCapturingCollectorActor<int>(capturedIds2));
+        var processor2SP = processor2Services.BuildServiceProvider();
+
+        var commonServices = new ServiceCollection().BuildServiceProvider();
 
         var producer1 = new ProducerBlock<int>("producer1", ctx =>
         {
             return ProduceWithContextCapture(5, capturedIds1, delay: 10);
         });
 
-        var processor1 = new ProcessorBlock<int>("processor1", async (item, ctx) =>
-        {
-            var current = ExecutionContext.Current;
-            if (current != null)
-            {
-                capturedIds1.Add(current.InvocationId);
-            }
-            await Task.Delay(5); // Add some delay to ensure overlap
-        });
+        var processor1 = new ActorBlock<int, object, ContextCapturingCollectorActor<int>>(
+            "processor1",
+            processor1SP.GetRequiredService<IServiceScopeFactory>());
 
         var producer2 = new ProducerBlock<int>("producer2", ctx =>
         {
             return ProduceWithContextCapture(5, capturedIds2, delay: 10);
         });
 
-        var processor2 = new ProcessorBlock<int>("processor2", async (item, ctx) =>
-        {
-            var current = ExecutionContext.Current;
-            if (current != null)
-            {
-                capturedIds2.Add(current.InvocationId);
-            }
-            await Task.Delay(5); // Add some delay to ensure overlap
-        });
+        var processor2 = new ActorBlock<int, object, ContextCapturingCollectorActor<int>>(
+            "processor2",
+            processor2SP.GetRequiredService<IServiceScopeFactory>());
 
         var builder1 = new DataFlowGraphBuilder("flow1");
         builder1.AddBlock(producer1)
@@ -224,8 +278,8 @@ public class AsyncLocalPropagationTests
         var graph1 = builder1.Build();
         var graph2 = builder2.Build();
 
-        var context1 = new ExecutionContext(services, CancellationToken.None, context1Id);
-        var context2 = new ExecutionContext(services, CancellationToken.None, context2Id);
+        var context1 = new ExecutionContext(commonServices, CancellationToken.None, context1Id);
+        var context2 = new ExecutionContext(commonServices, CancellationToken.None, context2Id);
 
         // Act - Execute both flows concurrently
         var task1 = Task.Run(async () =>
@@ -267,7 +321,17 @@ public class AsyncLocalPropagationTests
         var producer1ContextIds = new ConcurrentBag<Guid>();
         var processor1ContextIds = new ConcurrentBag<Guid>();
         var processor2ContextIds = new ConcurrentBag<Guid>();
-        var services = new ServiceCollection().BuildServiceProvider();
+        
+        // Create separate service providers for each processor
+        var processor1Services = new ServiceCollection();
+        processor1Services.AddScoped(_ => new ContextCapturingCollectorActor<int>(processor1ContextIds));
+        var processor1SP = processor1Services.BuildServiceProvider();
+
+        var processor2Services = new ServiceCollection();
+        processor2Services.AddScoped(_ => new ContextCapturingCollectorActor<int>(processor2ContextIds));
+        var processor2SP = processor2Services.BuildServiceProvider();
+
+        var commonServices = new ServiceCollection().BuildServiceProvider();
 
         var producer = new ProducerBlock<int>("producer", ctx =>
         {
@@ -276,25 +340,13 @@ public class AsyncLocalPropagationTests
 
         var broadcast = new BroadcastBlock<int>("broadcast");
 
-        var processor1 = new ProcessorBlock<int>("processor1", async (item, ctx) =>
-        {
-            var current = ExecutionContext.Current;
-            if (current != null)
-            {
-                processor1ContextIds.Add(current.InvocationId);
-            }
-            await Task.CompletedTask;
-        });
+        var processor1 = new ActorBlock<int, object, ContextCapturingCollectorActor<int>>(
+            "processor1",
+            processor1SP.GetRequiredService<IServiceScopeFactory>());
 
-        var processor2 = new ProcessorBlock<int>("processor2", async (item, ctx) =>
-        {
-            var current = ExecutionContext.Current;
-            if (current != null)
-            {
-                processor2ContextIds.Add(current.InvocationId);
-            }
-            await Task.CompletedTask;
-        });
+        var processor2 = new ActorBlock<int, object, ContextCapturingCollectorActor<int>>(
+            "processor2",
+            processor2SP.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("broadcast-flow");
         builder.AddBlock(producer)
@@ -306,7 +358,7 @@ public class AsyncLocalPropagationTests
             .Connect(broadcast, processor2);
 
         var graph = builder.Build();
-        var context = new ExecutionContext(services, CancellationToken.None, expectedContextId);
+        var context = new ExecutionContext(commonServices, CancellationToken.None, expectedContextId);
 
         // Act
         ExecutionContext.Current = context;
@@ -332,7 +384,13 @@ public class AsyncLocalPropagationTests
         var expectedContextId = Guid.NewGuid();
         var producerContextIds = new ConcurrentBag<Guid>();
         var processorContextIds = new ConcurrentBag<Guid>();
-        var services = new ServiceCollection().BuildServiceProvider();
+        
+        // Create service provider for the processor
+        var processorServices = new ServiceCollection();
+        processorServices.AddScoped(_ => new ContextCapturingCollectorActor<int[]>(processorContextIds));
+        var processorSP = processorServices.BuildServiceProvider();
+
+        var commonServices = new ServiceCollection().BuildServiceProvider();
 
         var producer = new ProducerBlock<int>("producer", ctx =>
         {
@@ -341,15 +399,9 @@ public class AsyncLocalPropagationTests
 
         var batch = new BatchBlock<int>("batch", maxBatchSize: 3);
 
-        var processor = new ProcessorBlock<int[]>("processor", async (batch, ctx) =>
-        {
-            var current = ExecutionContext.Current;
-            if (current != null)
-            {
-                processorContextIds.Add(current.InvocationId);
-            }
-            await Task.CompletedTask;
-        });
+        var processor = new ActorBlock<int[], object, ContextCapturingCollectorActor<int[]>>(
+            "processor",
+            processorSP.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("batch-flow");
         builder.AddBlock(producer)
@@ -359,7 +411,7 @@ public class AsyncLocalPropagationTests
             .Connect(batch, processor);
 
         var graph = builder.Build();
-        var context = new ExecutionContext(services, CancellationToken.None, expectedContextId);
+        var context = new ExecutionContext(commonServices, CancellationToken.None, expectedContextId);
 
         // Act
         ExecutionContext.Current = context;
