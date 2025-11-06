@@ -148,6 +148,16 @@ else if (args.Length > 0 && args[0] == "tracking-block")
     // Run epoch tracking block benchmarks
     DataFlow.POC.Benchmarks.RunTrackingBlockBenchmarks.Run();
 }
+else if (args.Length > 0 && args[0] == "plain-blocks-baseline")
+{
+    // Run plain blocks baseline benchmarks (Phase 1 of consolidation)
+    await DataFlow.POC.Benchmarks.PlainBlocksBaselineBenchmark.RunAllBaselinesAsync();
+}
+else if (args.Length > 0 && args[0] == "actor-block-validation")
+{
+    // Run ActorBlock performance validation (Phase 3 of consolidation)
+    await DataFlow.POC.Benchmarks.ActorBlockPerformanceValidation.RunAllValidationAsync();
+}
 else
 {
     // Run simple performance tests

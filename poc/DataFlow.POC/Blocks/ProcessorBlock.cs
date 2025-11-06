@@ -6,6 +6,8 @@ using DataFlow.POC.Core;
 /// Processor block that consumes items and performs actions on them.
 /// This is a terminal block with no output.
 /// </summary>
+[Obsolete("Use ActorBlock<T, object, TActor> for DI scope safety. " +
+          "See migration guide: /poc/docs/migrations/actor-block-migration.md")]
 public class ProcessorBlock<T> : BlockBase<T, object>
 {
     private readonly Func<T, IExecutionContext, Task> _processor;

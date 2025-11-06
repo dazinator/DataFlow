@@ -6,6 +6,8 @@ using DataFlow.POC.Core;
 /// Transformer block that transforms items from TIn to TOut.
 /// Can be 1-to-1, 1-to-many, or filtering (1-to-0).
 /// </summary>
+[Obsolete("Use ActorBlock<TIn, TOut, TActor> for DI scope safety. " +
+          "See migration guide: /poc/docs/migrations/actor-block-migration.md")]
 public class TransformerBlock<TIn, TOut> : BlockBase<TIn, TOut>
 {
     private readonly Func<TIn, IExecutionContext, IAsyncEnumerable<TOut>> _transformer;
@@ -35,6 +37,8 @@ public class TransformerBlock<TIn, TOut> : BlockBase<TIn, TOut>
 /// <summary>
 /// Simple 1-to-1 transformer using a synchronous function.
 /// </summary>
+[Obsolete("Use ActorBlock<TIn, TOut, TActor> with a simple actor for DI scope safety. " +
+          "See migration guide: /poc/docs/migrations/actor-block-migration.md")]
 public class SimpleTransformerBlock<TIn, TOut> : BlockBase<TIn, TOut>
 {
     private readonly Func<TIn, TOut> _transformer;

@@ -373,6 +373,31 @@ flowchart LR
 
 **⚠️ CRITICAL**: Implementation issues work on VALIDATED designs from research handover or direct requirements.
 
+### Resuming Phased Implementations
+
+**Before starting work, check for existing implementation plans:**
+
+```bash
+# Check for in-flight implementations
+ls -la /home/runner/work/lib-dataflow/lib-dataflow/implementation/
+```
+
+If a plan exists in `/implementation/[name]/plan.md`:
+1. **Read the plan document** - it contains the complete implementation status
+2. **Identify the current phase** using status markers (✅ complete, 🚧 in progress, ⏳ pending)
+3. **Review completed phase documentation** referenced in the plan
+4. **Continue from the current phase** following the instructions in the plan
+5. **Update the plan document** as you complete work
+
+### How to Continue an Implementation
+
+When a user says "continue the implementation" or reopens an issue:
+1. Check `/implementation/[name]/plan.md` for the implementation plan
+2. Read the plan to understand what's been completed and what's next
+3. Follow the "How to Continue" section in the plan
+4. The plan includes links to handover documents, completed work, and next steps
+5. Update phase status markers as work progresses
+
 ### How to Identify Implementation Issues
 
 1. **Issue contains** "⚠️ This is an implementation issue" → Follow implementation workflow
@@ -428,18 +453,42 @@ For **Production implementation** (`/src/`):
 - Check existing tests and patterns
 - Review relevant documentation in `/src/docs/`
 
-**Step 4: Create Implementation Plan (for POC targets)**
+**Step 4: Check for Existing Implementation Plan**
 
-If implementing in POC codebase, create a plan document:
-- **Location**: `/poc/docs/plans/[descriptive-name].md`
+**⚠️ CRITICAL: Before starting any implementation work, check for an existing in-flight implementation:**
+
+```bash
+# Check if there's an existing implementation plan
+ls /home/runner/work/lib-dataflow/lib-dataflow/implementation/*/plan.md
+```
+
+If a plan exists:
+1. **Read the plan document** to understand the current phase and status
+2. **Identify completed phases** (marked with ✅)
+3. **Find the current phase** (marked with 🚧 or next phase after completed ones)
+4. **Continue from the current phase** following the instructions in the plan
+5. **Update the plan** as you complete work, marking phases complete
+
+If no plan exists, create one:
+
+**For POC implementations** - Create plan in `/implementation/[implementation-name]/plan.md`:
+- **Location**: `/implementation/[implementation-name]/plan.md`
 - **Content**:
-  - Objectives (from handover or requirements)
-  - Implementation approach
-  - Milestones with validation criteria
-  - Testing strategy
-  - Links to handover document and supporting docs
+  - Implementation Status (current phase)
+  - Link to original handover document
+  - Phase breakdown with status markers (✅ complete, 🚧 in progress, ⏳ pending)
+  - Each phase: objectives, deliverables, files modified/created, success criteria
+  - Clear "How to Continue" section for future sessions
+  - References to handover and supporting documentation
 
-For production code, plan can be tracked in the issue itself.
+**For Production implementations** - Plan can be tracked in issue/PR itself, or in `/implementation/` if multi-phase.
+
+**Phased Implementation Pattern** (use when implementation will span multiple PRs):
+- Phase 1: Foundation (no breaking changes, adds warnings/guidance)
+- Phase 2: Migration (systematic change, iterative)
+- Phase 3: Cleanup (remove old code)
+- Each phase can be a separate PR for easier review
+- Plan document tracks all phases with clear status markers
 
 **Step 5: Implement with Tests**
 
@@ -456,6 +505,48 @@ For production code, plan can be tracked in the issue itself.
 - Update glossary if new concepts introduced (POC only)
 - Update relevant documentation
 - Create ADR if significant decisions made during implementation
+
+**Benchmark Validation Guidance**:
+
+When validating performance requirements, apply these criteria based on operation duration:
+
+- **Microbenchmarks (<100ms operations)**:
+  - Accept ±5-10% variance as normal measurement noise
+  - Focus on I/O-bound representative scenarios for validation
+  - Extreme speeds (>500K items/sec) show high variance - validate realistic use cases instead
+  - Document when proceeding despite variance (safety/features > micro-optimization)
+
+- **Longer operations (>1sec)**:
+  - ±1% variance is achievable and should be target
+  - More stable measurements allow precise validation
+  - Statistical significance testing recommended
+
+- **When to Proceed Despite Variance**:
+  - Safety improvements justify small performance costs
+  - Real-world I/O scenarios validate successfully
+  - Variance is random (both faster/slower), not systematic regression
+  - Feature benefits outweigh potential micro-optimization
+
+**Effort Estimation Guidance**:
+
+For large implementations (migrations, refactorings):
+
+- **Test Migration**: Estimate ~30 minutes per test file
+  - Simple test files: 15-20 minutes
+  - Complex test files with many dependencies: 45-60 minutes
+  - Factor in consolidation time if removing redundant tests
+
+- **Phased Decision Point**: At midpoint of large implementation:
+  - Assess remaining work (hours)
+  - Create status document with "continue now" vs "next session" decision
+  - If >4 hours remaining, consider breaking into separate PR
+  - Document current phase and next steps in implementation plan
+
+- **Breaking Large Work**: Signs you should create phased implementation:
+  - Estimated effort >8 hours total
+  - Natural break points exist (foundation → migration → cleanup)
+  - Changes can be staged without breaking changes
+  - Easier code review with smaller PRs
 
 ### Implementation Without Research Handover
 

@@ -33,14 +33,41 @@ Before any PR is marked ready for review, Copilot agents should:
 
 ### Suggestions
 
-<!-- Add implementation workflow improvement suggestions here -->
-<!-- Format:
-- **Date**: YYYY-MM-DD
-- **Issue/PR**: #[number]
-- **What worked well**: [description]
-- **What didn't work well**: [description]
-- **Suggested improvement**: [specific actionable improvement]
--->
+- **Date**: 2025-11-06
+- **Issue/PR**: Plain Blocks Consolidation (copilot/implement-composability-unification)
+- **What worked well**: 
+  - Handover document provided clear phase-by-phase guidance
+  - Baseline benchmarking before changes established measurable criteria
+  - Obsolete attributes with migration guide provide immediate value without breaking changes
+  - Phased approach allowed incremental progress with clear checkpoints
+  - Performance validation methodology (warmup + measurement) was well-defined
+- **What didn't work well**:
+  - Microbenchmark precision at extreme speeds (<10ms operations) made <1% validation difficult
+  - No guidance on when to accept "good enough" validation vs continuing optimization
+  - Test migration scope (Phase 4) was underestimated - would need 4-8 hours
+  - No clear guidance on whether to complete full consolidation atomically vs phased rollout
+- **Suggested improvement**: 
+  1. **✅ IMPLEMENTED: Add benchmark validation guidance** to implementation workflow:
+     - For microbenchmarks <100ms: Accept ±5-10% variance, validate I/O-bound representative scenarios
+     - For longer operations >1sec: ±1% variance is achievable
+     - Document when to proceed despite variance (safety > micro-optimization)
+     - Added to copilot-instructions.md Step 6: Validate and Document
+  2. **✅ IMPLEMENTED: Add effort estimation guidance** for large migrations:
+     - Estimate test migration: ~30min per test file for ActorBlock conversion
+     - Suggest creating status document at midpoint with "continue now" vs "next session" decision
+     - Added guidance on when to break large work into phased implementations
+     - Added to copilot-instructions.md Step 6: Validate and Document
+  3. **✅ IMPLEMENTED: Add "phased implementation" pattern** to workflow:
+     - Create `/implementation/[name]/plan.md` for multi-phase implementations
+     - Phase 1: Foundation (no breaking changes, adds warnings/guidance)
+     - Phase 2: Migration (systematic change, iterative)
+     - Phase 3: Cleanup (remove old code)
+     - Each phase can be separate PR for easier review
+     - Plan document tracks all phases with clear status markers (✅ complete, 🚧 in progress, ⏳ pending)
+     - Plan includes "How to Continue" section for resuming work
+     - Updated copilot-instructions.md with phased implementation guidance
+
+<!-- Add more implementation workflow improvement suggestions here -->
 
 ---
 
