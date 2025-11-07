@@ -150,13 +150,15 @@ else if (args.Length > 0 && args[0] == "tracking-block")
 }
 else if (args.Length > 0 && args[0] == "plain-blocks-baseline")
 {
-    // Run plain blocks baseline benchmarks (Phase 1 of consolidation)
-    await DataFlow.POC.Benchmarks.PlainBlocksBaselineBenchmark.RunAllBaselinesAsync();
+    // ARCHIVED: Plain blocks baseline benchmarks have been moved to research/flow-composability-unification/archived-benchmarks/
+    Console.WriteLine("Plain blocks baseline benchmarks have been archived.");
+    Console.WriteLine("See: research/flow-composability-unification/archived-benchmarks/");
 }
 else if (args.Length > 0 && args[0] == "actor-block-validation")
 {
-    // Run ActorBlock performance validation (Phase 3 of consolidation)
-    await DataFlow.POC.Benchmarks.ActorBlockPerformanceValidation.RunAllValidationAsync();
+    // ARCHIVED: ActorBlock performance validation benchmarks have been moved to research/flow-composability-unification/archived-benchmarks/
+    Console.WriteLine("ActorBlock performance validation benchmarks have been archived.");
+    Console.WriteLine("See: research/flow-composability-unification/archived-benchmarks/");
 }
 else
 {

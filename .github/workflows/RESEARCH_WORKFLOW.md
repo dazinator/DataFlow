@@ -597,7 +597,7 @@ When creating GitHub issues for POC research work:
 ```markdown
 ## POC Research Context
 
-⚠️ This is a research issue. @copilot Please follow the Research-to-Implementation workflow in `/research/RESEARCH_WORKFLOW.md`.
+⚠️ This is a research issue. @copilot Please follow the Research-to-Implementation workflow in `/.github/workflows/RESEARCH_WORKFLOW.md`.
 
 **Research Objective**: [What needs to be validated/explored]
 

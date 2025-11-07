@@ -10,7 +10,7 @@ The repository supports two distinct workflows:
    - Use for: Researching any code (POC or production) where outcome is specification for implementation
    - Output: Comprehensive documentation + implementation-ready issue
    - Code reversion: Only when PR reviewer approves and requests it
-   - See: `/research/RESEARCH_WORKFLOW.md`
+   - See: `/.github/workflows/RESEARCH_WORKFLOW.md`
 
 2. **Implementation Workflow**: Implementation based on research handover or direct requirements
    - Use for: Implementing features in POC or production code based on validated designs
@@ -32,7 +32,7 @@ Use the "Research Issue" template (`.github/ISSUE_TEMPLATE/research.md`) or:
 
 ## Research Context
 
-⚠️ This is a research issue. @copilot Please follow the Research-to-Implementation workflow in `/research/RESEARCH_WORKFLOW.md`.
+⚠️ This is a research issue. @copilot Please follow the Research-to-Implementation workflow in `/.github/workflows/RESEARCH_WORKFLOW.md`.
 
 **Research Objective**: Validate approaches for coordinating transactions across distributed DataFlow nodes
 
@@ -263,7 +263,7 @@ The system works because:
 
 ## See Also
 
-- **Research Workflow**: `/research/RESEARCH_WORKFLOW.md` - Complete research workflow
+- **Research Workflow**: `/.github/workflows/RESEARCH_WORKFLOW.md` - Complete research workflow
 - **Implementation Workflow**: See `.github/copilot-instructions.md` (Implementation Team Workflow section)
 - **Issue Templates**: 
   - `.github/ISSUE_TEMPLATE/research.md` - Research workflow template

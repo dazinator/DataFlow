@@ -8,6 +8,7 @@ using DataFlow.POC.Builder;
 using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using static BenchmarkActorHelpers;
 
 /// <summary>
 /// Benchmarks for comparing typed channels vs object channels in EdgeStrategy implementations.
@@ -42,16 +43,12 @@ public class TypedChannelBenchmarks
         var itemsReceived = 0;
         var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(ItemCount));
         
-        var consumers = new List<ProcessorBlock<int>>();
-        for (int i = 0; i < Concurrency; i++)
-        {
-            var processor = new ProcessorBlock<int>($"processor{i}", async (item, ctx) =>
-            {
-                Interlocked.Increment(ref itemsReceived);
-                await Task.CompletedTask;
-            });
-            consumers.Add(processor);
-        }
+        var consumers = CreateActorBlocks<int, object, NoOpProcessorActor<int>>(
+            "processor",
+            Concurrency,
+            _ => new NoOpProcessorActor<int>(() => Interlocked.Increment(ref itemsReceived)))
+            .Cast<IBlock>()
+            .ToList();
         
         var builder = new DataFlowGraphBuilder("broadcast-flow");
         builder.AddBlock(producer);
@@ -89,16 +86,12 @@ public class TypedChannelBenchmarks
         var itemsReceived = 0;
         var producer = new ProducerBlock<string>("producer", ctx => ProduceStrings(ItemCount));
         
-        var consumers = new List<ProcessorBlock<string>>();
-        for (int i = 0; i < Concurrency; i++)
-        {
-            var processor = new ProcessorBlock<string>($"processor{i}", async (item, ctx) =>
-            {
-                Interlocked.Increment(ref itemsReceived);
-                await Task.CompletedTask;
-            });
-            consumers.Add(processor);
-        }
+        var consumers = CreateActorBlocks<string, object, NoOpProcessorActor<string>>(
+            "processor",
+            Concurrency,
+            _ => new NoOpProcessorActor<string>(() => Interlocked.Increment(ref itemsReceived)))
+            .Cast<IBlock>()
+            .ToList();
         
         var builder = new DataFlowGraphBuilder("broadcast-flow");
         builder.AddBlock(producer);
@@ -135,16 +128,16 @@ public class TypedChannelBenchmarks
         var itemsReceived = 0;
         var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(ItemCount));
         
-        var consumers = new List<ProcessorBlock<int>>();
-        for (int i = 0; i < Concurrency; i++)
-        {
-            var processor = new ProcessorBlock<int>($"processor{i}", async (item, ctx) =>
+        var consumers = CreateActorBlocks<int, object, NoOpProcessorActor<int>>(
+            "processor",
+            Concurrency,
+            _ => new NoOpProcessorActor<int>(async () =>
             {
                 Interlocked.Increment(ref itemsReceived);
                 await Task.Delay(1); // Simulate work
-            });
-            consumers.Add(processor);
-        }
+            }))
+            .Cast<IBlock>()
+            .ToList();
         
         var builder = new DataFlowGraphBuilder("competing-flow");
         builder.AddBlock(producer);
@@ -180,16 +173,16 @@ public class TypedChannelBenchmarks
         var itemsReceived = 0;
         var producer = new ProducerBlock<string>("producer", ctx => ProduceStrings(ItemCount));
         
-        var consumers = new List<ProcessorBlock<string>>();
-        for (int i = 0; i < Concurrency; i++)
-        {
-            var processor = new ProcessorBlock<string>($"processor{i}", async (item, ctx) =>
+        var consumers = CreateActorBlocks<string, object, NoOpProcessorActor<string>>(
+            "processor",
+            Concurrency,
+            _ => new NoOpProcessorActor<string>(async () =>
             {
                 Interlocked.Increment(ref itemsReceived);
                 await Task.Delay(1); // Simulate work
-            });
-            consumers.Add(processor);
-        }
+            }))
+            .Cast<IBlock>()
+            .ToList();
         
         var builder = new DataFlowGraphBuilder("competing-flow");
         builder.AddBlock(producer);
@@ -224,17 +217,12 @@ public class TypedChannelBenchmarks
         
         var producer = new ProducerBlock<LargeStruct>("producer", ctx => ProduceLargeStructs(ItemCount));
         
-        var consumers = new List<ProcessorBlock<LargeStruct>>();
-        for (int i = 0; i < Concurrency; i++)
-        {
-            var processor = new ProcessorBlock<LargeStruct>($"processor{i}", async (item, ctx) =>
-            {
-                // Access field to prevent optimization
-                _ = item.Value1;
-                await Task.CompletedTask;
-            });
-            consumers.Add(processor);
-        }
+        var consumers = CreateActorBlocks<LargeStruct, object, NoOpProcessorActor<LargeStruct>>(
+            "processor",
+            Concurrency,
+            _ => new NoOpProcessorActor<LargeStruct>())
+            .Cast<IBlock>()
+            .ToList();
         
         var builder = new DataFlowGraphBuilder("broadcast-flow");
         builder.AddBlock(producer);

@@ -10,12 +10,12 @@ assignees: ''
 
 **This is a RESEARCH issue, not a direct implementation issue.**
 
-@copilot **MUST** follow the Research-to-Implementation workflow in `/research/RESEARCH_WORKFLOW.md`.
+@copilot **MUST** follow the Research-to-Implementation workflow in `/.github/workflows/RESEARCH_WORKFLOW.md`.
 
 ### Checklist for @copilot
 
 Before starting work on this research issue:
-- [ ] I have read `/research/RESEARCH_WORKFLOW.md` 
+- [ ] I have read `/.github/workflows/RESEARCH_WORKFLOW.md` 
 - [ ] I will create `/research/[topic-name]/` folder structure
 - [ ] I understand exploratory code in `/poc/` or `/src/` will be REVERTED after reviewer approval
 - [ ] I will create implementation-ready issue in `/research/[topic]/handover/` folder

@@ -58,14 +58,46 @@ Before any PR is marked ready for review, Copilot agents should:
      - Added guidance on when to break large work into phased implementations
      - Added to copilot-instructions.md Step 6: Validate and Document
   3. **✅ IMPLEMENTED: Add "phased implementation" pattern** to workflow:
-     - Create `/implementation/[name]/plan.md` for multi-phase implementations
+     - Create `/implementation/plan.md` for multi-phase implementations
      - Phase 1: Foundation (no breaking changes, adds warnings/guidance)
      - Phase 2: Migration (systematic change, iterative)
      - Phase 3: Cleanup (remove old code)
      - Each phase can be separate PR for easier review
      - Plan document tracks all phases with clear status markers (✅ complete, 🚧 in progress, ⏳ pending)
      - Plan includes "How to Continue" section for resuming work
+     - When complete, archive to `/implementation/archive/[YYYY-MM-DD]-[name].md`
      - Updated copilot-instructions.md with phased implementation guidance
+
+- **Date**: 2025-11-06
+- **Issue/PR**: #155 Plain Blocks Consolidation Phase 5
+- **What worked well**:
+  - Implementation plan document in `/implementation/plain-blocks-consolidation/plan.md` provided clear phase status and continuation guidance
+  - "How to Continue" section in plan made it easy to resume work across sessions
+  - Systematic benchmark migration using consistent patterns (NoOpProcessorActor<T>) reduced errors
+  - Archiving baseline benchmarks instead of migrating them preserved historical context
+  - Separate DI scopes per actor instance pattern worked well for state isolation
+  - Incremental testing after each file migration caught issues early
+  - Clear success criteria in handover made validation straightforward
+- **What didn't work well**:
+  - No explicit guidance in handover on whether to migrate or archive baseline benchmarks
+  - ETL benchmark migrations (ComplexEtlPOC, SimpleEtlPOC) required creating 9+ actor implementations - could have benefited from helper factory methods
+  - Multiple similar edits across files could have used a scripted approach or code generation tool
+  - Missing initial step to verify current implementation plan exists before starting work
+- **Suggested improvement**:
+  1. **Add "Check for Implementation Plan" step** to implementation workflow:
+     - Before starting ANY implementation work, check `/implementation/plan.md` for existing plans
+     - If plan exists, read it first to understand current phase and status
+     - If no plan exists and work is multi-phase, create one before starting
+     - Add this as Step 0 in Implementation Team Workflow section of copilot-instructions.md
+  2. **Add guidance for baseline/historical artifacts** to handover template:
+     - Explicitly state whether baseline benchmarks should be migrated or archived
+     - If archived, specify location (e.g., `/research/.../archived-benchmarks/`)
+     - Clarify distinction between "historical comparison artifacts" vs "ongoing performance tests"
+  3. **Suggest helper patterns for bulk migrations** in implementation workflow:
+     - When migrating >5 similar files, consider creating helper factory methods
+     - For actor-based migrations, suggest generic actor templates that can be reused
+     - Example: `ActorFactory.CreateNoOpProcessor<T>()` instead of duplicating actor classes
+     - Add to "Using Ecosystem Tools" section of copilot-instructions.md
 
 <!-- Add more implementation workflow improvement suggestions here -->
 
@@ -149,7 +181,7 @@ When reviewing workflow improvement suggestions:
 2. Prioritize suggestions that would have the most impact
 3. When implementing a suggestion, update the relevant workflow documentation:
    - `.github/copilot-instructions.md` for general Copilot guidance
-   - `/research/RESEARCH_WORKFLOW.md` for research-specific processes
+   - `/.github/workflows/RESEARCH_WORKFLOW.md` for research-specific processes
    - `.github/ISSUE_TEMPLATE/*.md` for issue template improvements
 4. Mark implemented suggestions with `[IMPLEMENTED - YYYY-MM-DD]` prefix
 5. Archive old implemented suggestions periodically to keep the file focused

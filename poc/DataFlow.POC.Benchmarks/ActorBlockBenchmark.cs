@@ -1,11 +1,13 @@
 namespace DataFlow.POC.Benchmarks;
 
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using DataFlow.POC.Blocks;
 using DataFlow.POC.Builder;
 using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using static BenchmarkActorHelpers;
 
 /// <summary>
 /// ActorBlock benchmarks designed for external profiling with dotnet-counters.
@@ -144,11 +146,10 @@ public class ActorBlockBenchmark
             services.GetRequiredService<IServiceScopeFactory>());
         
         var processedCount = 0;
-        var processor = new ProcessorBlock<int>("processor", async (item, ctx) =>
-        {
-            Interlocked.Increment(ref processedCount);
-            await Task.CompletedTask;
-        });
+        var counterServices = new ServiceCollection();
+        counterServices.AddScoped(_ => new NoOpProcessorActor<int>(() => Interlocked.Increment(ref processedCount)));
+        var counterServiceProvider = counterServices.BuildServiceProvider();
+        var processor = new ActorBlock<int, object, NoOpProcessorActor<int>>("processor", counterServiceProvider.GetRequiredService<IServiceScopeFactory>());
         
         var builder = new DataFlowGraphBuilder("steady-state-flow");
         builder.AddBlock(producer)
@@ -198,11 +199,10 @@ public class ActorBlockBenchmark
             services.GetRequiredService<IServiceScopeFactory>());
         
         var processedCount = 0;
-        var processor = new ProcessorBlock<int>("processor", async (item, ctx) =>
-        {
-            Interlocked.Increment(ref processedCount);
-            await Task.CompletedTask;
-        });
+        var counterServices = new ServiceCollection();
+        counterServices.AddScoped(_ => new NoOpProcessorActor<int>(() => Interlocked.Increment(ref processedCount)));
+        var counterServiceProvider = counterServices.BuildServiceProvider();
+        var processor = new ActorBlock<int, object, NoOpProcessorActor<int>>("processor", counterServiceProvider.GetRequiredService<IServiceScopeFactory>());
         
         var builder = new DataFlowGraphBuilder("rotation-flow");
         builder.AddBlock(producer)
@@ -255,11 +255,10 @@ public class ActorBlockBenchmark
             services.GetRequiredService<IServiceScopeFactory>());
         
         var processedCount = 0;
-        var processor = new ProcessorBlock<int>("processor", async (item, ctx) =>
-        {
-            Interlocked.Increment(ref processedCount);
-            await Task.CompletedTask;
-        });
+        var counterServices = new ServiceCollection();
+        counterServices.AddScoped(_ => new NoOpProcessorActor<int>(() => Interlocked.Increment(ref processedCount)));
+        var counterServiceProvider = counterServices.BuildServiceProvider();
+        var processor = new ActorBlock<int, object, NoOpProcessorActor<int>>("processor", counterServiceProvider.GetRequiredService<IServiceScopeFactory>());
         
         var builder = new DataFlowGraphBuilder("memory-intensive-flow");
         builder.AddBlock(producer)

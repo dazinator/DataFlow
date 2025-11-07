@@ -1,0 +1,354 @@
+# Implementation Workflow
+
+This workflow guides implementing solutions from research handovers or direct requirements.
+
+---
+
+## Quick Start
+
+**Before starting:**
+1. Check if `/implementation/plan.md` exists (ongoing implementation)
+2. If exists, read it and continue from current phase
+3. If not, create it for multi-phase work (see below)
+
+**Core Process:**
+1. **Step 0**: Critically evaluate handover (if from research)
+2. Read handover/requirements thoroughly
+3. Create implementation plan (if multi-phase)
+4. Implement with tests
+5. Validate and document
+6. **Before PR**: Complete self-improvement evaluation
+
+---
+
+## Step 0: Handover Critical Review
+
+**⚠️ CRITICAL**: If implementing from a research handover, critically evaluate it BEFORE starting work.
+
+### Why This Matters
+
+Handovers are potentially fallible. The research team may have:
+- Underestimated implementation complexity
+- Missed edge cases or dependencies
+- Made assumptions that don't hold in practice
+- Provided ambiguous or incomplete guidance
+
+### Critical Review Checklist
+
+Before implementing, ask yourself:
+
+**Clarity & Completeness:**
+- [ ] Are requirements clearly specified?
+- [ ] Are success criteria measurable?
+- [ ] Are edge cases documented?
+- [ ] Is the target codebase explicitly stated (POC/Production/Both)?
+
+**Feasibility:**
+- [ ] Is the proposed approach practical given current codebase?
+- [ ] Are there hidden dependencies or blockers?
+- [ ] Is the effort estimate realistic?
+- [ ] Can this be done in phases for easier review?
+
+**Potential Issues:**
+- [ ] Are there performance implications not addressed?
+- [ ] Are there breaking changes not documented?
+- [ ] Are test requirements clear?
+- [ ] Are migration paths specified (if breaking changes)?
+
+**Missing Guidance:**
+- [ ] Should baseline benchmarks be migrated or archived?
+- [ ] Are there bulk migration patterns that need tooling?
+- [ ] Is phased vs atomic implementation specified?
+
+### What to Do When Issues Found
+
+1. **Document the issue** in your notes
+2. **Propose an alternative approach** if needed
+3. **Update the implementation plan** to address the gap
+4. **Add to workflow improvements** so future handovers improve
+
+**Example**: "Handover says migrate all benchmarks but doesn't specify baseline benchmarks. Decision: Archive baseline as historical artifacts since they document the 'before' state. Create `/research/.../archived-benchmarks/` with README."
+
+---
+
+## Step 1: Identify Target Codebase
+
+Check the handover/issue for:
+- Explicit statement: "Target: POC" or "Target: Production" or "Target: Both"
+- Context clues about which code is being modified
+
+**⚠️ If target is unclear: STOP and ask the user to clarify.**
+
+---
+
+## Step 2: Read Handover Document
+
+If implementing from research handover:
+
+1. **Read handover completely**: `/research/[topic]/handover/github-issue-*.md`
+   - Problem context and background
+   - Implementation guidance and recommended approach
+   - API/interface designs
+   - Test scenarios and edge cases
+   - Performance requirements
+   - Design references and ADRs
+
+2. **Read referenced documentation**:
+   - Research findings: `/research/[topic]/README.md`
+   - Design docs: `/research/[topic]/design/`
+   - ADRs: `/poc/docs/adr/` or `/src/docs/adr/`
+   - Prototype code: `/research/[topic]/handover/prototype/` (if available)
+
+---
+
+## Step 3: Check for Existing Implementation Plan
+
+**⚠️ CRITICAL**: Before starting ANY implementation work, check for an existing plan.
+
+```bash
+# Check if there's a plan in progress
+cat /home/runner/work/lib-dataflow/lib-dataflow/implementation/plan.md
+```
+
+### If Plan Exists
+
+1. **Read the plan** to understand current phase and status
+2. **Identify completed phases** (marked with ✅)
+3. **Find current phase** (marked with 🚧 or next after completed)
+4. **Continue from current phase** following instructions
+5. **Update the plan** as work progresses
+
+### If No Plan
+
+**Decide if you need one:**
+- **Single-phase** (< 4 hours, fits in one PR): No plan needed, track in issue
+- **Multi-phase** (> 4 hours, spans multiple PRs): Create plan
+
+---
+
+## Step 4: Create Implementation Plan (If Multi-Phase)
+
+For implementations spanning multiple PRs:
+
+### Create /implementation/plan.md
+
+```markdown
+# Implementation Plan: [Name]
+
+## Implementation Status
+
+**Current Phase**: [Phase number/name]
+**Issue**: #[number]
+**Handover**: [path to handover doc if applicable]
+
+## Objective
+
+[Brief description of what's being implemented]
+
+## Phases
+
+### ✅ Phase 1: [Name] (COMPLETE)
+**Status**: Complete
+**Completed**: YYYY-MM-DD
+**Deliverables**:
+- [Delivered items]
+
+**Files Modified/Created**:
+- [List files]
+
+**Verification**:
+- [How phase was validated]
+
+---
+
+### 🚧 Phase 2: [Name] (IN PROGRESS)
+**Status**: In Progress
+**Objectives**:
+- [What needs to be done]
+
+**Files to Modify/Create**:
+- [Target files]
+
+**Success Criteria**:
+- [ ] [Criterion 1]
+- [ ] [Criterion 2]
+
+**Instructions**:
+1. [Step-by-step guidance]
+
+---
+
+### ⏳ Phase 3: [Name] (PENDING)
+**Status**: Pending
+[Same structure as Phase 2]
+
+---
+
+## How to Continue
+
+If resuming work in a future session:
+1. Read this plan to see current phase
+2. Read handover document: [path]
+3. Review completed phase documentation: [references]
+4. Continue from current phase above
+5. Update this plan as work progresses
+
+## References
+
+- Handover: [path]
+- Research: [path]
+- Migration Guide: [path]
+- Performance Validation: [path]
+```
+
+### Phased Implementation Pattern
+
+**When to use:**
+- Implementation > 4-8 hours total
+- Natural break points exist (foundation → migration → cleanup)
+- Changes can be staged without breaking changes
+- Easier review with smaller PRs
+
+**Typical Phases:**
+- **Phase 1**: Foundation (add warnings, guidance, no breaking changes)
+- **Phase 2**: Migration (systematic change, iterative)
+- **Phase 3**: Cleanup (remove old code)
+
+**Each phase:**
+- Can be a separate PR
+- Has clear success criteria
+- Updates plan.md with status markers
+
+---
+
+## Step 5: Implement with Tests
+
+Follow handover guidance (if applicable) and:
+
+1. **Write tests first** (or alongside) to validate behavior
+2. **Implement incrementally** - small, verifiable changes
+3. **Test frequently** - after each meaningful change
+4. **Handle edge cases** from handover documentation
+5. **Document decisions** - especially when deviating from handover
+
+### Documentation Requirements
+
+**For POC Implementation:**
+- Update `/poc/docs/POC_GLOSSARY.md` with new terminology
+- Create guides in `/poc/docs/guides/` for patterns
+- Document benchmarks if conducting performance analysis
+- Create ADRs in `/poc/docs/adr/` for significant decisions
+
+**For Production Implementation:**
+- Update API documentation
+- Update user guides if needed
+- Create ADRs in `/src/docs/adr/` for significant decisions
+- Update CHANGELOG for breaking changes
+
+---
+
+## Step 6: Validate and Document
+
+### Testing
+
+- Run all tests (create new tests per handover guidance)
+- Handle edge cases from handover
+- **Do not** fix unrelated failures
+
+### Benchmark Validation (if performance requirements specified)
+
+Apply these criteria based on operation duration:
+
+**Microbenchmarks (<100ms operations):**
+- Accept ±5-10% variance as normal measurement noise
+- Focus on I/O-bound representative scenarios
+- Extreme speeds (>500K items/sec) show high variance
+- Document when proceeding despite variance (safety/features > micro-optimization)
+
+**Longer operations (>1sec):**
+- ±1% variance is achievable
+- More stable measurements allow precise validation
+
+**When to Proceed Despite Variance:**
+- Safety improvements justify small performance costs
+- Real-world I/O scenarios validate successfully
+- Variance is random (both faster/slower), not systematic
+- Feature benefits outweigh potential micro-optimization
+
+### Documentation Updates
+
+- Update glossary if new concepts introduced (POC only)
+- Update relevant documentation
+- Create ADR if significant decisions made
+
+### Effort Estimation
+
+For large implementations (migrations, refactorings):
+
+**Test Migration**: Estimate ~30 minutes per test file
+- Simple test files: 15-20 minutes
+- Complex test files with dependencies: 45-60 minutes
+- Factor in consolidation time if removing redundant tests
+
+**Phased Decision Point**: At midpoint of large implementation:
+- Assess remaining work (hours)
+- Create status document with "continue now" vs "next session" decision
+- If >4 hours remaining, consider breaking into separate PR
+- Document current phase and next steps in plan.md
+
+**Breaking Large Work**: Signs you should create phased implementation:
+- Estimated effort >8 hours total
+- Natural break points exist (foundation → migration → cleanup)
+- Changes can be staged without breaking changes
+- Easier code review with smaller PRs
+
+---
+
+## Step 7: Complete Implementation
+
+### Archive Plan (If Multi-Phase)
+
+Once ALL phases complete:
+
+```bash
+# Archive the completed plan
+mv /implementation/plan.md /implementation/archive/[YYYY-MM-DD]-[short-name].md
+```
+
+Format: `/implementation/archive/2025-11-06-plain-blocks-consolidation.md`
+
+### Self-Improvement Evaluation
+
+**⚠️ REQUIRED** before marking PR ready for review.
+
+See `.github/copilot-instructions.md` for detailed guidance.
+
+Quick checklist:
+1. Evaluate workflow effectiveness for this task
+2. Document what worked well
+3. Document what didn't work well or could improve
+4. Propose specific, actionable improvements
+5. Add to `.github/workflow-improvements.md`
+
+---
+
+## Success Criteria
+
+Implementation complete when:
+- [ ] All objectives from handover/requirements met
+- [ ] Tests passing (including new tests)
+- [ ] Performance requirements validated (if applicable)
+- [ ] Edge cases handled (from handover)
+- [ ] Documentation updated
+- [ ] Plan archived (if multi-phase)
+- [ ] Self-improvement evaluation completed
+- [ ] Code review ready
+
+---
+
+## Related Documentation
+
+- **Entry point**: `.github/copilot-instructions.md` - Start here
+- **Research workflow**: `.github/workflows/RESEARCH_WORKFLOW.md`
+- **Implementation folder**: `/implementation/README.md`
+- **Workflow improvements**: `.github/workflow-improvements.md`

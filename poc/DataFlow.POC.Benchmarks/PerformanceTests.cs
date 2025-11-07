@@ -6,6 +6,7 @@ using DataFlow.POC.Builder;
 using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using static BenchmarkActorHelpers;
 
 /// <summary>
 /// Simple performance tests to quickly measure typed channel improvements.
@@ -43,16 +44,12 @@ public class PerformanceTests
         var itemsReceived = 0;
         var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(itemCount));
         
-        var consumers = new List<ProcessorBlock<int>>();
-        for (int i = 0; i < concurrency; i++)
-        {
-            var processor = new ProcessorBlock<int>($"processor{i}", async (item, ctx) =>
-            {
-                Interlocked.Increment(ref itemsReceived);
-                await Task.CompletedTask;
-            });
-            consumers.Add(processor);
-        }
+        var consumers = CreateActorBlocks<int, object, NoOpProcessorActor<int>>(
+            "processor",
+            concurrency,
+            _ => new NoOpProcessorActor<int>(() => Interlocked.Increment(ref itemsReceived)))
+            .Cast<IBlock>()
+            .ToList();
         
         var builder = new DataFlowGraphBuilder("broadcast-flow");
         builder.AddBlock(producer);
@@ -106,16 +103,12 @@ public class PerformanceTests
         var itemsReceived = 0;
         var producer = new ProducerBlock<string>("producer", ctx => ProduceStrings(itemCount));
         
-        var consumers = new List<ProcessorBlock<string>>();
-        for (int i = 0; i < concurrency; i++)
-        {
-            var processor = new ProcessorBlock<string>($"processor{i}", async (item, ctx) =>
-            {
-                Interlocked.Increment(ref itemsReceived);
-                await Task.CompletedTask;
-            });
-            consumers.Add(processor);
-        }
+        var consumers = CreateActorBlocks<string, object, NoOpProcessorActor<string>>(
+            "processor",
+            concurrency,
+            _ => new NoOpProcessorActor<string>(() => Interlocked.Increment(ref itemsReceived)))
+            .Cast<IBlock>()
+            .ToList();
         
         var builder = new DataFlowGraphBuilder("broadcast-flow");
         builder.AddBlock(producer);
@@ -169,16 +162,12 @@ public class PerformanceTests
         var itemsReceived = 0;
         var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(itemCount));
         
-        var consumers = new List<ProcessorBlock<int>>();
-        for (int i = 0; i < concurrency; i++)
-        {
-            var processor = new ProcessorBlock<int>($"processor{i}", async (item, ctx) =>
-            {
-                Interlocked.Increment(ref itemsReceived);
-                await Task.CompletedTask;
-            });
-            consumers.Add(processor);
-        }
+        var consumers = CreateActorBlocks<int, object, NoOpProcessorActor<int>>(
+            "processor",
+            concurrency,
+            _ => new NoOpProcessorActor<int>(() => Interlocked.Increment(ref itemsReceived)))
+            .Cast<IBlock>()
+            .ToList();
         
         var builder = new DataFlowGraphBuilder("competing-flow");
         builder.AddBlock(producer);
@@ -231,17 +220,12 @@ public class PerformanceTests
         
         var producer = new ProducerBlock<LargeStruct>("producer", ctx => ProduceLargeStructs(itemCount));
         
-        var consumers = new List<ProcessorBlock<LargeStruct>>();
-        for (int i = 0; i < concurrency; i++)
-        {
-            var processor = new ProcessorBlock<LargeStruct>($"processor{i}", async (item, ctx) =>
-            {
-                // Access field to prevent optimization
-                _ = item.Value1;
-                await Task.CompletedTask;
-            });
-            consumers.Add(processor);
-        }
+        var consumers = CreateActorBlocks<LargeStruct, object, NoOpProcessorActor<LargeStruct>>(
+            "processor",
+            concurrency,
+            _ => new NoOpProcessorActor<LargeStruct>())
+            .Cast<IBlock>()
+            .ToList();
         
         var builder = new DataFlowGraphBuilder("broadcast-flow");
         builder.AddBlock(producer);

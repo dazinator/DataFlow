@@ -7,6 +7,7 @@ using DataFlow.POC.Blocks;
 using DataFlow.POC.Builder;
 using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
+using static BenchmarkActorHelpers;
 
 /// <summary>
 /// Comprehensive benchmark comparing control signal propagation strategies.
@@ -32,7 +33,9 @@ public class ControlSignalStrategyComparison
     [GlobalSetup]
     public void Setup()
     {
-        _services = new ServiceCollection().BuildServiceProvider();
+        var services = new ServiceCollection();
+        services.AddScoped<NoOpProcessorActor<int>>();
+        _services = services.BuildServiceProvider();
 
         // Create test data with control signals
         _testDataWithControl = new List<IDataEnvelope>(DataItemCount + ControlSignalCount);
@@ -60,7 +63,7 @@ public class ControlSignalStrategyComparison
     public async Task Baseline_PureDataFlow()
     {
         var producer = new ProducerBlock<int>("producer", ctx => ProducePureData(ctx));
-        var consumer = new ProcessorBlock<int>("consumer", async (value, ctx) => await Task.CompletedTask);
+        var consumer = new ActorBlock<int, object, NoOpProcessorActor<int>>("consumer", _services.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("baseline-flow");
         builder.AddBlock(producer).AddBlock(consumer);
@@ -129,7 +132,7 @@ public class ControlSignalStrategyComparison
     {
         var epochManager = new EpochManager();
         var producer = new ProducerBlock<int>("producer", ctx => ProducePureData(ctx));
-        var consumer = new ProcessorBlock<int>("consumer", async (value, ctx) => await Task.CompletedTask);
+        var consumer = new ActorBlock<int, object, NoOpProcessorActor<int>>("consumer", _services.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("epoch-control-plane-flow");
         builder.AddBlock(producer).AddBlock(consumer);
@@ -153,7 +156,7 @@ public class ControlSignalStrategyComparison
     {
         var controlManager = new EventBasedControlSignalManager();
         var producer = new ProducerBlock<int>("producer", ctx => ProducePureData(ctx));
-        var consumer = new ProcessorBlock<int>("consumer", async (value, ctx) => await Task.CompletedTask);
+        var consumer = new ActorBlock<int, object, NoOpProcessorActor<int>>("consumer", _services.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("event-based-flow");
         builder.AddBlock(producer).AddBlock(consumer);

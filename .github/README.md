@@ -59,7 +59,7 @@ GitHub Copilot automatically loads `.github/copilot-instructions.md` for context
 ### For Research Work
 Create issues using the Research template or reference:
 ```markdown
-⚠️ This is a research issue. @copilot Follow `/research/RESEARCH_WORKFLOW.md`
+⚠️ This is a research issue. @copilot Follow `/.github/workflows/RESEARCH_WORKFLOW.md`
 ```
 
 ### For Implementation Work
@@ -81,6 +81,6 @@ Helper scripts for CI/CD and automation.
 ## See Also
 
 - [Main Copilot Instructions](.github/copilot-instructions.md) - Comprehensive workflow guidance
-- [Research Workflow](/research/RESEARCH_WORKFLOW.md) - Complete research workflow
+- [Research Workflow](/.github/workflows/RESEARCH_WORKFLOW.md) - Complete research workflow
 - [POC README](/poc/README.md) - Overview of the POC
 - [POC Documentation Structure](/poc/docs/POC_DOCUMENTATION_STRUCTURE.md) - How POC docs are organized

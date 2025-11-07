@@ -43,3 +43,5 @@ The channel-based approach was abandoned in favor of the simpler hybrid approach
 ## Note
 
 **These files are kept for reference only** to document the exploration process and architectural trade-offs. They do not compile with the current codebase and should not be used in production code.
+
+**Update (2025-11-06)**: Following the plain blocks consolidation (Phase 5), TransformerBlock and ProcessorBlock have been removed from the codebase. This exploratory code references those obsolete blocks and will not compile. It remains as a historical artifact.

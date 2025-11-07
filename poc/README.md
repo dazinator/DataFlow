@@ -68,12 +68,12 @@ public class DataFlowGraph
 ## Block Types Supported
 
 - **Producer** - Source blocks that generate data
-- **Transformer** - 1-to-1 or 1-to-many transformations
-- **Processor** - Terminal blocks that consume data
+- **ActorBlock** - DI-aware transformation and processing with scope isolation and rotation ([see guide](./ACTOR_BLOCK.md))
 - **Batch** - Accumulates items into batches
 - **Router** - Routes items to different downstream targets based on criteria
 - **Broadcast** - Sends each item to multiple downstream targets
-- **ActorBlock** - Scoped DI execution with rotation for memory management ([see guide](./ACTOR_BLOCK.md))
+
+**Note**: As of November 2025, the POC has consolidated around the ActorBlock pattern for DI scope safety. The previous TransformerBlock and ProcessorBlock have been removed in favor of ActorBlock, which provides automatic dependency injection scope management and prevents common concurrency bugs. See `/poc/docs/migrations/actor-block-migration.md` for migration guidance.
 
 ## Testing Strategy
 

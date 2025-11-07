@@ -11,22 +11,25 @@ When an implementation is too large to complete in a single session (4-8+ hours)
 ```
 /implementation/
 ├── README.md                    # This file
-└── [implementation-name]/       # One folder per implementation
-    ├── plan.md                  # Implementation plan with phase tracking
-    └── [other artifacts]        # Optional: test reports, analysis docs
+├── plan.md                      # Current in-flight implementation plan
+└── archive/                     # Completed implementation plans
+    └── [YYYY-MM-DD]-[name].md   # Archived plans
 ```
+
+**Note**: Only ONE implementation should be in-flight at a time per branch. When complete, move `plan.md` to `archive/`.
 
 ## How It Works
 
 ### For Copilot Agents
 
 **Starting a New Implementation:**
-1. Check if `/implementation/[name]/plan.md` exists
-2. If not, create it based on the handover document
-3. Include phase breakdown with status markers
+1. Check if `/implementation/plan.md` exists
+2. If it exists, there's already an implementation in-flight - read and continue it
+3. If not, create it based on the handover document
+4. Include phase breakdown with status markers
 
 **Continuing an Existing Implementation:**
-1. Check for `/implementation/[name]/plan.md`
+1. Check for `/implementation/plan.md`
 2. Read the plan to understand current status
 3. Identify the current phase (✅ complete, 🚧 in progress, ⏳ pending)
 4. Continue from the current phase
@@ -34,11 +37,11 @@ When an implementation is too large to complete in a single session (4-8+ hours)
 
 **Commands to Check:**
 ```bash
-# List all in-flight implementations
-ls -la /implementation/
+# Check for in-flight implementation
+cat /home/runner/work/lib-dataflow/lib-dataflow/implementation/plan.md
 
-# Find a specific implementation plan
-cat /implementation/[name]/plan.md
+# View archived implementations
+ls -la /home/runner/work/lib-dataflow/lib-dataflow/implementation/archive/
 ```
 
 ### For Developers
@@ -47,7 +50,7 @@ cat /implementation/[name]/plan.md
 When you want to continue a paused implementation:
 1. Reopen or comment on the original issue
 2. Say "continue the implementation" or "@copilot please continue"
-3. Copilot will check `/implementation/[name]/plan.md` and resume from the current phase
+3. Copilot will check `/implementation/plan.md` and resume from the current phase
 
 **No Special Setup Required:**
 - The plan document contains all the context needed
@@ -97,8 +100,22 @@ Each `plan.md` includes:
    - Copilot sees Phase 2 complete, proceeds to Phase 3
    - Removes obsolete code
 
+## Archiving Completed Plans
+
+When an implementation is complete (all phases done):
+
+```bash
+# Move plan to archive with date and short name
+mv /implementation/plan.md /implementation/archive/[YYYY-MM-DD]-[short-name].md
+```
+
+Example: `/implementation/archive/2025-11-06-plain-blocks-consolidation.md`
+
+This keeps `/implementation/plan.md` available only for the current in-flight work.
+
 ## Related Documentation
 
-- Implementation workflow: `/.github/copilot-instructions.md`
-- Research workflow: `/research/RESEARCH_WORKFLOW.md`
+- Implementation workflow: `/.github/workflows/IMPLEMENTATION_WORKFLOW.md`
+- Entry point: `/.github/copilot-instructions.md`
+- Research workflow: `/.github/workflows/RESEARCH_WORKFLOW.md`
 - Workflow improvements: `/.github/workflow-improvements.md`

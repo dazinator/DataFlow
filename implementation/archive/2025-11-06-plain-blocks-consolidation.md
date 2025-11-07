@@ -142,42 +142,44 @@ After reviewing all migrated tests, no obvious redundancies were found. Each tes
 
 ---
 
-### ⏳ Phase 5: Remove Obsolete Blocks (READY TO START)
+### ✅ Phase 5: Remove Obsolete Blocks (COMPLETE)
 
-**Status**: Ready - Phase 4 complete  
-**Estimated Effort**: 1-2 hours
+**Status**: Complete  
+**Completed**: 2025-11-06  
+**PR**: [Link to PR]
 
-**Prerequisites**:
-- [x] Phase 4 complete
-- [x] All tests migrated to ActorBlock
-- [x] All tests passing
-- [x] No remaining usages in codebase
+**Deliverables**:
+- Archived exploratory code with documentation
+- Moved baseline benchmarks to research folder with README
+- Migrated all active benchmarks to ActorBlock (6 files, 27 usages)
+- Deleted TransformerBlock.cs and ProcessorBlock.cs
+- Updated POC README to remove obsolete block references
+- Created POC CHANGELOG documenting breaking change
+- All 174 tests passing
 
-**Actions**:
-1. **Verify No Remaining Usages**:
-   ```bash
-   grep -r "new TransformerBlock\|new ProcessorBlock\|new SimpleTransformerBlock" /poc --include="*.cs"
-   ```
+**Files Deleted**:
+- `/poc/DataFlow.POC/Blocks/TransformerBlock.cs`
+- `/poc/DataFlow.POC/Blocks/ProcessorBlock.cs`
 
-2. **Delete Files**:
-   - `/poc/DataFlow.POC/Blocks/TransformerBlock.cs`
-   - `/poc/DataFlow.POC/Blocks/ProcessorBlock.cs`
+**Files Created**:
+- `/poc/docs/CHANGELOG.md` - POC changelog with breaking change notice
+- `/research/flow-composability-unification/archived-benchmarks/README.md`
 
-3. **Update Documentation**:
-   - Remove references to obsolete blocks
-   - Update POC README to promote ActorBlock
-   - Add to CHANGELOG: "BREAKING: TransformerBlock/ProcessorBlock removed, use ActorBlock"
+**Files Modified**:
+- `/poc/README.md` - Updated block types section
+- 6 benchmark files migrated to ActorBlock
+- Exploratory code README updated
 
-4. **Final Validation**:
-   - All tests pass
-   - Benchmarks still run
-   - Documentation builds successfully
+**Verification**:
+- Build: ✅ Clean (0 errors, 62 warnings - all pre-existing)
+- Tests: ✅ All 174 passing
+- Obsolete usages: 0 in active code (6 remain in archived exploratory code)
 
 **Success Criteria**:
-- [ ] Obsolete blocks deleted
-- [ ] No compilation errors
-- [ ] All tests passing
-- [ ] Documentation updated
+- [x] Obsolete blocks deleted
+- [x] No compilation errors
+- [x] All tests passing
+- [x] Documentation updated
 
 ---
 

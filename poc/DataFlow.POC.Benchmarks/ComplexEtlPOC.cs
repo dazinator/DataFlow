@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using DataFlow.POC.Blocks;
 using DataFlow.POC.Builder;
 using DataFlow.POC.Core;
+using Microsoft.Extensions.DependencyInjection;
 
 /// <summary>
 /// POC implementation of complex ETL dataflow for benchmarking.
@@ -16,6 +17,141 @@ using DataFlow.POC.Core;
 /// </summary>
 public static class ComplexEtlPOC
 {
+    // Actors for transformation and processing
+    private class ValidatorActor : IStreamActor<RawRecord, ValidatedRecord>
+    {
+        public async IAsyncEnumerable<ValidatedRecord> RunAsync(
+            IAsyncEnumerable<RawRecord> input,
+            [EnumeratorCancellation] IActorExecutionContext context)
+        {
+            await foreach (var record in input.WithCancellation(context.CancellationToken))
+            {
+                await foreach (var validated in ValidateRecord(record))
+                {
+                    yield return validated;
+                }
+            }
+        }
+    }
+
+    private class EnricherActor : IStreamActor<ValidatedRecord, EnrichedRecord>
+    {
+        public async IAsyncEnumerable<EnrichedRecord> RunAsync(
+            IAsyncEnumerable<ValidatedRecord> input,
+            [EnumeratorCancellation] IActorExecutionContext context)
+        {
+            await foreach (var record in input.WithCancellation(context.CancellationToken))
+            {
+                await foreach (var enriched in EnrichRecord(record, context.CancellationToken))
+                {
+                    yield return enriched;
+                }
+            }
+        }
+    }
+
+    private class MetricsCollectorActor : IStreamActor<EnrichedRecord, object>
+    {
+        public async IAsyncEnumerable<object> RunAsync(
+            IAsyncEnumerable<EnrichedRecord> input,
+            [EnumeratorCancellation] IActorExecutionContext context)
+        {
+            await foreach (var record in input.WithCancellation(context.CancellationToken))
+            {
+                await CollectMetrics(record);
+            }
+            yield break;
+        }
+    }
+
+    private class AuditLoggerActor : IStreamActor<EnrichedRecord, object>
+    {
+        public async IAsyncEnumerable<object> RunAsync(
+            IAsyncEnumerable<EnrichedRecord> input,
+            [EnumeratorCancellation] IActorExecutionContext context)
+        {
+            await foreach (var record in input.WithCancellation(context.CancellationToken))
+            {
+                await LogAudit(record);
+            }
+            yield break;
+        }
+    }
+
+    private class TypeAProcessorActor : IStreamActor<EnrichedRecord, ProcessedRecord>
+    {
+        public async IAsyncEnumerable<ProcessedRecord> RunAsync(
+            IAsyncEnumerable<EnrichedRecord> input,
+            [EnumeratorCancellation] IActorExecutionContext context)
+        {
+            await foreach (var record in input.WithCancellation(context.CancellationToken))
+            {
+                await foreach (var processed in ProcessRecord(record))
+                {
+                    yield return processed;
+                }
+            }
+        }
+    }
+
+    private class TypeAWriterActor : IStreamActor<ProcessedRecord, object>
+    {
+        public async IAsyncEnumerable<object> RunAsync(
+            IAsyncEnumerable<ProcessedRecord> input,
+            [EnumeratorCancellation] IActorExecutionContext context)
+        {
+            await foreach (var record in input.WithCancellation(context.CancellationToken))
+            {
+                await WriteRecord(record, context.CancellationToken);
+            }
+            yield break;
+        }
+    }
+
+    private class TypeBAggregatorActor : IStreamActor<EnrichedRecord[], AggregatedBatch>
+    {
+        public async IAsyncEnumerable<AggregatedBatch> RunAsync(
+            IAsyncEnumerable<EnrichedRecord[]> input,
+            [EnumeratorCancellation] IActorExecutionContext context)
+        {
+            await foreach (var batch in input.WithCancellation(context.CancellationToken))
+            {
+                await foreach (var aggregated in AggregateRecords(batch))
+                {
+                    yield return aggregated;
+                }
+            }
+        }
+    }
+
+    private class TypeBWriterActor : IStreamActor<AggregatedBatch, object>
+    {
+        public async IAsyncEnumerable<object> RunAsync(
+            IAsyncEnumerable<AggregatedBatch> input,
+            [EnumeratorCancellation] IActorExecutionContext context)
+        {
+            await foreach (var batch in input.WithCancellation(context.CancellationToken))
+            {
+                await WriteAggregation(batch, context.CancellationToken);
+            }
+            yield break;
+        }
+    }
+
+    private class TypeCWriterActor : IStreamActor<EnrichedRecord, object>
+    {
+        public async IAsyncEnumerable<object> RunAsync(
+            IAsyncEnumerable<EnrichedRecord> input,
+            [EnumeratorCancellation] IActorExecutionContext context)
+        {
+            await foreach (var record in input.WithCancellation(context.CancellationToken))
+            {
+                await WriteCategoryRecord(record, "TypeC", context.CancellationToken);
+            }
+            yield break;
+        }
+    }
+
     /// <summary>
     /// Builds the complete ETL dataflow using POC DataFlowGraphBuilder.
     /// Uses POC architecture pattern: concurrency via multiple block instances + CompetingEdgeStrategy.
@@ -36,22 +172,32 @@ public static class ComplexEtlPOC
         var sourceBuffer = builder.Buffer<RawRecord>(capacity: 100, name: "source-buffer");
 
         // Transform: Parse and validate records - use multiple instances for concurrency
-        var validators = new List<TransformerBlock<RawRecord, ValidatedRecord>>();
+        var validatorServices = new ServiceCollection();
+        validatorServices.AddScoped<ValidatorActor>();
+        var validatorServiceProvider = validatorServices.BuildServiceProvider();
+        
+        var validators = new List<IBlock>();
         for (int i = 0; i < maxConcurrency; i++)
         {
-            validators.Add(new TransformerBlock<RawRecord, ValidatedRecord>($"validator-{i}",
-                (record, ctx) => ValidateRecord(record)));
+            validators.Add(new ActorBlock<RawRecord, ValidatedRecord, ValidatorActor>(
+                $"validator-{i}",
+                validatorServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
         // Buffer: Merge validator outputs into single competing channel for enrichers
         var validatorBuffer = builder.Buffer<ValidatedRecord>(capacity: 100, name: "validator-buffer");
 
         // Transform: Enrich with additional data - use multiple instances for concurrency
-        var enrichers = new List<TransformerBlock<ValidatedRecord, EnrichedRecord>>();
+        var enricherServices = new ServiceCollection();
+        enricherServices.AddScoped<EnricherActor>();
+        var enricherServiceProvider = enricherServices.BuildServiceProvider();
+        
+        var enrichers = new List<IBlock>();
         for (int i = 0; i < maxConcurrency; i++)
         {
-            enrichers.Add(new TransformerBlock<ValidatedRecord, EnrichedRecord>($"enricher-{i}",
-                (record, ctx) => EnrichRecord(record, ctx.CancellationToken)));
+            enrichers.Add(new ActorBlock<ValidatedRecord, EnrichedRecord, EnricherActor>(
+                $"enricher-{i}",
+                enricherServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
         // Buffer: Merge enricher outputs into single channel before broadcast
@@ -61,51 +207,82 @@ public static class ComplexEtlPOC
         var broadcast = new BroadcastBlock<EnrichedRecord>("broadcast");
 
         // Broadcast Fan-out Path 1: Metrics collector
-        var metricsCollector = new ProcessorBlock<EnrichedRecord>("metrics-collector",
-            (record, ctx) => CollectMetrics(record));
+        var metricsServices = new ServiceCollection();
+        metricsServices.AddScoped<MetricsCollectorActor>();
+        var metricsServiceProvider = metricsServices.BuildServiceProvider();
+        var metricsCollector = new ActorBlock<EnrichedRecord, object, MetricsCollectorActor>(
+            "metrics-collector",
+            metricsServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         // Broadcast Fan-out Path 2: Audit logger
-        var auditLogger = new ProcessorBlock<EnrichedRecord>("audit-logger",
-            (record, ctx) => LogAudit(record));
+        var auditServices = new ServiceCollection();
+        auditServices.AddScoped<AuditLoggerActor>();
+        var auditServiceProvider = auditServices.BuildServiceProvider();
+        var auditLogger = new ActorBlock<EnrichedRecord, object, AuditLoggerActor>(
+            "audit-logger",
+            auditServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         // Routing: Route enriched records by category
         var router = new RouterBlock<EnrichedRecord>("router", record => record.Category);
 
         // TypeA route: Process individual records - use multiple instances for concurrency
         var typeAFilter = new RouteFilterBlock<EnrichedRecord>("typeA-filter", "TypeA");
-        var typeAProcessors = new List<TransformerBlock<EnrichedRecord, ProcessedRecord>>();
+        var typeAProcessorServices = new ServiceCollection();
+        typeAProcessorServices.AddScoped<TypeAProcessorActor>();
+        var typeAProcessorServiceProvider = typeAProcessorServices.BuildServiceProvider();
+        
+        var typeAProcessors = new List<IBlock>();
         for (int i = 0; i < maxConcurrency; i++)
         {
-            typeAProcessors.Add(new TransformerBlock<EnrichedRecord, ProcessedRecord>($"typeA-processor-{i}",
-                (record, ctx) => ProcessRecord(record)));
+            typeAProcessors.Add(new ActorBlock<EnrichedRecord, ProcessedRecord, TypeAProcessorActor>(
+                $"typeA-processor-{i}",
+                typeAProcessorServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
         // Buffer: Merge processor outputs into single competing channel for writers
         var typeAProcessorBuffer = builder.Buffer<ProcessedRecord>(capacity: 100, name: "typeA-processor-buffer");
         
-        var typeAWriters = new List<ProcessorBlock<ProcessedRecord>>();
+        var typeAWriterServices = new ServiceCollection();
+        typeAWriterServices.AddScoped<TypeAWriterActor>();
+        var typeAWriterServiceProvider = typeAWriterServices.BuildServiceProvider();
+        
+        var typeAWriters = new List<IBlock>();
         for (int i = 0; i < maxConcurrency; i++)
         {
-            typeAWriters.Add(new ProcessorBlock<ProcessedRecord>($"typeA-writer-{i}",
-                (record, ctx) => WriteRecord(record, ctx.CancellationToken)));
+            typeAWriters.Add(new ActorBlock<ProcessedRecord, object, TypeAWriterActor>(
+                $"typeA-writer-{i}",
+                typeAWriterServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
         // TypeB route: Batch and aggregate records
         var typeBFilter = new RouteFilterBlock<EnrichedRecord>("typeB-filter", "TypeB");
         var typeBFilterBuffer = builder.Buffer<EnrichedRecord>(capacity: 100, name: "typeB-filter-buffer");
         var typeBBatcher = new BatchBlock<EnrichedRecord>("typeB-batcher", batchSize, TimeSpan.FromMilliseconds(100));
-        var typeBAggregator = new TransformerBlock<EnrichedRecord[], AggregatedBatch>("typeB-aggregator",
-            (batch, ctx) => AggregateRecords(batch));
-        var typeBWriter = new ProcessorBlock<AggregatedBatch>("typeB-writer",
-            (batch, ctx) => WriteAggregation(batch, ctx.CancellationToken));
+        
+        var typeBServices = new ServiceCollection();
+        typeBServices.AddScoped<TypeBAggregatorActor>();
+        typeBServices.AddScoped<TypeBWriterActor>();
+        var typeBServiceProvider = typeBServices.BuildServiceProvider();
+        
+        var typeBAggregator = new ActorBlock<EnrichedRecord[], AggregatedBatch, TypeBAggregatorActor>(
+            "typeB-aggregator",
+            typeBServiceProvider.GetRequiredService<IServiceScopeFactory>());
+        var typeBWriter = new ActorBlock<AggregatedBatch, object, TypeBWriterActor>(
+            "typeB-writer",
+            typeBServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         // TypeC route: Store directly - use multiple writers for concurrency
         var typeCFilter = new RouteFilterBlock<EnrichedRecord>("typeC-filter", "TypeC");
         var typeCFilterBuffer = builder.Buffer<EnrichedRecord>(capacity: 100, name: "typeC-filter-buffer");
-        var typeCWriters = new List<ProcessorBlock<EnrichedRecord>>();
+        var typeCWriterServices = new ServiceCollection();
+        typeCWriterServices.AddScoped<TypeCWriterActor>();
+        var typeCWriterServiceProvider = typeCWriterServices.BuildServiceProvider();
+        
+        var typeCWriters = new List<IBlock>();
         for (int i = 0; i < maxConcurrency; i++)
         {
-            typeCWriters.Add(new ProcessorBlock<EnrichedRecord>($"typeC-writer-{i}",
-                (record, ctx) => WriteCategoryRecord(record, "TypeC", ctx.CancellationToken)));
+            typeCWriters.Add(new ActorBlock<EnrichedRecord, object, TypeCWriterActor>(
+                $"typeC-writer-{i}",
+                typeCWriterServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
         // Add all blocks to the graph

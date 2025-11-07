@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using DataFlow.POC.Blocks;
 using DataFlow.POC.Builder;
 using DataFlow.POC.Core;
+using Microsoft.Extensions.DependencyInjection;
 
 /// <summary>
 /// Simplified POC ETL benchmark focusing on datasource → validators → enrichers.
@@ -16,6 +17,61 @@ using DataFlow.POC.Core;
 /// </summary>
 public static class SimpleEtlPOC
 {
+    /// <summary>
+    /// Actor that validates raw records.
+    /// </summary>
+    private class ValidatorActor : IStreamActor<RawRecord, ValidatedRecord>
+    {
+        public async IAsyncEnumerable<ValidatedRecord> RunAsync(
+            IAsyncEnumerable<RawRecord> input,
+            [EnumeratorCancellation] IActorExecutionContext context)
+        {
+            await foreach (var record in input.WithCancellation(context.CancellationToken))
+            {
+                await foreach (var validated in ValidateRecord(record))
+                {
+                    yield return validated;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Actor that enriches validated records.
+    /// </summary>
+    private class EnricherActor : IStreamActor<ValidatedRecord, EnrichedRecord>
+    {
+        public async IAsyncEnumerable<EnrichedRecord> RunAsync(
+            IAsyncEnumerable<ValidatedRecord> input,
+            [EnumeratorCancellation] IActorExecutionContext context)
+        {
+            await foreach (var record in input.WithCancellation(context.CancellationToken))
+            {
+                await foreach (var enriched in EnrichRecord(record, context.CancellationToken))
+                {
+                    yield return enriched;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Actor that collects enriched records (no-op terminal).
+    /// </summary>
+    private class CollectorActor : IStreamActor<EnrichedRecord, object>
+    {
+        public async IAsyncEnumerable<object> RunAsync(
+            IAsyncEnumerable<EnrichedRecord> input,
+            [EnumeratorCancellation] IActorExecutionContext context)
+        {
+            await foreach (var record in input.WithCancellation(context.CancellationToken))
+            {
+                // No-op collection
+            }
+            yield break;
+        }
+    }
+
     /// <summary>
     /// Builds a simplified ETL dataflow: DataSource → Validators → Enrichers → Collector
     /// Uses BufferNode at each stage to ensure proper fan-out/fan-in patterns.
@@ -35,30 +91,44 @@ public static class SimpleEtlPOC
         var sourceBuffer = builder.Buffer<RawRecord>(capacity: 100, name: "source-buffer");
 
         // Transform: Parse and validate records - use multiple instances for concurrency
-        var validators = new List<TransformerBlock<RawRecord, ValidatedRecord>>();
+        var validatorServices = new ServiceCollection();
+        validatorServices.AddScoped<ValidatorActor>();
+        var validatorServiceProvider = validatorServices.BuildServiceProvider();
+        
+        var validators = new List<IBlock>();
         for (int i = 0; i < maxConcurrency; i++)
         {
-            validators.Add(new TransformerBlock<RawRecord, ValidatedRecord>($"validator-{i}",
-                (record, ctx) => ValidateRecord(record)));
+            validators.Add(new ActorBlock<RawRecord, ValidatedRecord, ValidatorActor>(
+                $"validator-{i}",
+                validatorServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
         // Buffer: Merge validator outputs into single competing channel for enrichers
         var validatorBuffer = builder.Buffer<ValidatedRecord>(capacity: 100, name: "validator-buffer");
 
         // Transform: Enrich with additional data - use multiple instances for concurrency
-        var enrichers = new List<TransformerBlock<ValidatedRecord, EnrichedRecord>>();
+        var enricherServices = new ServiceCollection();
+        enricherServices.AddScoped<EnricherActor>();
+        var enricherServiceProvider = enricherServices.BuildServiceProvider();
+        
+        var enrichers = new List<IBlock>();
         for (int i = 0; i < maxConcurrency; i++)
         {
-            enrichers.Add(new TransformerBlock<ValidatedRecord, EnrichedRecord>($"enricher-{i}",
-                (record, ctx) => EnrichRecord(record, ctx.CancellationToken)));
+            enrichers.Add(new ActorBlock<ValidatedRecord, EnrichedRecord, EnricherActor>(
+                $"enricher-{i}",
+                enricherServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
         // Buffer: Merge enricher outputs into single channel for collector
         var enricherBuffer = builder.Buffer<EnrichedRecord>(capacity: 100, name: "enricher-buffer");
 
         // Terminal: Collect all enriched records
-        var collector = new ProcessorBlock<EnrichedRecord>("collector",
-            (record, ctx) => Task.CompletedTask);
+        var collectorServices = new ServiceCollection();
+        collectorServices.AddScoped<CollectorActor>();
+        var collectorServiceProvider = collectorServices.BuildServiceProvider();
+        var collector = new ActorBlock<EnrichedRecord, object, CollectorActor>(
+            "collector",
+            collectorServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         // Add all blocks to the graph
         builder.AddBlock(dataSource);
