@@ -103,14 +103,25 @@ Create `/research/[topic]/research-plan.md` with your research objectives:
 - Question 1
 - Question 2
 
+## Success Metrics
+Define how success will be measured:
+- **Quantitative**: Concrete measurements (e.g., "reduce code by 40%", "improve throughput by 2x")
+- **Qualitative**: Subjective improvements (e.g., "improved readability", "clearer intent")
+- **Baseline**: Current state to measure against (capture before starting)
+- **Validation**: How improvements will be demonstrated (tests, benchmarks, examples)
+
 ## Validation Approach
 [How will we validate/test approaches]
+- Create comparative tests showing "before" vs "after" (see Comparative Testing below)
+- Run benchmarks to measure performance impact
+- Validate edge cases and error handling
 
 ## Expected Outcomes
 - Research documentation in /research/[topic]/
 - Implementation-ready GitHub issue in /research/[topic]/handover/
 - Supporting design documentation in /research/[topic]/design/
 - **ADRs in /poc/docs/adr/ or /src/docs/adr/** (with the codebase they govern)
+- Prototype code in /research/[topic]/handover/prototype/ (if applicable)
 
 ## Timeline
 [Estimated research duration]
@@ -131,6 +142,43 @@ During research, freely explore and validate:
 - Document what you try, what works, what doesn't
 - Capture insights, performance data, trade-offs
 - Reference useful tests or benchmarks conceptually
+
+**Comparative Testing (Recommended)**:
+
+Create "before/after" demo tests to validate improvements:
+
+```csharp
+// Example: TestHelpersDemoTests.cs
+[Fact]
+public async Task OLD_Pattern_VerboseServiceProviderSetup()
+{
+    // 8-10 lines of manual DI setup
+    var services = new ServiceCollection();
+    services.AddScoped<MyActor>();
+    services.AddScoped<IDatabase>(_ => mockDb);
+    var provider = services.BuildServiceProvider();
+    var scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
+    // ... test logic
+}
+
+[Fact]
+public async Task NEW_Pattern_TestServiceBuilder()
+{
+    // 3 lines with helper
+    var scopeFactory = TestServiceBuilder.Create()
+        .WithActor<MyActor>()
+        .WithScoped<IDatabase>(mockDb)
+        .BuildScopeFactory();
+    // ... test logic
+}
+```
+
+**Benefits**:
+- Proves prototype actually works
+- Demonstrates concrete improvement with working code
+- Validates success metrics (e.g., 60% code reduction)
+- Provides clear value demonstration for stakeholders
+- Save in `/research/[topic]/handover/prototype/` for implementation reference
 
 **Tests and Benchmarks**:
 - Create tests to validate concepts
@@ -351,35 +399,50 @@ See: `/research/[topic]/README.md`
 1. Submit PR with research documentation and exploratory code changes
 2. PR reviewer evaluates research findings, documentation quality, and handover materials
 3. Reviewer approves research and explicitly requests code reversion
-4. At that point, revert all exploratory code changes while keeping documentation
+4. At that point, revert exploratory code changes while keeping documentation and production-ready artifacts
 
-Before the PR is merged (and only after reviewer approval), revert all exploratory code changes while keeping documentation:
+Before the PR is merged (and only after reviewer approval), revert exploratory code changes while keeping documentation and production-ready artifacts:
 
-**What to Keep**:
+**What to Keep** (NOT reverted):
 - ✅ Research documentation in `/research/[topic]/`
 - ✅ Implementation-ready GitHub issue in `/research/[topic]/handover/`
 - ✅ Design documentation in `/research/[topic]/design/`
-- ✅ ADRs in `/research/[topic]/adr/`
+- ✅ ADRs in `/poc/docs/adr/` or `/src/docs/adr/` (ADRs belong with the codebase, NOT in research folder)
 - ✅ Benchmark data and analysis in `/research/[topic]/benchmarks/`
 - ✅ Test implementation guides (as documentation)
 - ✅ Updated glossary entries in `/poc/docs/POC_GLOSSARY.md` (if applicable)
 - ✅ Prototype code files in `/research/[topic]/handover/prototype/` (if applicable)
+- ✅ **Production-ready test utilities** (e.g., test helpers, common test patterns) in test projects
+- ✅ **Documentation updates** (e.g., README improvements, guides, examples)
+- ✅ **Non-breaking additions** to test projects that provide immediate value
 
 **What to Revert** (only when reviewer approves):
-- ❌ All exploratory code changes (POC or non-POC)
-- ❌ All exploratory test files
-- ❌ Benchmark code (keep benchmark results documentation)
-- ❌ Prototype implementations in source tree
-- ❌ Temporary helper code
+- ❌ **Exploratory code changes in core library/application code** (`/poc/DataFlow.POC/`, `/src/`)
+- ❌ **Validation test files** (created purely for research validation, not ongoing value)
+- ❌ **Benchmark code** (keep benchmark results documentation)
+- ❌ **Prototype implementations in source tree** (copy to handover/prototype/ first if valuable)
+- ❌ **Temporary helper code** (unless production-ready and valuable for tests)
 
-**Optional: Capturing Prototype Code for Handover**
+**Key Distinction - Core Code vs Test/Doc Changes**:
+- **Core library/application code** (in `/poc/DataFlow.POC/`, `/src/`) → Always revert after validation
+- **Test code**: 
+  - **Validation-only tests** → Revert (created for research, not ongoing value)
+  - **Production-ready test utilities** → Keep if providing immediate value (e.g., test helpers that reduce boilerplate)
+- **Documentation** → Keep if it improves the codebase (e.g., guides, ADRs, README improvements)
 
-If there is important reference code from your prototypes that would be valuable for the implementation team, you can capture it before reverting:
+**Capturing Prototype Code for Handover**
+
+If there is important reference code from your prototypes that would be valuable for the implementation team, capture it before reverting:
 
 1. **Identify Key Prototype Code**: Select individual code files or code snippets that demonstrate critical patterns, algorithms, or approaches
 2. **Copy to Handover Folder**: Copy these files to `/research/[topic]/handover/prototype/`
 3. **Keep It Focused**: Only include files that provide clear reference value - don't copy entire projects
-4. **Document Context**: In your implementation issue or README, reference these prototype files and explain their purpose
+4. **Document Context**: Create a README in the prototype folder explaining:
+   - What each prototype file demonstrates
+   - Key patterns or approaches validated during research
+   - Metrics achieved (performance, code reduction, etc.)
+   - How implementation team should use these prototypes
+5. **Reference in Handover Issue**: Point to `/research/[topic]/handover/prototype/` in your implementation issue
 
 Example:
 ```bash
@@ -387,32 +450,80 @@ Example:
 mkdir -p research/[topic]/handover/prototype/
 
 # Copy key prototype files (not entire projects)
+cp poc/DataFlow.POC.Tests/TestHelpers/*.cs research/[topic]/handover/prototype/TestHelpers/
 cp poc/DataFlow.POC/Exploratory/CoordinatorPrototype.cs research/[topic]/handover/prototype/
-cp poc/DataFlow.POC/Exploratory/ConsensusHelper.cs research/[topic]/handover/prototype/
+
+# Create README explaining the prototypes
+cat > research/[topic]/handover/prototype/README.md << 'EOF'
+# Prototype Code
+
+## TestHelpers/
+Production-ready test utilities validated during research.
+- 40-60% test code reduction achieved
+- All tests passing with these helpers
+- Ready for immediate adoption in test projects
+
+## CoordinatorPrototype.cs
+Reference implementation showing hybrid coordination approach.
+- Demonstrates centralized fallback pattern
+- 900+ ops/sec achieved in benchmarks
+EOF
 ```
 
 These prototype files serve as concrete reference implementations for the implementation team, showing proven approaches from your research.
 
+**Referencing Prototypes in Handover Materials**:
+
+In your implementation issue (in `/research/[topic]/handover/github-issue-*.md`), reference the prototype folder:
+
+```markdown
+## Implementation Resources
+
+### Prototype Code
+Production-ready prototypes available in: `/research/[topic]/handover/prototype/`
+
+See prototype README for:
+- Validated implementations ready for adoption
+- Performance metrics achieved
+- Usage guidance and patterns
+
+### Production-Ready Artifacts
+If research produced production-ready code (e.g., test helpers, utilities):
+- **Location**: Documented in prototype folder README
+- **Status**: Validated, all tests passing
+- **Recommendation**: Can be adopted immediately by implementation team
+```
+
 **Reversion Process** (execute only after reviewer approval):
 ```bash
-# 1. Commit all documentation first (including any prototype files)
+# 1. Commit all documentation and production-ready artifacts first
 git add research/
-git add poc/docs/
-git commit -m "Research documentation and implementation handover materials"
+git add poc/docs/  # ADRs and docs
+# If keeping production-ready test utilities or documentation:
+# git add poc/DataFlow.POC.Tests/[specific-production-ready-files]
+git commit -m "Research documentation, handover materials, and production-ready artifacts"
 
-# 2. Revert exploratory code changes
-# For POC code:
+# 2. Revert exploratory code changes in core library/application code
+# For POC core code (always revert):
 git checkout HEAD -- poc/DataFlow.POC/
-git checkout HEAD -- poc/DataFlow.POC.Tests/
+
+# For validation tests (revert if not production-ready):
+git checkout HEAD -- poc/DataFlow.POC.Tests/ValidationTests.cs
+git checkout HEAD -- poc/DataFlow.POC.Tests/ExploratoryScenarios.cs
+
+# For benchmarks (always revert, keep only documentation):
 git checkout HEAD -- poc/DataFlow.POC.Benchmarks/
 
-# For non-POC code (if applicable):
-git checkout HEAD -- src/
+# For non-POC core code (if applicable, always revert):
+git checkout HEAD -- src/Uniun.DataFlow/
 # (adjust paths based on what was researched)
 
-# 3. Verify only documentation remains
+# 3. Verify only documentation and production-ready artifacts remain
 git status
-# Should show only changes in research/ and poc/docs/
+# Should show only changes in:
+# - research/
+# - poc/docs/ (ADRs, guides)
+# - poc/DataFlow.POC.Tests/ (only production-ready test utilities, if kept)
 ```
 
 **PR Review Checklist** (for reviewer before requesting reversion):
@@ -420,14 +531,20 @@ git status
 - [ ] Implementation issue contains all necessary context
 - [ ] Design docs and ADRs are complete
 - [ ] Handover materials are ready for implementation team
-- [ ] Test scenarios are documented (not implemented)
+- [ ] Prototype folder (if applicable) has README explaining code and metrics
+- [ ] Test scenarios are documented (not implemented, unless production-ready utilities)
 - [ ] Benchmark findings are documented (benchmark code removed)
-- [ ] Prototype code captured in handover folder (if needed)
+- [ ] Clear distinction made between:
+  - [ ] Core code changes (to be reverted)
+  - [ ] Production-ready test utilities (can stay if valuable)
+  - [ ] Documentation improvements (stay)
 
 **After Reviewer Approval**:
 - [ ] Important prototype code copied to handover folder (if applicable)
-- [ ] All exploratory code changes have been reverted
-- [ ] Only documentation and handover files remain in changes
+- [ ] Exploratory code changes in core library/application have been reverted
+- [ ] Validation-only tests reverted
+- [ ] Documentation and production-ready artifacts remain
+- [ ] Handover issue references prototype folder for production-ready code
 - [ ] Ready for merge and implementation team handoff
 
 ## Benefits of Research-to-Implementation Workflow

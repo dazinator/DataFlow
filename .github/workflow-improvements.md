@@ -18,6 +18,46 @@ Before any PR is marked ready for review, Copilot agents should:
 
 ### Suggestions
 
+- **Date**: 2025-11-07
+- **Issue/PR**: Better Testing Approaches Research (copilot/better-testing-approaches-research)
+- **What worked well**: 
+  - Research workflow documentation was comprehensive and clear
+  - Phase structure (Analysis → Scenario → Prototypes) provided excellent progression
+  - Folder structure guidance in FOLDER_STRUCTURE.md made organization straightforward
+  - ADR placement guidance was clear (put with codebase, not in research folder)
+  - Ability to write and test exploratory code was essential for validation
+  - "Report progress frequently" guidance helped maintain accountability
+  - Test helper prototypes could be created in their final location, making adoption easier
+- **What didn't work well**:
+  - Unclear distinction between core code (always revert) vs test/doc changes (can stay if production-ready)
+  - No clear guidance on documenting production-ready artifacts in prototype folder
+  - Handover issue template didn't emphasize pointing to prototype folder for implementation
+  - Research plan template doesn't include metrics/success criteria section
+  - No guidance on creating comparative "before/after" tests for prototypes
+  - Timeline estimates in research plan are hard to gauge without experience
+- **Suggested improvement**: 
+  1. **✅ ADDRESSED: Clarify "Code Reversion" scope** in research workflow (see commit addressing reviewer feedback):
+     - **Core library/application code** (`/poc/DataFlow.POC/`, `/src/`) → Always revert after validation
+     - **Test code**: Validation-only → Revert; Production-ready utilities → Can keep if valuable
+     - **Documentation** → Keep if it improves codebase (guides, ADRs, README improvements)
+     - Clear examples added showing what to keep vs revert
+  2. **✅ ADDRESSED: Add "Prototype README Guidance"** to research workflow:
+     - Prototype folder must include README explaining each file
+     - Document metrics achieved (performance, code reduction, etc.)
+     - Provide usage guidance for implementation team
+     - Reference prototype folder in handover issue
+  3. ✅ **ADDRESSED**: Added "Success Metrics Section" to research plan template (commit follows):
+     - Quantitative metrics (e.g., "reduce code by X%")
+     - Qualitative metrics (e.g., "improved readability")
+     - How to measure and validate improvements
+     - Baseline measurements to capture
+  4. ✅ **ADDRESSED**: Added "Comparative Testing Guidance" to research workflow (commit follows):
+     - Encourages creating "before/after" demo tests for prototypes
+     - Shows concrete improvement with working examples
+     - Validates prototypes actually work
+     - Provides clear value demonstration
+     - Example: TestHelpersDemoTests.cs comparing OLD vs NEW patterns
+
 <!-- Add research workflow improvement suggestions here -->
 <!-- Format:
 - **Date**: YYYY-MM-DD
