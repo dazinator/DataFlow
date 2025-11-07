@@ -3,37 +3,20 @@ namespace DataFlow.POC.Tests;
 using DataFlow.POC.Blocks;
 using DataFlow.POC.Builder;
 using DataFlow.POC.Core;
+using DataFlow.POC.Tests.TestHelpers;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
 
 public class BatchFlowTests
 {
-    /// <summary>
-    /// Simple collector actor for batch arrays.
-    /// </summary>
-    private class BatchCollectorActor : IStreamActor<int[], object>
-    {
-        private readonly List<int[]> _batches;
+    // Refactored to use test helpers - removed duplicate implementations
+    // - BatchCollectorActor → using TestHelpers.CollectorActor<int[]>
+    // - ProduceIntegers → using TestStreams.Integers() or custom for delays
 
-        public BatchCollectorActor(List<int[]> batches)
-        {
-            _batches = batches;
-        }
-
-        public async IAsyncEnumerable<object> RunAsync(
-            IAsyncEnumerable<int[]> input,
-            IActorExecutionContext context)
-        {
-            await foreach (var batch in input.WithCancellation(context.CancellationToken))
-            {
-                _batches.Add(batch);
-            }
-            yield break;
-        }
-    }
-
-    private static async IAsyncEnumerable<int> ProduceIntegers(IExecutionContext ctx, int count, int delayMs = 0)
+    // Note: For the time-window test with delays, we keep a simple inline producer
+    // since TestStreams doesn't support delays yet (could be future enhancement)
+    private static async IAsyncEnumerable<int> ProduceIntegersWithDelay(IExecutionContext ctx, int count, int delayMs)
     {
         for (int i = 1; i <= count; i++)
         {
@@ -50,17 +33,20 @@ public class BatchFlowTests
     {
         // Arrange
         var batches = new List<int[]>();
-        var services = new ServiceCollection();
-        services.AddScoped(_ => new BatchCollectorActor(batches));
-        var serviceProvider = services.BuildServiceProvider();
+        
+        // Using TestServiceBuilder instead of manual ServiceCollection setup
+        var scopeFactory = TestServiceBuilder.Create()
+            .WithScoped(new CollectorActor<int[]>(batches))
+            .BuildScopeFactory();
 
-        var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(ctx, 10));
+        // Using TestStreams.Integers() instead of custom ProduceIntegers function
+        var producer = new ProducerBlock<int>("producer", _ => TestStreams.Integers(10));
 
         var batcher = new BatchBlock<int>("batcher", maxBatchSize: 3, windowPeriod: null);
 
-        var processor = new ActorBlock<int[], object, BatchCollectorActor>(
+        var processor = new ActorBlock<int[], object, CollectorActor<int[]>>(
             "processor",
-            serviceProvider.GetRequiredService<IServiceScopeFactory>());
+            scopeFactory);
 
         var builder = new DataFlowGraphBuilder("batch-flow");
         builder.AddBlock(producer)
@@ -70,6 +56,7 @@ public class BatchFlowTests
             .Connect(batcher, processor);
 
         var graph = builder.Build();
+        var serviceProvider = new ServiceCollection().BuildServiceProvider();
         var context = new ExecutionContext(serviceProvider, CancellationToken.None);
 
         // Act
@@ -88,17 +75,20 @@ public class BatchFlowTests
     {
         // Arrange
         var batches = new List<int[]>();
-        var services = new ServiceCollection();
-        services.AddScoped(_ => new BatchCollectorActor(batches));
-        var serviceProvider = services.BuildServiceProvider();
+        
+        // Using TestServiceBuilder instead of manual ServiceCollection setup
+        var scopeFactory = TestServiceBuilder.Create()
+            .WithScoped(new CollectorActor<int[]>(batches))
+            .BuildScopeFactory();
 
-        var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(ctx, 5, delayMs: 50));
+        // Using inline producer with delays (TestStreams doesn't support delays yet)
+        var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegersWithDelay(ctx, 5, delayMs: 50));
 
         var batcher = new BatchBlock<int>("batcher", maxBatchSize: 100, windowPeriod: TimeSpan.FromMilliseconds(120));
 
-        var processor = new ActorBlock<int[], object, BatchCollectorActor>(
+        var processor = new ActorBlock<int[], object, CollectorActor<int[]>>(
             "processor",
-            serviceProvider.GetRequiredService<IServiceScopeFactory>());
+            scopeFactory);
 
         var builder = new DataFlowGraphBuilder("batch-window-flow");
         builder.AddBlock(producer)
@@ -108,6 +98,7 @@ public class BatchFlowTests
             .Connect(batcher, processor);
 
         var graph = builder.Build();
+        var serviceProvider = new ServiceCollection().BuildServiceProvider();
         var context = new ExecutionContext(serviceProvider, CancellationToken.None);
 
         // Act

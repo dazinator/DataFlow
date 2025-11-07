@@ -3,107 +3,19 @@ namespace DataFlow.POC.Tests;
 using DataFlow.POC.Blocks;
 using DataFlow.POC.Builder;
 using DataFlow.POC.Core;
+using DataFlow.POC.Tests.TestHelpers;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
 
 public class ComplexFlowTests
 {
-    /// <summary>
-    /// Actor that transforms integers to formatted strings.
-    /// </summary>
-    private class IntToFormattedStringActor : IStreamActor<int, string>
-    {
-        public async IAsyncEnumerable<string> RunAsync(
-            IAsyncEnumerable<int> input,
-            IActorExecutionContext context)
-        {
-            await foreach (var item in input.WithCancellation(context.CancellationToken))
-            {
-                yield return $"Item-{item:D2}";
-            }
-        }
-    }
-
-    /// <summary>
-    /// Actor that transforms integers to prefixed strings.
-    /// </summary>
-    private class PrefixTransformActor : IStreamActor<int, string>
-    {
-        private readonly string _prefix;
-
-        public PrefixTransformActor(string prefix)
-        {
-            _prefix = prefix;
-        }
-
-        public async IAsyncEnumerable<string> RunAsync(
-            IAsyncEnumerable<int> input,
-            IActorExecutionContext context)
-        {
-            await foreach (var item in input.WithCancellation(context.CancellationToken))
-            {
-                yield return $"{_prefix}-{item}";
-            }
-        }
-    }
-
-    /// <summary>
-    /// Collector actor for string arrays.
-    /// </summary>
-    private class StringArrayCollectorActor : IStreamActor<string[], object>
-    {
-        private readonly List<string[]> _collected;
-
-        public StringArrayCollectorActor(List<string[]> collected)
-        {
-            _collected = collected;
-        }
-
-        public async IAsyncEnumerable<object> RunAsync(
-            IAsyncEnumerable<string[]> input,
-            IActorExecutionContext context)
-        {
-            await foreach (var batch in input.WithCancellation(context.CancellationToken))
-            {
-                _collected.Add(batch);
-            }
-            yield break;
-        }
-    }
-
-    /// <summary>
-    /// Collector actor for strings.
-    /// </summary>
-    private class StringCollectorActor : IStreamActor<string, object>
-    {
-        private readonly List<string> _collected;
-
-        public StringCollectorActor(List<string> collected)
-        {
-            _collected = collected;
-        }
-
-        public async IAsyncEnumerable<object> RunAsync(
-            IAsyncEnumerable<string> input,
-            IActorExecutionContext context)
-        {
-            await foreach (var item in input.WithCancellation(context.CancellationToken))
-            {
-                _collected.Add(item);
-            }
-            yield break;
-        }
-    }
-
-    private static async IAsyncEnumerable<int> ProduceIntegers(IExecutionContext ctx, int count)
-    {
-        for (int i = 1; i <= count; i++)
-        {
-            yield return i;
-        }
-        await Task.CompletedTask;
-    }
+    // Refactored to use test helpers - removed duplicate implementations
+    // - StringArrayCollectorActor → using TestHelpers.CollectorActor<string[]>
+    // - StringCollectorActor → using TestHelpers.CollectorActor<string>
+    // - IntToFormattedStringActor → using TestHelpers.TransformActor<int, string>
+    // - PrefixTransformActor → using TestHelpers.TransformActor<int, string>
+    // - ProduceIntegers → using TestStreams.Integers()
 
     [Fact]
     public async Task Complex_Flow_With_Transform_Batch_And_Routing_Should_Work()
@@ -112,28 +24,28 @@ public class ComplexFlowTests
         var smallBatches = new List<string[]>();
         var largeBatches = new List<string[]>();
         
-        // Create separate service providers for isolated collectors
-        var smallServices = new ServiceCollection();
-        smallServices.AddScoped(_ => new StringArrayCollectorActor(smallBatches));
-        var smallServiceProvider = smallServices.BuildServiceProvider();
+        // Using TestServiceBuilder to create isolated scope factories
+        var smallScopeFactory = TestServiceBuilder.Create()
+            .WithScoped(new CollectorActor<string[]>(smallBatches))
+            .BuildScopeFactory();
 
-        var largeServices = new ServiceCollection();
-        largeServices.AddScoped(_ => new StringArrayCollectorActor(largeBatches));
-        var largeServiceProvider = largeServices.BuildServiceProvider();
+        var largeScopeFactory = TestServiceBuilder.Create()
+            .WithScoped(new CollectorActor<string[]>(largeBatches))
+            .BuildScopeFactory();
 
-        var transformServices = new ServiceCollection();
-        transformServices.AddScoped<IntToFormattedStringActor>();
-        var transformServiceProvider = transformServices.BuildServiceProvider();
+        var transformScopeFactory = TestServiceBuilder.Create()
+            .WithScoped(new TransformActor<int, string>(i => $"Item-{i:D2}"))
+            .BuildScopeFactory();
 
         var commonServices = new ServiceCollection().BuildServiceProvider();
 
-        // Producer generates numbers 1-20
-        var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(ctx, 20));
+        // Using TestStreams.Integers() instead of custom ProduceIntegers function
+        var producer = new ProducerBlock<int>("producer", _ => TestStreams.Integers(20));
 
         // Transform to strings
-        var transformer = new ActorBlock<int, string, IntToFormattedStringActor>(
+        var transformer = new ActorBlock<int, string, TransformActor<int, string>>(
             "transformer",
-            transformServiceProvider.GetRequiredService<IServiceScopeFactory>());
+            transformScopeFactory);
 
         // Batch into groups of 5
         var batcher = new BatchBlock<string>("batcher", maxBatchSize: 5, windowPeriod: null);
@@ -144,13 +56,13 @@ public class ComplexFlowTests
         var smallFilter = new RouteFilterBlock<string[]>("small-filter", "small");
         var largeFilter = new RouteFilterBlock<string[]>("large-filter", "large");
 
-        var smallProcessor = new ActorBlock<string[], object, StringArrayCollectorActor>(
+        var smallProcessor = new ActorBlock<string[], object, CollectorActor<string[]>>(
             "small-processor",
-            smallServiceProvider.GetRequiredService<IServiceScopeFactory>());
+            smallScopeFactory);
 
-        var largeProcessor = new ActorBlock<string[], object, StringArrayCollectorActor>(
+        var largeProcessor = new ActorBlock<string[], object, CollectorActor<string[]>>(
             "large-processor",
-            largeServiceProvider.GetRequiredService<IServiceScopeFactory>());
+            largeScopeFactory);
 
         var builder = new DataFlowGraphBuilder("complex-flow");
         builder.AddBlock(producer)
@@ -191,37 +103,37 @@ public class ComplexFlowTests
         // Arrange
         var finalResults = new List<string>();
         
-        // Create separate service providers for each transform path
-        var transform1Services = new ServiceCollection();
-        transform1Services.AddScoped(_ => new PrefixTransformActor("T1"));
-        var transform1ServiceProvider = transform1Services.BuildServiceProvider();
+        // Using TestServiceBuilder to create separate scope factories for each path
+        var transform1ScopeFactory = TestServiceBuilder.Create()
+            .WithScoped(new TransformActor<int, string>(i => $"T1-{i}"))
+            .BuildScopeFactory();
 
-        var transform2Services = new ServiceCollection();
-        transform2Services.AddScoped(_ => new PrefixTransformActor("T2"));
-        var transform2ServiceProvider = transform2Services.BuildServiceProvider();
+        var transform2ScopeFactory = TestServiceBuilder.Create()
+            .WithScoped(new TransformActor<int, string>(i => $"T2-{i}"))
+            .BuildScopeFactory();
 
-        var processorServices = new ServiceCollection();
-        processorServices.AddScoped(_ => new StringCollectorActor(finalResults));
-        var processorServiceProvider = processorServices.BuildServiceProvider();
+        var processorScopeFactory = TestServiceBuilder.Create()
+            .WithScoped(new CollectorActor<string>(finalResults))
+            .BuildScopeFactory();
 
         var commonServices = new ServiceCollection().BuildServiceProvider();
 
-        // Single producer
-        var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(ctx, 6));
+        // Using TestStreams.Integers() instead of custom ProduceIntegers function
+        var producer = new ProducerBlock<int>("producer", _ => TestStreams.Integers(6));
 
         // Split into two transformers
-        var transformer1 = new ActorBlock<int, string, PrefixTransformActor>(
+        var transformer1 = new ActorBlock<int, string, TransformActor<int, string>>(
             "transform1",
-            transform1ServiceProvider.GetRequiredService<IServiceScopeFactory>());
+            transform1ScopeFactory);
         
-        var transformer2 = new ActorBlock<int, string, PrefixTransformActor>(
+        var transformer2 = new ActorBlock<int, string, TransformActor<int, string>>(
             "transform2",
-            transform2ServiceProvider.GetRequiredService<IServiceScopeFactory>());
+            transform2ScopeFactory);
 
         // Merge back to single processor
-        var processor = new ActorBlock<string, object, StringCollectorActor>(
+        var processor = new ActorBlock<string, object, CollectorActor<string>>(
             "processor",
-            processorServiceProvider.GetRequiredService<IServiceScopeFactory>());
+            processorScopeFactory);
 
         var builder = new DataFlowGraphBuilder("diamond-flow");
         builder.AddBlock(producer)

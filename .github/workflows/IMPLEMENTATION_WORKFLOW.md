@@ -10,14 +10,16 @@ This workflow guides implementing solutions from research handovers or direct re
 1. Check if `/implementation/plan.md` exists (ongoing implementation)
 2. If exists, read it and continue from current phase
 3. If not, create it for multi-phase work (see below)
+4. Check `.github/initiatives/active/` for relevant ongoing initiatives
 
 **Core Process:**
 1. **Step 0**: Critically evaluate handover (if from research)
 2. Read handover/requirements thoroughly
 3. Create implementation plan (if multi-phase)
-4. Implement with tests
-5. Validate and document
-6. **Before PR**: Complete self-improvement evaluation
+4. **Step 5**: Consider ongoing initiatives
+5. Implement with tests
+6. Validate and document
+7. **Before PR**: Complete self-improvement evaluation
 
 ---
 
@@ -130,6 +132,17 @@ cat /home/runner/work/lib-dataflow/lib-dataflow/implementation/plan.md
 
 For implementations spanning multiple PRs:
 
+### Check for Ongoing Initiatives
+
+**Before creating your plan**, check for active initiatives that may be relevant:
+
+```bash
+# List active initiatives
+ls .github/initiatives/active/
+```
+
+**Read relevant initiatives** and consider incorporating them into your plan. See `.github/initiatives/README.md` for guidance on when and how to apply initiatives.
+
 ### Create /implementation/plan.md
 
 ```markdown
@@ -184,6 +197,24 @@ For implementations spanning multiple PRs:
 
 ---
 
+## Ongoing Initiatives (Optional)
+
+**Note**: These are optional improvements to apply if time permits after completing primary phases.
+
+### Initiative: [Name]  
+**Reference**: `.github/initiatives/active/[name].md`  
+**Status**: Not Started | In Progress | Complete
+
+**Objectives**:
+- [ ] [Task 1]
+- [ ] [Task 2]
+
+**Rationale**: [Why this initiative is relevant to this implementation]
+
+**Estimated Effort**: [time estimate]
+
+---
+
 ## How to Continue
 
 If resuming work in a future session:
@@ -221,7 +252,72 @@ If resuming work in a future session:
 
 ---
 
-## Step 5: Implement with Tests
+## Step 5: Consider Ongoing Initiatives
+
+**When**: After creating your implementation plan (for multi-phase work) or after understanding requirements (for single-phase work).
+
+### Check Active Initiatives
+
+```bash
+# List active initiatives
+ls .github/initiatives/active/
+
+# Read relevant initiatives
+cat .github/initiatives/active/[initiative-name].md
+```
+
+### Evaluate Relevance
+
+For each active initiative, ask:
+- ✅ **Is it relevant** to the code I'm working on?
+- ✅ **Can it be applied** without significantly increasing complexity?
+- ✅ **Is there time** after completing primary objectives?
+- ✅ **Am I familiar** with the initiative pattern?
+
+### When to Include
+
+**Good candidates for inclusion:**
+- Initiative directly relates to files you're modifying
+- Pattern is well-documented with clear examples
+- Low-risk addition (e.g., refactoring tests you're already touching)
+- Adds value without complicating the PR review
+
+**Skip when:**
+- Primary implementation is complex or high-risk
+- Initiative would significantly expand PR scope
+- Unfamiliar with the pattern (would need learning time)
+- Time constraints don't allow
+
+### How to Include
+
+**For multi-phase implementations:**
+- Add "Ongoing Initiatives" section to `/implementation/plan.md`
+- List relevant initiatives with objectives
+- Mark as optional (complete after primary phases)
+
+**For single-phase implementations:**
+- Add initiative tasks to your mental checklist
+- Apply opportunistically while working
+- Document what was done in PR description
+
+### Update Initiative Progress
+
+After applying an initiative:
+1. Update the initiative file's Progress Log
+2. Note which files were affected
+3. Update success metrics if applicable
+
+**Example:**
+```markdown
+### 2025-11-08 - PR #170
+- Applied test helper refactoring to ActorBlockTests.cs
+- Removed custom IntCollectorActor (15 lines)
+- Tests: 5/5 passing
+```
+
+---
+
+## Step 6: Implement with Tests
 
 Follow handover guidance (if applicable) and:
 
@@ -293,7 +389,9 @@ Where should I put this documentation?
 
 ---
 
-## Step 6: Validate and Document
+---
+
+## Step 7: Validate and Document
 
 ### Testing
 
@@ -350,7 +448,9 @@ For large implementations (migrations, refactorings):
 
 ---
 
-## Step 7: Complete Implementation
+---
+
+## Step 8: Complete Implementation
 
 ### Archive Plan (If Multi-Phase)
 
