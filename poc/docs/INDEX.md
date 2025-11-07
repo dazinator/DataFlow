@@ -251,6 +251,8 @@ The POC also includes an epoch-based coordination system for managing transactio
 **Practical guides for using the epoch system:**
 
 📁 **[/guides](./guides/)** - How-to guides and patterns
+- [Testing Guide](./guides/testing-guide.md) - ⭐ Comprehensive testing guide with helpers and patterns
+- [Business Logic Decoupling](./guides/business-logic-decoupling.md) - Pattern for separating logic from actors
 - [Creating Tracking Blocks](./guides/creating-tracking-blocks.md) - EntityTrackingBlock pattern for per-epoch transactions
 
 ### 📖 API Reference

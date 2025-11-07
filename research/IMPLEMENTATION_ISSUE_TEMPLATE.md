@@ -148,6 +148,20 @@ Test scenarios identified and validated during research:
 1. **Integration Scenario 1**: [Description]
 2. **Integration Scenario 2**: [Description]
 
+#### Example/Demo Tests
+Recommended example tests to demonstrate usage and validate functionality:
+
+**Guidance**: Include 3-5 example tests showing key usage patterns
+- Focus on common patterns rather than exhaustive feature coverage
+- Use "before/after" comparison tests to demonstrate improvements (if applicable)
+- Examples should be clear, well-documented, and representative of real usage
+
+**Minimum Examples**:
+- [ ] Basic usage scenario
+- [ ] Common integration pattern
+- [ ] Error handling/edge case
+- [ ] [Add specific examples based on feature]
+
 ### Performance Validation
 Performance requirements based on research benchmarks:
 
@@ -252,6 +266,34 @@ If implementation should be phased:
 - [ ] Task 2
 - **Goal**: [What this phase achieves]
 
+## Documentation Deliverables
+
+Documentation to be created/updated as part of this implementation:
+
+### Required Documentation
+- [ ] **Usage guide** for new utilities/features (with examples)
+  - Scope: [Comprehensive guide (>10KB) vs Quick start guide (<3KB)]
+  - Audience: [End users vs Contributors vs Both]
+- [ ] **Pattern/best practices guide** (if applicable)
+  - Document recommended patterns discovered during research
+  - Include decision criteria for when to use each pattern
+- [ ] **README** for new directories/modules
+  - Overview of purpose and structure
+  - Quick start examples
+  - Links to detailed documentation
+
+### Navigation Updates
+- [ ] Update relevant index/navigation files
+  - Examples: `/poc/docs/INDEX.md`, project README files, etc.
+  - Ensure new documentation is discoverable
+
+### Documentation Placement
+Use the documentation directory decision tree:
+- `/docs/` - Production user-facing documentation
+- `/poc/docs/guides/` - POC-specific implementation guides
+- `/poc/docs/adr/` - Architecture decision records
+- `/research/[topic]/` - Research artifacts and analysis
+
 ## Success Criteria
 
 This implementation is complete when:
@@ -260,7 +302,8 @@ This implementation is complete when:
 - [ ] Test coverage requirements are satisfied
 - [ ] Performance requirements are met (validated with benchmarks)
 - [ ] All edge cases are handled
-- [ ] Documentation is updated
+- [ ] **Documentation deliverables completed** (see Documentation Deliverables section)
+- [ ] **Navigation files updated** (indices, READMEs)
 - [ ] Code review is complete
 - [ ] CI/CD pipeline passes
 

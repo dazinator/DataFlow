@@ -259,6 +259,30 @@ public class MyProducer : IProducer<int>
 
 ## Documentation Standards
 
+### Documentation Placement
+
+When creating or updating documentation, follow this decision tree:
+
+- **Research artifacts/analysis** → `/research/[topic]/`
+- **Architecture Decision Records (ADRs)**:
+  - POC code → `/poc/docs/adr/`
+  - Production code → `/src/docs/adr/`
+- **POC-specific implementation guides** → `/poc/docs/guides/`
+- **Production user-facing documentation** → `/docs/`
+- **Module/directory READMEs** → In the directory itself
+
+**Examples:**
+- Test helper usage guide → `/poc/docs/guides/testing-guide.md`
+- ADR for design decision → `/poc/docs/adr/YYYY-MM-DD-decision-name.md`
+- Research findings → `/research/topic-name/README.md`
+
+**Navigation Updates**: After adding new documentation:
+- Update `/poc/docs/INDEX.md` for POC guides
+- Update main project README for production docs
+- Create directory READMEs for new modules
+
+See `.github/workflows/IMPLEMENTATION_WORKFLOW.md` for the complete documentation directory decision tree.
+
 ### Diagram Preferences
 
 **ALWAYS prefer Mermaid diagrams** where visualization helps understanding:

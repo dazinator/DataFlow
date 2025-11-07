@@ -292,6 +292,22 @@ Based on research findings, create supporting documentation alongside the resear
 
 The primary deliverable: a comprehensive GitHub issue that enables implementation.
 
+**Guidance for Creating Handover Issue**:
+
+**Documentation Deliverables Checklist** - Specify what documentation the implementation team should create:
+- [ ] Usage guide for new utilities/features (with examples)
+  - Specify scope: "Comprehensive guide (>10KB)" vs "Quick start guide (<3KB)"
+  - Specify audience: End users vs Contributors vs Both
+- [ ] Pattern/best practices guide (if applicable)
+- [ ] README for new directories/modules
+- [ ] Navigation file updates (e.g., `/poc/docs/INDEX.md`)
+
+**Example Tests Guidance** - Specify what example/demo tests to include:
+- Minimum number: "Include 3-5 example tests showing key usage patterns"
+- Focus: Common patterns rather than exhaustive feature coverage
+- Pattern: Suggest "before/after comparison" tests to demonstrate improvements
+- Purpose: Examples should be clear, well-documented, and representative
+
 **Location**: Create in the `handover/` subfolder of your research. See [Research Folder Structure](/research/FOLDER_STRUCTURE.md#standard-research-folder-structure) for the complete layout.
 
 Path: `/research/[topic]/handover/github-issue-[description].md`

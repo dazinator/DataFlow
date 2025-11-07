@@ -245,6 +245,52 @@ Follow handover guidance (if applicable) and:
 - Create ADRs in `/src/docs/adr/` for significant decisions
 - Update CHANGELOG for breaking changes
 
+### Documentation Directory Decision Tree
+
+When creating or updating documentation, use this decision tree to determine placement:
+
+```
+Where should I put this documentation?
+
+├─ Is it research artifacts/analysis?
+│  └─ YES → `/research/[topic]/`
+│
+├─ Is it an Architecture Decision Record?
+│  ├─ For POC code → `/poc/docs/adr/`
+│  └─ For Production code → `/src/docs/adr/`
+│
+├─ Is it POC-specific implementation guidance?
+│  └─ YES → `/poc/docs/guides/`
+│
+├─ Is it production user-facing documentation?
+│  └─ YES → `/docs/`
+│
+└─ Is it a module/directory README?
+   └─ YES → In the directory itself (e.g., `/poc/DataFlow.POC.Tests/TestHelpers/README.md`)
+```
+
+**Examples:**
+- Test helper usage guide → `/poc/docs/guides/testing-guide.md`
+- ADR for ActorBlock design → `/poc/docs/adr/2025-11-07-actor-block-rotation.md`
+- Research findings → `/research/testing-approaches/README.md`
+- Production API docs → `/docs/api/`
+
+### Navigation File Updates
+
+**IMPORTANT**: After adding new documentation, update navigation/index files so users can discover it.
+
+**Checkpoint before `report_progress`:**
+- [ ] Created new guide in `/poc/docs/guides/`? → Update `/poc/docs/INDEX.md`
+- [ ] Created new guide in `/docs/`? → Update main project README
+- [ ] Added new module/directory? → Create README in that directory
+- [ ] Added new test helpers? → Update test helpers README
+
+**Common navigation files:**
+- `/poc/docs/INDEX.md` - POC documentation index
+- `/README.md` - Main project README
+- `/poc/README.md` - POC overview
+- `/docs/README.md` - Documentation index (if exists)
+
 ---
 
 ## Step 6: Validate and Document
