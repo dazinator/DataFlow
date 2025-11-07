@@ -7,6 +7,7 @@
 **If you're a Copilot agent working on a research issue:**
 
 ### DO (During Research):
+- ✅ **Read [Document Hygiene Guide](/.github/DOCUMENT_HYGIENE.md)** before creating/updating documentation
 - ✅ Create `/research/[topic]/` with research plan, findings, design docs
 - ✅ **Place ADRs in `/poc/docs/adr/` or `/src/docs/adr/`** (with the codebase they govern, NOT in research folder)
 - ✅ Write exploratory code in `/poc/` or `/src/` to validate approaches
@@ -294,19 +295,10 @@ The primary deliverable: a comprehensive GitHub issue that enables implementatio
 
 **Guidance for Creating Handover Issue**:
 
-**Documentation Deliverables Checklist** - Specify what documentation the implementation team should create:
-- [ ] Usage guide for new utilities/features (with examples)
-  - Specify scope: "Comprehensive guide (>10KB)" vs "Quick start guide (<3KB)"
-  - Specify audience: End users vs Contributors vs Both
-- [ ] Pattern/best practices guide (if applicable)
-- [ ] README for new directories/modules
-- [ ] Navigation file updates (e.g., `/poc/docs/INDEX.md`)
-
-**Example Tests Guidance** - Specify what example/demo tests to include:
-- Minimum number: "Include 3-5 example tests showing key usage patterns"
-- Focus: Common patterns rather than exhaustive feature coverage
-- Pattern: Suggest "before/after comparison" tests to demonstrate improvements
-- Purpose: Examples should be clear, well-documented, and representative
+See [Implementation Handover Guidance](/implementation/HANDOVER_GUIDANCE.md) for complete guidance on:
+- Multi-phase implementation assessment (when to recommend phases vs single implementation)
+- All required handover elements (including documentation deliverables and example tests)
+- Assessment criteria and examples
 
 **Location**: Create in the `handover/` subfolder of your research. See [Research Folder Structure](/research/FOLDER_STRUCTURE.md#standard-research-folder-structure) for the complete layout.
 

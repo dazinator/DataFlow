@@ -128,6 +128,43 @@ Critical points identified during research:
 - **Integration Point 1**: [Description]
 - **Integration Point 2**: [Description]
 
+## Multi-Phase Implementation Assessment
+
+**See**: [Implementation Handover Guidance](/implementation/HANDOVER_GUIDANCE.md) for assessment criteria
+
+**Recommendation**: [ ] Single-Phase  [ ] Multi-Phase
+
+### Rationale
+[Explain why single-phase or multi-phase is recommended based on volume, complexity, risk, and review factors]
+
+**If Single-Phase:**
+[Brief explanation of why changes are atomic and should be done together]
+
+**If Multi-Phase:**
+
+### Suggested Phases
+
+**Phase 1: [Name]** (e.g., Foundation)
+- **Objective**: [What this phase accomplishes]
+- **Deliverables**: [Key outputs]
+- **Files/Areas Affected**: [Scope]
+- **Why First**: [Rationale for sequencing]
+
+**Phase 2: [Name]** (e.g., Migration)
+- **Objective**: [What this phase accomplishes]
+- **Deliverables**: [Key outputs]
+- **Files/Areas Affected**: [Scope]
+- **Dependencies**: [What must be complete first]
+
+**Phase 3: [Name]** (optional)
+- **Objective**: [What this phase accomplishes]
+- **Deliverables**: [Key outputs]
+- **Files/Areas Affected**: [Scope]
+
+### Phasing Benefits
+- [Benefit 1: e.g., "Each phase is independently reviewable"]
+- [Benefit 2: e.g., "Reduces risk by validating foundation before migration"]
+
 ## Testing and Validation
 
 ### Test Coverage Required

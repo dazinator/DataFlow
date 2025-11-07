@@ -259,6 +259,8 @@ public class MyProducer : IProducer<int>
 
 ## Documentation Standards
 
+**📖 Read First**: [Document Hygiene Guide](/.github/DOCUMENT_HYGIENE.md) - Essential principles for maintainable documentation including separation of concerns, DRY principles, and when to use visual diagrams.
+
 ### Documentation Placement
 
 When creating or updating documentation, follow this decision tree:

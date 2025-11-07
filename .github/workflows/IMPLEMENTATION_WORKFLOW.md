@@ -12,14 +12,10 @@ This workflow guides implementing solutions from research handovers or direct re
 3. If not, create it for multi-phase work (see below)
 4. Check `.github/initiatives/active/` for relevant ongoing initiatives
 
-**Core Process:**
-1. **Step 0**: Critically evaluate handover (if from research)
-2. Read handover/requirements thoroughly
-3. Create implementation plan (if multi-phase)
-4. **Step 5**: Consider ongoing initiatives
-5. Implement with tests
-6. Validate and document
-7. **Before PR**: Complete self-improvement evaluation
+**Core Process**
+1. **Read [Document Hygiene Guide](/.github/DOCUMENT_HYGIENE.md)** if creating/updating documentation
+
+Follow steps below
 
 ---
 
@@ -48,7 +44,7 @@ Before implementing, ask yourself:
 **Feasibility:**
 - [ ] Is the proposed approach practical given current codebase?
 - [ ] Are there hidden dependencies or blockers?
-- [ ] Is the effort estimate realistic?
+- [ ] Is multi-phase recommendation clear and well-reasoned?
 - [ ] Can this be done in phases for easier review?
 
 **Potential Issues:**
@@ -101,6 +97,23 @@ If implementing from research handover:
    - ADRs: `/poc/docs/adr/` or `/src/docs/adr/`
    - Prototype code: `/research/[topic]/handover/prototype/` (if available)
 
+**If implementing from tech debt backlog** (`/research/backlog/`):
+
+1. **Read backlog README**: `/research/backlog/README.md`
+   - Understand backlog item format
+   - Learn how to update item status when complete
+   - Review archiving procedures
+
+2. **Verify item is still valid**:
+   - Code may have changed since item was created
+   - Check if issue still exists
+   - If no longer relevant, archive the item and stop
+
+3. **Use backlog item as context**:
+   - Backlog item provides problem description and context
+   - Create proper implementation issue if needed for complex items
+   - For simple items, backlog context may be sufficient
+
 ---
 
 ## Step 3: Check for Existing Implementation Plan
@@ -122,9 +135,17 @@ cat /home/runner/work/lib-dataflow/lib-dataflow/implementation/plan.md
 
 ### If No Plan
 
-**Decide if you need one:**
-- **Single-phase** (< 4 hours, fits in one PR): No plan needed, track in issue
-- **Multi-phase** (> 4 hours, spans multiple PRs): Create plan
+**Decide if you need one based on handover guidance:**
+
+Check the handover document for "Multi-Phase Implementation Assessment":
+- **Single-Phase recommended**: No plan needed, track in issue
+- **Multi-Phase recommended**: Create plan using suggested phases as starting point
+
+**If handover doesn't include assessment**, evaluate yourself:
+- Small, focused changes (< 10 files, < 500 lines) → Single-phase
+- Large changes, natural break points, or high risk → Multi-phase
+
+See [Implementation Handover Guidance](/implementation/HANDOVER_GUIDANCE.md) for assessment criteria.
 
 ---
 
@@ -211,8 +232,6 @@ ls .github/initiatives/active/
 
 **Rationale**: [Why this initiative is relevant to this implementation]
 
-**Estimated Effort**: [time estimate]
-
 ---
 
 ## How to Continue
@@ -235,10 +254,12 @@ If resuming work in a future session:
 ### Phased Implementation Pattern
 
 **When to use:**
-- Implementation > 4-8 hours total
+- Handover recommends multi-phase approach with clear rationale
 - Natural break points exist (foundation → migration → cleanup)
 - Changes can be staged without breaking changes
 - Easier review with smaller PRs
+
+See [Implementation Handover Guidance](/implementation/HANDOVER_GUIDANCE.md) for detailed assessment criteria.
 
 **Typical Phases:**
 - **Phase 1**: Foundation (add warnings, guidance, no breaking changes)
