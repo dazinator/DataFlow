@@ -539,6 +539,58 @@ Before any PR is marked ready for review, Copilot agents should:
      - Visual comparisons make changes clearer in documentation
      - Example: Would have helped in this issue to show template structure before/after
 
+- **Date**: 2025-11-08
+- **Issue/PR**: Product Backlog Prioritization - On demand request (copilot/automate-product-prioritization)
+- **What worked well**: 
+  - **Product Prioritization Workflow** was exceptionally comprehensive and clear
+  - **Policy-driven approach** (MAX_SELECTED_ITEMS=5, security first, tech debt requirement) provided clear decision framework
+  - **Priority criteria hierarchy** (Security → Tech Debt → Overrides → Standard) was logical and easy to follow
+  - **Edge case section** was extremely helpful - covered "Fewer Than 5 Active Items" which applied to this prioritization
+  - **Assessment table structure** (Selected + Assessed But Not Selected) provided good transparency
+  - **File update process** with clear do/don't guidance prevented errors
+  - **Workflow steps** were sequential and comprehensive - easy to follow as a checklist
+  - **Risk assessment for security items** (core vs non-core code) was well thought out
+  - **Quick win criteria** for tech debt was specific and actionable
+  - **Template structure** in workflow made file update straightforward
+- **What didn't work well**:
+  - **Very long workflow file** (~614 lines) - had to scroll extensively to find relevant sections
+  - **No quick summary/checklist** at the top - would have helped for simple prioritization cases
+  - **Template examples used placeholder "..."** instead of realistic data - would be more helpful with concrete examples
+  - **Unclear whether to include Category column** in Selected Items table - template showed it but example tables inconsistent
+  - **No guidance on what to do after updating prioritization.md** - should there be a comment on the issue? GitHub notification?
+  - **Selection criteria step 3.4** was somewhat vague on "business value" assessment when all items are equal
+  - **No guidance on prioritization frequency** in main workflow (mentioned in "Periodic Review" but not in main flow)
+- **Suggested improvement**: 
+  1. **Add "Quick Reference Summary"** at top of PRODUCT_PRIORITIZATION_WORKFLOW.md:
+     - One-page checklist: Collect items → Check security → Check tech debt → Check overrides → Fill slots → Update file
+     - Link to detailed sections for each step
+     - Similar to how this repository uses Quick Navigation in copilot-instructions.md
+     - Would reduce cognitive load for straightforward prioritizations
+  2. **Add concrete example** to template section:
+     - Replace "| ... | ... | ... | ... | ... |" with realistic sample row
+     - Example: "| 3 | techdebt-2025-11-01-fix-warnings | Fix Compiler Warnings | Tech Debt | Quick win cleanup |"
+     - Helps understand expected format and detail level
+  3. **Clarify table structure** - Add note about Category column:
+     - "Category column is REQUIRED in Selected Items table (helps understand selection rationale)"
+     - "Use categories: Feature, Bug Fix, Tech Debt, Performance, Security, etc."
+  4. **Add "Post-Prioritization Actions"** section:
+     - After updating prioritization.md, comment on triggering issue with summary
+     - Use template format shown in Step 6
+     - If no triggering issue, just commit the update
+     - Close triggering issue after posting summary
+  5. **Add "Tie-Breaking Criteria"** for standard selection:
+     - When business value appears equal, use: Creation date (oldest first) OR
+     - User-facing over internal improvements OR
+     - Quick wins over large efforts when value is similar
+     - Make the decision framework from 3.4 more prescriptive
+  6. **Add navigation section** to long workflow files:
+     - Table of contents with anchor links at the top
+     - Or split into multiple files (PRIORITIZATION_POLICY.md, PRIORITIZATION_EXECUTION.md, etc.)
+     - 600+ line workflows are hard to navigate
+  7. **Add "Recommended Frequency"** to main workflow steps:
+     - Call out in Step 1 or overview: "Typically run bi-weekly or when backlog changes significantly"
+     - Currently buried in "Periodic Review" section near the end
+
 <!-- Add general workflow improvement suggestions here that apply to all workflows -->
 <!-- Format:
 - **Date**: YYYY-MM-DD
