@@ -285,6 +285,43 @@ Before any PR is marked ready for review, Copilot agents should:
 ### Suggestions
 
 - **Date**: 2025-11-08
+- **Issue/PR**: Process Modeling Workflow - Backlog-Driven Mode (copilot/process-modeling-workflow)
+- **What worked well**:
+  - **Process Modeling Workflow** provided excellent structure for designing and testing the enhancement
+  - **Tabletop simulation approach** validated all scenarios before implementation - caught no issues because design was solid
+  - **Design-first approach** - creating design document in /tmp helped think through all aspects before coding
+  - **Test scenario variety** - entry selection, history tracking, entry removal, end-to-end, regression verification provided comprehensive coverage
+  - **Single unified workflow** - augmenting existing workflow rather than duplicating was the right approach
+  - **Clear requirements in issue** - problem statement, proposed solution, and constraints were all well-defined
+  - **Regression verification** - explicitly checking that existing functionality still works prevented breaking changes
+  - **History.md pattern** - simple chronological log is maintainable and provides accountability
+  - **Entry removal approach** - removing entries (vs marking) keeps workflow-improvements.md clean as a "to-do" list
+- **What didn't work well**:
+  - **Issue mentioned "process-improvements.md"** but actual file is "workflow-improvements.md" - minor naming confusion
+  - **No guidance on how much to test** - created 5 scenarios but unclear if this was sufficient (it was)
+  - **Unclear whether to update copilot-instructions.md** - had to determine independently that Process Modeling was missing from navigation
+  - **No template for design documents** - created ad-hoc in /tmp, worked well but could benefit from standard template
+  - **File mentions "process-improvements"** vs "workflow-improvements" inconsistency
+- **Suggested improvement**:
+  1. **Add "Design Document Template"** to Process Modeling Workflow:
+     - Guidance on when to create design doc (for complex multi-file changes)
+     - Template including: Goal, Requirements, Design Decisions, File Changes, Testing Plan
+     - Recommend /tmp location for design docs (temporary, not committed)
+     - Design doc helps think through solution before implementing
+  2. **Add "Sufficient Testing Criteria"** guidance to Process Modeling Workflow:
+     - Minimum: 2-3 core scenarios covering key functionality
+     - Add: 1 regression verification scenario
+     - Add: 1 end-to-end scenario for complex changes
+     - Total 4-5 scenarios is usually sufficient for well-designed changes
+  3. **Add "Navigation Update Reminder"** to Process Modeling Workflow:
+     - When creating/updating a workflow, check if copilot-instructions.md navigation needs update
+     - Navigation should list all major workflows in Quick Navigation section
+     - Prevents workflows from being "hidden" or hard to discover
+  4. **Standardize terminology**:
+     - File is "workflow-improvements.md" not "process-improvements.md"
+     - Update any references to use consistent naming
+
+- **Date**: 2025-11-08
 - **Issue/PR**: Product Backlog System (Process Modeling workflow issue)
 - **What worked well**:
   - **Process Modeling Workflow** was comprehensive and clear - provided excellent structure for systematic testing

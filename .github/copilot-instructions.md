@@ -16,10 +16,13 @@
 4. **Product Prioritization** (prioritize backlog items)
    → See `.team/workflows/PRODUCT_PRIORITIZATION_WORKFLOW.md`
 
-5. **POC Work** (evolving architecture exploration)
+5. **Process Modeling Task** (improve workflows and processes)
+   → See `.team/workflows/PROCESS_MODELING_WORKFLOW.md`
+
+6. **POC Work** (evolving architecture exploration)
    → See section below, then follow appropriate workflow
 
-6. **Continuing Existing Work**
+7. **Continuing Existing Work**
    → Check `/implementation/plan.md` first
 
 **⚠️ ALWAYS complete self-improvement evaluation before PR review** (see below)

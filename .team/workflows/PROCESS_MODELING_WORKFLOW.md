@@ -59,18 +59,57 @@ Use this workflow when:
 
 ## How to Initiate Process Modeling
 
+Process modeling can be initiated in **two modes**:
+
+### Mode 1: Issue-Driven (Direct Proposal)
+
 **Create a GitHub Issue** using the "Workflow Improvements" issue template:
 
 1. Go to GitHub Issues → New Issue
 2. Select **"Workflow Improvements"** template
-3. Fill in:
+3. Select **"Issue-Driven"** mode
+4. Fill in:
    - Which workflow(s) are affected
    - Current state and pain points
    - Proposed improvements
    - Expected benefits
+5. Assign to @copilot or mention @copilot in comments
+
+The issue will invoke this Process Modeling Workflow with your specific proposal.
+
+### Mode 2: Backlog-Driven (Process Next Suggestion)
+
+**Create a GitHub Issue** using the "Workflow Improvements" issue template:
+
+1. Go to GitHub Issues → New Issue
+2. Select **"Workflow Improvements"** template
+3. Select **"Backlog-Driven"** mode
 4. Assign to @copilot or mention @copilot in comments
 
-The issue will invoke this Process Modeling Workflow.
+**For @copilot executing backlog-driven mode:**
+
+1. **Read** `.github/workflow-improvements.md`
+2. **Select** the top unaddressed entry:
+   - Scan sections in order: Research → Implementation → General → POC → Documentation
+   - Find first entry with at least one unaddressed improvement (no ✅ marker)
+   - If all improvements in an entry are marked ✅, skip to next entry
+3. **Extract context** from the selected entry:
+   - Date and Issue/PR reference
+   - What worked well
+   - What didn't work well
+   - Suggested improvement(s) - identify which are unaddressed
+   - Which workflow(s) affected
+4. **Update** `/research/workflow-modeling/plan.md` with:
+   - Selected entry details
+   - Which specific improvements you're addressing
+   - Expected workflow changes
+5. **Follow standard process modeling** (create scenarios, test, refine, etc.)
+6. **After completion**:
+   - Remove the entire entry from `.github/workflow-improvements.md`
+   - Add one-line summary to `/research/workflow-modeling/history.md`
+   - Archive plan to `/research/workflow-modeling/archive/`
+
+**Entry Removal**: Remove the entire entry even if improvements were not viable. This prevents the queue from getting stuck. Document unsuccessful attempts in history.md.
 
 ## Long-Lived Research Folder Structure
 
@@ -248,15 +287,49 @@ Process modeling directly feeds the self-improvement loop:
 3. **Before Completion**: Add evaluation to `.github/workflow-improvements.md`
 4. **Archive Learnings**: Include key insights in plan.md before archiving
 
+## History Tracking
+
+Process modeling maintains a chronological log in `/research/workflow-modeling/history.md` to track completed improvements.
+
+### When to Add History Entries
+
+Add an entry when:
+- Completing process modeling work (issue-driven or backlog-driven)
+- Workflow documentation has been updated
+- Before archiving the plan
+
+### History Entry Format
+
+```markdown
+- **YYYY-MM-DD**: Brief description of the workflow improvement made
+```
+
+**Guidelines:**
+- Keep descriptions to one line (can wrap if needed, but stay concise)
+- Focus on the outcome/benefit, not the process details
+- Place newest entries first within the year
+- Examples:
+  - `- **2025-11-08**: Added backlog-driven mode to Process Modeling Workflow`
+  - `- **2025-11-08**: Simplified Product Prioritization template (55% reduction)`
+
+### For Backlog-Driven Mode
+
+When processing an entry from workflow-improvements.md:
+- Add history entry even if improvement was not viable
+- For unsuccessful improvements: note that it was attempted
+- Example: `- **2025-11-08**: Attempted X improvement but determined not viable after testing`
+
 ## Completing Process Modeling Work
 
 When work on an issue is complete:
 
 1. **Verify all tests PASS**: Run full regression test suite
 2. **Update all affected files**: Workflow docs, copilot-instructions, templates
-3. **Complete self-improvement evaluation**: Add to workflow-improvements.md
-4. **Archive the plan**: Move current plan to `/research/workflow-modeling/archive/YYYY-MM-DD-issue-NNN.md`
-5. **Clear plan.md**: Ready for next process modeling work (or mark as "No active work")
+3. **Add history entry**: Update `/research/workflow-modeling/history.md` with one-line summary
+4. **For backlog-driven mode**: Remove processed entry from `.github/workflow-improvements.md`
+5. **Complete self-improvement evaluation**: Add to workflow-improvements.md (issue-driven) or included in history (backlog-driven)
+6. **Archive the plan**: Move current plan to `/research/workflow-modeling/archive/YYYY-MM-DD-issue-NNN.md`
+7. **Clear plan.md**: Ready for next process modeling work (or mark as "No active work")
 
 ## Example Process Modeling Session
 

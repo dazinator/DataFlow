@@ -38,9 +38,19 @@ Check all that apply:
 - [ ] Implementation Workflow
 - [ ] Tech Debt Workflow
 - [ ] Product Prioritization Workflow
+- [ ] Process Modeling Workflow
 - [ ] Any/All Workflows (systemic change affecting multiple workflows)
 - [ ] Copilot Instructions
 - [ ] Issue Templates
+
+## Improvement Mode
+
+Choose one:
+
+- [ ] **Issue-Driven**: I'm proposing a specific improvement (fill out sections below)
+- [ ] **Backlog-Driven**: Process the next unaddressed entry from `.github/workflow-improvements.md` (you can skip the sections below - @copilot will extract context from the backlog)
+
+---
 
 ## Problem Statement
 
