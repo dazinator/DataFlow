@@ -34,6 +34,32 @@
 - [ ] Tests passing
 - [ ] Documentation updated (if applicable)
 
+### Documentation Deliverables (if applicable)
+
+Use this checklist when implementation requires new or updated documentation:
+
+- [ ] Usage guide for new features/utilities
+  - Scope: [ ] Comprehensive (>10KB) or [ ] Quick start (<3KB)
+  - Target audience: [ ] End users [ ] Contributors [ ] Both
+- [ ] Pattern/best practices guide (if introducing new patterns)
+- [ ] README for new directories/modules
+- [ ] Update relevant index/navigation files
+  - Examples: `/poc/docs/INDEX.md`, main project README, module READMEs
+
+*If no new documentation is needed, state why in Success Criteria (e.g., "Existing documentation covers this functionality").*
+
+### Example Tests Guidance (if applicable)
+
+When handover includes prototype code or new patterns, specify example test expectations:
+
+- **Minimum**: 3-5 example/demo tests demonstrating key usage patterns
+- **Focus**: Common patterns rather than exhaustive feature coverage
+- **Comparison tests**: Include "before/after" tests if demonstrating improvements
+  - Example: Show OLD pattern vs NEW pattern side-by-side
+- **Location**: Where example tests should be created (e.g., in test project, POC tests, etc.)
+
+*If no example tests are needed beyond standard unit tests, state this explicitly in Success Criteria.*
+
 ## Handover Assets
 
 [If handover folder exists]

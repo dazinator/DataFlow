@@ -164,47 +164,6 @@ Before any PR is marked ready for review, Copilot agents should:
      - Updated copilot-instructions.md with phased implementation guidance
 
 - **Date**: 2025-11-07
-- **Issue/PR**: Test Improvements Implementation (copilot/implement-test-improvements)
-- **What worked well**: 
-  - Handover document from research team was exceptional - comprehensive, well-organized, and action-oriented
-  - Prototype files in `/research/testing-approaches/handover/prototype/` were production-ready and easy to adopt
-  - Clear phase structure (Test Helpers → Documentation → Review) provided logical progression
-  - Test helper prototypes had complete examples showing 40-60% code reduction
-  - NSubstitute examples (6 concrete tests) made it easy to demonstrate value
-  - Ability to copy files directly from prototype folder saved significant time
-  - All tests passing after implementation validated zero-regression approach
-  - Documentation templates (testing-guide, business-logic-decoupling) followed from research insights
-- **What didn't work well**:
-  - No explicit guidance in handover on whether to add additional example tests beyond the prototypes
-  - Uncertainty about optimal level of detail for testing guide (ended up comprehensive at 16KB)
-  - No clear checklist in handover for "documentation complete" criteria
-  - Initial uncertainty about which docs directory to use (chose `/poc/docs/guides/` based on existing structure)
-  - No guidance on whether to update POC INDEX.md or other navigation files
-- **Suggested improvement**: 
-  1. **Add "Documentation Deliverables Checklist"** to handover template for implementation issues:
-     - [ ] Usage guide for new utilities/features (with examples)
-     - [ ] Pattern/best practices guide (when applicable)
-     - [ ] README for new directories/modules
-     - [ ] Update relevant index/navigation files
-     - Example scope: "Comprehensive guide (>10KB)" vs "Quick start guide (<3KB)"
-     - Target audience specification (end users vs contributors vs both)
-  2. **Add "Example Tests Guidance"** to handover template:
-     - Specify minimum number of example/demo tests needed for validation
-     - Clarify whether examples should demonstrate all features or focus on common patterns
-     - Suggest "before/after comparison" as effective demonstration pattern
-     - Example: "Include 3-5 example tests showing key usage patterns"
-  3. **Add "Documentation Directory Decision Tree"** to implementation workflow:
-     - `/docs/` - Production user-facing documentation
-     - `/poc/docs/guides/` - POC-specific implementation guides
-     - `/poc/docs/adr/` - Architecture decision records
-     - `/research/[topic]/` - Research artifacts and analysis
-     - Update copilot-instructions.md with clear guidance on documentation placement
-  4. **Add "Navigation File Updates"** reminder to implementation workflow:
-     - When adding new guides, update relevant index/navigation files
-     - Examples: `/poc/docs/INDEX.md`, project README files
-     - Add this as checkpoint in "report_progress" step
-
-- **Date**: 2025-11-07
 - **Issue/PR**: Tech Debt - Fix OpenTelemetry Vulnerability (copilot/fix-vulnerable-tech-debt)
 - **What worked well**: 
   - Handover document was clear and comprehensive with all necessary context
@@ -334,6 +293,76 @@ Before any PR is marked ready for review, Copilot agents should:
   - **Regression testing** verified no existing functionality broken
   - **History.md tracking** provides simple chronological log without clutter
 - **What didn't work well**:
+  - **No guidance on what to do with "already implemented" improvements** - had to infer (mark in scenario and continue)
+  - **Unclear whether to update copilot-instructions.md** when backlog entry mentions non-existent section ("Using Ecosystem Tools")
+  - **No template for archived plan** - created ad-hoc structure (worked well but could be standardized)
+  - **Scenario archiving timing** - unclear if should archive immediately or wait until all work complete (chose wait until complete)
+  - **No guidance on how detailed archived plan should be** - created comprehensive summary, unsure if overkill
+- **Suggested improvement**:
+  1. **Add "Already Implemented" handling** to Process Modeling Workflow backlog-driven mode:
+     - If improvement already exists, document in scenario test notes
+     - Still count as "addressed" when processing entry
+     - Remove entire entry (already-implemented improvements don't need to stay in backlog)
+     - Note in history.md that improvement was already complete
+  2. **Add "Missing Section" guidance** to Process Modeling Workflow:
+     - If backlog entry references non-existent section (e.g., "Using Ecosystem Tools")
+     - Find most appropriate existing section for the guidance
+     - Document section choice in archived plan
+     - Don't create new top-level sections just to match backlog suggestion
+  3. **Add "Archived Plan Template"** to Process Modeling Workflow:
+     - Template should include: Summary, Selected Entry Details, Improvements Addressed, Test Results, Files Modified, Lessons Learned
+     - Keep it comprehensive enough for future reference
+     - Location: `/research/workflow-modeling/archive/YYYY-MM-DD-[name].md`
+  4. **Clarify "Scenario Archiving Timing"** in Process Modeling Workflow:
+     - Archive scenarios to regression-tests/ AFTER all testing complete and improvements implemented
+     - Don't archive mid-work (keeps scenarios/ clean for active work)
+     - Archive all scenarios from the workflow together (e.g., all implementation-workflow scenarios)
+
+- **Date**: 2025-11-08
+- **Issue/PR**: Backlog-Driven Process Modeling - Documentation Deliverables Guidance
+- **What worked well**:
+  - **Backlog-driven mode** worked flawlessly - entry selection, context extraction, removal was smooth
+  - **Tabletop simulation** caught that 2 of 4 improvements were already implemented (saved time)
+  - **Verification scenarios** (scenarios 003-004) validated existing implementations before making changes
+  - **Baseline scenarios** (001-002) confirmed the pain points were real, not hypothetical
+  - **Improved scenarios** (005-006) demonstrated value with concrete examples
+  - **Edge case scenario** (007) validated "(if applicable)" approach for minimal documentation cases
+  - **Regression test** verified no breaking changes after template update
+  - **Test scenario format** (Context → Starting Point → Steps → Expected Outcome → Test Result) was clear and effective
+  - **History.md table format** made it easy to add entry with all required fields
+  - **Archived plan structure** from previous work provided good template to follow
+- **What didn't work well**:
+  - **No guidance on optimal number of scenarios** - created 7 scenarios, wondered if that was enough (it was)
+  - **Uncertain about scenario naming** - used sequential numbers (001-007) but no guidance on naming conventions
+  - **Template formatting** - markdown table in template required careful spacing, could be error-prone
+  - **No example of good backlog item** - would have helped to see "before/after" example in archived plan
+  - **Regression test file separate** - created regression-test.md separately from scenarios, unclear if should be combined
+- **Suggested improvement**:
+  1. **Add "Scenario Quantity Guidance"** to Process Modeling Workflow:
+     - Minimum: 2-3 scenarios (baseline + improved + edge case)
+     - Standard: 4-7 scenarios for comprehensive coverage
+     - When to add more: If gaps emerge during testing or refinement
+     - Quality over quantity - better to have fewer comprehensive scenarios than many superficial ones
+  2. **Add "Scenario Naming Convention"** to Process Modeling Workflow:
+     - Format: `scenario-NNN-[type]-[brief-description].md`
+     - Types: baseline, improved, verify, edge-case, regression
+     - Example: `scenario-001-baseline-research-handover.md`
+     - Sequential numbering (001, 002, etc.) for easy ordering
+  3. **Add "Before/After Example"** to archived plan template:
+     - Include concrete example showing baseline vs improved state
+     - Helps future readers understand the impact
+     - Example: "Baseline: 'Documentation updated (if applicable)' → Improved: 'Usage guide created (comprehensive >10KB, target: contributors)'"
+  4. **Add "Regression Test Pattern"** guidance:
+     - Can be separate file (regression-test.md) or integrated into scenarios
+     - Separate file works well for comprehensive regression validation
+     - Include re-test of all scenarios after changes applied
+  5. **Add "Template Update Guidance"** for markdown tables:
+     - When adding sections with markdown tables, provide properly formatted example
+     - Note that spacing/alignment is less critical (auto-formats in viewers)
+     - Emphasize content over perfect formatting
+
+- **Date**: 2025-11-08
+- **Issue/PR**: #185 - Backlog-Driven Implementation Workflow Improvements
   - **No guidance on what to do with "already implemented" improvements** - had to infer (mark in scenario and continue)
   - **Unclear whether to update copilot-instructions.md** when backlog entry mentions non-existent section ("Using Ecosystem Tools")
   - **No template for archived plan** - created ad-hoc structure (worked well but could be standardized)

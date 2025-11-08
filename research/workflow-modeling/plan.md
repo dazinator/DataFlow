@@ -18,12 +18,13 @@ When a new workflow improvement issue is assigned:
 
 ## Recent Completion
 
-**Last Completed**: 2025-11-08 - Prevent Duplicate Sections Improvement
-**See Archive**: Guidance added to PROCESS_MODELING_WORKFLOW.md (no separate archive needed for this quick fix)
+**Last Completed**: 2025-11-08 - Documentation Deliverables and Example Tests Guidance
+**See Archive**: `/research/workflow-modeling/archive/2025-11-08-documentation-deliverables-guidance.md`
 
 ## Archive
 
 Previous work can be found in `/research/workflow-modeling/archive/`:
+- `2025-11-08-documentation-deliverables-guidance.md` - Documentation deliverables and example tests guidance
 - `2025-11-08-history-table-format.md` - History table format enhancement
 - `2025-11-08-history-format-enhancement.md` - History format enhancement (benefits and rationale)
 - `2025-11-08-implementation-improvements.md` - Implementation workflow improvements (backlog-driven)
