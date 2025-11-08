@@ -163,37 +163,6 @@ Before any PR is marked ready for review, Copilot agents should:
      - When complete, archive to `/implementation/archive/[YYYY-MM-DD]-[name].md`
      - Updated copilot-instructions.md with phased implementation guidance
 
-- **Date**: 2025-11-06
-- **Issue/PR**: #155 Plain Blocks Consolidation Phase 5
-- **What worked well**:
-  - Implementation plan document in `/implementation/plain-blocks-consolidation/plan.md` provided clear phase status and continuation guidance
-  - "How to Continue" section in plan made it easy to resume work across sessions
-  - Systematic benchmark migration using consistent patterns (NoOpProcessorActor<T>) reduced errors
-  - Archiving baseline benchmarks instead of migrating them preserved historical context
-  - Separate DI scopes per actor instance pattern worked well for state isolation
-  - Incremental testing after each file migration caught issues early
-  - Clear success criteria in handover made validation straightforward
-- **What didn't work well**:
-  - No explicit guidance in handover on whether to migrate or archive baseline benchmarks
-  - ETL benchmark migrations (ComplexEtlPOC, SimpleEtlPOC) required creating 9+ actor implementations - could have benefited from helper factory methods
-  - Multiple similar edits across files could have used a scripted approach or code generation tool
-  - Missing initial step to verify current implementation plan exists before starting work
-- **Suggested improvement**:
-  1. **Add "Check for Implementation Plan" step** to implementation workflow:
-     - Before starting ANY implementation work, check `/implementation/plan.md` for existing plans
-     - If plan exists, read it first to understand current phase and status
-     - If no plan exists and work is multi-phase, create one before starting
-     - Add this as Step 0 in Implementation Team Workflow section of copilot-instructions.md
-  2. **Add guidance for baseline/historical artifacts** to handover template:
-     - Explicitly state whether baseline benchmarks should be migrated or archived
-     - If archived, specify location (e.g., `/research/.../archived-benchmarks/`)
-     - Clarify distinction between "historical comparison artifacts" vs "ongoing performance tests"
-  3. **Suggest helper patterns for bulk migrations** in implementation workflow:
-     - When migrating >5 similar files, consider creating helper factory methods
-     - For actor-based migrations, suggest generic actor templates that can be reused
-     - Example: `ActorFactory.CreateNoOpProcessor<T>()` instead of duplicating actor classes
-     - Add to "Using Ecosystem Tools" section of copilot-instructions.md
-
 - **Date**: 2025-11-07
 - **Issue/PR**: Test Improvements Implementation (copilot/implement-test-improvements)
 - **What worked well**: 
@@ -351,6 +320,134 @@ Before any PR is marked ready for review, Copilot agents should:
      - Very long workflow files could benefit from table of contents
      - Or split into smaller files (e.g., RESEARCH_WORKFLOW_PHASES.md, RESEARCH_WORKFLOW_REVERSION.md)
      - But keep current structure for now - works well enough
+
+- **Date**: 2025-11-08
+- **Issue/PR**: #185 - Backlog-Driven Implementation Workflow Improvements
+- **What worked well**:
+  - **Backlog-driven mode** worked perfectly - clear entry selection criteria and removal process
+  - **Tabletop simulation methodology** caught that improvement #1 was already implemented before doing unnecessary work
+  - **Test scenario format** (Context → Steps → Expected Outcome) was effective for validation
+  - **Baseline vs Improved testing** clearly demonstrated value of changes
+  - **Entry removal approach** (remove entire entry vs marking) keeps backlog clean
+  - **Decision criteria table** (1-5 files/5-15/15+) made bulk migration guidance immediately actionable
+  - **Concrete code examples** (NoOpProcessorActor, TestActorFactory) in workflow were valuable
+  - **Regression testing** verified no existing functionality broken
+  - **History.md tracking** provides simple chronological log without clutter
+- **What didn't work well**:
+  - **No guidance on what to do with "already implemented" improvements** - had to infer (mark in scenario and continue)
+  - **Unclear whether to update copilot-instructions.md** when backlog entry mentions non-existent section ("Using Ecosystem Tools")
+  - **No template for archived plan** - created ad-hoc structure (worked well but could be standardized)
+  - **Scenario archiving timing** - unclear if should archive immediately or wait until all work complete (chose wait until complete)
+  - **No guidance on how detailed archived plan should be** - created comprehensive summary, unsure if overkill
+- **Suggested improvement**:
+  1. **Add "Already Implemented" handling** to Process Modeling Workflow backlog-driven mode:
+     - If improvement already exists, document in scenario test notes
+     - Still count as "addressed" when processing entry
+     - Remove entire entry (already-implemented improvements don't need to stay in backlog)
+     - Note in history.md that improvement was already complete
+  2. **Add "Missing Section" guidance** to Process Modeling Workflow:
+     - If backlog entry references non-existent section (e.g., "Using Ecosystem Tools")
+     - Find most appropriate existing section for the guidance
+     - Document section choice in archived plan
+     - Don't create new top-level sections just to match backlog suggestion
+  3. **Add "Archived Plan Template"** to Process Modeling Workflow:
+     - Template should include: Summary, Selected Entry Details, Improvements Addressed, Test Results, Files Modified, Lessons Learned
+     - Keep it comprehensive enough for future reference
+     - Location: `/research/workflow-modeling/archive/YYYY-MM-DD-[name].md`
+  4. **Clarify "Scenario Archiving Timing"** in Process Modeling Workflow:
+     - Archive scenarios to regression-tests/ AFTER all testing complete and improvements implemented
+     - Don't archive mid-work (keeps scenarios/ clean for active work)
+     - Archive all scenarios from the workflow together (e.g., all implementation-workflow scenarios)
+
+- **Date**: 2025-11-08
+- **Issue/PR**: #185 - History Format Enhancement (Benefits and Rationale)
+- **What worked well**:
+  - **PR review feedback integration** - Clear request from @dazinator with specific requirements
+  - **Process Modeling Workflow** handled PR feedback same as any other improvement request
+  - **Test scenario creation** - Executive audit and benefit extraction scenarios validated format effectively
+  - **Baseline vs improved testing** - Clearly demonstrated value (15 min audit, 3x faster benefit extraction)
+  - **Archived plan analysis** - Successfully extracted benefits from all 6 archived plans
+  - **2-line format** - Strikes balance between scannability and information density
+  - **Immediate implementation** - All existing entries reformatted, not just new ones
+- **What didn't work well**:
+  - **PR number mapping** - Had to infer PR numbers since history entries predated PR linking
+  - **Benefit extraction** - Required reading archived plans to extract actual benefits (time-consuming)
+  - **No benefit capture during completion** - Would be easier if benefits were captured when creating history entry
+  - **Rationale sometimes implicit** - Had to infer "why" benefit occurs from archived plan context
+- **Suggested improvement**:
+  1. **Add "Capture Benefit During Completion"** to Process Modeling Workflow:
+     - When completing work, capture expected benefit and rationale upfront
+     - Include in history entry immediately (don't need to extract later)
+     - Template in workflow: "What's the expected benefit? Why do you expect this benefit?"
+     - Makes retroactive reformatting unnecessary
+  2. **Add PR number to plan.md early**:
+     - When starting work, note the PR number (if from PR feedback)
+     - When completing work, note the PR number that will contain changes
+     - Include in archived plan for easy reference
+  3. **Add "Benefit Validation"** checkpoint:
+     - After archiving plan, verify history entry has clear benefit
+     - If benefit unclear, refine before marking complete
+     - Prevents vague entries like "improved workflow" without specific value
+
+- **Date**: 2025-11-08
+- **Issue/PR**: #185 - History Table Format Enhancement
+- **What worked well**:
+  - **Clear feedback from @dazinator** - Specific request for area identification and scenario summary
+  - **Table format decision** - Markdown tables provide much better scannability than list format
+  - **Archived plan mining** - Successfully extracted area and scenario info from all 7 archived plans
+  - **Single test scenario sufficient** - One comprehensive scenario (table scanning) validated the improvement
+  - **Column design** - 6 columns (Date, Area, Improvement, Benefit, Scenario, PR) capture all needed information
+  - **Area categorization** - Clear workflow identification (Implementation, Process Modeling, Product Prioritization, etc.)
+  - **Scenario extraction** - Could pull scenario names from regression-tests and archived plans
+- **What didn't work well**:
+  - **Scenario column length** - Some entries have many scenarios, making column wide (but acceptable trade-off)
+  - **Table formatting complexity** - Markdown tables require careful alignment, more complex than list format
+  - **No guidance on area naming** - Had to infer naming convention (e.g., "Multiple: X, Y" vs listing all)
+  - **Initial uncertainty on PR format** - Should it be `#XXX`, `[#XXX](url)`, or just `XXX`? (chose linked format)
+- **Suggested improvement**:
+  1. **Add "Area Naming Convention"** to Process Modeling Workflow:
+     - Single workflow: Use workflow name (e.g., "Implementation", "Research", "Process Modeling")
+     - Multiple workflows (2-3): List separated by comma (e.g., "Research, Implementation")
+     - Many workflows (4+): Use "Multiple: X, Y, Z" or "Cross-workflow"
+     - Standardizes area identification
+  2. **Add "Scenario Column Guidance"**:
+     - If many scenarios (>5), summarize with count (e.g., "5 scenarios: plan check, artifacts, migrations, ...")
+     - If no scenarios, use "N/A" or "Direct implementation"
+     - Keep concise but informative
+  3. **Add "Table Formatting Helper"** to workflow:
+     - Provide example row with proper spacing
+     - Note: Markdown tables auto-format in most viewers, so alignment less critical
+     - Emphasize content over perfect formatting
+  4. **Standardize PR link format**:
+     - Always use `[#XXX](https://github.com/org/repo/pull/XXX)` for clickability
+     - Use "N/A" if no PR (e.g., direct workflow improvement)
+     - Include in workflow examples
+
+- **Date**: 2025-11-08
+- **Issue/PR**: #185 - Prevent Duplicate Sections in plan.md
+- **What worked well**:
+  - **Code review caught the issue** - Duplicate sections were identified before merge
+  - **Root cause clear** - Incremental edits instead of full file replacement
+  - **Quick fix** - Simple cleanup + workflow guidance prevented future occurrences
+  - **Template approach** - Added plan.md clean state template to workflow
+  - **Verification step** - Added explicit "verify no duplicate sections" to completion checklist
+- **What didn't work well**:
+  - **Incremental editing pattern** - Multiple edit operations on same file led to duplicates
+  - **No template guidance** - Workflow didn't provide clean state template for plan.md reset
+  - **Missing verification** - No explicit step to check for duplicates before committing
+- **Suggested improvement**:
+  1. **Add "File Replacement Pattern" guidance** to Process Modeling Workflow:
+     - When resetting plan.md or other tracking files, replace entire content
+     - Use templates instead of incremental edits for state resets
+     - Examples of when to replace vs when to edit incrementally
+  2. **Add verification checklist** to completion steps:
+     - After resetting plan.md, verify structure: 1 Current Work, 1 Recent Completion, 1 Archive
+     - Check for duplicate sections before committing
+     - Use `grep` or similar to detect duplicate section headers
+  3. **Consider automated checks**:
+     - Add simple script to validate plan.md structure
+     - Could run as pre-commit hook or in CI
+     - But keep lightweight - don't over-engineer
 
 - **Date**: 2025-11-05
 - **Issue/PR**: Self-improvement loop implementation

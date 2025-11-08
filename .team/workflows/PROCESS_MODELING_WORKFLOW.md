@@ -300,24 +300,40 @@ Add an entry when:
 
 ### History Entry Format
 
+History is maintained as a markdown table in `/research/workflow-modeling/history.md`:
+
 ```markdown
-- **YYYY-MM-DD**: Brief description of the workflow improvement made
+| Date | Area | Improvement | Benefit | Scenario | PR |
+|------|------|-------------|---------|----------|-----|
+| YYYY-MM-DD | Workflow(s) | Brief description | Expected benefit (Rationale) | Test scenarios | [#XXX](url) or N/A |
 ```
 
+**Column Definitions:**
+- **Date**: When improvement was completed (YYYY-MM-DD)
+- **Area**: Which workflow(s) were improved (e.g., "Implementation", "Research", "Process Modeling", "Multiple: Research, Implementation")
+- **Improvement**: Brief description (keep under 80 chars if possible)
+- **Benefit**: Expected outcome with rationale in parentheses (keep concise)
+- **Scenario**: Brief scenario names used for validation (e.g., "Executive audit, benefit extraction")
+- **PR**: Link format `[#XXX](https://github.com/uniun-technology/lib-dataflow/pull/XXX)` or "N/A" if not from PR
+
 **Guidelines:**
-- Keep descriptions to one line (can wrap if needed, but stay concise)
-- Focus on the outcome/benefit, not the process details
-- Place newest entries first within the year
-- Examples:
-  - `- **2025-11-08**: Added backlog-driven mode to Process Modeling Workflow`
-  - `- **2025-11-08**: Simplified Product Prioritization template (55% reduction)`
+- Add new row at top of table (newest first)
+- Identify all affected workflow areas clearly
+- Include scenario names from regression-tests or archived plan
+- Keep benefit concise but capture key value
+- Use proper markdown table format
+
+**Example:**
+```markdown
+| 2025-11-08 | Implementation | Baseline artifacts and bulk migration guidance | Reduces implementation confusion and repetitive manual work (Clear criteria for artifact handling; automation thresholds) | Implementation plan check, baseline artifacts, bulk migrations | [#185](https://github.com/uniun-technology/lib-dataflow/pull/185) |
+```
 
 ### For Backlog-Driven Mode
 
 When processing an entry from workflow-improvements.md:
-- Add history entry even if improvement was not viable
-- For unsuccessful improvements: note that it was attempted
-- Example: `- **2025-11-08**: Attempted X improvement but determined not viable after testing`
+- Add history table row even if improvement was not viable
+- For unsuccessful improvements: note "Attempted but not viable" in Improvement column
+- Include scenario that determined non-viability
 
 ## Completing Process Modeling Work
 
@@ -325,11 +341,59 @@ When work on an issue is complete:
 
 1. **Verify all tests PASS**: Run full regression test suite
 2. **Update all affected files**: Workflow docs, copilot-instructions, templates
-3. **Add history entry**: Update `/research/workflow-modeling/history.md` with one-line summary
+3. **Add history table row**: Update `/research/workflow-modeling/history.md` with new row including area, benefit, scenario, and PR
 4. **For backlog-driven mode**: Remove processed entry from `.github/workflow-improvements.md`
 5. **Complete self-improvement evaluation**: Add to workflow-improvements.md (issue-driven) or included in history (backlog-driven)
-6. **Archive the plan**: Move current plan to `/research/workflow-modeling/archive/YYYY-MM-DD-issue-NNN.md`
-7. **Clear plan.md**: Ready for next process modeling work (or mark as "No active work")
+6. **Archive the plan**: Move current plan to `/research/workflow-modeling/archive/YYYY-MM-DD-[name].md`
+7. **Reset plan.md to clean state**: Use template structure to avoid duplicates
+   - **CRITICAL**: Replace entire file content, don't append
+   - Set "Current Work" to "No active work"
+   - Update "Recent Completion" with just completed work
+   - Consolidate "Archive" section with all previous work
+   - Verify no duplicate sections before committing
+
+### plan.md Clean State Template
+
+When resetting plan.md after completing work, use this template structure:
+
+```markdown
+# Process Modeling Plan
+
+## Current Work
+
+**Status**: No active work
+
+---
+
+## How to Start New Work
+
+When a new workflow improvement issue is assigned:
+
+1. Update this section with issue details
+2. Create test scenarios in `/scenarios/[workflow-name]/`
+3. Execute tabletop simulations
+4. Document results and refine workflows
+5. Archive this plan when complete
+
+## Recent Completion
+
+**Last Completed**: YYYY-MM-DD - [Brief Description]
+**See Archive**: `/research/workflow-modeling/archive/YYYY-MM-DD-[name].md`
+
+## Archive
+
+Previous work can be found in `/research/workflow-modeling/archive/`:
+- `YYYY-MM-DD-[name].md` - [Description]
+- `YYYY-MM-DD-[name].md` - [Description]
+- ... (list all archived plans chronologically, newest first)
+```
+
+**Key Points:**
+- Only ONE "Current Work" section
+- Only ONE "Recent Completion" section
+- Only ONE "Archive" section
+- Replace entire file, don't edit incrementally
+- Verify structure before committing
 
 ## Example Process Modeling Session
 

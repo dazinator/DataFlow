@@ -439,6 +439,55 @@ Follow handover guidance (if applicable) and:
 4. **Handle edge cases** from handover documentation
 5. **Document decisions** - especially when deviating from handover
 
+### Bulk Migration Strategies
+
+When implementing changes that affect many similar files (e.g., test migrations, API updates), use appropriate automation strategies:
+
+**Decision Criteria:**
+
+| Files Affected | Strategy | Examples |
+|----------------|----------|----------|
+| 1-5 files | Manual edits | Individual file updates, high variation between files |
+| 5-15 files | Helper patterns | Factory methods, shared actor templates, base classes |
+| 15+ files | Scripting/automation | sed/awk scripts, code generation, refactoring tools |
+
+**Helper Pattern Examples:**
+
+For actor-based migrations:
+```csharp
+// Instead of duplicating actor classes 25 times:
+public class NoOpProcessorActor<T> : IProcessor<T>
+{
+    public Task ProcessAsync(T item, CancellationToken ct) => Task.CompletedTask;
+}
+
+// Reuse in tests:
+var processor = new NoOpProcessorActor<int>();
+```
+
+For factory patterns:
+```csharp
+// Create reusable factory for common test patterns:
+public static class TestActorFactory
+{
+    public static IProcessor<T> CreateNoOpProcessor<T>() => new NoOpProcessorActor<T>();
+    public static ITransformer<TIn, TOut> CreatePassthrough<TIn, TOut>() => ...;
+}
+```
+
+**When to use each approach:**
+
+- **Manual edits**: High variation between files, each needs different logic
+- **Helper patterns**: Repetitive patterns but reusable abstractions make sense
+- **Scripting**: Very similar mechanical changes (e.g., namespace updates, using directives)
+
+**Best Practices:**
+
+1. If creating helpers, add them to appropriate location (test helpers in test project)
+2. Document the helper pattern so future migrations can reuse
+3. Consider creating the helper first, migrating 2-3 files as proof-of-concept, then scale
+4. Balance: helper creation time vs manual edit time (helpers valuable if saves >30min)
+
 ### Documentation Requirements
 
 **For POC Implementation:**

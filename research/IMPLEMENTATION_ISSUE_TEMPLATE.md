@@ -212,6 +212,22 @@ Performance requirements based on research benchmarks:
 
 **Reference**: See benchmark methodology in `/research/[research-doc].md`
 
+**Baseline/Historical Artifacts**:
+Research may produce baseline benchmarks or other artifacts for comparison purposes. Specify handling:
+
+- [ ] **Migrate to production**: Benchmarks should be ongoing performance tests
+  - Location: `/src/[project].Tests/Benchmarks/` or `/poc/[project].Benchmarks/`
+  - Why: These validate ongoing performance, catch regressions
+  
+- [ ] **Archive as historical artifacts**: Benchmarks document "before" state
+  - Location: `/research/[topic]/archived-benchmarks/` with README
+  - Why: These show historical comparison, not ongoing validation
+  - Include README explaining: what was measured, when, why archived
+  
+**Decision Criteria**:
+- **Historical artifacts** (archive): Baseline measurements showing state before improvement
+- **Ongoing tests** (migrate): Improved benchmarks validating new implementation performance
+
 ### Edge Cases
 Edge cases discovered during research prototyping:
 
