@@ -284,6 +284,37 @@ Before any PR is marked ready for review, Copilot agents should:
 
 ### Suggestions
 
+- **Date**: 2025-11-08
+- **Issue/PR**: Product Backlog System (Process Modeling workflow issue)
+- **What worked well**:
+  - **Process Modeling Workflow** was comprehensive and clear - provided excellent structure for systematic testing
+  - **Tabletop simulation approach** caught all integration issues before implementation
+  - **Test scenarios** were effective at validating workflow changes
+  - **Iterative refinement** (test → fail → update → retest) worked perfectly
+  - **Long-lived folder structure** (`/research/workflow-modeling/`) made it easy to track work
+  - **Regression test archiving** ensures future changes won't break existing workflows
+  - **Product backlog system design** was well-received in testing - clear, simple, and comprehensive
+  - **DRY principle** - referencing `/product/README.md` from workflows avoids duplication
+- **What didn't work well**:
+  - **Initial workflow updates were incomplete** - had to iterate through test/fix cycles
+  - **No clear "Definition of Done"** for workflow updates - had to infer what "complete" meant
+  - **Large workflow files** made it harder to find and update specific sections
+  - **Multiple workflows to update** increased coordination overhead
+- **Suggested improvement**:
+  1. **Add "Workflow Update Checklist"** to Process Modeling Workflow:
+     - Clear checklist of what needs updating when adding system-wide features
+     - For each workflow: read current version → identify integration points → update → test
+     - Reminder to update copilot-instructions.md repository structure
+     - Reminder to update issue templates
+  2. **Add "Verbosity Testing"** section to Process Modeling Workflow (already exists but could be more prominent):
+     - Test removing sections to see if workflows still work
+     - Balance completeness vs overwhelming detail
+     - Use references to comprehensive docs instead of inline duplication
+  3. **Consider workflow file structure**:
+     - Very long workflow files could benefit from table of contents
+     - Or split into smaller files (e.g., RESEARCH_WORKFLOW_PHASES.md, RESEARCH_WORKFLOW_REVERSION.md)
+     - But keep current structure for now - works well enough
+
 - **Date**: 2025-11-05
 - **Issue/PR**: Self-improvement loop implementation
 - **What worked well**: 

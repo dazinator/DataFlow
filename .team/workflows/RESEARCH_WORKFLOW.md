@@ -289,119 +289,177 @@ Based on research findings, create supporting documentation alongside the resear
 [Benchmarks that should be included in implementation]
 ```
 
-### Phase 5: Create Implementation-Ready GitHub Issue
+### Phase 5: Create Product Backlog Item
 
-The primary deliverable: a comprehensive GitHub issue that enables implementation.
+The primary deliverable: a comprehensive product backlog item that enables implementation team to work from the product backlog system.
 
-**Guidance for Creating Handover Issue**:
+**See `/product/README.md` for complete product backlog system documentation.**
 
-See [Implementation Handover Guidance](/implementation/HANDOVER_GUIDANCE.md) for complete guidance on:
-- Multi-phase implementation assessment (when to recommend phases vs single implementation)
-- All required handover elements (including documentation deliverables and example tests)
-- Assessment criteria and examples
+#### Creating the Backlog Item
 
-**Location**: Create in the `handover/` subfolder of your research. See [Research Folder Structure](/research/FOLDER_STRUCTURE.md#standard-research-folder-structure) for the complete layout.
+**1. Create backlog item file** in `/product/backlog/`:
 
-Path: `/research/[topic]/handover/github-issue-[description].md`
+- **Naming convention**: `research-YYYY-MM-DD-[short-name].md`
+- **Template**: Use `/product/backlog-item-template.md` as starting point
+- **Example**: `research-2025-11-08-flow-composability-unification.md`
 
-For example structure, see the [example in the folder structure reference](/research/FOLDER_STRUCTURE.md#example-distributed-epochs-research).
-
-**Template** (see `/research/IMPLEMENTATION_ISSUE_TEMPLATE.md` for full template):
+**2. Fill in all sections** with research findings:
 
 ```markdown
-# Implementation Issue: [Feature/Component Name]
+# [Title]
 
-## Context and Objectives
+**Backlog ID**: research-2025-11-08-flow-composability-unification
+**Source**: Research
+**Category**: [Feature/Enhancement/etc.]
+**Status**: Active
+**Created**: YYYY-MM-DD
+**Updated**: YYYY-MM-DD
 
-### Problem Statement
-[What problem does this solve]
+## Summary
+[Brief 1-2 sentence description]
 
-### Research Background
-Research was conducted to validate approach and inform implementation.
-See: `/research/[topic]/README.md`
-
-### Objectives
-- [ ] Objective 1
-- [ ] Objective 2
+## Context
+[Background from research - why this work is needed]
+- Link to research folder: `/research/[topic]/`
+- Key findings summary
 
 ## Implementation Guidance
-
-### Recommended Approach
-[High-level architectural approach based on research]
-
-### Design References
-- **Design Doc**: `/research/[topic]/design/[component].md`
-- **ADR**: `/research/[topic]/adr/YYYY-MM-DD-[decision].md`
-- **Research Findings**: `/research/[topic]/README.md`
-
-### API/Interface Design
-[Sketch of proposed APIs/interfaces discovered during research]
-
-### Key Implementation Considerations
-1. [Consideration 1 - from research]
-2. [Consideration 2 - from research]
-
-### Reusable Patterns
-[Code patterns or approaches that proved valuable during prototyping]
-
-## Testing and Validation
-
-### Test Coverage Required
-[Test scenarios identified during research]
-
-### Performance Validation
-[Benchmark requirements from research]
-
-### Edge Cases
-[Edge cases discovered during prototyping]
-
-## Constraints and Requirements
-
-### Technical Constraints
-- [Constraint 1]
-- [Constraint 2]
-
-### Performance Requirements
-[Based on research benchmarks]
-
-### Compatibility Requirements
-[Integration points, backward compatibility]
-
-## Alternatives Explored
-
-### Alternative 1: [Name]
-**Pros**: [Benefits]
-**Cons**: [Drawbacks]
-**Why Not Chosen**: [Rationale]
-
-### Alternative 2: [Name]
-[Same structure]
-
-## References and Resources
-
-### Documentation
-- Research: `/research/[topic]/README.md`
-- Design: `/research/[topic]/design/[component].md`
-- ADR: `/research/[topic]/adr/YYYY-MM-DD-[topic].md`
-- Test Guide: [If created]
-
-### Prior Work
-- Related Issues: #[N]
-- Related PRs: #[N]
+[High-level guidance based on research]
+- Recommended approach from research
+- Key requirements
+- Design considerations
 
 ## Success Criteria
+- [ ] Objectives from research
+- [ ] Performance requirements (if applicable)
+- [ ] Test coverage specified
 
-- [ ] All objectives met
-- [ ] Test coverage as specified
-- [ ] Performance requirements met
-- [ ] Documentation updated
+## Handover Assets
+- **Location**: `/product/backlog/research-YYYY-MM-DD-[name]/`
+- **Contents**:
+  - Prototype code (if applicable)
+  - Design documents
+  - Benchmarks
+  - Test scenarios
+
+## References
+- Research findings: `/research/[topic]/README.md`
+- Design docs: `/research/[topic]/design/`
+- ADRs: `/poc/docs/adr/` or `/src/docs/adr/`
+- Related issues: #[N]
+
+## Notes
+[Additional context from research]
 ```
 
-**This markdown file serves as the blueprint for creating the actual GitHub issue when ready for implementation assignment.**
+#### Creating Handover Folder (if needed)
 
-### Phase 6: Code Reversion and PR Finalization
+If you have supporting assets (prototype code, design docs, benchmarks):
 
-**When to Revert**: Code reversion happens at a specific point in the workflow - when the PR reviewer approves the research findings and explicitly requests that code changes be reverted. This is NOT automatic and should only occur when the reviewer confirms the research documentation and handover materials are complete and ready for implementation team handoff.
+**1. Create handover folder** with same name as backlog item (minus `.md`):
+```bash
+mkdir -p product/backlog/research-YYYY-MM-DD-[name]/{prototype,design,benchmarks}
+```
+
+**2. Copy assets to handover folder**:
+
+- **Prototype code** → `prototype/` subfolder
+  - Only copy key reference implementations
+  - Include README explaining what each file demonstrates
+  - Document performance metrics achieved
+
+- **Design documents** → `design/` subfolder
+  - Copy critical design docs from research folder
+  - Or reference existing docs in research folder (avoid duplication)
+
+- **Benchmarks** → `benchmarks/` subfolder
+  - Copy benchmark data and analysis
+  - Include performance requirements
+
+**Example**:
+```bash
+# Create handover folder
+mkdir -p product/backlog/research-2025-11-08-flow-composability/prototype
+
+# Copy key prototype files (not entire projects)
+cp research/flow-composability-unification/handover/prototype/*.cs \
+   product/backlog/research-2025-11-08-flow-composability/prototype/
+
+# Create README for prototypes
+cat > product/backlog/research-2025-11-08-flow-composability/prototype/README.md << 'EOF'
+# Prototype Code
+
+## UnifiedFlowBuilder.cs
+Reference implementation showing recommended API design.
+- Demonstrates fluent builder pattern
+- Validates type safety approach
+- Performance: 1000+ ops/sec in benchmarks
+EOF
+```
+
+#### Linking from Research Folder
+
+**1. Create handover reference** in research folder:
+
+Option A - Create handover README pointing to backlog:
+```bash
+cat > research/[topic]/handover/README.md << 'EOF'
+# Implementation Handover
+
+Implementation handover is managed through the product backlog system.
+
+**Backlog Item**: `/product/backlog/research-YYYY-MM-DD-[name].md`
+
+See the backlog item for:
+- Implementation guidance
+- Success criteria  
+- Handover assets (prototype code, designs, benchmarks)
+- All implementation details
+
+**Product Backlog System**: See `/product/README.md` for complete documentation.
+EOF
+```
+
+Option B - Reference backlog item in research README:
+```markdown
+## Implementation Handover
+
+This research is ready for implementation.
+
+**Backlog Item**: `/product/backlog/research-YYYY-MM-DD-[name].md`
+
+See backlog item for complete implementation guidance and handover assets.
+```
+
+#### Notify Product Team
+
+**1. Comment on research PR**:
+```markdown
+Research complete. Product backlog item created:
+
+**Backlog Item ID**: research-YYYY-MM-DD-[name]
+**Path**: `/product/backlog/research-YYYY-MM-DD-[name].md`
+
+Ready for product team prioritization.
+```
+
+**2. Product team will**:
+- Review backlog item
+- Prioritize in `/product/prioritization.md`
+- Implementation team will select based on priorities
+
+### Phase 6: Create Implementation-Ready GitHub Issue (DEPRECATED)
+
+⚠️ **This phase is deprecated**. Use Phase 5 (Create Product Backlog Item) instead.
+
+**Old workflow**: Created handover issues in `/research/[topic]/handover/github-issue-*.md`
+**New workflow**: Create backlog items in `/product/backlog/research-YYYY-MM-DD-[name].md`
+
+See Phase 5 above for current process.
+
+### Phase 7: Code Reversion and PR Finalization
+
+**When to Revert**: Code reversion happens at a specific point in the workflow - when the PR reviewer approves the research findings and explicitly requests that code changes be reverted. This is NOT automatic and should only occur when the reviewer confirms the research documentation, product backlog item, and handover materials are complete and ready for implementation team handoff.
 
 **PR Review and Approval Process**:
 1. Submit PR with research documentation and exploratory code changes
@@ -413,13 +471,13 @@ Before the PR is merged (and only after reviewer approval), revert exploratory c
 
 **What to Keep** (NOT reverted):
 - ✅ Research documentation in `/research/[topic]/`
-- ✅ Implementation-ready GitHub issue in `/research/[topic]/handover/`
+- ✅ **Product backlog item** in `/product/backlog/research-YYYY-MM-DD-[name].md`
+- ✅ **Handover assets** in `/product/backlog/research-YYYY-MM-DD-[name]/` (prototype code, designs, benchmarks)
 - ✅ Design documentation in `/research/[topic]/design/`
 - ✅ ADRs in `/poc/docs/adr/` or `/src/docs/adr/` (ADRs belong with the codebase, NOT in research folder)
 - ✅ Benchmark data and analysis in `/research/[topic]/benchmarks/`
 - ✅ Test implementation guides (as documentation)
 - ✅ Updated glossary entries in `/poc/docs/POC_GLOSSARY.md` (if applicable)
-- ✅ Prototype code files in `/research/[topic]/handover/prototype/` (if applicable)
 - ✅ **Production-ready test utilities** (e.g., test helpers, common test patterns) in test projects
 - ✅ **Documentation updates** (e.g., README improvements, guides, examples)
 - ✅ **Non-breaking additions** to test projects that provide immediate value

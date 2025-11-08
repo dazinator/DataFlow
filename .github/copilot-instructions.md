@@ -97,8 +97,17 @@ This self-improvement loop ensures our workflows continuously evolve based on re
 ├── copilot-instructions.md          # This file (navigation hub)
 └── workflow-improvements.md         # Self-improvement tracking
 
+/product/                            # Product backlog system
+├── README.md                        # Backlog system documentation
+├── prioritization.md                # Current prioritization (product team)
+├── backlog/                         # Active backlog items
+│   ├── [item-id].md                # Individual backlog items
+│   └── [item-id]/                  # Optional handover folders
+└── resolved/                        # Completed backlog items (archived)
+
 /research/                           # Research findings and handovers
 ├── FOLDER_STRUCTURE.md             # Research folder conventions
+├── backlog/                        # DEPRECATED - use /product/backlog
 └── [topic]/                        # Per-topic research folders
 
 /implementation/                     # In-flight implementation tracking

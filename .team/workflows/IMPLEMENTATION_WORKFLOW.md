@@ -79,40 +79,131 @@ Check the handover/issue for:
 
 ---
 
-## Step 2: Read Handover Document
+## Step 2: Read Product Backlog Item
 
-If implementing from research handover:
+All implementation work should reference a product backlog item. 
 
-1. **Read handover completely**: `/research/[topic]/handover/github-issue-*.md`
-   - Problem context and background
-   - Implementation guidance and recommended approach
-   - API/interface designs
-   - Test scenarios and edge cases
-   - Performance requirements
-   - Design references and ADRs
+**See `/product/README.md` for complete product backlog system documentation.**
 
-2. **Read referenced documentation**:
-   - Research findings: `/research/[topic]/README.md`
-   - Design docs: `/research/[topic]/design/`
-   - ADRs: `/poc/docs/adr/` or `/src/docs/adr/`
-   - Prototype code: `/research/[topic]/handover/prototype/` (if available)
+### If Backlog Item Specified
 
-**If implementing from tech debt backlog** (`/research/backlog/`):
+Issue will specify backlog item like:
+- **Backlog Item ID**: `research-2025-11-08-flow-composability`
+- **Backlog Path**: `/product/backlog/research-2025-11-08-flow-composability.md`
 
-1. **Read backlog README**: `/research/backlog/README.md`
-   - Understand backlog item format
-   - Learn how to update item status when complete
-   - Review archiving procedures
+**Steps:**
+1. **Read backlog item file** completely at `/product/backlog/[item-id].md`
+2. **Review handover folder** if exists (`/product/backlog/[item-id]/`)
+3. **Update backlog item status** to "In Progress"
+4. Proceed with implementation
 
-2. **Verify item is still valid**:
-   - Code may have changed since item was created
-   - Check if issue still exists
-   - If no longer relevant, archive the item and stop
+### If "Next from Prioritization" Specified
 
-3. **Use backlog item as context**:
-   - Backlog item provides problem description and context
-   - Create proper implementation issue if needed for complex items
-   - For simple items, backlog context may be sufficient
+Issue will say:
+- **Backlog Item**: "Next from prioritization list"
+
+**Steps:**
+1. **Open prioritization file**: `/product/prioritization.md`
+2. **Identify highest priority item** (Priority 1, or lowest number available in table)
+3. **PAUSE and comment on issue**:
+   ```markdown
+   Selected highest priority item from backlog:
+   
+   **Backlog Item ID**: [item-id]
+   **Title**: [title]
+   **Priority**: [N]
+   **Rationale**: [rationale from prioritization file]
+   
+   Awaiting confirmation to proceed with this item.
+   ```
+4. **WAIT for reviewer confirmation** - Do not start implementation
+5. **After confirmation**, follow "Backlog Item Specified" steps above
+
+### Reading the Backlog Item
+
+**1. Read backlog item file** at `/product/backlog/[item-id].md`:
+
+Pay attention to:
+- **Summary and Context** - What needs to be implemented and why
+- **Implementation Guidance** - Recommended approach and constraints
+- **Success Criteria** - What defines completion
+- **References** - Links to research, design docs, ADRs
+
+**2. Review handover assets** (if handover folder exists):
+
+Check `/product/backlog/[item-id]/` for:
+- **prototype/** - Reference implementations and code examples
+  - Read prototype README for guidance
+  - Understand what each file demonstrates
+  - Note performance metrics achieved
+- **design/** - Design documents specific to this work
+- **benchmarks/** - Performance data and requirements
+
+**3. Follow references** in backlog item:
+- Research findings (if from research team)
+- Design documents
+- ADRs (Architecture Decision Records)
+- Related issues and PRs
+
+**4. Update backlog item status** to "In Progress":
+
+Edit `/product/backlog/[item-id].md`:
+```markdown
+**Status**: In Progress
+**Updated**: YYYY-MM-DD
+```
+
+Add to Status History section:
+```markdown
+## Status History
+- **YYYY-MM-DD**: Created
+- **YYYY-MM-DD**: Started implementation (PR: #[N])
+```
+
+Commit this change before starting work.
+
+### After Implementation Complete
+
+**1. Update backlog item** to mark as completed:
+
+Edit `/product/backlog/[item-id].md`:
+```markdown
+**Status**: Completed
+**Updated**: YYYY-MM-DD
+```
+
+Add to Status History:
+```markdown
+## Status History
+- **YYYY-MM-DD**: Created
+- **YYYY-MM-DD**: Started implementation (PR: #[N])
+- **YYYY-MM-DD**: Completed (PR: #[N])
+```
+
+**2. Archive backlog item** to resolved folder:
+
+```bash
+# Create monthly archive folder if needed
+mkdir -p product/resolved/$(date +%Y-%m)
+
+# Move backlog item file
+mv product/backlog/[item-id].md product/resolved/$(date +%Y-%m)/
+
+# Move handover folder if exists
+if [ -d "product/backlog/[item-id]" ]; then
+  mv product/backlog/[item-id]/ product/resolved/$(date +%Y-%m)/
+fi
+```
+
+**3. Commit the archive**:
+
+```bash
+git add product/backlog/
+git add product/resolved/
+git commit -m "Archive completed backlog item: [item-id]"
+```
+
+See `/product/README.md` for detailed archiving procedures and best practices.
 
 ---
 

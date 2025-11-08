@@ -18,4 +18,5 @@ When a new workflow improvement issue is assigned:
 
 ## Archive
 
-Previous work can be found in `/research/workflow-modeling/archive/`
+Previous work can be found in `/research/workflow-modeling/archive/`:
+- `2025-11-08-product-backlog-system.md` - Product backlog system integration

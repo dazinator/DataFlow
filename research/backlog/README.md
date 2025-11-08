@@ -1,6 +1,12 @@
-# Tech Debt Backlog
+# Tech Debt Backlog (DEPRECATED)
 
-This folder contains deferred technical debt items identified during systematic tech debt analyses. These are improvements that were reviewed but not immediately selected for implementation.
+⚠️ **This backlog system has been replaced by the unified Product Backlog.**
+
+**New Location**: `/product/backlog/`
+
+**Please use the new system**: All new backlog items should be added to `/product/backlog/` following the conventions in `/product/README.md`.
+
+This folder contains legacy tech debt items identified during systematic tech debt analyses. Items have been migrated to the new product backlog system.
 
 ## Purpose
 

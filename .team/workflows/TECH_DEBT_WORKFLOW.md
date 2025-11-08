@@ -159,25 +159,30 @@ Create `/research/tech-debt-[date]/research-plan.md`:
 - Backlog items for deferred improvements
 ```
 
-**3. Review Existing Backlog**
+**3. Review Existing Product Backlog**
 
-**Before starting new exploration**, review `/research/backlog/` for existing items:
+**Before starting new exploration**, review `/product/backlog/` for existing items:
+
+**See `/product/README.md` for complete product backlog system documentation.**
 
 ```bash
-# List backlog items by date
-ls -lt research/backlog/
+# List all tech debt backlog items
+ls -lt product/backlog/techdebt-*.md
 
 # Search for high-priority items
-grep -l "Priority: High" research/backlog/*.md
+grep -l "Priority: High" product/backlog/techdebt-*.md
+
+# Search by keyword
+grep -i "keyword" product/backlog/*.md
 
 # Find small-effort items (quick wins)
-grep -l "Effort: Small" research/backlog/*.md
+grep -l "Effort: Small" product/backlog/techdebt-*.md
 ```
 
 **For each backlog item found**:
 1. **Validate it's still relevant** - Has the code changed? Is it still an issue?
 2. **If valid** - Consider selecting for handover (skip new exploration for this area)
-3. **If no longer valid** - Archive following backlog README instructions
+3. **If no longer valid** - Recommend archiving (see `/product/README.md`)
 4. **Prioritize existing items** - Low-hanging fruit from backlog should be implemented before discovering new issues
 
 **Grouping Small Items**:
@@ -458,36 +463,42 @@ This is the **key deliverable** for reviewer to make selection decisions.
 
 **Agent**: Once reviewer has marked decisions, proceed to Phase 5.
 
-### Phase 5: Create Handovers and Backlog Items
+### Phase 5: Create Handovers and Product Backlog Items
 
 **For Each SELECTED Finding**:
 
-Create implementation issue in `/research/tech-debt-[date]/handover/selected/github-issue-[finding].md`
+Create product backlog item in `/product/backlog/techdebt-YYYY-MM-DD-[short-name].md`
 
-Use adapted implementation issue template:
+**See `/product/README.md` for complete product backlog system documentation.**
+
+Use backlog item template from `/product/backlog-item-template.md`:
 
 ```markdown
 # [Finding Title]
 
+**Backlog ID**: techdebt-YYYY-MM-DD-[short-name]
+**Source**: Tech Debt
+**Category**: [Category]
+**Status**: Active
+**Created**: YYYY-MM-DD
+**Updated**: YYYY-MM-DD
+
+## Summary
+
+[Brief 1-2 sentence description of the tech debt issue]
+
 ## Context
 
-**Source**: Tech debt analysis (YYYY-MM-DD)  
-**Finding Reference**: TD-[NNN] in findings report
+**Source**: Tech debt analysis - `/research/tech-debt-[date]/findings-report.md` (Finding TD-[NNN])
 **Priority**: [High/Medium/Low]
-**Category**: [Category]
+**Effort**: [Small/Medium/Large]
 
-## Problem Statement
-
-[Describe the tech debt issue]
-
-## Proposed Solution
-
-[Describe the improvement]
+[Describe the tech debt issue and why it matters]
 
 ## Implementation Guidance
 
 ### Approach
-[How to implement]
+[How to implement the fix]
 
 ### Files to Change
 [List affected files/areas]
@@ -500,76 +511,80 @@ Use adapted implementation issue template:
 - [ ] [Criterion 1]
 - [ ] [Criterion 2]
 - [ ] [Validation benchmark/test passes]
+- [ ] Tests passing
+- [ ] Documentation updated (if applicable)
+
+## Handover Assets
+
+[If prototype fixes exist]
+- **Location**: `/product/backlog/techdebt-YYYY-MM-DD-[name]/prototype/`
+- **Contents**: Prototype fixes demonstrating solution
+
+[If no prototypes]
+- No additional assets
 
 ## References
 
-- Findings report: /research/tech-debt-[date]/findings-report.md (Finding TD-[NNN])
-- [Related docs]
+- Tech debt analysis: `/research/tech-debt-[date]/findings-report.md` (Finding TD-[NNN])
+- Related issues: #[N]
+- Affected files: [List key files]
+
+## Notes
+
+**Multi-Phase Assessment**: [Single/Multi]
+[If multi-phase, explain why and suggest phases]
+
+[Any additional context or edge cases]
+```
+
+**Naming Convention**: `techdebt-YYYY-MM-DD-[short-kebab-case-name].md`
+- `techdebt-` prefix identifies source
+- Date enables chronological browsing
+- Short name enables quick identification
+- Examples:
+  - `techdebt-2025-11-07-reduce-cs0436-warnings.md`
+  - `techdebt-2025-11-07-modernize-namespace-declarations.md`
+  - `techdebt-2025-11-07-add-test-helpers.md`
+
+**If prototype fixes exist**:
+
+Create handover folder and copy prototypes:
+
+```bash
+# Create handover folder
+mkdir -p product/backlog/techdebt-YYYY-MM-DD-[name]/prototype
+
+# Copy prototype fixes
+cp poc/DataFlow.POC.Tests/ImprovedTestHelper.cs \
+   product/backlog/techdebt-YYYY-MM-DD-[name]/prototype/
+
+# Create README explaining prototypes
+cat > product/backlog/techdebt-YYYY-MM-DD-[name]/prototype/README.md << 'EOF'
+# Prototype Fixes
+
+## [File].cs
+[Description of what this prototype demonstrates]
+- [Key insight 1]
+- [Key insight 2]
+EOF
 ```
 
 **For Each NON-SELECTED Finding**:
 
-Create backlog item in `/research/backlog/YYYY-MM-DD-[short-name].md`:
+Also create backlog items for non-selected findings in `/product/backlog/`:
 
-```markdown
-# [Finding Title]
-
-**Category**: [Category]  
-**Identified**: YYYY-MM-DD  
-**Source**: Tech debt analysis [link to PR]  
-**Priority**: [Low/Medium/High]  
-**Complexity**: [Small/Medium/Large]
-
-## Problem
-
-[Brief description of the issue]
-
-## Proposed Solution
-
-[Brief description of fix]
-
-## Multi-Phase Assessment
-**Recommendation**: [Single/Multi]  
-**Rationale**: [If multi-phase, brief explanation why]
-
-## Value
-
-[Why this would be valuable]
-
-## References
-
-- Original analysis: /research/tech-debt-[date]/findings-report.md (Finding TD-[NNN])
-- Affected files: [List key files]
-
-## Status
-- [ ] Not started
-- [ ] In progress  
-- [ ] Completed (PR: #[N])
-```
-
-**Naming Convention**: `YYYY-MM-DD-[short-kebab-case-name].md`
-- Date enables chronological browsing
-- Short name enables quick identification
-- Examples:
-  - `2025-11-07-reduce-cs0436-warnings.md`
-  - `2025-11-07-modernize-namespace-declarations.md`
-  - `2025-11-07-add-test-helpers.md`
+- Use same template and naming convention as selected items
+- These items are preserved for future prioritization
+- Product team can review and prioritize later
+- See `/product/README.md` for prioritization process
 
 ### Phase 6: Code Reversion and Finalization
 
-**After reviewer approval and handovers/backlog created**:
+**After reviewer approval and backlog items created**:
 
 **1. Preserve Prototype Code** (if applicable)
 
-If you created prototype fixes during exploration, save valuable examples:
-
-```bash
-# Copy important prototypes to handover
-cp poc/DataFlow.POC.Tests/ImprovedTestHelper.cs \
-   research/tech-debt-[date]/handover/selected/prototype/
-
-# Document what each prototype demonstrates
-```
+If you created prototype fixes during exploration, save valuable examples to product backlog handover folder (see Phase 5 above).
 
 **2. Revert Exploratory Code**
 
@@ -578,13 +593,14 @@ Only revert actual code changes, keep documentation:
 ```bash
 # Keep documentation
 git add research/
+git add product/
 
 # Revert exploratory code in core projects
 git checkout HEAD -- poc/DataFlow.POC/
 git checkout HEAD -- poc/DataFlow.POC.Tests/
 git checkout HEAD -- src/
 
-# Verify only docs remain
+# Verify only docs and backlog items remain
 git status
 ```
 
@@ -592,7 +608,7 @@ git status
 
 ```bash
 git add research/tech-debt-[date]/
-git add research/backlog/
+git add product/backlog/
 git commit -m "Tech debt analysis findings and handovers"
 ```
 
