@@ -83,10 +83,19 @@ The issue will invoke this Process Modeling Workflow with your specific proposal
 
 1. Go to GitHub Issues → New Issue
 2. Select **"Workflow Improvements"** template
-3. Select **"Backlog-Driven"** mode
+3. Select one of the backlog-driven modes:
+   - **Backlog-Driven - Single**: Process one entry (default)
+   - **Backlog-Driven - Multiple**: Process N entries (specify count)
+   - **Backlog-Driven - Smart**: Process multiple with intelligent stopping
 4. Assign to @copilot or mention @copilot in comments
 
-**For @copilot executing backlog-driven mode:**
+**Backlog-Driven Mode Options:**
+
+#### Single Item Mode (Default)
+
+Process exactly one backlog entry then stop.
+
+**For @copilot executing single-item mode:**
 
 1. **Read** `.github/workflow-improvements.md`
 2. **Select** the top unaddressed entry:
@@ -108,8 +117,123 @@ The issue will invoke this Process Modeling Workflow with your specific proposal
    - Remove the entire entry from `.github/workflow-improvements.md`
    - Add one-line summary to `/research/workflow-modeling/history.md`
    - Archive plan to `/research/workflow-modeling/archive/`
+7. **STOP** - Do not process additional entries
 
 **Entry Removal**: Remove the entire entry even if improvements were not viable. This prevents the queue from getting stuck. Document unsuccessful attempts in history.md.
+
+#### Multiple Items Mode
+
+Process a specific number of backlog entries (user specifies count).
+
+**For @copilot executing multiple-items mode:**
+
+1. **Check issue description** for specified count (e.g., "Process 3 items")
+2. **Initialize tracking**:
+   - `items_to_process` = [count from issue]
+   - `items_processed` = 0
+3. **Update** `/research/workflow-modeling/plan.md` with:
+   - Mode: Multiple Items (N items)
+   - Items to process: [count]
+   - Running summary of processed items
+
+**For each iteration (repeat N times or until backlog exhausted):**
+
+4. **Check**: If `items_processed >= items_to_process` → **STOP**
+5. **Read** `.github/workflow-improvements.md`
+6. **Select** next unaddressed entry (same selection criteria as single-item mode)
+7. **Extract context** from the entry
+8. **Create scenarios and test** for this improvement
+9. **Apply changes** if viable
+10. **Update tracking**:
+    - `items_processed++`
+    - Add summary to plan.md
+11. **Update history.md** with new entry for this improvement
+12. **Remove entry** from `.github/workflow-improvements.md`
+13. **Update PR description** with consolidated summary (see consolidation pattern below)
+14. **Check backlog**: If no more unaddressed entries → **STOP**
+15. **Loop back** to step 4
+
+**After all iterations:**
+
+16. **Finalize PR description** with complete summary of all improvements
+17. **Archive plan** to `/research/workflow-modeling/archive/` with summary of all items
+18. **Note in plan**: "Processed [count] items in multiple-items mode"
+
+#### Smart Mode (Recommended for Batch Processing)
+
+Process multiple entries with intelligent stopping criteria. Stops when max items reached, change volume threshold exceeded, or backlog exhausted.
+
+**Default Thresholds** (configurable in issue description):
+
+- **MAX_ITEMS**: 5 items
+- **MAX_LINES_THRESHOLD**: 500 lines changed (insertions + deletions)
+
+**For @copilot executing smart mode:**
+
+1. **Check issue description** for custom thresholds (if specified)
+   - If not specified, use defaults above
+2. **Initialize tracking**:
+   - `items_processed` = 0
+   - `total_lines_changed` = 0
+   - `max_items` = 5 (or custom value)
+   - `max_lines` = 500 (or custom value)
+3. **Update** `/research/workflow-modeling/plan.md` with:
+   - Mode: Smart Mode
+   - Thresholds: [max_items] items, [max_lines] lines
+   - Running metrics
+
+**For each iteration:**
+
+4. **Check stopping conditions BEFORE processing next item**:
+   - If `items_processed >= max_items` → **STOP** (reason: max items threshold)
+   - If `total_lines_changed >= max_lines` → **STOP** (reason: change volume threshold)
+   - If no more unaddressed entries → **STOP** (reason: backlog exhausted)
+   - **Exception**: Always process at least 1 item, even if it exceeds thresholds
+5. If not stopping: **Read** `.github/workflow-improvements.md`
+6. **Select** next unaddressed entry
+7. **Extract context** and process improvement
+8. **Apply changes** if viable
+9. **Track changes** for this improvement:
+   ```bash
+   # Get line changes for current improvement
+   git diff --stat | tail -1
+   # Example output: "3 files changed, 42 insertions(+), 15 deletions(-)"
+   # Extract insertions + deletions: 42 + 15 = 57 lines changed
+   # Can use: git diff --stat | tail -1 | awk '{print $4 + $6}'
+   ```
+10. **Update tracking**:
+    - `items_processed++`
+    - `total_lines_changed +=` (insertions + deletions from git diff)
+    - Add metrics to plan.md
+11. **Update history.md** with new entry
+12. **Remove entry** from `.github/workflow-improvements.md`
+13. **Update PR description** with running summary and metrics
+14. **Loop back** to step 4
+
+**After stopping:**
+
+15. **Finalize PR description** with:
+    - Total items processed
+    - Total lines changed
+    - Reason for stopping
+    - List of all improvements
+16. **Archive plan** with complete summary and stopping reason
+17. **Note in plan**: "Processed [X] items in smart mode. Stopped due to: [reason]"
+
+**Change Volume Measurement:**
+
+- Use `git diff --stat` to count insertions + deletions
+- Include workflow documentation changes
+- Include issue template changes
+- Exclude test scenario files (those get reverted after testing)
+
+**Stopping Reason Examples:**
+
+- "Stopped after 5 items (max items threshold)"
+- "Stopped after 3 items with ~520 lines changed (change volume threshold)"
+- "Stopped after 4 items (backlog exhausted - no more unaddressed entries)"
+
+**Edge Case**: If first item alone exceeds line threshold, still process it (minimum 1 item rule). Then stop before processing 2nd item.
 
 ## Long-Lived Research Folder Structure
 
@@ -118,6 +242,11 @@ Unlike other research workflows that create date-based folders, process modeling
 ```
 /research/workflow-modeling/
 ├── plan.md                          # Current work tracking
+├── history.md                       # Chronological log of improvements
+├── tools/                           # Automation scripts
+│   ├── README.md                   # Tool documentation
+│   ├── reset-plan.sh               # Script to reset plan.md
+│   └── plan-template.md            # Manual template
 ├── scenarios/                       # Test scenarios
 │   ├── research-workflow/          # Scenarios for Research Workflow
 │   │   ├── scenario-001-basic-research.md
@@ -167,6 +296,56 @@ The plan.md file tracks current process modeling work:
 ## How to Continue
 [Instructions for resuming work if interrupted]
 ```
+
+### PR Description Consolidation Pattern (Multi-Item Mode)
+
+When processing multiple backlog items, consolidate findings in the PR description after each iteration. Use this template:
+
+```markdown
+# Process Modeling - Multiple Backlog Improvements
+
+## Summary
+Processed X backlog improvements in [mode name] mode.
+
+## Items Addressed
+
+### 1. [Improvement Short Name]
+- **Area**: [workflow names affected]
+- **Benefit**: [expected benefit and rationale]
+- **Changes**: [brief description of what was updated]
+- **Lines Changed**: ~[count from git diff]
+- **Test Scenarios**: [scenario names]
+
+### 2. [Next improvement...]
+- **Area**: ...
+- **Benefit**: ...
+- **Changes**: ...
+- **Lines Changed**: ~[count]
+- **Test Scenarios**: ...
+
+[Continue for each item processed]
+
+## Cumulative Metrics
+- **Total items processed**: X
+- **Total lines changed**: ~Y
+- **Workflows affected**: [unique list across all items]
+- **Stopping reason**: [max items | change volume | backlog exhausted]
+
+## Test Scenarios
+All scenarios created in `/research/workflow-modeling/scenarios/[workflow-name]/`
+
+[List all scenario files created across all improvements]
+
+## History Updated
+All improvements added to `/research/workflow-modeling/history.md` as individual entries.
+```
+
+**Update Pattern:**
+
+- After processing each item, append new section to "Items Addressed"
+- Update "Cumulative Metrics" with running totals
+- Keep PR description current for transparency
+- Use `report_progress` tool to update PR description incrementally
 
 ## Tabletop Simulation Testing Process
 
@@ -345,16 +524,48 @@ When work on an issue is complete:
 4. **For backlog-driven mode**: Remove processed entry from `.github/workflow-improvements.md`
 5. **Complete self-improvement evaluation**: Add to workflow-improvements.md (issue-driven) or included in history (backlog-driven)
 6. **Archive the plan**: Move current plan to `/research/workflow-modeling/archive/YYYY-MM-DD-[name].md`
-7. **Reset plan.md to clean state**: Use template structure to avoid duplicates
+7. **Reset plan.md to clean state**: Use automation script (recommended) or manual template
+   - **Recommended**: Use the reset script for automatic archive scanning
+     ```bash
+     cd /research/workflow-modeling/tools
+     ./reset-plan.sh "YYYY-MM-DD" "Brief Description" "YYYY-MM-DD-[name].md"
+     ```
+   - **Manual**: Copy from template and update sections manually
+     ```bash
+     cp /research/workflow-modeling/tools/plan-template.md plan.md
+     # Then edit Recent Completion and Archive sections
+     ```
    - **CRITICAL**: Replace entire file content, don't append
-   - Set "Current Work" to "No active work"
-   - Update "Recent Completion" with just completed work
-   - Consolidate "Archive" section with all previous work
    - Verify no duplicate sections before committing
 
-### plan.md Clean State Template
+### Automated Plan Reset (Recommended)
 
-When resetting plan.md after completing work, use this template structure:
+The `reset-plan.sh` script automates plan.md reset to prevent duplicates and ensure consistency:
+
+**Location**: `/research/workflow-modeling/tools/reset-plan.sh`
+
+**Usage**:
+```bash
+cd /research/workflow-modeling/tools
+./reset-plan.sh <completion_date> <completion_description> <archive_file>
+```
+
+**Example**:
+```bash
+./reset-plan.sh "2025-11-08" "Multi-Item Backlog Processing" "2025-11-08-multi-item-processing.md"
+```
+
+**Benefits**:
+- Automatically scans all archived plans and populates Archive section
+- Ensures only ONE of each section (no duplicates)
+- Extracts descriptions from archive files
+- Lists archives chronologically (newest first)
+
+See `/research/workflow-modeling/tools/README.md` for complete documentation.
+
+### plan.md Clean State Template (Manual Alternative)
+
+If the script is unavailable, manually reset using this template structure:
 
 ```markdown
 # Process Modeling Plan

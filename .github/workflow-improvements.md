@@ -213,6 +213,45 @@ Before any PR is marked ready for review, Copilot agents should:
 ### Suggestions
 
 - **Date**: 2025-11-08
+- **Issue/PR**: Process Modeling - Multi-Item Backlog Processing (copilot/process-modeling-improvements)
+- **What worked well**:
+  - **Process Modeling Workflow** provided excellent structure for designing and testing this enhancement
+  - **Tabletop simulation**: All 6 scenarios validated design before implementation
+  - **Design-first approach**: Creating design doc in /tmp helped think through all aspects
+  - **Clear thresholds**: Explicit numbers (5 items, 500 lines) eliminate ambiguity
+  - **Edge case planning**: "Minimum 1 item" rule prevents stuck scenarios
+  - **Regression testing**: Verified no existing functionality broken
+  - **Issue requirements**: Problem statement was clear and specific with all needed details
+  - **Mode options approach**: Three modes (Single/Multiple/Smart) provides flexibility
+  - **PR consolidation pattern**: Template ensures consistent reporting across multiple items
+- **What didn't work well**:
+  - **No guidance on threshold selection**: Had to use judgment rather than empirical data
+  - **No examples of multi-item scenarios**: Had to create testing approach from scratch
+  - **Uncertain about sufficient testing**: Created 6 scenarios, wondered if more needed (6 was sufficient)
+  - **No guidance on when to provide configuration options**: Had to infer that custom thresholds should be optional
+- **Suggested improvement**:
+  1. **Add "Threshold Selection Guidance"** to Process Modeling Workflow:
+     - How to choose sensible defaults for numeric thresholds
+     - Balance between too restrictive and too permissive
+     - Consider typical use cases and scale
+     - Example: 5 items aligns with "typical PR size" best practices
+     - Document rationale for chosen values in workflow
+     - Plan to monitor usage and adjust based on empirical data
+  2. **Add "Multi-Condition Feature Testing"** pattern to Process Modeling Workflow:
+     - When testing features with stopping conditions, create scenarios for:
+       - Each stopping condition independently
+       - Edge cases (minimum/maximum values)
+       - Regression (existing behavior preserved)
+     - Typically 4-7 scenarios sufficient for multi-condition features
+     - One regression test covering backward compatibility
+  3. **Add "Configuration Options Design"** guidance to Process Modeling Workflow:
+     - When to make thresholds/limits configurable vs fixed
+     - How to provide sensible defaults that work for 80% of cases
+     - Whether to allow per-issue customization
+     - Document defaults in workflow for easy future adjustment
+     - Example: MAX_ITEMS=5 documented as constant that can be changed
+
+- **Date**: 2025-11-08
 - **Issue/PR**: Backlog-Driven Process Modeling - Workflow Documentation Improvements
 - **What worked well**:
   - **Backlog-driven mode** worked perfectly - entry selection criteria was clear

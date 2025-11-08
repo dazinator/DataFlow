@@ -48,7 +48,15 @@ Check all that apply:
 Choose one:
 
 - [ ] **Issue-Driven**: I'm proposing a specific improvement (fill out sections below)
-- [ ] **Backlog-Driven**: Process the next unaddressed entry from `.github/workflow-improvements.md` (you can skip the sections below - @copilot will extract context from the backlog)
+- [ ] **Backlog-Driven - Single**: Process the next unaddressed entry from `.github/workflow-improvements.md` (you can skip the sections below - @copilot will extract context from the backlog)
+- [ ] **Backlog-Driven - Multiple**: Process N entries from backlog (specify count below, skip sections below - @copilot will extract context)
+- [ ] **Backlog-Driven - Smart**: Process multiple entries until stopping criteria met (default: max 5 items or ~500 lines changed, skip sections below - @copilot will extract context)
+
+**For Multiple mode, specify count** (required if using Multiple mode): [ ]
+
+**For Smart mode, custom thresholds** (optional, leave blank to use defaults):
+- Max items: [blank = 5]
+- Max lines changed: [blank = 500]
 
 ---
 
