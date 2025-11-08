@@ -329,6 +329,55 @@ Before any PR is marked ready for review, Copilot agents should:
      - Check that all referenced documentation paths are valid
      - Ensure labels used in template are consistent with repository
 
+- **Date**: 2025-11-08
+- **Issue/PR**: Workflow Improvements Template Simplification (copilot/better-handover-organisation)
+- **What worked well**: 
+  - Process Modeling workflow was exceptionally clear and well-structured
+  - Tabletop simulation methodology was highly effective for testing workflow changes
+  - `/research/workflow-modeling/` long-lived folder structure worked perfectly
+  - Plan.md tracking provided clear status visibility throughout the work
+  - Baseline vs improved testing approach validated the value of changes objectively
+  - Scenario-based testing revealed specific pain points (time estimates, scaling issues)
+  - Test scenarios format (Context → Steps → Expected Outcome → Results) was excellent
+  - Process naturally led to data-driven decision making (67-75% time reductions documented)
+  - Regression test archiving pattern will help prevent future regressions
+  - "Revert test assets" principle kept the repo clean while preserving learnings
+- **What didn't work well**:
+  - Process Modeling workflow wasn't referenced early enough in copilot-instructions.md navigation
+  - No clear guidance on how many test scenarios are sufficient (baseline + improved + edge cases worked well)
+  - Unclear whether to test each removed section individually or test holistically (chose holistic, which worked)
+  - No template or example for documenting "design rationale" for simplified version
+  - Would have benefited from guidance on when to involve reviewer for feedback on direction
+  - No clear stopping criteria for "verbosity testing" (when have you tested enough simplifications?)
+- **Suggested improvement**: 
+  1. **Add Process Modeling to Quick Navigation** in copilot-instructions.md:
+     - Currently navigation shows Research, Implementation, Tech Debt, POC, but not Process Modeling
+     - Add: "5. **Process Modeling Task** (workflow improvements) → See `.team/workflows/PROCESS_MODELING_WORKFLOW.md`"
+     - This would have helped identify the right workflow faster
+  2. **Add "Test Scenario Guidance"** to PROCESS_MODELING_WORKFLOW.md:
+     - Minimum suggested scenarios: 2 baseline + 2-3 improved + 1 edge case
+     - Test both simple and complex use cases to validate scaling
+     - Include at least one edge case (minimal info, error conditions, etc.)
+     - Can add more scenarios if initial tests reveal gaps
+  3. **Add "Design Rationale Document Pattern"** to process modeling workflow:
+     - When proposing changes, create a design rationale file explaining:
+       - What was removed and why
+       - What was kept and why
+       - Expected impact on different user types
+       - Comparison table (before/after metrics)
+     - Example: `proposed-simplified-template.md` worked well but wasn't explicitly guided
+  4. **Add "Reviewer Checkpoint Guidance"** to workflow:
+     - After baseline testing, before implementing changes: Optional reviewer checkpoint
+     - After improved testing, before finalizing: Optional reviewer checkpoint
+     - Clarify when async review is valuable vs when to proceed independently
+     - For this issue: Would have been helpful to confirm direction after baseline testing
+  5. **Add "Verbosity Testing Stopping Criteria"**:
+     - Test until you've attempted removing each "questionable" section at least once
+     - If removal causes PASS→FAIL, section was needed
+     - If removal maintains PASS, keep the simplification
+     - Stop when no more reasonable simplifications to test
+     - Document which simplifications were tested and results
+
 <!-- Add general workflow improvement suggestions here that apply to all workflows -->
 <!-- Format:
 - **Date**: YYYY-MM-DD
