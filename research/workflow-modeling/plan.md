@@ -18,12 +18,13 @@ When a new workflow improvement issue is assigned:
 
 ## Recent Completion
 
-**Last Completed**: 2025-11-08 - Documentation Deliverables and Example Tests Guidance
-**See Archive**: `/research/workflow-modeling/archive/2025-11-08-documentation-deliverables-guidance.md`
+**Last Completed**: 2025-11-08 - Workflow Documentation Improvements
+**See Archive**: `/research/workflow-modeling/archive/2025-11-08-workflow-documentation-improvements.md`
 
 ## Archive
 
 Previous work can be found in `/research/workflow-modeling/archive/`:
+- `2025-11-08-workflow-documentation-improvements.md` - Workflow documentation improvements (backlog-driven, no changes needed)
 - `2025-11-08-documentation-deliverables-guidance.md` - Documentation deliverables and example tests guidance
 - `2025-11-08-history-table-format.md` - History table format enhancement
 - `2025-11-08-history-format-enhancement.md` - History format enhancement (benefits and rationale)
@@ -32,5 +33,4 @@ Previous work can be found in `/research/workflow-modeling/archive/`:
 - `2025-11-08-product-backlog-system.md` - Product backlog system integration
 - `2025-11-08-product-prioritization.md` - Product prioritization workflow
 - `2025-11-08-template-simplification.md` - Product prioritization template simplification
-
 

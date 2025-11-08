@@ -213,6 +213,45 @@ Before any PR is marked ready for review, Copilot agents should:
 ### Suggestions
 
 - **Date**: 2025-11-08
+- **Issue/PR**: Backlog-Driven Process Modeling - Workflow Documentation Improvements
+- **What worked well**:
+  - **Backlog-driven mode** worked perfectly - entry selection criteria was clear
+  - **Tabletop simulation methodology** effectively validated that improvements were already implemented or not needed
+  - **Test scenario format** (Context → Steps → Expected Outcome → Test Result) provided clear structure
+  - **Baseline testing** confirmed current state before proposing changes
+  - **Value assessment approach** - analyzing whether proposed changes solve real problems vs nice-to-have
+  - **"Already implemented" detection** - scenarios caught that Quick Start suggestion was already in place
+  - **Evidence-based decisions** - used actual document line numbers and content to support conclusions
+  - **Test scenario cleanup** - reverting scenarios after completion keeps repository clean
+  - **Archived plan format** - comprehensive documentation for future reference
+- **What didn't work well**:
+  - **No guidance on handling "already implemented" suggestions** - had to infer that it's still valid to process and remove entry
+  - **Unclear whether "no changes needed" outcome should still be documented** - chose to document thoroughly but guidance would help
+  - **No guidance on sufficient testing for "no change" scenarios** - created 5 scenarios, wondered if fewer would suffice
+  - **Entry context was from implementation phase** - suggestion reflected experience creating system, not using it, which affected relevance
+- **Suggested improvement**:
+  1. **Add "Already Implemented Detection"** to Process Modeling Workflow, in "Mode 2: Backlog-Driven" section, step 5 (Follow standard process modeling):
+     - When testing reveals improvement is already implemented, document in scenario
+     - Still count as successful processing of entry
+     - Remove entry from backlog (it's addressed, even if by earlier work)
+     - Note in history that improvement was already present
+  2. **Add "No Changes Needed" guidance** to Process Modeling Workflow, in "Completing Process Modeling Work" section:
+     - Valid outcome when tabletop simulation shows current state is working well
+     - Document rationale thoroughly in archived plan
+     - Still complete full process (scenarios, history, archive)
+     - Provides evidence that suggestion was evaluated, not ignored
+  3. **Add "Testing Scope for Verification"** to Process Modeling Workflow, in "Tabletop Simulation Testing Process" section, subsection "1. Create Test Scenarios":
+     - For "no change" scenarios: typically 2-3 baseline tests are sufficient as guidelines
+     - For new features: typically 4-5 scenarios covering baseline + improved + edge cases
+     - Quality over quantity - comprehensive scenarios better than many superficial ones
+     - Adjust based on complexity and context
+  4. **Add "Suggestion Context Consideration"** to Process Modeling Workflow, in "Mode 2: Backlog-Driven" section, step 3 (Extract context):
+     - Check when suggestion was made and in what context
+     - Implementation-phase feedback may not reflect steady-state experience
+     - Consider whether pain point is still relevant
+     - Document context assessment in archived plan
+
+- **Date**: 2025-11-08
 - **Issue/PR**: Process Modeling Workflow - Backlog-Driven Mode (copilot/process-modeling-workflow)
 - **What worked well**:
   - **Process Modeling Workflow** provided excellent structure for designing and testing the enhancement
@@ -477,21 +516,6 @@ Before any PR is marked ready for review, Copilot agents should:
      - Add simple script to validate plan.md structure
      - Could run as pre-commit hook or in CI
      - But keep lightweight - don't over-engineer
-
-- **Date**: 2025-11-05
-- **Issue/PR**: Self-improvement loop implementation
-- **What worked well**: 
-  - Clear requirements in the issue made it straightforward to understand what needed to be implemented
-  - The existing workflow documentation structure provided good context for where to add the self-improvement requirements
-  - Multiple parallel file reads helped quickly understand the repository structure
-  - All workflow files were well-organized and easy to locate
-- **What didn't work well**: 
-  - Initially unclear whether the workflow-improvements.md should be in the root .github/ directory or elsewhere - settled on .github/ next to copilot-instructions.md as specified in requirements
-  - The relationship between different workflow documents (copilot-instructions.md vs RESEARCH_WORKFLOW.md) required careful review to ensure consistent messaging
-- **Suggested improvement**: 
-  - Consider adding a visual diagram (mermaid flowchart) to show the relationship between different workflow documents (copilot-instructions.md, RESEARCH_WORKFLOW.md, issue templates, workflow-improvements.md) and when each is consulted during the development process
-  - Add a "Quick Start" section at the top of copilot-instructions.md that references the self-improvement loop early, so agents see it immediately
-  - Consider adding a GitHub Actions workflow that checks if workflow-improvements.md has been updated in PRs (though this might be overly prescriptive)
 
 - **Date**: 2025-11-07
 - **Issue/PR**: Workflow Improvements Issue Template (copilot/add-github-issue-template)
