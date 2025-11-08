@@ -235,6 +235,47 @@ Before any PR is marked ready for review, Copilot agents should:
      - Examples: `/poc/docs/INDEX.md`, project README files
      - Add this as checkpoint in "report_progress" step
 
+- **Date**: 2025-11-07
+- **Issue/PR**: Tech Debt - Fix OpenTelemetry Vulnerability (copilot/fix-vulnerable-tech-debt)
+- **What worked well**: 
+  - Handover document was clear and comprehensive with all necessary context
+  - Implementation steps in handover were accurate and actionable
+  - `gh-advisory-database` tool provided precise vulnerability information (affected versions, patched versions)
+  - Package restore immediately revealed the vulnerability warning (NU1903)
+  - Clear success criteria (no NU1903 warnings, dotnet list package --vulnerable shows clean)
+  - Security-focused workflow was straightforward: identify vulnerability → check advisory → update packages → verify
+  - Package downgrade errors during restore clearly indicated need to update related dependencies
+  - Minimal changes required (4 package version updates in single .csproj file)
+- **What didn't work well**:
+  - No guidance on handling package dependency conflicts (e.g., when upgrading one package requires upgrading related packages)
+  - Handover suggested version 1.10.1 but didn't mention checking for latest available version (1.12.0 was available)
+  - One pre-existing test failure unrelated to changes caused brief uncertainty about test validation
+  - No guidance on whether to run full test suite or just verify build/restore for dependency-only changes
+  - Sample application requires external OTLP endpoint (localhost:4317) which prevented runtime validation, but this wasn't called out in handover
+- **Suggested improvement**: 
+  1. **Add "Dependency Update Pattern"** to implementation workflow:
+     - When updating a package, check if it has related packages in same project
+     - NuGet package downgrade errors indicate related packages need updating
+     - Use `dotnet list package --outdated` to identify available updates for related packages
+     - Update related packages to same major version to avoid compatibility issues
+     - Example: OpenTelemetry.* packages should be kept at same version
+  2. **Add "Version Selection Guidance"** to security fix handovers:
+     - Always check for latest stable version, not just first patched version
+     - Latest version includes all security patches plus bug fixes
+     - Use `curl -s "https://api.nuget.org/v3-flatcontainer/<package-name>/index.json"` to list versions
+     - Specify in handover whether to use minimum patched version vs latest stable
+  3. **Add "Dependency-Only Change Testing Guidance"** to implementation workflow:
+     - For changes only updating package versions (no code changes):
+       - Build verification is sufficient primary validation
+       - Run vulnerability scan (`dotnet list package --vulnerable`)
+       - Full test suite optional if package is sample/dev-only dependency
+       - Document any pre-existing test failures to avoid confusion
+     - For production dependencies: Full test suite required
+  4. **Add "External Dependency Documentation"** reminder to sample handovers:
+     - If sample requires external services (databases, OTLP endpoints, etc.), document in handover
+     - Provide guidance on whether runtime validation is required or build-only is sufficient
+     - For optional external dependencies, provide alternative validation approach
+
 <!-- Add more implementation workflow improvement suggestions here -->
 
 ---
