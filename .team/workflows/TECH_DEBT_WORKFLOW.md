@@ -73,7 +73,7 @@ The issue template includes:
 - Reminder to review existing backlog first
 - Expected deliverables and success criteria
 
-**Alternative**: For ad-hoc analysis, create a blank issue and reference this workflow document (`/.github/workflows/TECH_DEBT_WORKFLOW.md`) with clear instructions for @copilot.
+**Alternative**: For ad-hoc analysis, create a blank issue and reference this workflow document (`/.team/workflows/TECH_DEBT_WORKFLOW.md`) with clear instructions for @copilot.
 
 ## Differences from Standard Research Workflow
 

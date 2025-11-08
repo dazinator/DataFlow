@@ -5,10 +5,10 @@
 **Start here based on your task:**
 
 1. **Research Task** (validate approaches, create specifications)
-   → See `.github/workflows/RESEARCH_WORKFLOW.md`
+   → See `.team/workflows/RESEARCH_WORKFLOW.md`
 
 2. **Implementation Task** (implement validated designs)
-   → See `.github/workflows/IMPLEMENTATION_WORKFLOW.md`
+   → See `.team/workflows/IMPLEMENTATION_WORKFLOW.md`
 
 3. **POC Work** (evolving architecture exploration)
    → See section below, then follow appropriate workflow
@@ -181,7 +181,7 @@ public class MyBlockTests
 | Purpose | Validate approach, create specs | Implement validated design |
 | Code fate | REVERTED after approval | MERGED into codebase |
 | Primary output | Documentation + handover issue | Working code |
-| Workflow doc | `.github/workflows/RESEARCH_WORKFLOW.md` | `.github/workflows/IMPLEMENTATION_WORKFLOW.md` |
+| Workflow doc | `.team/workflows/RESEARCH_WORKFLOW.md` | `.team/workflows/IMPLEMENTATION_WORKFLOW.md` |
 
 **When in doubt:** Ask "Is this validating an approach (research) or implementing a validated design (implementation)?"
 
@@ -259,7 +259,7 @@ public class MyProducer : IProducer<int>
 
 ## Documentation Standards
 
-**📖 Read First**: [Document Hygiene Guide](/.github/DOCUMENT_HYGIENE.md) - Essential principles for maintainable documentation including separation of concerns, DRY principles, and when to use visual diagrams.
+**📖 Read First**: [Document Hygiene Guide](/.team/DOCUMENT_HYGIENE.md) - Essential principles for maintainable documentation including separation of concerns, DRY principles, and when to use visual diagrams.
 
 ### Documentation Placement
 
@@ -283,7 +283,7 @@ When creating or updating documentation, follow this decision tree:
 - Update main project README for production docs
 - Create directory READMEs for new modules
 
-See `.github/workflows/IMPLEMENTATION_WORKFLOW.md` for the complete documentation directory decision tree.
+See `.team/workflows/IMPLEMENTATION_WORKFLOW.md` for the complete documentation directory decision tree.
 
 ### Diagram Preferences
 
@@ -377,8 +377,8 @@ When suggesting code changes, ensure AGPL-3.0 compatibility.
 ## Getting Help
 
 **Workflow Questions:**
-- Research process: `.github/workflows/RESEARCH_WORKFLOW.md`
-- Implementation process: `.github/workflows/IMPLEMENTATION_WORKFLOW.md`
+- Research process: `.team/workflows/RESEARCH_WORKFLOW.md`
+- Implementation process: `.team/workflows/IMPLEMENTATION_WORKFLOW.md`
 - Implementation tracking: `/implementation/README.md`
 
 **Code Questions:**

@@ -10,13 +10,13 @@ assignees: ''
 
 **This is a TECH DEBT DISCOVERY issue, a specialized research workflow.**
 
-@copilot **MUST** follow the Tech Debt Discovery workflow in `/.github/workflows/TECH_DEBT_WORKFLOW.md`.
+@copilot **MUST** follow the Tech Debt Discovery workflow in `/.team/workflows/TECH_DEBT_WORKFLOW.md`.
 
 ### Checklist for @copilot
 
 Before starting work on this tech debt discovery:
-- [ ] I have read `/.github/workflows/TECH_DEBT_WORKFLOW.md`
-- [ ] I have read `/.github/DOCUMENT_HYGIENE.md` for documentation standards
+- [ ] I have read `/.team/workflows/TECH_DEBT_WORKFLOW.md`
+- [ ] I have read `/.team/DOCUMENT_HYGIENE.md` for documentation standards
 - [ ] I will create `/research/tech-debt-[date]/` folder structure
 - [ ] I will **review existing backlog** (`/research/backlog/`) before new exploration
 - [ ] I understand exploratory code in `/poc/` or `/src/` will be REVERTED after reviewer approval

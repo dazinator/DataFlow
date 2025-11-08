@@ -374,11 +374,11 @@ Key points:
 ### Well-Factored Documentation
 
 ```
-.github/workflows/
+.team/workflows/
 ├── RESEARCH_WORKFLOW.md          # Single purpose: research process
 ├── IMPLEMENTATION_WORKFLOW.md    # Single purpose: implementation  
 ├── TECH_DEBT_WORKFLOW.md         # Single purpose: tech debt discovery
-└── README.md                     # Index to workflows
+└── PROCESS_MODELING_WORKFLOW.md  # Single purpose: process modeling
 
 research/
 ├── FOLDER_STRUCTURE.md           # Canonical: folder layout

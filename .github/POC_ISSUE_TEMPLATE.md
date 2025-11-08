@@ -25,7 +25,7 @@ Use when research will produce a handoff issue for implementation team (applies 
 ```markdown
 ## Research Context
 
-⚠️ This is a research issue. @copilot Please follow the Research-to-Implementation workflow in `/.github/workflows/RESEARCH_WORKFLOW.md`.
+⚠️ This is a research issue. @copilot Please follow the Research-to-Implementation workflow in `/.team/workflows/RESEARCH_WORKFLOW.md`.
 
 **Research Objective**: [What needs to be validated/explored]
 
@@ -214,6 +214,6 @@ Based on the handover document:
 ## See Also
 
 - **Main Instructions**: `.github/copilot-instructions.md`
-- **Research Workflow**: `/.github/workflows/RESEARCH_WORKFLOW.md`
+- **Research Workflow**: `/.team/workflows/RESEARCH_WORKFLOW.md`
 - **POC Overview**: `/poc/README.md`
-- **Workflow Examples**: `.github/EXAMPLE_WORKFLOWS.md`
+- **Workflow Examples**: `.team/EXAMPLE_WORKFLOWS.md`

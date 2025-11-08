@@ -516,6 +516,6 @@ Implementation complete when:
 ## Related Documentation
 
 - **Entry point**: `.github/copilot-instructions.md` - Start here
-- **Research workflow**: `.github/workflows/RESEARCH_WORKFLOW.md`
+- **Research workflow**: `.team/workflows/RESEARCH_WORKFLOW.md`
 - **Implementation folder**: `/implementation/README.md`
 - **Workflow improvements**: `.github/workflow-improvements.md`

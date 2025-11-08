@@ -10,14 +10,14 @@ This research designed and validated a systematic workflow for discovering and m
 
 ### Key Outcomes
 
-1. **Tech Debt Workflow Created** - Complete workflow documentation in `.github/workflows/TECH_DEBT_WORKFLOW.md`
+1. **Tech Debt Workflow Created** - Complete workflow documentation in `.team/workflows/TECH_DEBT_WORKFLOW.md`
 2. **Backlog Management System** - Established `/research/backlog/` with date-based naming and management guidelines
 3. **Workflow Validated** - Applied to real codebase, generated actionable findings
 4. **Templates Created** - Findings report, handover issue, and backlog item templates
 
 ### Research Artifacts
 
-- **Workflow Guide**: `.github/workflows/TECH_DEBT_WORKFLOW.md` (19KB)
+- **Workflow Guide**: `.team/workflows/TECH_DEBT_WORKFLOW.md` (19KB)
 - **Backlog System**: `/research/backlog/README.md` with usage guide
 - **Example Analysis**: 8 findings report from POC analysis
 - **Example Handovers**: 1 selected finding with implementation issue
@@ -201,7 +201,7 @@ The workflow successfully:
 ## Templates Created
 
 ### 1. Tech Debt Workflow Guide
-Location: `.github/workflows/TECH_DEBT_WORKFLOW.md`
+Location: `.team/workflows/TECH_DEBT_WORKFLOW.md`
 - Complete 6-phase workflow
 - Standard exploration areas
 - Findings report format
@@ -317,7 +317,7 @@ See self-improvement evaluation in `.github/workflow-improvements.md` for detail
 
 ### For Future Tech Debt Analyses
 
-1. Use `.github/workflows/TECH_DEBT_WORKFLOW.md` as guide
+1. Use `.team/workflows/TECH_DEBT_WORKFLOW.md` as guide
 2. Create `/research/tech-debt-[date]/` folder
 3. Follow 6-phase process
 4. Submit findings report for review
@@ -326,7 +326,7 @@ See self-improvement evaluation in `.github/workflow-improvements.md` for detail
 ## References
 
 ### Created Documentation
-- Main workflow: `.github/workflows/TECH_DEBT_WORKFLOW.md`
+- Main workflow: `.team/workflows/TECH_DEBT_WORKFLOW.md`
 - Backlog guide: `/research/backlog/README.md`
 - Research plan: `research-plan.md`
 - Design notes: `notes/phase1-workflow-analysis.md`
@@ -337,8 +337,8 @@ See self-improvement evaluation in `.github/workflow-improvements.md` for detail
 - Example backlog: `/research/backlog/2025-11-07-*.md`
 
 ### Related Workflows
-- Research workflow: `.github/workflows/RESEARCH_WORKFLOW.md`
-- Implementation workflow: `.github/workflows/IMPLEMENTATION_WORKFLOW.md`
+- Research workflow: `.team/workflows/RESEARCH_WORKFLOW.md`
+- Implementation workflow: `.team/workflows/IMPLEMENTATION_WORKFLOW.md`
 
 ---
 

@@ -10,7 +10,7 @@ For investigating/validating approaches:
 ```markdown
 ## Research Context
 
-⚠️ This is a research issue. @copilot Please follow the Research workflow in `/.github/workflows/RESEARCH_WORKFLOW.md`.
+⚠️ This is a research issue. @copilot Please follow the Research workflow in `/.team/workflows/RESEARCH_WORKFLOW.md`.
 
 **Research Objective**: [What needs to be validated]
 **Target Codebase**: [POC / Production / Both]
@@ -75,9 +75,9 @@ When GitHub Copilot sees an implementation issue:
 
 - **Issue Templates**: See `.github/ISSUE_TEMPLATE/`
 - **Template Guide**: See `.github/POC_ISSUE_TEMPLATE.md`
-- **Workflow Examples**: See `.github/EXAMPLE_WORKFLOWS.md`
+- **Workflow Examples**: See `.team/EXAMPLE_WORKFLOWS.md`
 - **Main Instructions**: See `.github/copilot-instructions.md`
-- **Research Workflow**: See `/.github/workflows/RESEARCH_WORKFLOW.md`
+- **Research Workflow**: See `/.team/workflows/RESEARCH_WORKFLOW.md`
 
 ## Example Implementation Issue
 

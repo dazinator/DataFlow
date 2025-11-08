@@ -258,6 +258,36 @@ Before any PR is marked ready for review, Copilot agents should:
   - Add a "Quick Start" section at the top of copilot-instructions.md that references the self-improvement loop early, so agents see it immediately
   - Consider adding a GitHub Actions workflow that checks if workflow-improvements.md has been updated in PRs (though this might be overly prescriptive)
 
+- **Date**: 2025-11-07
+- **Issue/PR**: Workflow Improvements Issue Template (copilot/add-github-issue-template)
+- **What worked well**:
+  - Clear problem statement in issue made requirements straightforward
+  - Existing issue template structure (research, implementation, tech-debt) provided excellent reference patterns
+  - Repository already had workflow-improvements.md for tracking suggestions
+  - Copilot-instructions.md had comprehensive list of relevant documentation
+  - Parallel file reading efficiently explored all templates and workflow docs
+  - YAML validation caught any syntax errors early
+- **What didn't work well**:
+  - No explicit guidance on what makes a good workflow improvement template
+  - Unclear whether to include ALL documentation references or just core ones (chose ALL for completeness)
+  - No examples of workflow improvement issues to reference for template design
+  - Template structure had to be inferred from other issue templates
+  - Uncertain about optimal level of detail in checklists (chose comprehensive)
+- **Suggested improvement**:
+  1. **Add "Issue Template Design Guide"** to `.github/`:
+     - Best practices for creating effective issue templates
+     - When to use checkboxes vs free-form text
+     - How to balance structure vs flexibility
+     - Guidance on documentation references (minimal vs comprehensive)
+  2. **Create example workflow improvement issue**:
+     - Demonstrate how to fill out the template effectively
+     - Show what good problem statements and proposals look like
+     - Archive in `.team/EXAMPLE_WORKFLOWS.md` or similar
+  3. **Add "Template Testing"** step to implementation workflow:
+     - After creating issue template, verify front matter syntax
+     - Check that all referenced documentation paths are valid
+     - Ensure labels used in template are consistent with repository
+
 <!-- Add general workflow improvement suggestions here that apply to all workflows -->
 <!-- Format:
 - **Date**: YYYY-MM-DD
@@ -317,7 +347,7 @@ When reviewing workflow improvement suggestions:
 2. Prioritize suggestions that would have the most impact
 3. When implementing a suggestion, update the relevant workflow documentation:
    - `.github/copilot-instructions.md` for general Copilot guidance
-   - `/.github/workflows/RESEARCH_WORKFLOW.md` for research-specific processes
+   - `/.team/workflows/RESEARCH_WORKFLOW.md` for research-specific processes
    - `.github/ISSUE_TEMPLATE/*.md` for issue template improvements
 4. Mark implemented suggestions with `[IMPLEMENTED - YYYY-MM-DD]` prefix
 5. Archive old implemented suggestions periodically to keep the file focused
