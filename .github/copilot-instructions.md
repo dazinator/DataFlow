@@ -10,10 +10,16 @@
 2. **Implementation Task** (implement validated designs)
    → See `.team/workflows/IMPLEMENTATION_WORKFLOW.md`
 
-3. **POC Work** (evolving architecture exploration)
+3. **Tech Debt Task** (discover and address technical debt)
+   → See `.team/workflows/TECH_DEBT_WORKFLOW.md`
+
+4. **Product Prioritization** (prioritize backlog items)
+   → See `.team/workflows/PRODUCT_PRIORITIZATION_WORKFLOW.md`
+
+5. **POC Work** (evolving architecture exploration)
    → See section below, then follow appropriate workflow
 
-4. **Continuing Existing Work**
+6. **Continuing Existing Work**
    → Check `/implementation/plan.md` first
 
 **⚠️ ALWAYS complete self-improvement evaluation before PR review** (see below)
@@ -388,6 +394,9 @@ When suggesting code changes, ensure AGPL-3.0 compatibility.
 **Workflow Questions:**
 - Research process: `.team/workflows/RESEARCH_WORKFLOW.md`
 - Implementation process: `.team/workflows/IMPLEMENTATION_WORKFLOW.md`
+- Tech debt process: `.team/workflows/TECH_DEBT_WORKFLOW.md`
+- Product prioritization: `.team/workflows/PRODUCT_PRIORITIZATION_WORKFLOW.md`
+- Process modeling: `.team/workflows/PROCESS_MODELING_WORKFLOW.md`
 - Implementation tracking: `/implementation/README.md`
 
 **Code Questions:**

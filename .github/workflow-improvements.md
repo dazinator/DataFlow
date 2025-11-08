@@ -409,6 +409,49 @@ Before any PR is marked ready for review, Copilot agents should:
      - Stop when no more reasonable simplifications to test
      - Document which simplifications were tested and results
 
+- **Date**: 2025-11-08
+- **Issue/PR**: Product Prioritisation Process (Process Modeling workflow)
+- **What worked well**: 
+  - **Process Modeling Workflow** structure was excellent - clear phases and deliverables
+  - **Tabletop simulation methodology** caught clarity issues before finalizing the workflow
+  - **Test scenario format** (Context → Starting Point → Steps → Expected Outcome) was very effective
+  - **Iterative refinement** based on simulation feedback produced a much clearer workflow
+  - **Long-lived folder** pattern (`/research/workflow-modeling/`) worked well for ongoing process work
+  - **Regression test archiving** preserves scenarios for future validation
+  - **Issue template creation** was straightforward with clear examples to follow
+  - **Copilot instructions updates** were easy to integrate into existing structure
+  - **Edge case section** addressed in simulation proved very valuable for completeness
+  - **Policy requirements** from issue mapped cleanly to workflow sections
+- **What didn't work well**:
+  - **Initial workflow draft was too vague** on key criteria (what is "quick win"? how to identify security items?)
+  - **No guidance on how detailed to make the workflow** - had to balance comprehensive vs overwhelming
+  - **Simulation required creating many test assets** (10 backlog items) - time-consuming but necessary
+  - **No clear guidance on verbosity level** for workflow steps - some sections might be too detailed
+  - **Unclear whether all scenarios need full simulation** or if review-only is sufficient for some
+- **Suggested improvement**: 
+  1. **Add "Workflow Design Principles"** to Process Modeling Workflow:
+     - **Be explicit over implicit**: If there's a decision criterion, spell it out (e.g., "quick win = ≤1 day effort")
+     - **Provide decision frameworks**: When judgment is needed, give tie-breaker rules
+     - **Include edge cases**: Think through "what if" scenarios and document handling
+     - **Balance detail vs. clarity**: Comprehensive is good, but use formatting (bold, bullets) to aid scanning
+     - Example sections should be clearly marked as "Example:" to distinguish from instructions
+  2. **Add "Simulation Scope Guidance"** to Process Modeling Workflow:
+     - **Full simulation required**: New workflows, major changes, complex decision logic
+     - **Review-only sufficient**: Minor updates, clarifications, adding examples
+     - **Partial simulation**: Testing specific edge cases or changed sections only
+     - For this issue: Full simulation was necessary and valuable for a new workflow
+  3. **Add "Test Asset Creation Time" estimate to workflow**:
+     - Creating realistic test assets for simulation can be time-consuming
+     - Budget 30-60 minutes for creating comprehensive test scenarios
+     - Can use simpler/fewer assets if workflow is straightforward
+     - Trade-off: More realistic assets → Better simulation → Higher confidence
+  4. **Add "Workflow Verbosity Self-Check"** guidance:
+     - After drafting workflow, scan for sections >500 words
+     - Ask: "Could this be simplified? Is every detail necessary?"
+     - Consider using: Summary paragraph + detailed subsection pattern
+     - Use formatting to improve scannability (tables, bullets, bold key terms)
+     - This workflow ended up ~16KB - comprehensive but potentially could be streamlined
+
 <!-- Add general workflow improvement suggestions here that apply to all workflows -->
 <!-- Format:
 - **Date**: YYYY-MM-DD

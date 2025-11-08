@@ -37,6 +37,7 @@ Check all that apply:
 - [ ] Research Workflow
 - [ ] Implementation Workflow
 - [ ] Tech Debt Workflow
+- [ ] Product Prioritization Workflow
 - [ ] Any/All Workflows (systemic change affecting multiple workflows)
 - [ ] Copilot Instructions
 - [ ] Issue Templates
