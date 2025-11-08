@@ -452,6 +452,56 @@ Before any PR is marked ready for review, Copilot agents should:
      - Use formatting to improve scannability (tables, bullets, bold key terms)
      - This workflow ended up ~16KB - comprehensive but potentially could be streamlined
 
+- **Date**: 2025-11-08
+- **Issue/PR**: Simplify Product Backlog Prioritization GitHub Issue Template (copilot/simplify-product-backlog)
+- **What worked well**: 
+  - **Process Modeling Workflow** provided excellent structure for systematic testing and validation
+  - **Tabletop simulation methodology** was highly effective - caught all issues before implementation
+  - **Scenario-based testing** (user experience, urgent situations, copilot execution) provided comprehensive coverage
+  - **Comparison with other templates** (research.md, implementation.md) validated that simplification approach was consistent
+  - **Test-driven approach** (baseline → simplified → compare) provided objective validation of improvements
+  - **Metrics-based evaluation** (67→30 lines, 55% reduction, <1 min vs 3-5 min) made value clear
+  - **Regression testing** ensured existing workflow tests still pass with simplified template
+  - **Long-lived folder pattern** (`/research/workflow-modeling/`) kept work organized
+  - **Plan.md tracking** provided clear status visibility throughout
+  - **Single source of truth principle** - removing duplication between template and workflow was correct approach
+- **What didn't work well**:
+  - **Initial unclear on scope** - took time to identify that this was a process modeling issue vs direct template edit
+  - **No guidance on quantitative metrics** - had to determine what metrics to measure (lines, time, etc.) independently
+  - **Uncertain about sufficient testing** - created 3 scenarios, wondered if more were needed (3 was sufficient)
+  - **No explicit guidance on when to archive scenarios vs keep in scenarios/** - used judgment
+  - **Template comparison lacked visual representation** - would have benefited from side-by-side diff or table
+- **Suggested improvement**: 
+  1. **Add "Process Modeling Issue Indicators"** to copilot-instructions.md Quick Navigation:
+     - Currently says "Workflow Improvements" but doesn't mention process modeling as a specialized workflow
+     - Add explicit mention: "Workflow improvement issues use the **Process Modeling Workflow** - see `.team/workflows/PROCESS_MODELING_WORKFLOW.md`"
+     - This would have helped identify correct workflow faster
+  2. **Add "Metrics Guidance"** to Process Modeling Workflow:
+     - When simplifying templates or workflows, measure:
+       - Length reduction (lines or word count)
+       - User time reduction (estimated time to complete)
+       - Maintenance improvement (number of places to update)
+       - Cognitive load (subjective, based on scenario feedback)
+     - Create comparison tables showing before/after metrics
+     - Use metrics to objectively validate improvement
+  3. **Add "Sufficient Testing Criteria"** to Process Modeling Workflow:
+     - **Minimum scenarios**: 2-3 covering key use cases
+     - **Standard coverage**: User experience + edge case + execution validation
+     - **Stop when**: All scenarios PASS and cover representative cases
+     - Can add more if gaps emerge, but 3 comprehensive scenarios usually sufficient
+  4. **Add "Scenario Lifecycle"** guidance to Process Modeling Workflow:
+     - Scenarios start in `/scenarios/[workflow-name]/` during active testing
+     - After all PASS and work complete, archive ALL to `/regression-tests/[workflow-name]/`
+     - Keep scenarios/ for active work, regression-tests/ for completed work
+     - Currently this is implied but not explicit
+  5. **Add "Visual Comparison Patterns"** to Process Modeling Workflow:
+     - For template/workflow changes, use:
+       - Side-by-side markdown tables (| Before | After |)
+       - Mermaid diagrams showing structure changes
+       - Code blocks showing specific sections removed/simplified
+     - Visual comparisons make changes clearer in documentation
+     - Example: Would have helped in this issue to show template structure before/after
+
 <!-- Add general workflow improvement suggestions here that apply to all workflows -->
 <!-- Format:
 - **Date**: YYYY-MM-DD
