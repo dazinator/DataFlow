@@ -57,6 +57,8 @@ Before implementing, ask yourself:
 - [ ] Should baseline benchmarks be migrated or archived?
 - [ ] Are there bulk migration patterns that need tooling?
 - [ ] Is phased vs atomic implementation specified?
+- [ ] For NuGet security fixes, does handover specify version selection? (See [Dependency Update Guide](../../.team/NUGET_DEPENDENCY_UPDATES.md))
+- [ ] If sample code requiring external services (databases, OTLP, etc.), are they documented?
 
 ### What to Do When Issues Found
 
@@ -488,6 +490,22 @@ public static class TestActorFactory
 3. Consider creating the helper first, migrating 2-3 files as proof-of-concept, then scale
 4. Balance: helper creation time vs manual edit time (helpers valuable if saves >30min)
 
+### NuGet Package Dependency Updates
+
+**For NuGet package updates** (security fixes, version updates, dependency conflicts):
+
+📖 **See [Dependency Update Guide](../../.team/NUGET_DEPENDENCY_UPDATES.md)** for comprehensive guidance on:
+- Dependency update patterns and package families
+- Version selection (security fixes, .NET compatibility)
+- Handling package conflicts and downgrade warnings
+- Validation and testing approaches
+- Common scenarios and best practices
+
+**Quick reference for common tasks:**
+- Check for outdated packages: `dotnet list package --outdated`
+- Check for vulnerabilities: `dotnet list package --vulnerable`
+- See `.team/NUGET_DEPENDENCY_UPDATES.md` for detailed patterns
+
 ### Documentation Requirements
 
 **For POC Implementation:**
@@ -559,6 +577,18 @@ Where should I put this documentation?
 - Run all tests (create new tests per handover guidance)
 - Handle edge cases from handover
 - **Do not** fix unrelated failures
+
+**For NuGet package dependency updates**: See [Dependency Update Guide](../../.team/NUGET_DEPENDENCY_UPDATES.md) section on "Validation and Testing" for specific guidance on:
+- When build verification is sufficient vs full test suite
+- Vulnerability scanning with `dotnet list package --vulnerable`
+- Handling pre-existing test failures
+- Production vs dev-only dependency testing approaches
+
+**For changes requiring external runtime dependencies** (databases, message queues, OTLP endpoints):
+- See handover documentation for external dependency requirements
+- Build verification confirms package compatibility even without runtime validation
+- If external services unavailable, document in commit message why runtime validation was not performed
+- See Step 0 (Handover Review) for checklist on external dependency documentation
 
 ### Benchmark Validation (if performance requirements specified)
 

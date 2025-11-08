@@ -382,6 +382,42 @@ For each workflow change, create realistic scenarios in `/research/workflow-mode
 **Notes**: [Detailed observations]
 ```
 
+**Testing Patterns for Specific Scenarios:**
+
+#### Multi-Condition Feature Testing Pattern
+
+When testing features with multiple stopping conditions or decision points (e.g., smart mode with max items OR max lines OR backlog exhausted):
+
+**Scenario Coverage Structure:**
+
+1. **One scenario per stopping condition**
+   - Independently test each condition triggers correctly
+   - Example: max items reached, max lines reached, queue exhausted
+
+2. **Edge case scenarios** (1-2 scenarios)
+   - Minimum values (e.g., minimum 1 item rule)
+   - Maximum values (e.g., very large thresholds)
+   - Boundary conditions (e.g., exactly at threshold)
+
+3. **Regression scenarios** (1 scenario)
+   - Verify existing behavior preserved
+   - Ensure backward compatibility
+   - Confirm no side effects
+
+**Typical Scenario Count: 4-7 scenarios**
+- Simple features (2 conditions): 4-5 scenarios
+- Complex features (3+ conditions): 5-7 scenarios
+- Quality over quantity: comprehensive better than superficial
+
+**Example for Smart Mode with 3 Stop Conditions:**
+- Baseline: Existing single-item mode works
+- Condition 1: Stops on max items (5)
+- Condition 2: Stops on max lines (500)
+- Condition 3: Stops on backlog exhausted
+- Edge Case: Minimum 1 item rule
+- Edge Case: First item exceeds line threshold
+- Regression: All modes (single/multiple/smart) work
+
 ### 2. Execute Tabletop Simulation
 
 1. **Start from `.github/copilot-instructions.md`**: Begin where a copilot agent would start
@@ -422,6 +458,99 @@ When making further changes to a workflow:
 When scenarios consistently PASS:
 1. Move from `/scenarios/` to `/regression-tests/`
 2. Use them as regression tests for future changes
+
+## Design Guidance for Process Improvements
+
+When designing new workflow features or enhancements, use these patterns:
+
+### Threshold Selection Guidance
+
+When designing features with numeric thresholds (limits, timeouts, counts):
+
+**1. Consider Typical Use Cases**
+- What values work for 80% of scenarios?
+- Examples: typical PR size, average item count, common file sizes
+- Gather data from past examples if available
+
+**2. Balance Restrictive vs Permissive**
+- **Too restrictive**: Frustrates users, requires frequent overrides
+- **Too permissive**: Creates unwieldy artifacts (large PRs, slow operations)
+- **Sweet spot**: Works for most cases, rare need to override
+
+**3. Align with Best Practices**
+- PR size: 3-7 files, 200-500 lines (industry best practice)
+- Batch size: Consider processing speed vs memory
+- Timeout: Balance responsiveness vs reliability
+
+**4. Document Rationale**
+- Why this value? What data/reasoning supports it?
+- Example: "MAX_ITEMS=5 aligns with typical PR size best practices"
+- Include in workflow documentation for future reference
+
+**5. Plan for Monitoring and Adjustment**
+- Document where threshold is defined (easy to find and adjust)
+- Note that values can be tuned based on empirical usage data
+- Consider making configurable if use cases vary widely
+
+**Example:**
+```markdown
+## Configuration
+
+**MAX_ITEMS**: 5 (default)
+- Rationale: Aligns with typical PR size best practices (3-7 files)
+- Configurable: Yes, can be overridden per-issue
+- Monitoring: Track actual usage and adjust if needed
+```
+
+### Configuration Options Design Guidance
+
+When deciding whether to make thresholds or features configurable:
+
+**When to Make Configurable:**
+- Use cases vary significantly (different teams, different projects)
+- No single "best" value for all scenarios
+- Power users need flexibility
+- Example: Batch sizes, timeout values, concurrency limits
+
+**When to Keep Fixed:**
+- Single best value for all cases
+- Configuration would add complexity without benefit
+- Value based on fundamental constraints (e.g., API limits)
+- Example: File format versions, protocol specifications
+
+**Default Strategy (80% Rule):**
+- Choose defaults that work for 80% of cases
+- Rare need to override
+- Document rationale for chosen defaults
+- Make overrides optional, not required
+
+**Configuration Levels:**
+1. **Fixed (constants in code)**: When single best value exists
+2. **Global configuration**: When applies to all operations
+3. **Per-operation parameters**: When varies by use case
+4. **Per-issue customization**: When users know their needs best
+
+**Documentation Requirements:**
+- Document defaults in workflow/README
+- Make easy to find and adjust
+- Explain rationale for chosen values
+- Example: "MAX_ITEMS=5 (typical PR size), MAX_LINES=500 (reviewable size)"
+
+**Example Decision Process:**
+```
+Feature: Smart mode thresholds
+Question: Configurable or fixed?
+
+Analysis:
+- Use cases vary: Some users need more/fewer items
+- No single best value: Depends on workflow complexity
+- 80% default: MAX_ITEMS=5, MAX_LINES=500
+
+Decision: Configurable
+Level: Per-issue parameters (optional, with defaults)
+Documentation: In Process Modeling Workflow
+Rationale: Works for 80%+ cases, power users can override
+```
 
 ## Verbosity and Redundancy Testing
 

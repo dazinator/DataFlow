@@ -6,10 +6,15 @@ This guide provides best practices for updating NuGet package dependencies, espe
 
 ## When to Use This Guide
 
-- Updating packages to fix security vulnerabilities
+- Updating NuGet packages to fix security vulnerabilities
 - Upgrading package versions for bug fixes or new features
-- Resolving package dependency conflicts
+- Resolving NuGet package dependency conflicts
 - Maintaining package compatibility across related dependencies
+
+**Note**: This guide covers **NuGet package dependencies** only. For guidance on external runtime dependencies (databases, message queues, OTLP endpoints, etc.) required by sample applications, see:
+- Implementation Workflow: `.team/workflows/IMPLEMENTATION_WORKFLOW.md` (Step 0, Step 7)
+- Research Workflow: `.team/workflows/RESEARCH_WORKFLOW.md` (Phase 5)
+- Product Backlog Template: `product/backlog-item-template.md`
 
 ---
 
@@ -165,10 +170,17 @@ dotnet test
 
 ### When External Services Required
 
-- Some samples may require external services (databases, OTLP endpoints, message brokers)
-- Build verification confirms package compatibility even without runtime validation
+Some samples may require external services (databases, OTLP endpoints, message brokers) for runtime validation.
+
+**For guidance on documenting external service requirements:**
+- See Implementation Workflow Step 0 for handover review checklist
+- See Product Backlog Template for external dependency documentation section
+- See Research Workflow Phase 5 for handover creation guidance
+
+**For validation when external services unavailable:**
+- Build verification confirms NuGet package compatibility even without runtime validation
 - Document in commit message if runtime validation was not performed and why
-- If handover mentions external dependencies, follow its guidance on validation approach
+- If handover documents external dependencies, follow its guidance on validation approach
 
 ---
 
@@ -318,9 +330,17 @@ curl -s "https://api.nuget.org/v3-flatcontainer/<package-name>/index.json" | gre
 
 ## Related Documentation
 
-- **Implementation Workflow**: `.github/workflows/IMPLEMENTATION_WORKFLOW.md`
+- **Implementation Workflow**: `.team/workflows/IMPLEMENTATION_WORKFLOW.md`
+  - Step 0: Handover review checklist for dependency updates
+  - Step 6: Quick reference to this guide for NuGet updates
+  - Step 7: Testing and validation guidance
+- **Research Workflow**: `.team/workflows/RESEARCH_WORKFLOW.md`
+  - Phase 5: Documenting external dependencies in handovers
+- **Product Backlog Template**: `product/backlog-item-template.md`
+  - External dependencies documentation section
 - **Copilot Instructions**: `.github/copilot-instructions.md`
-- **Security Tools**: See `gh-advisory-database` tool documentation
+  - Overall coding standards and practices
+- **Security Tools**: See `gh-advisory-database` tool documentation in Copilot workspace
 
 ---
 

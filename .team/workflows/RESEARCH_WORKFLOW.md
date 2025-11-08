@@ -329,6 +329,13 @@ The primary deliverable: a comprehensive product backlog item that enables imple
 - Key requirements
 - Design considerations
 
+### External Dependencies (if applicable)
+**IMPORTANT**: If your research involves sample code or implementations that require external services (databases, message queues, OTLP endpoints, etc.), document them here:
+- List each external dependency with connection details
+- State whether runtime validation required or build-only sufficient
+- Provide alternative validation approaches if service optional
+- See template in `/product/backlog-item-template.md` for format
+
 ## Success Criteria
 - [ ] Objectives from research
 - [ ] Performance requirements (if applicable)

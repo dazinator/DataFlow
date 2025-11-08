@@ -26,6 +26,33 @@
 - Suggested approach (if any)
 - Files affected or areas of code
 
+### External Dependencies (if applicable)
+
+If the code/sample requires external services or infrastructure:
+
+- [ ] List all external dependencies (databases, endpoints, APIs, etc.)
+  - Service/dependency name
+  - Connection details or requirements
+  - Availability expectations (e.g., must have, nice-to-have)
+- [ ] State whether runtime validation is required or optional
+- [ ] Provide alternative validation approach if external service is optional
+
+**Example:**
+```markdown
+### External Dependencies
+
+This sample requires:
+- OTLP endpoint at localhost:4317 (OpenTelemetry collector)
+- Redis at localhost:6379 (optional, for caching demo)
+
+**Validation Approach:**
+- Build verification sufficient (sample/dev-only code)
+- Runtime testing optional since external services may not be available
+- If services available, verify telemetry export works
+```
+
+*If no external dependencies, state "No external dependencies required"*
+
 ## Success Criteria
 
 - [ ] Criterion 1
