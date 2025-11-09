@@ -1,4 +1,7 @@
 namespace Tests.DataFlow.Utils.Processors;
+
+using Uniun.DataFlow;
+
 public class TestProcessor<T> : IStreamProcessor<T>
 {
     private readonly Action<T>? _onProcessItem;

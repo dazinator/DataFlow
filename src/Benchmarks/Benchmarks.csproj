@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DataFlow\DataFlow.csproj" />
+    <ProjectReference Include="..\Tests.Shared\Tests.Shared.csproj" />
   </ItemGroup>
 
 
@@ -25,8 +26,5 @@
     <Folder Include="BenchmarkDotNet.Artifacts\" />
     <Folder Include="BenchmarkDotNet.Artifacts\results\" />
   </ItemGroup>
-
-
-  <Import Project="..\Tests.Shared\Tests.Shared.projitems" Label="Shared" />
 
 </Project>

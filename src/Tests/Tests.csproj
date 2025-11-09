@@ -65,12 +65,11 @@
   <ItemGroup>
     <ProjectReference Include="..\DataFlow\DataFlow.csproj" />
     <ProjectReference Include="..\Benchmarks\Benchmarks.csproj" />
+    <ProjectReference Include="..\Tests.Shared\Tests.Shared.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <Folder Include="DataFlow\docs\" />
   </ItemGroup>
-
-  <Import Project="..\Tests.Shared\Tests.Shared.projitems" Label="Shared" />
 
 </Project>

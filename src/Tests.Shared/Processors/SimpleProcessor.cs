@@ -3,9 +3,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Uniun.DataFlow;
 
 
-internal class SimpleProcessor : IStreamProcessor<int>
+public class SimpleProcessor : IStreamProcessor<int>
 {
     private readonly Action<int> _onProcess;
 
@@ -23,7 +24,7 @@ internal class SimpleProcessor : IStreamProcessor<int>
     }
 }
 
-internal class SimpleProcessor<T> : IStreamProcessor<T>
+public class SimpleProcessor<T> : IStreamProcessor<T>
 {
     private readonly Action<T> _onProcess;
 

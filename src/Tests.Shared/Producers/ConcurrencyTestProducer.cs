@@ -1,6 +1,7 @@
 namespace Tests.DataFlow.Utils.Producers;
 
 using System.Runtime.CompilerServices;
+using Uniun.DataFlow;
 
 public class ConcurrencyTestProducer<T> : IStreamProducer<T>
 {

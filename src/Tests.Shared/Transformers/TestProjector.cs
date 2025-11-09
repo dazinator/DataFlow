@@ -1,5 +1,6 @@
 namespace Tests.DataFlow.Utils.Transformers;
 using System.Runtime.CompilerServices;
+using Uniun.DataFlow;
 
 public class TestProjector<TIn, TOut> : IStreamTransformer<TIn, TOut>
 {

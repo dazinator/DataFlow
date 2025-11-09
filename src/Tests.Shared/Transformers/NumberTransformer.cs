@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
+using Uniun.DataFlow;
 
 public class NumberTransformer : IStreamTransformer<int, string>
 {

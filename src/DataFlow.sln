@@ -28,7 +28,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Benchmarks", "Benchmarks\Be
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataFlow.OpenTelemetry", "DataFlow.OpenTelemetry\DataFlow.OpenTelemetry.csproj", "{AD8DEA56-5A33-2318-0952-69053C6EDB71}"
 EndProject
-Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "Tests.Shared", "Tests.Shared\Tests.Shared.shproj", "{317141E8-315A-4501-BFE2-DBB7FEA44777}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tests.Shared", "Tests.Shared\Tests.Shared.csproj", "{317141E8-315A-4501-BFE2-DBB7FEA44777}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -56,6 +56,10 @@ Global
 		{AD8DEA56-5A33-2318-0952-69053C6EDB71}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{AD8DEA56-5A33-2318-0952-69053C6EDB71}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{AD8DEA56-5A33-2318-0952-69053C6EDB71}.Release|Any CPU.Build.0 = Release|Any CPU
+		{317141E8-315A-4501-BFE2-DBB7FEA44777}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{317141E8-315A-4501-BFE2-DBB7FEA44777}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{317141E8-315A-4501-BFE2-DBB7FEA44777}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{317141E8-315A-4501-BFE2-DBB7FEA44777}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -65,10 +69,5 @@ Global
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {6D00064A-63EB-4C14-B188-578BC2ADBFB3}
-	EndGlobalSection
-	GlobalSection(SharedMSBuildProjectFiles) = preSolution
-		Tests.Shared\Tests.Shared.projitems*{317141e8-315a-4501-bfe2-dbb7fea44777}*SharedItemsImports = 13
-		Tests.Shared\Tests.Shared.projitems*{6745c933-70e9-4f02-98b3-5f1d617b77cd}*SharedItemsImports = 5
-		Tests.Shared\Tests.Shared.projitems*{ea1b992f-ef32-41d8-a30c-fb6a92ad97a5}*SharedItemsImports = 5
 	EndGlobalSection
 EndGlobal
