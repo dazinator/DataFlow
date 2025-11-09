@@ -256,6 +256,63 @@ Before any PR is marked ready for review, Copilot agents should:
 
 <!-- Add more implementation workflow improvement suggestions here -->
 
+- **Date**: 2025-11-09
+- **Issue/PR**: copilot/process-modeling-workflow-yet-again - Backlog-to-GitHub Issues Sync
+- **What worked well**:
+  - **Process Modeling Workflow** provided clear structure for exploratory design work
+  - **Issue problem statement** was clear with specific questions to answer
+  - **Design document first** approach (before scenarios) clarified technical approach upfront
+  - **Test scenario coverage** (baseline, improved, edge cases, regression) was comprehensive
+  - **Tabletop simulation methodology** validated design without building
+  - **One decision at a time** - Made clear decisions (one-way sync, manual cleanup, etc.) and documented rationale
+  - **ROI analysis** included in handover helped justify automation effort
+  - **Safety-first approach** (manual cleanup vs auto-delete) prevented dangerous automation
+  - **All scenarios passed first time** - good design prevented need for refinement iteration
+- **What didn't work well**:
+  - **Scenario count guidance missing** - Wasn't sure if 5 scenarios was enough (it was)
+  - **Design doc location unclear** - Created in `/tmp` but permanent location would be better for reference
+  - **Handover asset consolidation** - Scattered across multiple files (design doc, scenarios, handover, archived plan)
+  - **No guidance on exploration vs implementation** in Process Modeling workflow - This was exploratory (like research) not implementation
+  - **Uncertainty about next steps** - Is this a handover for implementation? Or just exploration findings?
+  - **Process Modeling vs Research Workflow overlap** - This felt like research (explore feasibility) but used Process Modeling
+- **Suggested improvement**:
+  1. **Add "Scenario Count Guidance"** to Process Modeling Workflow:
+     - Minimum: 2 scenarios (baseline + improved)
+     - Standard: 5 scenarios (baseline, improved, 2 edge cases, regression)
+     - Can add more if gaps emerge during testing
+     - Quality over quantity - comprehensive scenarios better than many superficial ones
+  2. **Add "Design Documentation Location"** guidance:
+     - Create design docs in `/research/workflow-modeling/designs/[workflow-name]/`
+     - Keep with scenarios for complete reference
+     - Include in archived plan references
+     - Example: `/research/workflow-modeling/designs/backlog-sync/technical-design.md`
+  3. **Add "Handover Asset Organization"** pattern:
+     - Create folder for complete exploration: `/research/workflow-modeling/explorations/[name]/`
+     - Include: design doc, scenarios, handover, archived plan (all in one place)
+     - Makes it easier to find all related materials
+     - Current scattered approach requires hunting across multiple folders
+  4. **Clarify "Exploration vs Implementation"** in Process Modeling:
+     - **Exploration mode**: Design and validate workflow/tooling (like research)
+       - Output: Handover document for implementation team
+       - Code: Only prototypes/examples if needed for validation
+       - Decision: Go/no-go on implementing the design
+     - **Implementation mode**: Actually implement workflow changes (like implementation)
+       - Output: Working code/scripts/workflows
+       - Code: Production-ready automation
+       - Decision: Changes merged and active
+     - This issue was exploration mode - validated feasibility, created handover
+  5. **Add "Next Steps Clarity"** to exploration mode:
+     - Exploration ends with: Design + Handover + Recommendation (Go/No-Go)
+     - If Go: Create backlog item for implementation OR implement directly (depending on complexity)
+     - If No-Go: Archive findings, document why not viable
+     - For this issue: Created comprehensive handover for implementation team (Go recommendation)
+  6. **Consider "Research vs Process Modeling"** distinction:
+     - **Research**: Exploring technical approaches for features/patterns
+     - **Process Modeling**: Exploring workflow/process improvements
+     - **Overlap**: Both can be exploratory with handovers
+     - **This issue**: Process Modeling (workflow tooling) that felt like Research (exploration)
+     - Maybe Process Modeling should have explicit "Exploration Mode" like Research has phases?
+
 ---
 
 ## General Workflow Improvements

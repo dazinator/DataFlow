@@ -1064,6 +1064,161 @@ When processing an entry from workflow-improvements.md:
 - For unsuccessful improvements: note "Attempted but not viable" in Improvement column
 - Include scenario that determined non-viability
 
+## Identifying When Research Is Needed
+
+Process modeling can handle most workflow changes directly, including updating documentation, creating small helper scripts, and iterating through scenario testing. However, some explorations reveal that **broader dependencies** requiring significant development and testing are needed before workflow changes can be implemented. **When this happens, the work should be handed over to the Research team.**
+
+### What Process Modeling Can Handle Directly
+
+✅ **Process Modeling handles**:
+- Updating workflow documentation files (`.team/workflows/*.md`)
+- Updating copilot instructions (`.github/copilot-instructions.md`)
+- Creating small, single-purpose scripts invoked directly by Copilot during workflows
+- Iterating on workflow changes through scenario testing and regression testing
+- Making general workflow improvements and documentation updates
+- Creating issue templates and workflow patterns
+
+### Decision Framework: When to Create Research Handover
+
+Ask these questions during tabletop simulation and design:
+
+1. **Does this require developing broader dependencies with significant effort?**
+   - GitHub Actions workflows (multi-step pipelines, complex automation)
+   - Utilities that run within GitHub Actions requiring development and testing
+   - Tools requiring significant effort and proper testing cycles (e.g., >4 hours development time, requires multiple testing iterations, or substantial coordination across teams)
+   - APIs or integrations with external systems
+   - Complex supporting infrastructure
+
+2. **Does this require significant exploration of technical approaches?**
+   - Multiple architectural options to prototype and evaluate
+   - Performance testing and optimization required
+   - Technology stack decisions needing validation
+
+3. **Is the dependency development unclear or complex?**
+   - Design requires iteration and prototyping
+   - Multiple integration points need investigation
+   - Significant edge cases requiring exploration
+
+**If YES to any of the above**: Create a **Research Handover** to develop dependencies first.
+
+**Key distinction**: Small, clear-scope scripts for workflow use → Process Modeling handles. Broader dependencies (GitHub Actions pipelines, complex utilities, tools needing testing cycles) → Research Handover.
+
+### Research Handover Pattern
+
+When broader dependencies requiring research are identified:
+
+**DO (Process Modeling)**:
+1. ✅ Complete tabletop simulation and design validation
+2. ✅ Create comprehensive handover document for Research team
+3. ✅ Explain the problem the workflow is trying to solve
+4. ✅ Suggest what dependencies are likely needed
+5. ✅ Request exploration and design of dependencies
+6. ✅ Document test scenarios that validate the need
+7. ✅ Create history entry noting handover to research
+8. ✅ Archive the plan with research recommendation
+
+**DO NOT (when creating Research Handover)**:
+1. ❌ Update workflow documentation to reference the new dependencies (wait until after research)
+2. ❌ Develop the broader dependencies yourself (GitHub Actions pipelines, complex utilities)
+3. ❌ Create implementation backlog items for the dependencies (research will create these)
+
+**Note**: Process modeling can still update workflow docs and create small scripts for other improvements. These restrictions apply only when handing over dependency development to research.
+
+**Research Handover Document Template:**
+
+```markdown
+# [Feature Name] - Research Handover
+
+## Executive Summary
+
+**Recommendation**: ✅ **PROCEED with research**
+
+[Brief description of what needs to be researched and why]
+
+**⚠️ CRITICAL - Research Scope**:
+- **DO**: Develop [broader dependencies: GitHub Actions pipelines, utilities, tools]
+- **DO**: Test and validate with [existing systems]
+- **DO**: Create product backlog item(s) for any workflow documentation updates needed
+- **DO NOT**: Update workflow documentation files (Process Modeling will do this after dependencies are ready)
+
+**Why research is needed**: [Explanation of why these dependencies require significant exploration/development/testing]
+
+## Problem Statement
+
+[Describe the workflow problem being solved and current pain points]
+
+## Suggested Dependencies
+
+[Describe what broader dependencies are likely needed - GitHub Actions workflows, utilities, tools, etc.]
+
+## Technical Design (Suggested)
+
+[Your suggested approach for the dependencies - research team may modify based on exploration]
+
+## Research Phases
+
+[Break down the dependency development work into phases]
+
+## Post-Research: Workflow Integration
+
+**After research completes and dependencies are working**, create a new **Process Modeling issue** to integrate [feature] into existing workflows:
+
+**Scope**: Update workflow documentation to reference the new [dependencies]
+**Deliverables**: [List workflow files to update]
+
+**Why separate?**: The dependencies must be developed and tested first. Workflow documentation should only reference working tools.
+```
+
+**Why separate?**: The dependencies must be developed and tested first. Workflow documentation should only be updated once proven to work.
+
+## Next Steps for Research Team
+
+1. Review this handover document
+2. Create research issue following Research Workflow
+3. Develop and test the dependencies
+4. Create product backlog item for workflow documentation updates
+5. After research complete: Reviewer creates Process Modeling issue for workflow integration
+```
+
+### Example: Backlog-to-GitHub Sync
+
+**Process Modeling identified broader dependencies**:
+- Needs GitHub Actions workflow (multi-step pipeline, not simple script)
+- Needs Python sync script with proper error handling and testing
+- Needs tracking mechanism (design exploration required)
+- Significant testing and validation cycles required
+
+**Process Modeling created**:
+- Research handover document explaining the workflow problem
+- Test scenarios validating the need
+- Suggested technical design for dependencies
+- Request for research to explore and develop the dependencies
+
+**Research will develop**:
+- GitHub Actions workflow file (complex automation)
+- Sync script with comprehensive testing
+- Tracking mechanism and state management
+- Validation tests and edge case handling
+
+**Follow-up Process Modeling will**:
+- Update workflow documentation to reference the working sync
+- Update copilot instructions to mention the sync capability
+- Integrate sync into existing workflows
+
+**Contrast with direct Process Modeling**:
+- If the need was just a small helper script to reformat a file → Process Modeling creates it directly
+- If the need is a complex GitHub Actions pipeline → Research Handover
+- If the need is updating workflow docs → Process Modeling does it directly
+- If the need is a tested utility requiring development cycles → Research Handover
+
+This separation ensures:
+1. ✅ Broader dependencies are properly developed through research cycles
+2. ✅ Workflow documentation references working, tested tools
+3. ✅ Clear handoff between exploration/development and integration
+4. ✅ Process Modeling focuses on workflow design, Research handles dependency development
+
+---
+
 ## Completing Process Modeling Work
 
 When work on an issue is complete:
