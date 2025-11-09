@@ -740,6 +740,52 @@ Before any PR is marked ready for review, Copilot agents should:
 
 ---
 
+## Process Modeling Workflow Improvements
+
+### Suggestions
+
+- **Date**: 2025-11-09
+- **Issue/PR**: Centralized Workflow Topology System Design
+- **What worked well**:
+  - **Systematic option evaluation** - Evaluating 6 storage options (file-based, labels, external API, submodule, projects, hybrid) with detailed pros/cons led to clear recommendation
+  - **Tabletop simulation** - Creating and testing 5 scenarios before any implementation caught design issues early and validated approach
+  - **Mermaid diagrams** - Visual state transition diagrams and architecture flowcharts clarified complex multi-workflow coordination
+  - **Research handover pattern** - Clear separation between design (Process Modeling) and infrastructure implementation (Research) prevented scope creep
+  - **Design document template** - Using `/tmp/design-[name].md` pattern from Process Modeling Workflow saved time and provided structure
+  - **Scenario naming convention** - scenario-NNN-[baseline|improved|edge-case]-description format made test purpose immediately clear
+  - **Research handover criteria** - Lines 1069-1104 in Process Modeling Workflow provided clear decision framework (GitHub Actions = broader dependencies = Research Handover)
+- **What didn't work well**:
+  - **Concurrency analysis complexity** - Thinking through concurrent PR scenarios across different storage options required significant mental overhead
+  - **Storage option trade-offs** - Each of 6 options had different pros/cons, prioritizing requirements and making recommendation took considerable analysis time
+  - **No guidance on how many storage options to evaluate** - Unclear if 6 was too many or appropriate (good: thorough analysis; bad: time-consuming)
+  - **Scenario retention decision ambiguity** - Process Modeling Workflow says "revert test scenarios" but for research handovers, scenarios are valuable documentation for research team; had to use judgment
+- **Suggested improvement**:
+  1. **Add "Major System Design" pattern to Process Modeling Workflow**:
+     - When designing system affecting 4+ workflows or introducing new architectural patterns
+     - Guidance: Evaluate 3-6 options minimum (too few = shallow analysis, too many = diminishing returns)
+     - Use design document in `/tmp/` to think through before scenarios
+     - Consider Mermaid diagrams for state machines and multi-system interactions
+     - Example options to evaluate: Storage (file/API/labels), Coordination (centralized/distributed), Integration (query/push/hybrid)
+  2. **Add "Research Handover Scenario Retention" guidance**:
+     - **For workflow improvements**: Revert scenarios after validation (typical)
+     - **For research handovers**: Keep scenarios as documentation for research team
+     - Scenarios serve as requirements, test cases, and expected behavior examples
+     - Research team references scenarios during prototype development
+     - Clarifies exception to "revert scenarios" default
+  3. **Add "Concurrency Analysis Checklist"** for distributed system designs:
+     - What happens when 2 PRs update state simultaneously?
+     - What happens when 2 PRs modify same entity?
+     - What happens when PR-A queries, PR-B modifies, PR-A modifies based on stale data?
+     - How does storage option handle race conditions? (File: merge conflicts; API: transactions; Labels: last-write-wins)
+     - Prevents overlooking concurrent scenarios in design
+  4. **Add "Option Evaluation Table Template"** to design document guidance:
+     - Structured pros/cons comparison across options
+     - Score options on key criteria (simplicity, concurrency, cost, maintenance)
+     - Makes option comparison easier to visualize and review
+     - Example in centralized workflow topology design (`/tmp/design-workflow-topology.md`)
+
+---
+
 ## POC Workflow Improvements
 
 ### Suggestions
