@@ -19,6 +19,43 @@ Follow steps below
 
 ---
 
+## Workflow Queue
+
+**Query issues designated to this workflow:**
+
+Using GitHub MCP tools (primary method):
+```python
+list_issues(
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    labels=["workflow:implementation"],
+    state="OPEN"
+)
+```
+
+**Or use CLI for manual queries:**
+```bash
+gh issue list \
+  --label "workflow:implementation" \
+  --state open \
+  --json number,title,url
+```
+
+**Or use the query script:**
+```bash
+./.team/scripts/workflow/query-workflow-queue.sh implementation
+```
+
+**Entry Points:**
+- From Triage workflow (ready to implement)
+- From Research workflow (approach validated)
+- From Product Prioritization (backlog item prioritized)
+- From Tech Debt workflow (debt analysis complete)
+
+**See**: [Workflow Topology Guide](/.github/docs/WORKFLOW_TOPOLOGY_GUIDE.md) for complete documentation on querying and handover patterns.
+
+---
+
 ## Step 0: Handover Critical Review
 
 **⚠️ CRITICAL**: If implementing from a research handover, critically evaluate it BEFORE starting work.
@@ -723,6 +760,121 @@ Implementation complete when:
 - [ ] Plan archived (if multi-phase)
 - [ ] Self-improvement evaluation completed
 - [ ] Code review ready
+
+---
+
+## Handover to Next Workflow
+
+When implementation is complete or encounters issues requiring other workflows, use the workflow topology system to transition the issue.
+
+**See**: [Workflow Topology Guide](/.github/docs/WORKFLOW_TOPOLOGY_GUIDE.md) for complete handover patterns and troubleshooting.
+
+### Implementation Complete
+
+**When**: Implementation is successful and merged
+
+Using GitHub MCP tools (primary method):
+```python
+# Close issue with comment
+issue_write(
+    method="update",
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=ISSUE,
+    state="closed"
+)
+
+add_issue_comment(
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=ISSUE,
+    body="""✅ **Implementation Complete**
+
+Successfully implemented [feature/fix].
+
+**Changes**:
+- [Summary of changes]
+- PR: #[PR_NUMBER]
+
+**Documentation**: [docs updated]
+
+All success criteria met.
+
+See: `.team/workflows/IMPLEMENTATION_WORKFLOW.md`"""
+)
+```
+
+**Or use CLI for manual operations:**
+```bash
+gh issue close $ISSUE --comment "✅ **Implementation Complete**
+
+Successfully implemented [feature/fix].
+
+**Changes**:
+- [Summary of changes]
+- PR: #[PR_NUMBER]
+
+**Documentation**: [docs updated]
+
+All success criteria met.
+
+See: \`.team/workflows/IMPLEMENTATION_WORKFLOW.md\`"
+```
+
+### Handover to Tech Debt
+
+**When**: Implementation reveals technical debt that should be addressed
+
+```bash
+gh issue edit $ISSUE \
+  --remove-label "workflow:implementation" \
+  --add-label "workflow:tech-debt"
+
+gh issue comment $ISSUE --body "🔧 **Handover: Implementation → Tech Debt**
+
+Implementation revealed technical debt that should be addressed.
+
+**Tech Debt Identified**:
+- [Description of tech debt]
+- Location: [files/areas affected]
+
+**Context**: [Why this surfaced during implementation]
+
+See: \`.team/workflows/TECH_DEBT_WORKFLOW.md\`"
+```
+
+**Or use the handover script**:
+```bash
+./.team/scripts/workflow/handover-issue.sh \
+  $ISSUE implementation tech-debt "Implementation revealed technical debt in [area]"
+```
+
+### Handover to Research
+
+**When**: Implementation uncovers unknowns requiring research
+
+```bash
+./.team/scripts/workflow/handover-issue.sh \
+  $ISSUE implementation research "Implementation revealed unknowns requiring validation. See comments for details."
+```
+
+### Handover to Triage
+
+**When**: Requirements were unclear or need re-evaluation
+
+```bash
+./.team/scripts/workflow/handover-issue.sh \
+  $ISSUE implementation triage "Requirements unclear during implementation. Needs reassessment."
+```
+
+### Handover to Product Prioritization
+
+**When**: Implementation is paused pending prioritization decision
+
+```bash
+./.team/scripts/workflow/handover-issue.sh \
+  $ISSUE implementation product-backlog "Implementation paused, needs prioritization decision"
+```
 
 ---
 

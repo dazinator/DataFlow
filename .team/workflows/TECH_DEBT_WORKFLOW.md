@@ -37,6 +37,31 @@ Tech debt analysis produces **findings report + product backlog items**, not mer
 
 ---
 
+## Workflow Queue
+
+**Query issues designated to this workflow:**
+
+```bash
+gh issue list \
+  --label "workflow:tech-debt" \
+  --state open \
+  --json number,title,url
+```
+
+**Or use the query script:**
+```bash
+./.team/scripts/workflow/query-workflow-queue.sh tech-debt
+```
+
+**Entry Points:**
+- From Triage workflow (tech debt identified)
+- From Implementation workflow (debt discovered during work)
+- From periodic code quality reviews
+
+**See**: [Workflow Topology Guide](/.github/docs/WORKFLOW_TOPOLOGY_GUIDE.md) for complete documentation on querying and handover patterns.
+
+---
+
 ## Overview
 
 Tech debt discovery is the systematic process of identifying improvement opportunities in a codebase. This workflow enables Copilot agents to comprehensively analyze code quality, developer experience, and maintenance burden, then present findings for review and selective implementation.
@@ -781,6 +806,66 @@ All findings go to product backlog:
 - Keep all documentation and backlog items
 - PR ready for merge
 - Product team will prioritize items using Product Prioritization workflow
+
+---
+
+## Handover to Next Workflow
+
+When tech debt analysis is complete, hand over findings to the appropriate next workflow.
+
+**See**: [Workflow Topology Guide](/.github/docs/WORKFLOW_TOPOLOGY_GUIDE.md) for complete handover patterns and troubleshooting.
+
+### Handover to Product Prioritization
+
+**When**: Tech debt analysis complete, backlog items created and need prioritization
+
+```bash
+./.team/scripts/workflow/handover-issue.sh \
+  $ISSUE tech-debt product-backlog "Tech debt analysis complete. Created [N] backlog items for prioritization."
+```
+
+**Comment Should Include**:
+- Number of backlog items created
+- Location: `/product/backlog/`
+- Findings report: `/research/tech-debt-[date]/findings.md`
+
+### Handover to Research
+
+**When**: Findings reveal unknowns requiring deeper validation
+
+```bash
+./.team/scripts/workflow/handover-issue.sh \
+  $ISSUE tech-debt research "Tech debt analysis uncovered unknowns requiring research. See findings report."
+```
+
+### Handover to Implementation
+
+**When**: Critical tech debt item identified that needs immediate attention
+
+```bash
+./.team/scripts/workflow/handover-issue.sh \
+  $ISSUE tech-debt implementation "Critical tech debt identified, needs immediate implementation"
+```
+
+**Note**: Most tech debt items should go through product prioritization first. Only use direct handover to implementation for critical/blocking issues.
+
+### Close Issue
+
+**When**: Tech debt analysis complete and all items in product backlog
+
+```bash
+gh issue close $ISSUE --comment "✅ **Tech Debt Analysis Complete**
+
+Analysis complete with [N] findings.
+
+**Findings Report**: \`/research/tech-debt-[date]/findings.md\`
+**Backlog Items Created**: [N] items in \`/product/backlog/\`
+
+All findings available for product team prioritization.
+
+See: \`.team/workflows/TECH_DEBT_WORKFLOW.md\`"
+```
+
 
 ## Self-Improvement Loop
 

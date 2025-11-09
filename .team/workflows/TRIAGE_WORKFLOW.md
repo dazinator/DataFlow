@@ -37,7 +37,7 @@ gh issue list \
 ### Using Query Script
 
 ```bash
-./research/workflow-topology-design/handover/prototype/query-workflow-queue.sh triage
+./.team/scripts/workflow/query-workflow-queue.sh triage
 ```
 
 ---
@@ -240,7 +240,7 @@ gh issue close $ISSUE --comment "❌ **Closing Issue**
 For convenience, use the handover script:
 
 ```bash
-./research/workflow-topology-design/handover/prototype/handover-issue.sh \
+./.team/scripts/workflow/handover-issue.sh \
   ISSUE_NUMBER \
   triage \
   TARGET_WORKFLOW \
@@ -249,7 +249,7 @@ For convenience, use the handover script:
 
 **Example**:
 ```bash
-./research/workflow-topology-design/handover/prototype/handover-issue.sh \
+./.team/scripts/workflow/handover-issue.sh \
   123 \
   triage \
   research \
@@ -380,7 +380,7 @@ If someone is already working on it:
 ### View Triage Queue Status
 
 ```bash
-./research/workflow-topology-design/handover/prototype/workflow-dashboard.sh
+./.team/scripts/workflow/workflow-dashboard.sh
 ```
 
 ### Find Stale Triage Issues
@@ -452,15 +452,15 @@ gh issue list --label "workflow:triage" --state open
 
 **Handover to research**:
 ```bash
-./research/workflow-topology-design/handover/prototype/handover-issue.sh ISSUE triage research "Reason"
+./.team/scripts/workflow/handover-issue.sh ISSUE triage research "Reason"
 ```
 
 **Handover to implementation**:
 ```bash
-./research/workflow-topology-design/handover/prototype/handover-issue.sh ISSUE triage implementation "Reason"
+./.team/scripts/workflow/handover-issue.sh ISSUE triage implementation "Reason"
 ```
 
 **View workflow state**:
 ```bash
-./research/workflow-topology-design/handover/prototype/workflow-dashboard.sh
+./.team/scripts/workflow/workflow-dashboard.sh
 ```

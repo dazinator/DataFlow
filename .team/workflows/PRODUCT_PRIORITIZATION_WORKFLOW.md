@@ -2,6 +2,32 @@
 
 ---
 
+## Workflow Queue
+
+**Query issues designated to this workflow:**
+
+```bash
+gh issue list \
+  --label "workflow:product-backlog" \
+  --state open \
+  --json number,title,url
+```
+
+**Or use the query script:**
+```bash
+./.team/scripts/workflow/query-workflow-queue.sh product-backlog
+```
+
+**Entry Points:**
+- From Triage workflow (needs prioritization)
+- From Research workflow (research complete, needs priority)
+- From Tech Debt workflow (debt items need priority)
+- From periodic backlog reviews
+
+**See**: [Workflow Topology Guide](/.github/docs/WORKFLOW_TOPOLOGY_GUIDE.md) for complete documentation on querying and handover patterns.
+
+---
+
 ## Overview
 
 This workflow defines how to automatically prioritize the product backlog based on established policy criteria. It ensures that the most valuable and urgent work items are selected for implementation while maintaining a manageable active priority list.
@@ -611,3 +637,59 @@ Prioritization is successful when:
 ---
 
 **Remember**: The goal of prioritization is to ensure the implementation team always has clear, focused priorities that deliver maximum value while managing risk and maintaining code quality.
+
+---
+
+## Handover to Next Workflow
+
+When prioritization is complete, hand over high-priority items to the appropriate next workflow.
+
+**See**: [Workflow Topology Guide](/.github/docs/WORKFLOW_TOPOLOGY_GUIDE.md) for complete handover patterns and troubleshooting.
+
+### Handover to Implementation
+
+**When**: Priority items are ready for implementation
+
+```bash
+./.team/scripts/workflow/handover-issue.sh \
+  $ISSUE product-backlog implementation "Prioritization complete. Priority [N] assigned. Ready for implementation."
+```
+
+**Comment Should Include**:
+- Priority level assigned (P1, P2, P3, etc.)
+- Why this priority was assigned
+- Any special considerations
+
+### Handover to Research
+
+**When**: High-priority item needs validation before implementation
+
+```bash
+./.team/scripts/workflow/handover-issue.sh \
+  $ISSUE product-backlog research "High-priority item needs approach validation before implementation"
+```
+
+### Keep in Product Backlog
+
+**When**: Item assessed but not selected for immediate implementation
+
+No handover needed - item remains in `workflow:product-backlog` with "Assessed But Not Selected" status in `/product/prioritization.md`.
+
+### Close Issue
+
+**When**: Prioritization review complete (for the prioritization issue itself, not backlog items)
+
+```bash
+gh issue close $ISSUE --comment "✅ **Product Prioritization Complete**
+
+Prioritization review complete.
+
+**Selected Items**: [N] items prioritized
+**Prioritization Document**: \`/product/prioritization.md\`
+
+**High Priority Items**:
+- [List P1/P2 items]
+
+See: \`.team/workflows/PRODUCT_PRIORITIZATION_WORKFLOW.md\`"
+```
+

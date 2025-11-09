@@ -1,0 +1,32 @@
+name: Auto-Label New Issues
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  issues: write
+
+jobs:
+  auto-label:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Add triage workflow label
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: ['workflow:triage']
+            });
+            
+            // Optional: Post a comment explaining the label
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `🏷️ This issue has been automatically labeled with \`workflow:triage\` and is awaiting initial assessment.\n\nThe triage workflow will determine the appropriate next step (research, implementation, tech debt, product prioritization, or process modeling).`
+            });

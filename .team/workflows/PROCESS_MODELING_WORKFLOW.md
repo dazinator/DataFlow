@@ -43,6 +43,31 @@ See [Scenario Lifecycle](#scenario-lifecycle) section for detailed guidance on w
 
 ---
 
+## Workflow Queue
+
+**Query issues designated to this workflow:**
+
+```bash
+gh issue list \
+  --label "workflow:process-modeling" \
+  --state open \
+  --json number,title,url
+```
+
+**Or use the query script:**
+```bash
+./.team/scripts/workflow/query-workflow-queue.sh process-modeling
+```
+
+**Entry Points:**
+- From Triage workflow (process improvement identified)
+- From backlog-driven mode (processing workflow-improvements.md entries)
+- From ad-hoc process improvement requests
+
+**See**: [Workflow Topology Guide](/.github/docs/WORKFLOW_TOPOLOGY_GUIDE.md) for complete documentation on querying and handover patterns.
+
+---
+
 ## Overview
 
 Process modeling is the systematic process of improving team workflows and processes through iterative testing and refinement. This workflow enables Copilot agents to understand workflow pain points, propose improvements, test them through tabletop simulation, and refine based on feedback.
@@ -1591,6 +1616,47 @@ Process modeling work is successful when:
 - ✅ Verbosity/redundancy checks complete
 - ✅ Self-improvement evaluation complete
 - ✅ Plan archived with clear completion status
+
+---
+
+## Handover to Next Workflow
+
+When process modeling work is complete, hand over improved workflows back to the ecosystem.
+
+**See**: [Workflow Topology Guide](/.github/docs/WORKFLOW_TOPOLOGY_GUIDE.md) for complete handover patterns and troubleshooting.
+
+### Handover to Triage
+
+**When**: Process improvements complete and workflows updated
+
+```bash
+./.team/scripts/workflow/handover-issue.sh \
+  $ISSUE process-modeling triage "Process improvements complete. Workflows updated and tested."
+```
+
+**Note**: Most process modeling issues close after completion rather than handover, since the improvements are already integrated into workflow documentation.
+
+### Close Issue
+
+**When**: Process modeling work complete and all changes deployed
+
+```bash
+gh issue close $ISSUE --comment "✅ **Process Modeling Complete**
+
+Process improvements successfully implemented and tested.
+
+**Changes Made**:
+- [List workflows updated]
+- [List improvements applied]
+
+**Documentation**:
+- Plan archived: \`/research/workflow-modeling/archive/[date]-[name].md\`
+- History updated: \`/research/workflow-modeling/history.md\`
+
+**Test Results**: All scenarios PASS
+
+See: \`.team/workflows/PROCESS_MODELING_WORKFLOW.md\`"
+```
 
 ---
 

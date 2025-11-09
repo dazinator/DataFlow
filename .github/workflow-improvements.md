@@ -919,6 +919,43 @@ Before any PR is marked ready for review, Copilot agents should:
      - Makes option comparison easier to visualize and review
      - Example in centralized workflow topology design (`/tmp/design-workflow-topology.md`)
 
+- **Date**: 2025-11-09
+- **Issue/PR**: Workflow Topology System Implementation
+- **What worked well**:
+  - **Implementation team handover** was exceptional - included examples, scripts, design rationale, gap analysis, and clear separation of deployed vs not-deployed
+  - **Gap analysis up-front** - Creating comprehensive gap analysis document before making changes identified all required work and prevented missing pieces
+  - **Shared topology guide** - Creating single WORKFLOW_TOPOLOGY_GUIDE.md instead of duplicating across 6 workflows saved significant effort (~300-400 lines) and prevents inconsistency
+  - **Script provisioning first** - Moving scripts to permanent location before updating documentation prevented having to update paths twice
+  - **Comprehensive test scenarios** - 7 scenarios with clear pass/fail criteria validated all transitions and edge cases thoroughly
+  - **Tabletop testing pattern** - Walking through documentation without actual GitHub labels validated clarity without requiring infrastructure
+  - **Process Modeling Workflow guidance** - Section on "Identifying When Research Is Needed" (lines 1067-1213) provided clear decision framework
+- **What didn't work well**:
+  - **Pre-deployed workflows** - TRIAGE_WORKFLOW.md was already deployed with old prototype paths; should have checked all workflows for pre-existing content before starting
+  - **Large PR size** - ~900 lines is substantial, could have been phased: (1) scripts+guide, (2) workflow updates, (3) copilot instructions; however atomicity had value
+  - **Test scenario archival decision** - Process Modeling Workflow says to archive valuable scenarios, but these were one-time validation; had to use judgment to decide on "revert all"
+  - **No guidance on checking pre-deployed workflows** - Assumed all workflows would be in same state, but Triage was already updated
+- **Suggested improvement**:
+  1. **Add "Check Pre-Deployed State" step** to Process Modeling Workflow:
+     - Before making changes, verify current state of ALL affected files
+     - Check if any workflows/docs already have related changes
+     - Prevents discovering mid-work that some files need different handling
+     - Add to "Investigation Steps" section
+  2. **Add "Large PR Phasing Guidance"**:
+     - When changes affect 5+ files or add 500+ lines, consider phasing
+     - Phase criteria: Can phases be deployed independently? Does atomicity matter?
+     - If atomicity matters (e.g., workflow topology needs scripts+docs together), accept larger PR
+     - If independent (e.g., guide can be deployed before workflow updates), phase it
+     - Trade-off: Smaller PRs easier to review vs atomicity prevents partial deployment issues
+  3. **Clarify "Archive vs Revert" decision for validation scenarios**:
+     - **Archive**: Scenarios testing complex logic that will be modified again (high regression risk)
+     - **Revert**: Scenarios for one-time validation (typical case)
+     - Rule: If creating scenarios again would take >30 min AND logic likely to change, archive
+     - Otherwise, revert - scenarios served their purpose
+  4. **Add "Verify Consistent State" checklist**:
+     - When multiple files of same type exist (e.g., 6 workflows), verify they're in consistent state
+     - Check for: Naming conventions, path formats, section structure
+     - Prevents discovering inconsistencies mid-work
+
 ---
 
 ## POC Workflow Improvements

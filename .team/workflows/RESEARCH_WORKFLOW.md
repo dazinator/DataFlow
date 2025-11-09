@@ -58,6 +58,29 @@ Research in this repository supports two distinct outcomes:
 1. **Direct Integration**: Research leads to code and documentation that can be directly integrated into the codebase
 2. **Research-to-Implementation**: Research validates viability and produces a comprehensive GitHub issue for implementation assignment (this is the focus of this workflow)
 
+## Workflow Queue
+
+**Query issues designated to this workflow:**
+
+```bash
+gh issue list \
+  --label "workflow:research" \
+  --state open \
+  --json number,title,url
+```
+
+**Or use the query script:**
+```bash
+./.team/scripts/workflow/query-workflow-queue.sh research
+```
+
+**Entry Points:**
+- From Triage workflow (needs validation)
+- From Tech Debt workflow (needs research)
+- From Implementation workflow (uncovered unknowns)
+
+**See**: [Workflow Topology Guide](/.github/docs/WORKFLOW_TOPOLOGY_GUIDE.md) for complete documentation on querying and handover patterns.
+
 ## Problem Statement
 
 During research, we need to:
@@ -817,6 +840,73 @@ When creating GitHub issues for POC research work:
 1. Promote adopted docs from `proposed-docs/` to main doc locations
 2. Promote adopted code from `/Exploratory/` to production locations
 3. Keep archived materials for historical reference
+```
+
+## Handover to Next Workflow
+
+When research is complete, hand over to the appropriate next workflow using the workflow topology system.
+
+**See**: [Workflow Topology Guide](/.github/docs/WORKFLOW_TOPOLOGY_GUIDE.md) for complete handover patterns and troubleshooting.
+
+### Handover to Implementation
+
+**When**: Research validates approach and creates implementation-ready specifications
+
+```bash
+gh issue edit $ISSUE \
+  --remove-label "workflow:research" \
+  --add-label "workflow:implementation"
+
+gh issue comment $ISSUE --body "🔬 **Handover: Research → Implementation**
+
+Research validated approach. Ready for implementation.
+
+**Research Deliverables**:
+- Findings: \`/research/[topic]/README.md\`
+- Design: \`/research/[topic]/design/[component].md\`
+- Implementation issue: \`/research/[topic]/handover/github-issue-[feature].md\`
+- Prototypes: \`/research/[topic]/handover/prototype/\`
+
+**Next Steps**: Implement based on research specifications.
+
+See: \`.team/workflows/IMPLEMENTATION_WORKFLOW.md\`"
+```
+
+**Or use the handover script**:
+```bash
+./.team/scripts/workflow/handover-issue.sh \
+  $ISSUE research implementation "Research validated approach. See /research/[topic]/ for details."
+```
+
+### Handover to Product Prioritization
+
+**When**: Research is complete but implementation needs prioritization
+
+```bash
+./.team/scripts/workflow/handover-issue.sh \
+  $ISSUE research product-backlog "Research complete, needs prioritization for implementation"
+```
+
+### Handover to Triage
+
+**When**: Research shows approach is not feasible or requirements unclear
+
+```bash
+./.team/scripts/workflow/handover-issue.sh \
+  $ISSUE research triage "Approach not feasible, needs reassessment. See /research/[topic]/README.md for findings."
+```
+
+### Close Issue
+
+**When**: Research shows solution is not viable and no further action needed
+
+```bash
+gh issue close $ISSUE --comment "✅ **Research Complete**
+
+Research shows this approach is not viable.
+
+**Findings**: [Summary of why not viable]
+**Documentation**: \`/research/[topic]/README.md\`"
 ```
 
 ## Choosing Between Workflows

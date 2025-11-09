@@ -4,25 +4,35 @@
 
 **Start here based on your task:**
 
-1. **Research Task** (validate approaches, create specifications)
+**For New Issues (All Workflows):**
+- First check the issue's workflow label: `workflow:triage`, `workflow:research`, `workflow:implementation`, etc.
+- Query your workflow queue to find assigned issues
+- See [Workflow Topology Guide](/.github/docs/WORKFLOW_TOPOLOGY_GUIDE.md) for querying and handover patterns
+
+**By Workflow Type:**
+
+1. **Triage Task** (assess and route new issues)
+   → See `.team/workflows/TRIAGE_WORKFLOW.md`
+
+2. **Research Task** (validate approaches, create specifications)
    → See `.team/workflows/RESEARCH_WORKFLOW.md`
 
-2. **Implementation Task** (implement validated designs)
+3. **Implementation Task** (implement validated designs)
    → See `.team/workflows/IMPLEMENTATION_WORKFLOW.md`
 
-3. **Tech Debt Task** (discover and address technical debt)
+4. **Tech Debt Task** (discover and address technical debt)
    → See `.team/workflows/TECH_DEBT_WORKFLOW.md`
 
-4. **Product Prioritization** (prioritize backlog items)
+5. **Product Prioritization** (prioritize backlog items)
    → See `.team/workflows/PRODUCT_PRIORITIZATION_WORKFLOW.md`
 
-5. **Process Modeling Task** (improve workflows and processes)
+6. **Process Modeling Task** (improve workflows and processes)
    → See `.team/workflows/PROCESS_MODELING_WORKFLOW.md`
 
-6. **POC Work** (evolving architecture exploration)
+7. **POC Work** (evolving architecture exploration)
    → See section below, then follow appropriate workflow
 
-7. **Continuing Existing Work**
+8. **Continuing Existing Work**
    → Check `/implementation/plan.md` first
 
 **⚠️ ALWAYS complete self-improvement evaluation before PR review** (see below)
@@ -100,11 +110,24 @@ This self-improvement loop ensures our workflows continuously evolve based on re
 
 ```
 .github/
-├── workflows/
-│   ├── RESEARCH_WORKFLOW.md         # Research process
-│   └── IMPLEMENTATION_WORKFLOW.md   # Implementation process
+├── workflows/                       # GitHub Actions workflows
 ├── copilot-instructions.md          # This file (navigation hub)
 └── workflow-improvements.md         # Self-improvement tracking
+
+.team/
+├── workflows/                       # Workflow documentation
+│   ├── TRIAGE_WORKFLOW.md          # Issue assessment and routing
+│   ├── RESEARCH_WORKFLOW.md        # Research process
+│   ├── IMPLEMENTATION_WORKFLOW.md  # Implementation process
+│   ├── TECH_DEBT_WORKFLOW.md       # Tech debt discovery
+│   ├── PRODUCT_PRIORITIZATION_WORKFLOW.md  # Backlog prioritization
+│   └── PROCESS_MODELING_WORKFLOW.md        # Process improvements
+└── scripts/
+    └── workflow/                    # Workflow helper scripts
+        ├── query-workflow-queue.sh  # Query issues by workflow
+        ├── handover-issue.sh        # Transition between workflows
+        ├── workflow-dashboard.sh    # View workflow state
+        └── migrate-labels.sh        # One-time label migration
 
 /product/                            # Product backlog system
 ├── README.md                        # Backlog system documentation
@@ -193,8 +216,9 @@ public class MyBlockTests
 **How to identify which workflow to follow:**
 
 | Indicator | Research | Implementation |
+| Indicator | Research | Implementation |
 |-----------|----------|----------------|
-| Issue label | `research` | `implementation` |
+| Issue label | `research` OR `workflow:research` | `implementation` OR `workflow:implementation` |
 | Issue contains | "⚠️ This is a research issue" | "⚠️ This is an implementation issue" |
 | Purpose | Validate approach, create specs | Implement validated design |
 | Code fate | REVERTED after approval | MERGED into codebase |
@@ -202,6 +226,76 @@ public class MyBlockTests
 | Workflow doc | `.team/workflows/RESEARCH_WORKFLOW.md` | `.team/workflows/IMPLEMENTATION_WORKFLOW.md` |
 
 **When in doubt:** Ask "Is this validating an approach (research) or implementing a validated design (implementation)?"
+
+---
+
+## Workflow Topology System
+
+DataFlow uses a **GitHub label-based workflow topology system** to track which workflow an issue belongs to and provide formal handover mechanisms.
+
+### Workflow Labels
+
+All open issues have exactly ONE workflow label:
+
+- `workflow:triage` - Awaiting assessment and routing
+- `workflow:research` - Research and validation
+- `workflow:implementation` - Implementation work
+- `workflow:tech-debt` - Technical debt discovery/analysis
+- `workflow:product-backlog` - Prioritization needed
+- `workflow:process-modeling` - Process improvements
+
+### Querying Your Workflow Queue
+
+**Always start by querying your workflow queue to find assigned issues:**
+
+```bash
+# Using helper script (recommended)
+./.team/scripts/workflow/query-workflow-queue.sh <workflow-name>
+
+# Direct GitHub CLI
+gh issue list --label "workflow:<workflow-name>" --state open --json number,title,url
+```
+
+**Examples:**
+```bash
+./.team/scripts/workflow/query-workflow-queue.sh research
+./.team/scripts/workflow/query-workflow-queue.sh implementation
+./.team/scripts/workflow/query-workflow-queue.sh triage
+```
+
+### Handing Over Issues
+
+When transitioning an issue to a different workflow, use the handover script:
+
+```bash
+./.team/scripts/workflow/handover-issue.sh <issue-number> <from-workflow> <to-workflow> "<reason>"
+```
+
+**Examples:**
+```bash
+# Research complete, ready for implementation
+./.team/scripts/workflow/handover-issue.sh 123 research implementation "Research validated approach"
+
+# Implementation reveals tech debt
+./.team/scripts/workflow/handover-issue.sh 456 implementation tech-debt "Found legacy patterns"
+
+# Triage routes new issue
+./.team/scripts/workflow/handover-issue.sh 789 triage research "Needs validation"
+```
+
+### Workflow State Dashboard
+
+View the state of all workflows:
+
+```bash
+./.team/scripts/workflow/workflow-dashboard.sh
+```
+
+**See**: [Workflow Topology Guide](/.github/docs/WORKFLOW_TOPOLOGY_GUIDE.md) for complete documentation on:
+- Label schema
+- Handover patterns
+- Common transitions
+- Troubleshooting
 
 ---
 
