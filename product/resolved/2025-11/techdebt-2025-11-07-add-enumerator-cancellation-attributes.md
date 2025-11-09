@@ -3,9 +3,10 @@
 **Backlog ID**: techdebt-2025-11-07-add-enumerator-cancellation-attributes
 **Source**: Tech Debt
 **Category**: Code Quality
-**Status**: Active
+**Status**: Completed
 **Created**: 2025-11-07
-**Updated**: 2025-11-08
+**Updated**: 2025-11-09
+**Completed**: 2025-11-09
 
 ## Summary
 

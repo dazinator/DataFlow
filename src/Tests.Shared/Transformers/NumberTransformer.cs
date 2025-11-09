@@ -2,6 +2,7 @@ namespace Tests.DataFlow.Utils.Transformers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
 public class NumberTransformer : IStreamTransformer<int, string>
@@ -15,7 +16,7 @@ public class NumberTransformer : IStreamTransformer<int, string>
         _onTransform = onTransform;
     }
 
-    public async IAsyncEnumerable<string> TransformAsync(IDataFlowContext context, IAsyncEnumerable<int> input, CancellationToken cancellationToken)
+    public async IAsyncEnumerable<string> TransformAsync(IDataFlowContext context, IAsyncEnumerable<int> input, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         await foreach (var inputItem in input.WithCancellation(cancellationToken))
         {

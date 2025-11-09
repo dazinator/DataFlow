@@ -1,5 +1,6 @@
 namespace Tests.DataFlow;
 
+using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 
 /// <summary>
@@ -153,7 +154,7 @@ public class ReceiveFromLastTests
     /// </summary>
     private class DoublerTransformer : IStreamTransformer<int, int>
     {
-        public async IAsyncEnumerable<int> TransformAsync(IDataFlowContext context, IAsyncEnumerable<int> input, CancellationToken cancellationToken)
+        public async IAsyncEnumerable<int> TransformAsync(IDataFlowContext context, IAsyncEnumerable<int> input, [EnumeratorCancellation] CancellationToken cancellationToken)
         {
             await foreach (var item in input.WithCancellation(cancellationToken))
             {

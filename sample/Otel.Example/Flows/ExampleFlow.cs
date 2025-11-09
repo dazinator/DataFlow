@@ -63,7 +63,7 @@ internal class ExampleFlowConfig : IDataFlowConfiguration
         public async IAsyncEnumerable<int> TransformAsync(
             IDataFlowContext context,
             IAsyncEnumerable<int> input,
-            CancellationToken cancellationToken)
+            [EnumeratorCancellation] CancellationToken cancellationToken)
         {
             await foreach (var item in input)
             {

@@ -2,6 +2,7 @@ namespace Tests.DataFlow.Utils.Transformers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
 public class TestTransformer<TIn, TOut> : IStreamTransformer<TIn, TOut>
@@ -13,7 +14,7 @@ public class TestTransformer<TIn, TOut> : IStreamTransformer<TIn, TOut>
         _onTransform = onTransform;
     }
 
-    public async IAsyncEnumerable<TOut> TransformAsync(IDataFlowContext context, IAsyncEnumerable<TIn> input, CancellationToken cancellationToken)
+    public async IAsyncEnumerable<TOut> TransformAsync(IDataFlowContext context, IAsyncEnumerable<TIn> input, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         await foreach (var inputItem in input.WithCancellation(cancellationToken))
         {

@@ -1,4 +1,6 @@
 namespace Tests.DataFlow.Utils.Transformers;
+using System.Runtime.CompilerServices;
+
 public class TestProjector<TIn, TOut> : IStreamTransformer<TIn, TOut>
 {
     private readonly Func<TIn, IEnumerable<TOut>> _projection;
@@ -24,7 +26,7 @@ public class TestProjector<TIn, TOut> : IStreamTransformer<TIn, TOut>
     public async IAsyncEnumerable<TOut> TransformAsync(
         IDataFlowContext context,
         IAsyncEnumerable<TIn> input,
-        CancellationToken cancellationToken)
+        [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         _tracker?.Enter();
         try

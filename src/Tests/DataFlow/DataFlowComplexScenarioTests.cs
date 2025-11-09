@@ -89,7 +89,7 @@ public class DataFlowComplexScenarioTests
         public async IAsyncEnumerable<int> TransformAsync(
             IDataFlowContext context,
             IAsyncEnumerable<int> input,
-            CancellationToken cancellationToken)
+            [EnumeratorCancellation] CancellationToken cancellationToken)
         {
             await foreach (var item in input)
             {
