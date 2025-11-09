@@ -530,6 +530,60 @@ Before any PR is marked ready for review, Copilot agents should:
      - Call out in Step 1 or overview: "Typically run bi-weekly or when backlog changes significantly"
      - Currently buried in "Periodic Review" section near the end
 
+- **Date**: 2025-11-09
+- **Issue/PR**: Product Backlog Prioritization - Second execution (copilot/automate-product-prioritization-again)
+- **What worked well**: 
+  - **Product Prioritization Workflow** was comprehensive and well-structured
+  - **Edge case handling** for empty backlog was covered in "Fewer Than 5 Active Items" section
+  - **Policy-driven approach** made decisions straightforward even with zero items
+  - **File update process** guidance was clear about what to preserve vs update
+  - **Template structure** made it easy to generate the empty backlog state documentation
+  - **Previous evaluation** (from first prioritization) was helpful reference for what worked/didn't work
+  - **Self-improvement requirement** in copilot-instructions ensured reflection before completion
+  - **Workflow steps** were sequential and easy to follow for this simple case
+- **What didn't work well**:
+  - **Empty backlog handling could be more explicit** - had to infer from "Fewer Than 5 Active Items" edge case
+  - **No template/example for empty backlog state** - had to create formatting from scratch
+  - **Unclear what "Assessed But Not Selected" should contain** when backlog is empty - used it to document completed items
+  - **Issue description lacks context** - just says "execute workflow", no special guidance provided
+  - **No guidance on discovery process** - should I check /research/backlog/ (old location) or other sources?
+  - **Category column requirement unclear** - previous evaluation mentioned this but not resolved in workflow
+  - **Report completion step mentions "comment on issue"** but issue has no specific question to answer
+- **Suggested improvement**: 
+  1. **Add "Empty Backlog Scenario"** as explicit example in workflow:
+     - Create dedicated subsection under "Handling Edge Cases"
+     - Title: "No Active Backlog Items"
+     - Template showing recommended format for empty state
+     - Example: "**No active backlog items at this time.** The backlog directory is empty..."
+     - Guidance: Document completed items in "Assessed But Not Selected" or Notes section
+     - This is a success state, not an error condition
+  2. **Add "Backlog Discovery Process"** to Step 2:
+     - Primary location: `/product/backlog/*.md`
+     - Secondary check: `/research/backlog/` (legacy location, marked DEPRECATED)
+     - If backlog directory doesn't exist, note this (not an error)
+     - Check `/product/resolved/` to understand what was previously completed
+     - This ensures thorough inventory even in edge cases
+  3. **Clarify "Assessed But Not Selected" usage**:
+     - Primary use: Items that were reviewed but not selected for active priorities
+     - Empty backlog use: Can list recently completed items or state "No items to assess"
+     - Add this guidance to template section of workflow
+  4. **Enhance issue template** with context options:
+     - Add optional "Special Context" field for requestor to provide background
+     - Example: "First prioritization", "Empty backlog expected", "Post-sprint refresh"
+     - Helps agent understand context better than generic "execute workflow"
+  5. **Resolve Category column ambiguity**:
+     - Make explicit in workflow Step 4: "Category column is REQUIRED in Selected Items table"
+     - Add to template with example categories
+     - Previous evaluation suggested this but it wasn't implemented
+  6. **Simplify Step 6 (Report Completion)** for simple cases:
+     - When backlog is empty: Simplified comment format (just summary stats)
+     - When standard prioritization: Full template format
+     - Provide both templates in workflow
+  7. **Add "Positive Outcomes"** framing:
+     - Empty backlog is a POSITIVE indicator of backlog health
+     - Frame as "excellent backlog hygiene" not "no work to do"
+     - This was done naturally in this execution but workflow should encourage it
+
 <!-- Add general workflow improvement suggestions here that apply to all workflows -->
 <!-- Format:
 - **Date**: YYYY-MM-DD
