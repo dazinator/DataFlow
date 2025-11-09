@@ -6,16 +6,22 @@
 
 **Query issues designated to this workflow:**
 
+**For Copilot Agents** (use MCP tools):
+```python
+list_issues(
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    labels=["workflow:product-backlog"],
+    state="OPEN"
+)
+```
+
+**For Manual/CI Use** (GitHub CLI):
 ```bash
 gh issue list \
   --label "workflow:product-backlog" \
   --state open \
   --json number,title,url
-```
-
-**Or use the query script:**
-```bash
-./.team/scripts/workflow/query-workflow-queue.sh product-backlog
 ```
 
 **Entry Points:**
@@ -169,19 +175,26 @@ When triggered to prioritize the backlog:
 
 #### Step 2: Collect All Backlog Items
 
-```bash
-cd /product/backlog
-ls *.md
+Query all backlog GitHub issues:
+
+```python
+# Get all open backlog issues
+list_issues(
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    labels=["workflow:product-backlog"],
+    state="OPEN"
+)
 ```
 
-For each backlog item:
-1. Read the file completely
-2. Extract key metadata:
-   - Backlog ID
-   - Source (Research/Tech Debt/Ad-hoc)
-   - Category
-   - Status (only consider "Active" items)
-   - Priority Override (if set)
+For each backlog issue:
+1. Read the issue completely
+2. Extract key metadata from issue body and labels:
+   - Issue number
+   - Source (research/tech-debt/ad-hoc - from labels)
+   - Category (from labels or issue body)
+   - Status (OPEN issues are active)
+   - Priority labels (if set)
 3. Create an inventory list
 
 #### Step 3: Apply Selection Criteria
@@ -478,16 +491,16 @@ Copilot will:
 
 ### From Research Workflow
 
-When research hands over a backlog item:
-1. Research team creates backlog item in `/product/backlog/`
+When research creates a backlog issue:
+1. Research team creates GitHub issue with `workflow:product-backlog` and `research` labels
 2. Research team can request prioritization via comment or issue
 3. Prioritization workflow evaluates the new item
-4. Item is either selected or assessed but not selected
+4. Item is either selected (labeled `priority-high` etc.) or remains in backlog
 
 ### From Tech Debt Workflow
 
 When tech debt analysis completes:
-1. Tech debt items added to `/product/backlog/`
+1. Tech debt items created as GitHub issues with `workflow:product-backlog` and `tech-debt` labels
 2. Tech debt team can trigger prioritization
 3. Policy ensures at least 1 tech debt item is selected
 

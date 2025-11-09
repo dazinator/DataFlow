@@ -1280,5 +1280,75 @@ Use these names with scripts:
 
 ---
 
+## Bulk Processing and Sub-Issues
+
+### When to Use Bulk Mode
+
+Bulk processing is useful when:
+- Processing multiple related backlog items together
+- Creating multiple issues from a single discovery (e.g., tech debt analysis)
+- Implementing a set of related features
+- Reviewing multiple workflow improvements at once
+
+### Approach 1: Query Multiple Issues by Label
+
+Use `list_issues` to get all items matching criteria:
+
+```python
+# Get all open research backlog items
+items = list_issues(
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    labels=["workflow:product-backlog", "research"],
+    state="OPEN"
+)
+
+# Process each item
+for item in items:
+    # Process item...
+```
+
+### Approach 2: Use Sub-Issues
+
+Link related issues as sub-issues to a parent issue:
+
+```python
+# Get parent issue with sub-issues
+issue_data = issue_read(
+    method="get_sub_issues",
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=123
+)
+
+# Process sub-issues that match workflow label
+for sub_issue in issue_data['sub_issues']:
+    if "workflow:product-backlog" in sub_issue['labels']:
+        # Process sub-issue...
+```
+
+### When to Use Sub-Issues
+
+**Use sub-issues when:**
+- Related work items that are part of a larger effort
+- Need explicit grouping visible in GitHub UI
+- Want to track progress of multi-part work
+- Breaking down a large issue into smaller tasks
+
+**Use labels/queries when:**
+- Items are independent but share a category
+- Want flexibility to re-categorize dynamically
+- Don't need explicit parent-child relationship
+
+### Examples
+
+**Tech Debt Discovery**: Creates multiple backlog issues, can optionally link as sub-issues to discovery issue
+
+**Process Modeling Bulk Mode**: Processes multiple workflow improvement entries - see `.team/workflows/PROCESS_MODELING_WORKFLOW.md` (lines 112-367) for complete bulk mode documentation
+
+**Implementation Batch**: Multiple related features can be linked as sub-issues to an epic issue
+
+---
+
 **Last Updated**: 2025-11-09
 **Version**: 1.0

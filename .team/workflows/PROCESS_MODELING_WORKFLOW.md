@@ -47,16 +47,22 @@ See [Scenario Lifecycle](#scenario-lifecycle) section for detailed guidance on w
 
 **Query issues designated to this workflow:**
 
+**For Copilot Agents** (use MCP tools):
+```python
+list_issues(
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    labels=["workflow:process-modeling"],
+    state="OPEN"
+)
+```
+
+**For Manual/CI Use** (GitHub CLI):
 ```bash
 gh issue list \
   --label "workflow:process-modeling" \
   --state open \
   --json number,title,url
-```
-
-**Or use the query script:**
-```bash
-./.team/scripts/workflow/query-workflow-queue.sh process-modeling
 ```
 
 **Entry Points:**
@@ -1629,9 +1635,30 @@ When process modeling work is complete, hand over improved workflows back to the
 
 **When**: Process improvements complete and workflows updated
 
+**For Copilot Agents** (use MCP tools):
+```python
+# Update workflow label
+issue_write(
+    method="update",
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=$ISSUE,
+    labels=["workflow:triage"]
+)
+
+# Add handover comment
+add_issue_comment(
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=$ISSUE,
+    body="✅ Process improvements complete. Workflows updated and tested."
+)
+```
+
+**For Manual Use** (GitHub CLI):
 ```bash
-./.team/scripts/workflow/handover-issue.sh \
-  $ISSUE process-modeling triage "Process improvements complete. Workflows updated and tested."
+gh issue edit $ISSUE --remove-label "workflow:process-modeling" --add-label "workflow:triage"
+gh issue comment $ISSUE --body "✅ Process improvements complete. Workflows updated and tested."
 ```
 
 **Note**: Most process modeling issues close after completion rather than handover, since the improvements are already integrated into workflow documentation.

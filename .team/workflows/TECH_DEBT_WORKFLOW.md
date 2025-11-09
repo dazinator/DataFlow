@@ -11,7 +11,7 @@ This workflow is a specialized variant of the Research Workflow for systematical
 ### DO (During Tech Debt Analysis):
 - ✅ **Read [Document Hygiene Guide](/.github/DOCUMENT_HYGIENE.md)** before creating/updating documentation
 - ✅ Create `/research/tech-debt-[date]/` with structured exploration
-- ✅ **Review existing product backlog** (`/product/backlog/`) before new exploration
+- ✅ **Review existing backlog items** (query GitHub issues with `workflow:product-backlog` label) before new exploration
 - ✅ Follow systematic exploration areas to discover tech debt
 - ✅ Write exploratory code to validate issues and solutions
 - ✅ Document all findings in findings report
@@ -19,12 +19,12 @@ This workflow is a specialized variant of the Research Workflow for systematical
 - ✅ **Include verification checks** in all findings (how to confirm issue still exists)
 
 ### DO (After Discovery Complete):
-- ✅ Create product backlog items for **all** findings in `/product/backlog/`
-- ✅ Save important prototype code to handover folders
+- ✅ Create GitHub issues with `workflow:product-backlog` label for **all** findings
+- ✅ Save important prototype code to handover folders in `/research/tech-debt-[date]/`
 - ✅ **REVERT all exploratory code changes** from `/poc/` and `/src/`
-- ✅ Keep all documentation and backlog items
+- ✅ Keep all documentation in research folder
 - ✅ **Complete self-improvement evaluation** in `.github/workflow-improvements.md`
-- ✅ Product team will prioritize items using Product Prioritization workflow
+- ✅ Product team will prioritize issues using Product Prioritization workflow
 
 ### DON'T:
 - ❌ Merge exploratory code (it will be reverted)
@@ -41,16 +41,22 @@ Tech debt analysis produces **findings report + product backlog items**, not mer
 
 **Query issues designated to this workflow:**
 
+**For Copilot Agents** (use MCP tools):
+```python
+list_issues(
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    labels=["workflow:tech-debt"],
+    state="OPEN"
+)
+```
+
+**For Manual/CI Use** (GitHub CLI):
 ```bash
 gh issue list \
   --label "workflow:tech-debt" \
   --state open \
   --json number,title,url
-```
-
-**Or use the query script:**
-```bash
-./.team/scripts/workflow/query-workflow-queue.sh tech-debt
 ```
 
 **Entry Points:**
@@ -186,22 +192,43 @@ Create `/research/tech-debt-[date]/research-plan.md`:
 
 **3. Review Existing Product Backlog**
 
-**Before starting new exploration**, review `/product/backlog/` for existing items:
+**Before starting new exploration**, review existing backlog items via GitHub issues:
 
-**See `/product/README.md` for complete product backlog system documentation.**
+```python
+# Query all tech debt backlog items using MCP tools
+list_issues(
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    labels=["workflow:product-backlog", "tech-debt"],
+    state="OPEN"
+)
+
+# Query high-priority items
+search_issues(
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    query="is:open label:workflow:product-backlog label:tech-debt label:priority-high"
+)
+
+# Search by keyword
+search_issues(
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    query="is:open label:workflow:product-backlog label:tech-debt [keyword]"
+)
+```
+
+**Manual Alternative** (GitHub CLI):
 
 ```bash
 # List all tech debt backlog items
-ls -lt product/backlog/techdebt-*.md
+gh issue list --label "workflow:product-backlog" --label "tech-debt" --state open
 
 # Search for high-priority items
-grep -l "Priority: High" product/backlog/techdebt-*.md
+gh issue list --label "workflow:product-backlog" --label "tech-debt" --label "priority-high" --state open
 
 # Search by keyword
-grep -i "keyword" product/backlog/*.md
-
-# Find small-effort items (quick wins)
-grep -l "Effort: Small" product/backlog/techdebt-*.md
+gh issue list --label "workflow:product-backlog" --label "tech-debt" --search "keyword" --state open
 ```
 
 **For each backlog item found**:
@@ -468,27 +495,22 @@ dotnet build 2>&1 | grep "CS0436" | wc -l
 [Continue for all findings]
 ```
 
-### Phase 4: Create Product Backlog Items
+### Phase 4: Create Product Backlog Issues
 
-**For Each Finding** (all findings go to product backlog):
+**For Each Finding** (all findings become GitHub issues with `workflow:product-backlog` label):
 
-Create product backlog item in `/product/backlog/techdebt-YYYY-MM-DD-[short-name].md`
+Create a GitHub issue for each finding using the MCP tools or GitHub CLI.
 
-**See `/product/README.md` for complete product backlog system documentation.**
+**Using MCP Tools** (for Copilot agents):
 
-Use backlog item template from `/product/backlog-item-template.md`:
-
-```markdown
-# [Finding Title]
-
-**Backlog ID**: techdebt-YYYY-MM-DD-[short-name]
-**Source**: Tech Debt
-**Category**: [Category]
-**Status**: Active
-**Created**: YYYY-MM-DD
-**Updated**: YYYY-MM-DD
-
-## Summary
+```python
+# Create issue with product backlog label
+issue_write(
+    method="create",
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    title="[Tech Debt] [Finding Title]",
+    body="""## Summary
 
 [Brief 1-2 sentence description of the tech debt issue]
 
@@ -497,6 +519,7 @@ Use backlog item template from `/product/backlog-item-template.md`:
 **Source**: Tech debt analysis - `/research/tech-debt-[date]/findings-report.md` (Finding TD-[NNN])
 **Priority**: [High/Medium/Low]
 **Effort**: [Small/Medium/Large]
+**Category**: [Category]
 
 [Describe the tech debt issue and why it matters]
 
@@ -521,26 +544,43 @@ Use backlog item template from `/product/backlog-item-template.md`:
 
 ## Verification Check
 
-**CRITICAL**: Include verification check so implementation team can confirm this tech debt still exists before starting work.
+**CRITICAL**: Verify tech debt still exists before starting work.
 
 ```bash
 # Command to verify tech debt still exists
 # Example: Check for compiler warnings
 dotnet build 2>&1 | grep "CS0436" | wc -l
 # Expected: ~15 warnings
-# If result is 0, tech debt already fixed - update backlog item status
+# If result is 0, tech debt already fixed - close issue
 ```
-
-**Purpose**: Prevents wasted effort if someone else already fixed the issue.
 
 ## Handover Assets
 
 [If prototype fixes exist]
-- **Location**: `/product/backlog/techdebt-YYYY-MM-DD-[name]/prototype/`
+- **Location**: `/research/tech-debt-[date]/handover/techdebt-[name]/prototype/`
 - **Contents**: Prototype fixes demonstrating solution
 
 [If no prototypes]
 - No additional assets
+""",
+    labels=["workflow:product-backlog", "tech-debt"]
+)
+```
+
+**Using GitHub CLI** (manual):
+
+```bash
+gh issue create \
+  --title "[Tech Debt] [Finding Title]" \
+  --label "workflow:product-backlog" \
+  --label "tech-debt" \
+  --body-file /tmp/issue-body.md
+```
+
+**Handover Assets Location**:
+- Save prototype code in `/research/tech-debt-[date]/handover/techdebt-[name]/`
+- Reference this path in the GitHub issue body
+- Assets stay with research folder, not in separate backlog folder
 
 ## References
 
@@ -567,18 +607,18 @@ dotnet build 2>&1 | grep "CS0436" | wc -l
 
 **If prototype fixes exist**:
 
-Create handover folder and copy prototypes:
+Create handover folder in research directory and copy prototypes:
 
 ```bash
 # Create handover folder
-mkdir -p product/backlog/techdebt-YYYY-MM-DD-[name]/prototype
+mkdir -p research/tech-debt-YYYY-MM-DD-[name]/handover/techdebt-[short-name]/prototype
 
 # Copy prototype fixes
 cp poc/DataFlow.POC.Tests/ImprovedTestHelper.cs \
-   product/backlog/techdebt-YYYY-MM-DD-[name]/prototype/
+   research/tech-debt-YYYY-MM-DD-[name]/handover/techdebt-[short-name]/prototype/
 
 # Create README explaining prototypes
-cat > product/backlog/techdebt-YYYY-MM-DD-[name]/prototype/README.md << 'EOF'
+cat > research/tech-debt-YYYY-MM-DD-[name]/handover/techdebt-[short-name]/prototype/README.md << 'EOF'
 # Prototype Fixes
 
 ## [File].cs
@@ -587,6 +627,8 @@ cat > product/backlog/techdebt-YYYY-MM-DD-[name]/prototype/README.md << 'EOF'
 - [Key insight 2]
 EOF
 ```
+
+**Note**: Handover assets stay in research folder. Reference the path in the GitHub issue body.
 
 ### Phase 5: Code Reversion and Finalization
 
@@ -660,7 +702,7 @@ grep -l "Priority: High" product/backlog/*.md
 
 When implementation team picks up a tech debt item:
 
-1. **Read backlog item** completely at `/product/backlog/[item-id].md`
+1. **Read backlog issue** completely (GitHub issue with `workflow:product-backlog` label)
 2. **Execute verification check** to ensure tech debt still exists
    - If tech debt already fixed: Update backlog item status and notify team
    - If tech debt exists: Continue with implementation
@@ -793,19 +835,19 @@ TD-004: Add API Documentation to Public Types (M/M/~50 types) + verification che
 TD-005: Create Block Scaffolding Command (M/M/new feature) + verification check
 ```
 
-**Phase 4 - Create Backlog Items**:
-All findings go to product backlog:
-- Create `product/backlog/techdebt-2025-11-07-reduce-type-conflicts.md`
-- Create `product/backlog/techdebt-2025-11-07-modernize-namespaces.md`
-- Create `product/backlog/techdebt-2025-11-07-add-test-helpers.md`
-- Create `product/backlog/techdebt-2025-11-07-add-api-documentation.md`
-- Create `product/backlog/techdebt-2025-11-07-block-scaffolding-tool.md`
+**Phase 4 - Create Backlog Issues**:
+All findings become GitHub issues with `workflow:product-backlog` label:
+- Create issue #101: Reduce Type Conflicts
+- Create issue #102: Modernize Namespace Declarations  
+- Create issue #103: Add Test Helpers
+- Create issue #104: Add API Documentation
+- Create issue #105: Block Scaffolding Tool
 
 **Phase 5 - Finalization**:
 - Revert exploratory test code
-- Keep all documentation and backlog items
+- Keep all documentation and research folder
 - PR ready for merge
-- Product team will prioritize items using Product Prioritization workflow
+- Product team will prioritize issues using Product Prioritization workflow
 
 ---
 
@@ -817,17 +859,32 @@ When tech debt analysis is complete, hand over findings to the appropriate next 
 
 ### Handover to Product Prioritization
 
-**When**: Tech debt analysis complete, backlog items created and need prioritization
+**When**: Tech debt analysis complete, backlog issues created and need prioritization
 
-```bash
-./.team/scripts/workflow/handover-issue.sh \
-  $ISSUE tech-debt product-backlog "Tech debt analysis complete. Created [N] backlog items for prioritization."
+**Using MCP Tools**:
+```python
+# Update workflow label
+issue_write(
+    method="update",
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=$ISSUE,
+    labels=["workflow:product-backlog"]
+)
+
+# Add handover comment
+add_issue_comment(
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=$ISSUE,
+    body="🔄 Tech debt analysis complete. Created [N] backlog issues for prioritization."
+)
 ```
 
 **Comment Should Include**:
-- Number of backlog items created
-- Location: `/product/backlog/`
-- Findings report: `/research/tech-debt-[date]/findings.md`
+- Number of backlog issues created
+- Link to research folder
+- Findings report path
 
 ### Handover to Research
 
@@ -859,7 +916,7 @@ gh issue close $ISSUE --comment "✅ **Tech Debt Analysis Complete**
 Analysis complete with [N] findings.
 
 **Findings Report**: \`/research/tech-debt-[date]/findings.md\`
-**Backlog Items Created**: [N] items in \`/product/backlog/\`
+**Backlog Issues Created**: [N] GitHub issues with `workflow:product-backlog` label
 
 All findings available for product team prioritization.
 
@@ -886,7 +943,7 @@ This continuous feedback improves the workflow for future tech debt analyses.
 The Tech Debt Discovery Workflow enables systematic identification and documentation of codebase improvements. It produces:
 
 1. **Findings Report** - Comprehensive survey of tech debt issues
-2. **Product Backlog Items** - All findings added to `/product/backlog/` with verification checks
+2. **Product Backlog Issues** - All findings added as GitHub issues with `workflow:product-backlog` label and verification checks
 3. **Prioritization Handoff** - Product team uses Product Prioritization workflow to select items for implementation
 
 This workflow complements existing research and implementation workflows by focusing on breadth of discovery and integration with the product backlog system.

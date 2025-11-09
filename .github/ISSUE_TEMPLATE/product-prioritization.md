@@ -2,7 +2,7 @@
 name: Product Backlog Prioritization
 about: Request automated prioritization of the product backlog
 title: 'Product Backlog Prioritization - [Monthly/Security Focus/etc.]'
-labels: ['prioritization', 'product']
+labels: ['workflow:product-backlog']
 assignees: ''
 ---
 

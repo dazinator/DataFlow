@@ -2,7 +2,7 @@
 name: Research Issue
 about: Research to validate approach and produce implementation-ready issue (for POC or production code)
 title: '[Research] '
-labels: ['research']
+labels: ['workflow:research']
 assignees: ''
 ---
 

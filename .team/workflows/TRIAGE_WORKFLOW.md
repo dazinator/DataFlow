@@ -25,19 +25,24 @@ This workflow guides the initial assessment of new issues and designation to app
 
 ## Step 1: Query Triage Queue
 
-### Using GitHub CLI
+**For Copilot Agents** (use MCP tools):
+
+```python
+list_issues(
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    labels=["workflow:triage"],
+    state="OPEN"
+)
+```
+
+**For Manual/CI Use** (GitHub CLI):
 
 ```bash
 gh issue list \
   --label "workflow:triage" \
   --state open \
   --json number,title,url,createdAt
-```
-
-### Using Query Script
-
-```bash
-./.team/scripts/workflow/query-workflow-queue.sh triage
 ```
 
 ---
@@ -235,25 +240,42 @@ gh issue close $ISSUE --comment "❌ **Closing Issue**
 
 ---
 
-## Step 4: Using Handover Script
+## Step 4: Handover Methods
 
-For convenience, use the handover script:
+**For Copilot Agents** (use MCP tools):
+
+```python
+# Update workflow label
+issue_write(
+    method="update",
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=ISSUE_NUMBER,
+    labels=["workflow:TARGET_WORKFLOW"]
+)
+
+# Add handover comment
+add_issue_comment(
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=ISSUE_NUMBER,
+    body="🔄 Triage → [Target Workflow]\n\nReason for handover"
+)
+```
+
+**For Manual Use** (GitHub CLI):
+
+Use the examples shown in Step 3 above, or:
 
 ```bash
-./.team/scripts/workflow/handover-issue.sh \
-  ISSUE_NUMBER \
-  triage \
-  TARGET_WORKFLOW \
-  "Reason for handover"
+gh issue edit ISSUE_NUMBER --remove-label "workflow:triage" --add-label "workflow:TARGET_WORKFLOW"
+gh issue comment ISSUE_NUMBER --body "🔄 Triage → [Target Workflow]\n\nReason for handover"
 ```
 
 **Example**:
 ```bash
-./.team/scripts/workflow/handover-issue.sh \
-  123 \
-  triage \
-  research \
-  "Needs validation of approach before implementation"
+gh issue edit 123 --remove-label "workflow:triage" --add-label "workflow:research"
+gh issue comment 123 --body "🔄 Triage → Research\n\nNeeds validation of approach before implementation"
 ```
 
 ---
@@ -445,22 +467,36 @@ Any workflow can send an issue back to triage if:
 
 ## Quick Reference
 
-**Query triage queue**:
+**Query triage queue** (Copilot agents):
+```python
+list_issues(owner="uniun-technology", repo="lib-dataflow", labels=["workflow:triage"], state="OPEN")
+```
+
+**Query triage queue** (manual):
 ```bash
 gh issue list --label "workflow:triage" --state open
 ```
 
-**Handover to research**:
-```bash
-./.team/scripts/workflow/handover-issue.sh ISSUE triage research "Reason"
+**Handover to research** (Copilot agents):
+```python
+issue_write(method="update", owner="uniun-technology", repo="lib-dataflow", issue_number=ISSUE, labels=["workflow:research"])
+add_issue_comment(owner="uniun-technology", repo="lib-dataflow", issue_number=ISSUE, body="🔄 Triage → Research\n\nReason")
 ```
 
-**Handover to implementation**:
+**Handover to research** (manual):
 ```bash
-./.team/scripts/workflow/handover-issue.sh ISSUE triage implementation "Reason"
+gh issue edit ISSUE --remove-label "workflow:triage" --add-label "workflow:research"
+gh issue comment ISSUE --body "🔄 Triage → Research\n\nReason"
 ```
 
-**View workflow state**:
+**Handover to implementation** (Copilot agents):
+```python
+issue_write(method="update", owner="uniun-technology", repo="lib-dataflow", issue_number=ISSUE, labels=["workflow:implementation"])
+add_issue_comment(owner="uniun-technology", repo="lib-dataflow", issue_number=ISSUE, body="🔄 Triage → Implementation\n\nReason")
+```
+
+**Handover to implementation** (manual):
 ```bash
-./.team/scripts/workflow/workflow-dashboard.sh
+gh issue edit ISSUE --remove-label "workflow:triage" --add-label "workflow:implementation"
+gh issue comment ISSUE --body "🔄 Triage → Implementation\n\nReason"
 ```

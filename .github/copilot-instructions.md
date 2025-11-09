@@ -129,23 +129,16 @@ This self-improvement loop ensures our workflows continuously evolve based on re
         ├── workflow-dashboard.sh    # View workflow state
         └── migrate-labels.sh        # One-time label migration
 
-/product/                            # Product backlog system
-├── README.md                        # Backlog system documentation
-├── prioritization.md                # Current prioritization (product team)
-├── backlog/                         # Active backlog items
-│   ├── [item-id].md                # Individual backlog items
-│   └── [item-id]/                  # Optional handover folders
-└── resolved/                        # Completed backlog items (archived)
-
 /research/                           # Research findings and handovers
 ├── FOLDER_STRUCTURE.md             # Research folder conventions
-├── backlog/                        # DEPRECATED - use /product/backlog
 └── [topic]/                        # Per-topic research folders
 
 /implementation/                     # In-flight implementation tracking
 ├── README.md                       # Implementation folder guide
 ├── plan.md                         # Current implementation plan (if any)
 └── archive/                        # Completed implementation plans
+
+**Note**: Product backlog items are now tracked as GitHub issues with the `workflow:product-backlog` label. See [Workflow Topology Guide](/.github/docs/WORKFLOW_TOPOLOGY_GUIDE.md) for querying backlog issues.
 
 /poc/                               # POC code (evolving architecture)
 /src/                               # Production code
@@ -246,44 +239,71 @@ All open issues have exactly ONE workflow label:
 
 ### Querying Your Workflow Queue
 
-**Always start by querying your workflow queue to find assigned issues:**
+**Always start by querying your workflow queue to find assigned issues.**
+
+**For Copilot Agents** (primary approach - use MCP tools):
+
+See [Workflow Topology Guide](/.github/docs/WORKFLOW_TOPOLOGY_GUIDE.md) for comprehensive MCP tool documentation and examples.
+
+Quick reference:
+```python
+# Query your workflow queue using MCP tools
+list_issues(
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    labels=["workflow:research"],  # or workflow:implementation, etc.
+    state="OPEN"
+)
+```
+
+**For Manual/CI Use** (alternative - bash scripts):
 
 ```bash
-# Using helper script (recommended)
+# Using helper script
 ./.team/scripts/workflow/query-workflow-queue.sh <workflow-name>
 
 # Direct GitHub CLI
 gh issue list --label "workflow:<workflow-name>" --state open --json number,title,url
 ```
 
-**Examples:**
-```bash
-./.team/scripts/workflow/query-workflow-queue.sh research
-./.team/scripts/workflow/query-workflow-queue.sh implementation
-./.team/scripts/workflow/query-workflow-queue.sh triage
-```
-
 ### Handing Over Issues
 
-When transitioning an issue to a different workflow, use the handover script:
+When transitioning an issue to a different workflow:
 
-```bash
-./.team/scripts/workflow/handover-issue.sh <issue-number> <from-workflow> <to-workflow> "<reason>"
+**For Copilot Agents** (primary approach - use MCP tools):
+
+See [Workflow Topology Guide](/.github/docs/WORKFLOW_TOPOLOGY_GUIDE.md) for comprehensive handover examples.
+
+Quick reference:
+```python
+# Update workflow label
+issue_write(
+    method="update",
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=123,
+    labels=["workflow:implementation"]  # New workflow label
+)
+
+# Add handover comment
+add_issue_comment(
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=123,
+    body="🔄 Handover: research → implementation\n\nResearch complete. See /research/[topic]/ for details."
+)
 ```
 
-**Examples:**
+**For Manual Use** (alternative - GitHub CLI):
+
 ```bash
-# Research complete, ready for implementation
-./.team/scripts/workflow/handover-issue.sh 123 research implementation "Research validated approach"
-
-# Implementation reveals tech debt
-./.team/scripts/workflow/handover-issue.sh 456 implementation tech-debt "Found legacy patterns"
-
-# Triage routes new issue
-./.team/scripts/workflow/handover-issue.sh 789 triage research "Needs validation"
+gh issue edit 123 --remove-label "workflow:research" --add-label "workflow:implementation"
+gh issue comment 123 --body "Handover: research → implementation"
 ```
 
 ### Workflow State Dashboard
+
+**For Manual Use:**
 
 View the state of all workflows:
 
@@ -291,9 +311,15 @@ View the state of all workflows:
 ./.team/scripts/workflow/workflow-dashboard.sh
 ```
 
+**For Copilot Agents:**
+
+Query each workflow individually using `list_issues` MCP tool with different workflow labels.
+
 **See**: [Workflow Topology Guide](/.github/docs/WORKFLOW_TOPOLOGY_GUIDE.md) for complete documentation on:
+- GitHub MCP tools for Copilot agents
 - Label schema
 - Handover patterns
+- Querying workflow queues
 - Common transitions
 - Troubleshooting
 

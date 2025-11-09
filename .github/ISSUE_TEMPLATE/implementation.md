@@ -2,7 +2,7 @@
 name: Implementation Issue
 about: Implementation work from product backlog
 title: '[Implementation] '
-labels: ['implementation']
+labels: ['workflow:implementation']
 assignees: ''
 ---
 
@@ -12,9 +12,7 @@ assignees: ''
 
 ### Product Backlog Item
 
-**Backlog Item ID**: [e.g., `research-2025-11-08-flow-composability` or `techdebt-2025-11-07-modernize-namespaces`]
-
-**Backlog Path**: [e.g., `/product/backlog/research-2025-11-08-flow-composability.md`]
+**Backlog Issue**: [e.g., #123]
 
 **OR**
 
@@ -23,21 +21,19 @@ assignees: ''
 ---
 
 **@copilot**: 
-- If backlog item ID specified: Read `/product/backlog/[item-id].md` first
-- If "Next from prioritization": Check `/product/prioritization.md`, select highest priority item, PAUSE and comment with selection, WAIT for confirmation
+- If backlog issue number specified: Read the GitHub issue first
+- If "Next from prioritization": Query issues with `workflow:product-backlog` label, select highest priority, PAUSE for confirmation
 - See Step 2 in `.team/workflows/IMPLEMENTATION_WORKFLOW.md` for complete guidance
-- See `/product/README.md` for product backlog system documentation
 
 ### Product Backlog System
 
-The backlog item contains:
+Backlog items are tracked as GitHub issues with the `workflow:product-backlog` label. The issue contains:
 - Complete problem context and background
 - Implementation guidance and recommended approach
 - Success criteria
 - References to design docs, ADRs, and research findings
-- Handover assets (prototype code, designs, benchmarks) if applicable
 
-**Handover Folder**: Check if `/product/backlog/[item-id]/` exists for:
+**Handover Assets**: Check issue body for references to handover folders (typically in `/research/[topic]/handover/` or similar):
 - Prototype code in `prototype/`
 - Design documents in `design/`
 - Performance benchmarks in `benchmarks/`

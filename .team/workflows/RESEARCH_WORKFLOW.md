@@ -62,16 +62,22 @@ Research in this repository supports two distinct outcomes:
 
 **Query issues designated to this workflow:**
 
+**For Copilot Agents** (use MCP tools):
+```python
+list_issues(
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    labels=["workflow:research"],
+    state="OPEN"
+)
+```
+
+**For Manual/CI Use** (GitHub CLI):
 ```bash
 gh issue list \
   --label "workflow:research" \
   --state open \
   --json number,title,url
-```
-
-**Or use the query script:**
-```bash
-./.team/scripts/workflow/query-workflow-queue.sh research
 ```
 
 **Entry Points:**
@@ -318,32 +324,24 @@ The primary deliverable: a comprehensive product backlog item that enables imple
 
 **See `/product/README.md` for complete product backlog system documentation.**
 
-#### Creating the Backlog Item
+#### Creating the Backlog Issue
 
-**1. Create backlog item file** in `/product/backlog/`:
+**1. Create GitHub issue with `workflow:product-backlog` label**:
 
-- **Naming convention**: `research-YYYY-MM-DD-[short-name].md`
-- **Template**: Use `/product/backlog-item-template.md` as starting point
-- **Example**: `research-2025-11-08-flow-composability-unification.md`
+Using MCP tools (for Copilot agents):
 
-**2. Fill in all sections** with research findings:
-
-```markdown
-# [Title]
-
-**Backlog ID**: research-2025-11-08-flow-composability-unification
-**Source**: Research
-**Category**: [Feature/Enhancement/etc.]
-**Status**: Active
-**Created**: YYYY-MM-DD
-**Updated**: YYYY-MM-DD
-
-## Summary
+```python
+issue_write(
+    method="create",
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    title="[Research] [Title - brief description]",
+    body="""## Summary
 [Brief 1-2 sentence description]
 
 ## Context
 [Background from research - why this work is needed]
-- Link to research folder: `/research/[topic]/`
+- Research folder: `/research/[topic]/`
 - Key findings summary
 
 ## Implementation Guidance
@@ -353,11 +351,10 @@ The primary deliverable: a comprehensive product backlog item that enables imple
 - Design considerations
 
 ### External Dependencies (if applicable)
-**IMPORTANT**: If your research involves sample code or implementations that require external services (databases, message queues, OTLP endpoints, etc.), document them here:
+**IMPORTANT**: If research involves sample code or implementations requiring external services:
 - List each external dependency with connection details
 - State whether runtime validation required or build-only sufficient
 - Provide alternative validation approaches if service optional
-- See template in `/product/backlog-item-template.md` for format
 
 ## Success Criteria
 - [ ] Objectives from research
@@ -365,7 +362,7 @@ The primary deliverable: a comprehensive product backlog item that enables imple
 - [ ] Test coverage specified
 
 ## Handover Assets
-- **Location**: `/product/backlog/research-YYYY-MM-DD-[name]/`
+- **Location**: `/research/[topic]/handover/`
 - **Contents**:
   - Prototype code (if applicable)
   - Design documents
@@ -380,18 +377,45 @@ The primary deliverable: a comprehensive product backlog item that enables imple
 
 ## Notes
 [Additional context from research]
+""",
+    labels=["workflow:product-backlog", "research"]
+)
+```
+
+**2. Reference handover assets** in research folder (not separate backlog folder):
+
+```bash
+# Handover assets stay in research folder
+ls /research/[topic]/handover/prototype/
+ls /research/[topic]/handover/design/
+ls /research/[topic]/handover/benchmarks/
 ```
 
 #### Creating Handover Folder (if needed)
 
 If you have supporting assets (prototype code, design docs, benchmarks):
 
-**1. Create handover folder** with same name as backlog item (minus `.md`):
+**1. Create handover folder within research directory**:
 ```bash
-mkdir -p product/backlog/research-YYYY-MM-DD-[name]/{prototype,design,benchmarks}
+mkdir -p research/[topic]/handover/{prototype,design,benchmarks}
 ```
 
-**2. Copy assets to handover folder**:
+**2. Copy assets to handover folder within research directory**:
+```bash
+# Example: Copy prototype code
+cp poc/DataFlow.POC/FlowComposability.cs \
+   research/[topic]/handover/prototype/
+
+# Example: Copy design documents
+cp research/[topic]/design/api-design.md \
+   research/[topic]/handover/design/
+
+# Example: Copy benchmarks
+cp research/[topic]/benchmarks/performance-comparison.md \
+   research/[topic]/handover/benchmarks/
+
+# Create README in handover folder
+cat > research/[topic]/handover/prototype/README.md << 'EOF'
 
 - **Prototype code** → `prototype/` subfolder
   - Only copy key reference implementations
@@ -408,15 +432,15 @@ mkdir -p product/backlog/research-YYYY-MM-DD-[name]/{prototype,design,benchmarks
 
 **Example**:
 ```bash
-# Create handover folder
-mkdir -p product/backlog/research-2025-11-08-flow-composability/prototype
+# Create handover folder within research
+mkdir -p research/flow-composability/handover/prototype
 
-# Copy key prototype files (not entire projects)
-cp research/flow-composability-unification/handover/prototype/*.cs \
-   product/backlog/research-2025-11-08-flow-composability/prototype/
+# Copy key prototype files
+cp research/flow-composability/prototype/*.cs \
+   research/flow-composability/handover/prototype/
 
 # Create README for prototypes
-cat > product/backlog/research-2025-11-08-flow-composability/prototype/README.md << 'EOF'
+cat > research/flow-composability/handover/prototype/README.md << 'EOF'
 # Prototype Code
 
 ## UnifiedFlowBuilder.cs
@@ -427,63 +451,29 @@ Reference implementation showing recommended API design.
 EOF
 ```
 
-#### Linking from Research Folder
-
-**1. Create handover reference** in research folder:
-
-Option A - Create handover README pointing to backlog:
-```bash
-cat > research/[topic]/handover/README.md << 'EOF'
-# Implementation Handover
-
-Implementation handover is managed through the product backlog system.
-
-**Backlog Item**: `/product/backlog/research-YYYY-MM-DD-[name].md`
-
-See the backlog item for:
-- Implementation guidance
-- Success criteria  
-- Handover assets (prototype code, designs, benchmarks)
-- All implementation details
-
-**Product Backlog System**: See `/product/README.md` for complete documentation.
-EOF
-```
-
-Option B - Reference backlog item in research README:
-```markdown
-## Implementation Handover
-
-This research is ready for implementation.
-
-**Backlog Item**: `/product/backlog/research-YYYY-MM-DD-[name].md`
-
-See backlog item for complete implementation guidance and handover assets.
-```
+**Note**: All handover assets remain in `/research/[topic]/handover/`. Reference this path in the GitHub issue body.
 
 #### Notify Product Team
 
-**1. Comment on research PR**:
-```markdown
-Research complete. Product backlog item created:
+**1. GitHub issue is created with `workflow:product-backlog` label**
 
-**Backlog Item ID**: research-YYYY-MM-DD-[name]
-**Path**: `/product/backlog/research-YYYY-MM-DD-[name].md`
-
-Ready for product team prioritization.
-```
+The issue contains:
+- Implementation guidance from research
+- Success criteria
+- Reference to handover assets in `/research/[topic]/handover/`
 
 **2. Product team will**:
-- Review backlog item
-- Prioritize in `/product/prioritization.md`
+- Review backlog issue
+- Prioritize using Product Prioritization workflow
 - Implementation team will select based on priorities
 
 ### Phase 6: Create Implementation-Ready GitHub Issue (DEPRECATED)
 
-⚠️ **This phase is deprecated**. Use Phase 5 (Create Product Backlog Item) instead.
+⚠️ **This phase is deprecated**. Use Phase 5 (Create Product Backlog Issue) instead.
 
 **Old workflow**: Created handover issues in `/research/[topic]/handover/github-issue-*.md`
-**New workflow**: Create backlog items in `/product/backlog/research-YYYY-MM-DD-[name].md`
+**Old workflow**: Created backlog files in `/product/backlog/research-YYYY-MM-DD-[name].md`
+**New workflow**: Create GitHub issues with `workflow:product-backlog` label
 
 See Phase 5 above for current process.
 
@@ -501,8 +491,8 @@ Before the PR is merged (and only after reviewer approval), revert exploratory c
 
 **What to Keep** (NOT reverted):
 - ✅ Research documentation in `/research/[topic]/`
-- ✅ **Product backlog item** in `/product/backlog/research-YYYY-MM-DD-[name].md`
-- ✅ **Handover assets** in `/product/backlog/research-YYYY-MM-DD-[name]/` (prototype code, designs, benchmarks)
+- ✅ **Product backlog GitHub issue** created with `workflow:product-backlog` label
+- ✅ **Handover assets** in `/research/[topic]/handover/` (prototype code, designs, benchmarks)
 - ✅ Design documentation in `/research/[topic]/design/`
 - ✅ ADRs in `/poc/docs/adr/` or `/src/docs/adr/` (ADRs belong with the codebase, NOT in research folder)
 - ✅ Benchmark data and analysis in `/research/[topic]/benchmarks/`

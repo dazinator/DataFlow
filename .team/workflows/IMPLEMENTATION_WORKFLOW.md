@@ -167,16 +167,15 @@ All implementation work should reference a product backlog item.
 
 **See `/product/README.md` for complete product backlog system documentation.**
 
-### If Backlog Item Specified
+### If Backlog Issue Specified
 
-Issue will specify backlog item like:
-- **Backlog Item ID**: `research-2025-11-08-flow-composability`
-- **Backlog Path**: `/product/backlog/research-2025-11-08-flow-composability.md`
+Implementation issue will reference a backlog GitHub issue:
+- **Backlog Issue**: #123
 
 **Steps:**
-1. **Read backlog item file** completely at `/product/backlog/[item-id].md`
-2. **Review handover folder** if exists (`/product/backlog/[item-id]/`)
-3. **Update backlog item status** to "In Progress"
+1. **Read the backlog GitHub issue** completely
+2. **Review handover assets** referenced in issue (in `/research/` or `/implementation/` folders)
+3. **Update backlog issue** with comment: "Started implementation"
 4. Proceed with implementation
 
 ### If "Next from Prioritization" Specified
@@ -185,35 +184,43 @@ Issue will say:
 - **Backlog Item**: "Next from prioritization list"
 
 **Steps:**
-1. **Open prioritization file**: `/product/prioritization.md`
-2. **Identify highest priority item** (Priority 1, or lowest number available in table)
+1. **Query prioritized backlog issues**:
+   ```python
+   # Get highest priority backlog items
+   list_issues(
+       owner="uniun-technology",
+       repo="lib-dataflow",
+       labels=["workflow:product-backlog", "priority-high"],
+       state="OPEN"
+   )
+   ```
+2. **Identify highest priority item** from results
 3. **PAUSE and comment on issue**:
    ```markdown
    Selected highest priority item from backlog:
    
-   **Backlog Item ID**: [item-id]
+   **Backlog Issue**: #[N]
    **Title**: [title]
-   **Priority**: [N]
-   **Rationale**: [rationale from prioritization file]
+   **Priority**: High
    
    Awaiting confirmation to proceed with this item.
    ```
 4. **WAIT for reviewer confirmation** - Do not start implementation
-5. **After confirmation**, follow "Backlog Item Specified" steps above
+5. **After confirmation**, follow "Backlog Issue Specified" steps above
 
-### Reading the Backlog Item
+### Reading the Backlog Issue
 
-**1. Read backlog item file** at `/product/backlog/[item-id].md`:
+**1. Read the backlog GitHub issue completely**:
 
 Pay attention to:
 - **Summary and Context** - What needs to be implemented and why
 - **Implementation Guidance** - Recommended approach and constraints
 - **Success Criteria** - What defines completion
-- **References** - Links to research, design docs, ADRs
+- **References** - Links to research folders, design docs, ADRs
 
-**2. Review handover assets** (if handover folder exists):
+**2. Review handover assets** (referenced in issue body):
 
-Check `/product/backlog/[item-id]/` for:
+Check paths mentioned in issue (typically `/research/[topic]/handover/` or `/implementation/[topic]/`):
 - **prototype/** - Reference implementations and code examples
   - Read prototype README for guidance
   - Understand what each file demonstrates
@@ -221,41 +228,46 @@ Check `/product/backlog/[item-id]/` for:
 - **design/** - Design documents specific to this work
 - **benchmarks/** - Performance data and requirements
 
-**3. Follow references** in backlog item:
+**3. Follow references** in backlog issue:
 - Research findings (if from research team)
 - Design documents
 - ADRs (Architecture Decision Records)
 - Related issues and PRs
 
-**4. Update backlog item status** to "In Progress":
+**4. Update backlog issue** with comment:
 
-Edit `/product/backlog/[item-id].md`:
-```markdown
-**Status**: In Progress
-**Updated**: YYYY-MM-DD
+```python
+# Add comment to backlog issue
+add_issue_comment(
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=[backlog-issue-number],
+    body="🚧 Implementation started\n\nImplementing in issue #[implementation-issue-number]"
+)
 ```
-
-Add to Status History section:
-```markdown
-## Status History
-- **YYYY-MM-DD**: Created
-- **YYYY-MM-DD**: Started implementation (PR: #[N])
-```
-
-Commit this change before starting work.
 
 ### After Implementation Complete
 
-**1. Update backlog item** to mark as completed:
+**1. Update backlog issue** to mark as completed:
 
-Edit `/product/backlog/[item-id].md`:
-```markdown
-**Status**: Completed
-**Updated**: YYYY-MM-DD
+```python
+# Close backlog issue
+issue_write(
+    method="update",
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=[backlog-issue-number],
+    state="closed"
+)
+
+# Add completion comment
+add_issue_comment(
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=[backlog-issue-number],
+    body="✅ Implementation complete\n\nCompleted in PR #[N]"
+)
 ```
-
-Add to Status History:
-```markdown
 ## Status History
 - **YYYY-MM-DD**: Created
 - **YYYY-MM-DD**: Started implementation (PR: #[N])

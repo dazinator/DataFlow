@@ -2,7 +2,7 @@
 name: Workflow Improvements
 about: Discuss and propose improvements to team workflows (Research, Implementation, Tech Debt, etc.)
 title: '[Workflow] '
-labels: ['workflow-improvement', 'research']
+labels: ['workflow:process-modeling']
 assignees: ''
 ---
 

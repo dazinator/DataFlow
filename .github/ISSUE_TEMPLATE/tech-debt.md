@@ -2,7 +2,7 @@
 name: Tech Debt Discovery
 about: Systematic analysis to identify and prioritize technical debt and improvement opportunities
 title: '[Tech Debt] '
-labels: ['research', 'tech-debt']
+labels: ['workflow:tech-debt']
 assignees: ''
 ---
 
