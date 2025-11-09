@@ -82,7 +82,45 @@ See workflow documentation for next steps:
 
 ---
 
-### 4. migrate-labels.sh
+### 4. workflow-dashboard.sh
+
+**Purpose**: Monitor the state of all workflows and view recent transitions
+
+**Usage**:
+```bash
+chmod +x workflow-dashboard.sh
+./workflow-dashboard.sh
+```
+
+**Example Output**:
+```
+=== Workflow State Dashboard ===
+
+Open Issues by Workflow:
+------------------------
+  workflow:triage     : 5 open issues
+  workflow:research   : 2 open issues
+  workflow:implementation: 8 open issues
+  workflow:tech-debt  : 1 open issues
+  workflow:product-backlog: 12 open issues
+  workflow:process-modeling: 0 open issues
+------------------------
+  Total: 28 open issues
+
+Recent Workflow Transitions (last 10):
+---------------------------------------
+  #123: Implement caching layer [open]
+  #456: Validate distributed epochs [closed]
+```
+
+**Metrics**:
+- ✅ Quick overview of workflow state
+- ✅ Identifies recent handovers
+- ✅ < 2 seconds execution time
+
+---
+
+### 5. migrate-labels.sh
 
 **Purpose**: One-time migration script to add workflow labels to existing issues
 
@@ -160,7 +198,21 @@ gh issue list --label "workflow:research"
 
 ---
 
-### Step 4: Use Query Script
+### Step 4: Monitor Workflow State
+
+```bash
+# Make executable
+chmod +x workflow-dashboard.sh
+
+# View workflow state
+./workflow-dashboard.sh
+```
+
+This provides a quick overview of how many issues are in each workflow and recent transitions.
+
+---
+
+### Step 5: Use Query Script
 
 ```bash
 # Make executable
@@ -177,7 +229,7 @@ done
 
 ---
 
-### Step 5: Use Handover Script
+### Step 6: Use Handover Script
 
 ```bash
 # Make executable
@@ -245,6 +297,7 @@ Based on testing:
 | `auto-label-new-issues.yml` | < 10 seconds | Per issue (event-driven) |
 | `query-workflow-queue.sh` | < 1 second | Up to 100 issues |
 | `handover-issue.sh` | < 2 seconds | Per issue (API calls) |
+| `workflow-dashboard.sh` | < 2 seconds | All workflows at once |
 | `migrate-labels.sh` | < 5 minutes | One-time (50 issues) |
 
 ---
