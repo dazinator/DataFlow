@@ -57,6 +57,7 @@ Choose one:
 **For Smart mode, custom thresholds** (optional, leave blank to use defaults):
 - Max items: [blank = 5]
 - Max lines changed: [blank = 500]
+- Request approval before each item: [yes/no, blank = no]
 
 ---
 
