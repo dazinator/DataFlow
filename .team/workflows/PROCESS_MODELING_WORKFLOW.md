@@ -458,7 +458,27 @@ All improvements added to `/research/workflow-modeling/history.md` as individual
 
 For each workflow change, create realistic scenarios in `/research/workflow-modeling/scenarios/[workflow-name]/`:
 
-**Scenario Template** (`scenario-NNN-description.md`):
+**Scenario Naming Convention:**
+
+Use descriptive filenames that indicate the scenario type and purpose:
+
+- **Format**: `scenario-NNN-[type]-[brief-description].md`
+- **Sequential numbering**: 001, 002, 003, etc. for easy ordering
+- **Types**:
+  - `baseline`: Testing current workflow state without improvements
+  - `improved`: Testing workflow with proposed improvements
+  - `verify`: Verifying existing feature or implementation
+  - `edge-case`: Testing boundary conditions or unusual situations
+  - `regression`: Ensuring existing functionality preserved
+
+**Examples**:
+- `scenario-001-baseline-research-handover.md`
+- `scenario-002-improved-automated-archiving.md`
+- `scenario-003-verify-already-implemented.md`
+- `scenario-004-edge-case-empty-backlog.md`
+- `scenario-005-regression-single-item-mode.md`
+
+**Scenario Template** (`scenario-NNN-[type]-description.md`):
 ```markdown
 # Scenario: [Description]
 
@@ -581,6 +601,90 @@ When making further changes to a workflow:
 1. **Run existing regression tests**: Execute scenarios in `/research/workflow-modeling/regression-tests/`
 2. **Verify no regressions**: Ensure previously working scenarios still PASS
 3. **Add new scenarios**: If new functionality is added, create new test scenarios
+
+### Regression Test Patterns
+
+Choose the pattern that best fits your testing needs:
+
+#### Pattern 1: Integrated Scenario Files
+
+**When to use:**
+- Small number of scenarios (3-5)
+- All scenarios test related functionality
+- Want to keep test files simple
+
+**Implementation:**
+- Each scenario file includes regression test section
+- Re-run all scenarios after making changes
+- Document PASS/FAIL status directly in scenario
+
+**Example:**
+```markdown
+# Scenario: Research Workflow Handover
+
+[... regular scenario content ...]
+
+## Regression Test (Added YYYY-MM-DD)
+- Re-tested after [change description]
+- Status: PASS
+- Notes: All steps still work as expected
+```
+
+#### Pattern 2: Separate Regression Test File
+
+**When to use:**
+- Large number of scenarios (6+)
+- Testing complex multi-step workflows
+- Want comprehensive regression validation
+- Need to track multiple rounds of testing
+
+**Implementation:**
+- Create `regression-test.md` in scenarios folder
+- Lists all scenarios and their latest test results
+- Update after each round of changes
+- Provides audit trail of testing history
+
+**Example structure** (`/research/workflow-modeling/scenarios/[workflow-name]/regression-test.md`):
+```markdown
+# Regression Test Results - [Workflow Name]
+
+## Test Run: YYYY-MM-DD
+
+**Changes made**: [Brief description of what changed]
+
+### Results
+
+| Scenario | Description | Status | Notes |
+|----------|-------------|--------|-------|
+| 001 | Baseline scenario | PASS | No issues |
+| 002 | Improved with changes | PASS | Works as expected |
+| 003 | Edge case handling | FAIL | [Issue description] |
+| 004 | Regression check | PASS | No regression |
+
+### Failed Scenarios
+
+**Scenario 003**: [Detailed failure analysis and remediation plan]
+
+## Test Run: YYYY-MM-DD
+
+[Previous test results...]
+```
+
+**Benefits**:
+- Consolidated view of all testing
+- Easy to see trends over time
+- Good for complex workflows with many scenarios
+- Provides clear audit trail
+
+#### Choosing the Right Pattern
+
+- **3-5 scenarios** → Integrated (Pattern 1) - simpler, less overhead
+- **6+ scenarios** → Separate file (Pattern 2) - better organization
+- **Simple workflows** → Integrated (Pattern 1) - adequate for basic testing
+- **Complex workflows** → Separate file (Pattern 2) - comprehensive validation
+- **When in doubt** → Start with integrated, switch to separate if it becomes unwieldy
+
+Both patterns valid - choose based on your specific testing needs and workflow complexity.
 
 ## Scenario Lifecycle
 
@@ -722,6 +826,53 @@ How will you validate the changes?
 - Catches design issues early
 - Provides clear reference during implementation
 - Can be referenced in archived plan
+
+### Markdown Table Formatting Guidance
+
+When updating workflow documentation or issue templates with markdown tables:
+
+**Formatting Best Practices:**
+
+1. **Content over perfect alignment**
+   - Markdown tables auto-format in most viewers
+   - Don't spend time perfecting column alignment
+   - Focus on clear, accurate content
+
+2. **Provide example rows**
+   - Include at least one concrete example row (not just "...")
+   - Helps readers understand expected format and detail level
+   - Example: `| 2025-11-08 | Process Modeling | Scenario naming convention | Reduces naming confusion (Clear format provided) | 5 scenarios | [#123](https://github.com/uniun-technology/lib-dataflow/pull/123) |`
+
+3. **Keep tables scannable**
+   - Use concise content (aim for <80 chars per cell when possible)
+   - Break complex content into bullet points if needed
+   - Consider splitting very wide tables
+
+4. **Header clarity**
+   - Make column headers descriptive but brief
+   - Example: "Benefit" better than "Expected Benefit and Rationale"
+   - Use description text below table if clarification needed
+
+**Example: Well-Formatted Table**
+
+```markdown
+| Date | Area | Improvement | Benefit | PR |
+|------|------|-------------|---------|-----|
+| 2025-11-08 | Process Modeling | Add scenario naming convention | Reduces confusion (Provides clear format) | [#185](url) |
+| 2025-11-07 | Research | Metrics guidance | Better success tracking (Quantifiable criteria) | N/A |
+```
+
+**Common Mistakes to Avoid:**
+- ❌ Using "..." as placeholder in examples (not helpful)
+- ❌ Over-formatting with perfect spacing (wastes time, editors auto-format)
+- ❌ Cells too wide (>100 chars) - makes table hard to scan
+- ❌ Missing header row or inconsistent column count
+
+**When to Use Tables vs. Lists:**
+- **Tables**: Structured data with multiple attributes per item
+- **Lists**: Sequential steps, simple collections, narrative content
+- **Tables work well for**: History tracking, comparison data, status reports
+- **Lists work better for**: Instructions, requirements, long explanations
 
 ### Threshold Selection Guidance
 
@@ -879,11 +1030,20 @@ History is maintained as a markdown table in `/research/workflow-modeling/histor
 
 **Column Definitions:**
 - **Date**: When improvement was completed (YYYY-MM-DD)
-- **Area**: Which workflow(s) were improved (e.g., "Implementation", "Research", "Process Modeling", "Multiple: Research, Implementation")
+- **Area**: Which workflow(s) were improved
+  - Single workflow: Use workflow name (e.g., "Implementation", "Research", "Process Modeling")
+  - Multiple workflows (2-3): List separated by comma (e.g., "Research, Implementation")
+  - Many workflows (4+): Use "Multiple: X, Y, Z" or "Cross-workflow"
 - **Improvement**: Brief description (keep under 80 chars if possible)
 - **Benefit**: Expected outcome with rationale in parentheses (keep concise)
-- **Scenario**: Brief scenario names used for validation (e.g., "Executive audit, benefit extraction")
+- **Scenario**: Brief scenario names used for validation
+  - If many scenarios (>5): Summarize with count (e.g., "5 scenarios: plan check, artifacts, migrations...")
+  - If no scenarios: Use "N/A" or "Direct implementation"
+  - Keep concise but informative
 - **PR**: Link format `[#XXX](https://github.com/uniun-technology/lib-dataflow/pull/XXX)` or "N/A" if not from PR
+  - Always use clickable link format for PRs
+  - "TBD" if PR not yet created/merged (update after merge)
+  - "N/A" for direct workflow improvements
 
 **Guidelines:**
 - Add new row at top of table (newest first)
@@ -937,6 +1097,35 @@ When work on an issue is complete:
    5. **Definition of Done**: All workflows updated, all test scenarios PASS
 
 3. **Add history table row**: Update `/research/workflow-modeling/history.md` with new row including area, benefit, scenario, and PR
+   
+   **Capturing Benefit and Rationale:**
+   
+   When creating the history entry, explicitly capture:
+   - **Expected Benefit**: What improvement will this provide? Be specific and quantifiable when possible
+   - **Rationale**: Why do you expect this benefit? What's the reasoning?
+   - Format: "Benefit statement (Rationale in parentheses)"
+   - Example: "Significantly reduces scenario creation confusion (Clear conventions prevent reinvention)"
+   
+   **PR Number Tracking:**
+   
+   Include PR number in history entry:
+   - If work came from PR feedback: Note PR number when starting work in plan.md
+   - When completing work: Note PR number that will contain changes
+   - Format in history: `[#XXX](https://github.com/uniun-technology/lib-dataflow/pull/XXX)` or "TBD" if not yet merged
+   - Update "TBD" to actual PR number after merge
+   - Use "N/A" for direct workflow improvements not linked to PR
+   
+   **Benefit Validation Checkpoint:**
+   
+   Before marking work complete:
+   - Review history entry benefit statement
+   - Ask: "Is the benefit clear and specific?"
+   - Ask: "Is the rationale explained?"
+   - Refine if vague (e.g., avoid "improved workflow" without specifics)
+   - Good: "Eliminates 15-30 min troubleshooting per dependency update (Clear patterns for conflicts)"
+   - Avoid: "Better workflow" or "Improved process"
+   - **When quantifying benefits** (e.g., time savings): Use measured data when available (such as logs, time tracking, or historical records). If only an estimate is possible, clearly indicate it is an estimate and briefly explain the basis (e.g., "Estimated based on typical troubleshooting time in last 3 updates"). This ensures benefit statements are transparent and reproducible.
+
 4. **For backlog-driven mode**: Remove processed entry from `.github/workflow-improvements.md`
 5. **Complete self-improvement evaluation**: Add to workflow-improvements.md (issue-driven) or included in history (backlog-driven)
 6. **Archive the plan**: Move current plan to `/research/workflow-modeling/archive/YYYY-MM-DD-[name].md`
@@ -979,6 +1168,119 @@ Sometimes tabletop simulation reveals the current workflow is working well and p
    - Provides evidence for why change was rejected
 
 **Remember**: The goal is workflow quality, not change volume. Sometimes the best improvement is recognizing what's already working well.
+
+## File Replacement vs Incremental Editing
+
+When working with tracking files like `plan.md`, understanding when to replace vs edit is critical to prevent duplicates and maintain consistency.
+
+### File Replacement Pattern (for State Resets)
+
+**When to use:**
+- Resetting `plan.md` after completing work
+- Updating tracking files to clean initial state
+- Any operation that returns a file to a known template state
+
+**How to do it:**
+1. Use automation script (recommended): `./reset-plan.sh`
+2. Manual: Replace entire file content with template (use `edit` tool with full content)
+3. Never: Multiple incremental edits to reset state
+
+**Why this matters:**
+- Incremental edits can leave duplicate sections
+- Template replacement guarantees clean state
+- Automation scripts handle repetitive content (like archive lists)
+
+**Example - CORRECT:**
+```python
+# Using file editing tool - replace entire content
+edit(path="plan.md", 
+     old_str="[entire current content]",
+     new_str="[complete template with all sections]")
+```
+
+**Example - INCORRECT:**
+```python
+# Multiple incremental edits - can create duplicates
+edit(path="plan.md", old_str="## Current Work...", new_str="...")
+edit(path="plan.md", old_str="## Recent Completion...", new_str="...")
+# Risk: If edit fails midway, file is in inconsistent state
+# Risk: Easy to accidentally append instead of replace
+```
+
+### Incremental Editing Pattern (for Targeted Updates)
+
+**When to use:**
+- Updating specific workflow documentation sections
+- Adding new guidance to existing sections
+- Fixing typos or clarifying existing content
+- Making focused improvements
+
+**How to do it:**
+- Use `edit` tool with specific old_str/new_str for targeted change
+- Make one logical change per edit operation
+- Group related changes if they're in the same section
+
+**Why this works:**
+- Changes are precise and reviewable
+- Git diffs show exactly what changed
+- Reversible if issues occur
+
+### Verification Checklist
+
+Before committing changes to tracking files:
+
+**For plan.md:**
+- [ ] Verify structure: Exactly ONE "Current Work" section
+- [ ] Verify structure: Exactly ONE "Recent Completion" section
+- [ ] Verify structure: Exactly ONE "Archive" section
+- [ ] Check for duplicate section headers: `grep -E "^## (Current Work|Recent Completion|Archive)" plan.md | sort | uniq -c`
+- [ ] Verify Recent Completion points to correct archive file
+- [ ] Verify Archive list is chronological (newest first)
+
+**For workflow documentation:**
+- [ ] No duplicate sections or headers
+- [ ] All internal links work (if any)
+- [ ] Examples are accurate and up-to-date
+- [ ] Formatting is consistent with file style
+
+**Quick duplicate check:**
+```bash
+# Count occurrences of each section header
+grep "^## " plan.md | sort | uniq -c
+# Should show "1" for each section name
+```
+
+### Automated Structure Validation
+
+**Option 1: Simple grep check (lightweight)**
+```bash
+# Add to completion checklist
+duplicate_sections=$(grep "^## " research/workflow-modeling/plan.md | sort | uniq -d)
+if [ -n "$duplicate_sections" ]; then
+  echo "ERROR: Duplicate sections found:"
+  echo "$duplicate_sections"
+  exit 1
+fi
+```
+
+**Option 2: Pre-commit hook (for frequent contributors)**
+
+Create `.git/hooks/pre-commit`:
+```bash
+#!/bin/bash
+# Validate plan.md structure before commit
+if git diff --cached --name-only | grep -q "research/workflow-modeling/plan.md"; then
+  duplicate_sections=$(grep "^## " research/workflow-modeling/plan.md | sort | uniq -d)
+  if [ -n "$duplicate_sections" ]; then
+    echo "ERROR: plan.md has duplicate sections:"
+    echo "$duplicate_sections"
+    echo "Please fix before committing"
+    exit 1
+  fi
+fi
+```
+
+**Recommendation**: Start with manual verification checklist. Add automation only if duplicates become recurring issue. Keep checks lightweight - don't over-engineer.
 
 ### Automated Plan Reset (Recommended)
 
@@ -1062,6 +1364,22 @@ When archiving a plan to `/research/workflow-modeling/archive/YYYY-MM-DD-[name].
 - **Date**: YYYY-MM-DD
 - **Issue/PR**: [Reference]
 - **Area**: [Workflow names affected]
+
+## Before/After Impact
+
+**Purpose**: Show concrete improvement to help future readers understand the value
+
+**Before** (baseline state):
+- [Describe what it was like before the improvement]
+- Example: "No guidance on scenario naming - agents had to invent their own conventions"
+
+**After** (improved state):
+- [Describe what it's like after the improvement]
+- Example: "Clear naming convention provided: scenario-NNN-[type]-description.md with 5 defined types"
+
+**Measured Impact** (if applicable):
+- [Quantitative improvements if available]
+- Example: "67% reduction in confusion (based on simulation results)"
 
 ## Improvements Addressed
 [List each improvement with brief description]
