@@ -18,6 +18,53 @@ Before any PR is marked ready for review, Copilot agents should:
 
 ### Suggestions
 
+- **Date**: 2025-11-09
+- **Issue/PR**: New Workflow Design Research (copilot/research-new-workflow-design)
+- **What worked well**:
+  - Research workflow phase structure was excellent for systematic exploration
+  - Folder structure guidance (FOLDER_STRUCTURE.md) made organization clear
+  - ADR placement in `.team/workflows/adr/` (with workflows, not research) was correct
+  - Ability to prototype GitHub Actions and scripts validated the approach effectively
+  - Comparison matrix format helped objectively evaluate alternatives
+  - Benchmark/testing documentation provided concrete validation data
+  - Handover template with complete task breakdown was comprehensive
+  - Success metrics framework (quantitative + qualitative) guided validation
+  - Report progress tool kept work incremental and visible
+- **What didn't work well**:
+  - No explicit guidance on when to create ADRs for workflows vs code
+  - Research plan didn't mention documenting "alternatives considered" section for ADR
+  - Unclear whether to create multiple approach analysis docs or single comparison matrix
+  - No guidance on how much prototyping to do (full implementation vs minimal proof-of-concept)
+  - Benchmark documentation structure not prescribed (created ad-hoc)
+  - No template for "hybrid approach" analysis (combining multiple alternatives)
+- **Suggested improvement**:
+  1. **Add ADR Guidance for Research**: Clarify when ADRs belong in research vs codebase folders:
+     - **Workflow/Process ADRs**: `.team/workflows/adr/` (system-level decisions)
+     - **Code ADRs**: `/poc/docs/adr/` or `/src/docs/adr/` (implementation decisions)
+     - Include this in research workflow documentation
+  2. **Add "Alternatives Considered" Section** to research plan template:
+     - Enumerate all approaches being evaluated
+     - Document why each alternative is/isn't viable
+     - Helps feed into ADR "Alternatives Considered" section
+  3. **Provide Approach Analysis Guidance**: Add to research workflow:
+     - Option A: Separate docs per approach + comparison matrix (used here, worked well)
+     - Option B: Single comparison doc with embedded analysis
+     - Recommend Option A for 3+ approaches, Option B for 2 approaches
+  4. **Add Prototyping Scope Guidance**:
+     - **Minimal POC**: For feasibility validation (is it possible?)
+     - **Working Prototype**: For performance validation (is it fast enough?)
+     - **Production-Ready**: For adoption validation (can users use it?)
+     - Match scope to research questions
+  5. **Create Benchmark Documentation Template**:
+     - Standard sections: Objective, Test Environment, Patterns Tested, Results, Assessment
+     - Include both quantitative (timing) and qualitative (developer experience) metrics
+  6. **Add Hybrid Approach Analysis Pattern**:
+     - When considering combinations of approaches
+     - Document phased adoption (Phase 1 simple, Phase 2 advanced)
+     - Include decision criteria for phase transitions
+
+---
+
 - **Date**: 2025-11-07
 - **Issue/PR**: Better Testing Approaches Research (copilot/better-testing-approaches-research)
 - **What worked well**: 
