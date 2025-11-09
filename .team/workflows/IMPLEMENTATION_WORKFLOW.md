@@ -41,6 +41,12 @@ Before implementing, ask yourself:
 - [ ] Are edge cases documented?
 - [ ] Is the target codebase explicitly stated (POC/Production/Both)?
 
+**Tech Debt Verification (if implementing tech debt item):**
+- [ ] Does backlog item include verification check?
+- [ ] Execute verification check to confirm tech debt still exists
+- [ ] If tech debt already fixed: Update backlog item status, notify team, STOP implementation
+- [ ] If tech debt exists: Continue with implementation
+
 **Feasibility:**
 - [ ] Is the proposed approach practical given current codebase?
 - [ ] Are there hidden dependencies or blockers?
@@ -68,6 +74,43 @@ Before implementing, ask yourself:
 4. **Add to workflow improvements** so future handovers improve
 
 **Example**: "Handover says migrate all benchmarks but doesn't specify baseline benchmarks. Decision: Archive baseline as historical artifacts since they document the 'before' state. Create `/research/.../archived-benchmarks/` with README."
+
+### Tech Debt Verification Example
+
+**If implementing a tech debt backlog item**, the item should include a verification check:
+
+```markdown
+## Verification Check
+
+Before starting implementation, verify this tech debt still exists:
+
+```bash
+# Run this command - should show warnings
+dotnet build 2>&1 | grep "CS0436" | wc -l
+# Expected: ~15 warnings
+# If result is 0, tech debt already fixed - stop and update backlog item
+```
+```
+
+**Execute the verification check**:
+```bash
+cd /home/runner/work/lib-dataflow/lib-dataflow
+dotnet build 2>&1 | grep "CS0436" | wc -l
+```
+
+**If tech debt still exists** (result matches expectation):
+- ✅ Continue with implementation
+
+**If tech debt already fixed** (result is 0 or significantly different):
+- ❌ STOP implementation
+- Update backlog item:
+  ```markdown
+  **Status**: Resolved (Already Fixed)
+  **Updated**: YYYY-MM-DD
+  ```
+- Archive backlog item to `/product/resolved/`
+- Comment on issue: "Tech debt verification check shows this issue was already addressed. Backlog item archived."
+- Wait for reviewer to assign new work
 
 ---
 

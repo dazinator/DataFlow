@@ -1392,6 +1392,16 @@ When archiving a plan to `/research/workflow-modeling/archive/YYYY-MM-DD-[name].
 - Scenario 001: [Description] - PASS/FAIL
 - Scenario 002: [Description] - PASS/FAIL
 
+## Scenario Statistics
+
+**Created**: [N] scenarios
+**Retained**: [N] scenarios (archived to `/research/workflow-modeling/regression-tests/[workflow-name]/`)
+**Reverted**: [N] scenarios (temporary validation only)
+**Regression Tests Ran**: [N] pre-existing scenarios (if applicable)
+
+**Retention Decision**: [Archive | Revert All]
+**Rationale**: [Why scenarios were archived or reverted]
+
 ## Files Modified
 - `.team/workflows/[NAME]_WORKFLOW.md` - [Changes made]
 - `.github/copilot-instructions.md` - [Changes made if applicable]

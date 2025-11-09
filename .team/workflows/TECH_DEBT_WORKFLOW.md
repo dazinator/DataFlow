@@ -11,20 +11,20 @@ This workflow is a specialized variant of the Research Workflow for systematical
 ### DO (During Tech Debt Analysis):
 - ✅ **Read [Document Hygiene Guide](/.github/DOCUMENT_HYGIENE.md)** before creating/updating documentation
 - ✅ Create `/research/tech-debt-[date]/` with structured exploration
-- ✅ **Review existing backlog** (`/research/backlog/`) before new exploration
+- ✅ **Review existing product backlog** (`/product/backlog/`) before new exploration
 - ✅ Follow systematic exploration areas to discover tech debt
 - ✅ Write exploratory code to validate issues and solutions
 - ✅ Document all findings in findings report
 - ✅ Create production-ready prototype fixes (if applicable)
-- ✅ Present findings to reviewer for selection
+- ✅ **Include verification checks** in all findings (how to confirm issue still exists)
 
-### DO (After Reviewer Selection):
-- ✅ Create handover issues for **selected** findings in `/research/tech-debt-[date]/handover/selected/`
-- ✅ Move **non-selected** findings to `/research/backlog/` with date-based naming
+### DO (After Discovery Complete):
+- ✅ Create product backlog items for **all** findings in `/product/backlog/`
 - ✅ Save important prototype code to handover folders
 - ✅ **REVERT all exploratory code changes** from `/poc/` and `/src/`
 - ✅ Keep all documentation and backlog items
 - ✅ **Complete self-improvement evaluation** in `.github/workflow-improvements.md`
+- ✅ Product team will prioritize items using Product Prioritization workflow
 
 ### DON'T:
 - ❌ Merge exploratory code (it will be reverted)
@@ -33,7 +33,7 @@ This workflow is a specialized variant of the Research Workflow for systematical
 - ❌ Revert code before reviewer approval
 
 ### OUTCOME:
-Tech debt analysis produces **findings report + selective handovers + backlog items**, not merged code. The exploratory code validates findings and demonstrates solutions, then gets reverted.
+Tech debt analysis produces **findings report + product backlog items**, not merged code. All findings go to the product backlog for prioritization by the product team. The exploratory code validates findings and demonstrates solutions, then gets reverted.
 
 ---
 
@@ -82,8 +82,8 @@ The issue template includes:
 | **Focus** | Deep investigation of one topic | Breadth across multiple issues |
 | **Output** | Single comprehensive solution | Multiple categorized findings |
 | **Depth** | Deep dive with prototypes | Survey with targeted validation |
-| **Handover** | One implementation issue | Multiple issues (reviewer selected) |
-| **Backlog** | N/A | Non-selected findings preserved |
+| **Handover** | One implementation issue | All findings to product backlog |
+| **Prioritization** | N/A | Handled by Product Prioritization workflow |
 | **Duration** | Variable, can be extensive | Time-boxed (analysis scope dependent) |
 
 ## Analysis Scope Guidance
@@ -324,8 +324,8 @@ Review:
 find research/ -name "*.md" -type f | xargs grep -l "nullable warnings"
 find research/ -name "*.md" -type f | xargs grep -l "test helpers"
 
-# Check backlog for similar items
-grep -r "compiler warnings" research/backlog/
+# Check product backlog for similar items
+grep -r "compiler warnings" product/backlog/
 ```
 
 **For each potential duplicate**:
@@ -366,11 +366,11 @@ Create `/research/tech-debt-[date]/notes/findings-by-category.md`:
 [etc.]
 ```
 
-**2. Create Findings Report for Review**
+**2. Create Findings Report**
 
 Create `/research/tech-debt-[date]/findings-report.md`:
 
-This is the **key deliverable** for reviewer to make selection decisions.
+This report documents all discovered issues for the product team to review and prioritize.
 
 ```markdown
 # Tech Debt Findings Report
@@ -423,12 +423,15 @@ This is the **key deliverable** for reviewer to make selection decisions.
 ### Validation
 [How to verify it's fixed - tests, benchmarks, metrics]
 
-### Reviewer Decision
-- [ ] **Implement Now** - Create handover issue
-- [ ] **Backlog** - Defer for future consideration
-- [ ] **Won't Fix** - Explain: ___________
+### Verification Check
+**REQUIRED**: Include verification check for implementation team
 
-**Notes**: _[Space for reviewer comments]_
+```bash
+# Command to verify this tech debt still exists
+# Example: Check for specific warnings
+dotnet build 2>&1 | grep "CS0436" | wc -l
+# Expected: ~15 (if 0, tech debt already fixed)
+```
 
 ---
 
@@ -440,32 +443,9 @@ This is the **key deliverable** for reviewer to make selection decisions.
 [Continue for all findings]
 ```
 
-**Format Tips**:
-- Keep finding descriptions concise (1-2 paragraphs)
-- Use checkboxes for easy reviewer selection
-- Number findings (TD-001, TD-002...) for easy reference
-- Group related findings or note dependencies
-- Prioritize high-impact, low-effort items at top
+### Phase 4: Create Product Backlog Items
 
-### Phase 4: Reviewer Evaluation and Selection
-
-**Submit PR with findings report** and wait for reviewer feedback.
-
-**Reviewer Process**:
-1. Read findings report
-2. Evaluate each finding against:
-   - Current priorities
-   - Available capacity
-   - Value vs. effort
-   - Dependencies on other work
-3. Mark decisions in findings report
-4. Request handover creation for selected items
-
-**Agent**: Once reviewer has marked decisions, proceed to Phase 5.
-
-### Phase 5: Create Handovers and Product Backlog Items
-
-**For Each SELECTED Finding**:
+**For Each Finding** (all findings go to product backlog):
 
 Create product backlog item in `/product/backlog/techdebt-YYYY-MM-DD-[short-name].md`
 
@@ -513,6 +493,20 @@ Use backlog item template from `/product/backlog-item-template.md`:
 - [ ] [Validation benchmark/test passes]
 - [ ] Tests passing
 - [ ] Documentation updated (if applicable)
+
+## Verification Check
+
+**CRITICAL**: Include verification check so implementation team can confirm this tech debt still exists before starting work.
+
+```bash
+# Command to verify tech debt still exists
+# Example: Check for compiler warnings
+dotnet build 2>&1 | grep "CS0436" | wc -l
+# Expected: ~15 warnings
+# If result is 0, tech debt already fixed - update backlog item status
+```
+
+**Purpose**: Prevents wasted effort if someone else already fixed the issue.
 
 ## Handover Assets
 
@@ -569,22 +563,13 @@ cat > product/backlog/techdebt-YYYY-MM-DD-[name]/prototype/README.md << 'EOF'
 EOF
 ```
 
-**For Each NON-SELECTED Finding**:
+### Phase 5: Code Reversion and Finalization
 
-Also create backlog items for non-selected findings in `/product/backlog/`:
-
-- Use same template and naming convention as selected items
-- These items are preserved for future prioritization
-- Product team can review and prioritize later
-- See `/product/README.md` for prioritization process
-
-### Phase 6: Code Reversion and Finalization
-
-**After reviewer approval and backlog items created**:
+**After all backlog items created**:
 
 **1. Preserve Prototype Code** (if applicable)
 
-If you created prototype fixes during exploration, save valuable examples to product backlog handover folder (see Phase 5 above).
+If you created prototype fixes during exploration, save valuable examples to product backlog handover folder (see Phase 4 above).
 
 **2. Revert Exploratory Code**
 
@@ -615,8 +600,7 @@ git commit -m "Tech debt analysis findings and handovers"
 **What Stays**:
 - ✅ Research folder with all documentation
 - ✅ Findings report
-- ✅ Handover issues for selected items
-- ✅ Backlog items for non-selected findings
+- ✅ Product backlog items for all findings
 - ✅ Prototype code in handover folders
 
 **What Gets Reverted**:
@@ -624,29 +608,40 @@ git commit -m "Tech debt analysis findings and handovers"
 - ❌ Test validation code
 - ❌ Prototype implementations in source tree (copied to handover first)
 
-## Using Backlog Items
+## Using Product Backlog Items
 
 ### Browsing the Backlog
 
 ```bash
-# List all backlog items chronologically
-ls -lt research/backlog/
+# List all tech debt backlog items chronologically
+ls -lt product/backlog/techdebt-*.md
 
 # Search for specific categories
-grep -l "Category: Compiler Warnings" research/backlog/*.md
+grep -l "Category: Compiler Warnings" product/backlog/*.md
 
 # Find high-priority items
-grep -l "Priority: High" research/backlog/*.md
+grep -l "Priority: High" product/backlog/*.md
 ```
 
-### Promoting Backlog Items
+### Prioritizing Backlog Items
 
-When ready to implement a backlog item:
+**Product team uses Product Prioritization workflow** to select items for implementation:
+- Review all backlog items
+- Consider current priorities and capacity
+- Create `/product/prioritization.md` with ordered list
+- See `.team/workflows/PRODUCT_PRIORITIZATION_WORKFLOW.md`
 
-1. Create standard implementation issue in GitHub
-2. Reference the backlog item document
+### Implementing Backlog Items
+
+When implementation team picks up a tech debt item:
+
+1. **Read backlog item** completely at `/product/backlog/[item-id].md`
+2. **Execute verification check** to ensure tech debt still exists
+   - If tech debt already fixed: Update backlog item status and notify team
+   - If tech debt exists: Continue with implementation
 3. Follow implementation workflow
 4. Mark backlog item as completed with PR link
+5. Archive to `/product/resolved/`
 
 ### Backlog Maintenance
 
@@ -654,7 +649,7 @@ Periodically review backlog:
 - Archive completed items
 - Update priorities based on project evolution
 - Combine related items
-- Remove obsolete items
+- Remove obsolete items (those verified as already fixed)
 
 ## Templates Summary
 
@@ -766,29 +761,26 @@ dotnet format --include src/
 
 **Phase 3 - Findings Report**:
 ```
-TD-001: Reduce CS0436 Type Conflict Warnings (H/M/~100 files)
-TD-002: Modernize to File-Scoped Namespaces (M/L/~200 files)
-TD-003: Add Test Helper Utilities (H/S/~15 test files)
-TD-004: Add API Documentation to Public Types (M/M/~50 types)
-TD-005: Create Block Scaffolding Command (M/M/new feature)
+TD-001: Reduce CS0436 Type Conflict Warnings (H/M/~100 files) + verification check
+TD-002: Modernize to File-Scoped Namespaces (M/L/~200 files) + verification check
+TD-003: Add Test Helper Utilities (H/S/~15 test files) + verification check
+TD-004: Add API Documentation to Public Types (M/M/~50 types) + verification check
+TD-005: Create Block Scaffolding Command (M/M/new feature) + verification check
 ```
 
-**Phase 4 - Reviewer Selection**:
-Reviewer selects: TD-001, TD-003
-Backlog: TD-002, TD-004, TD-005
+**Phase 4 - Create Backlog Items**:
+All findings go to product backlog:
+- Create `product/backlog/techdebt-2025-11-07-reduce-type-conflicts.md`
+- Create `product/backlog/techdebt-2025-11-07-modernize-namespaces.md`
+- Create `product/backlog/techdebt-2025-11-07-add-test-helpers.md`
+- Create `product/backlog/techdebt-2025-11-07-add-api-documentation.md`
+- Create `product/backlog/techdebt-2025-11-07-block-scaffolding-tool.md`
 
-**Phase 5 - Handovers**:
-- Create `github-issue-reduce-type-conflicts.md`
-- Create `github-issue-add-test-helpers.md`
-- Create backlog items:
-  - `2025-11-07-modernize-namespaces.md`
-  - `2025-11-07-add-api-documentation.md`
-  - `2025-11-07-block-scaffolding-tool.md`
-
-**Phase 6 - Finalization**:
+**Phase 5 - Finalization**:
 - Revert exploratory test code
-- Keep all documentation
+- Keep all documentation and backlog items
 - PR ready for merge
+- Product team will prioritize items using Product Prioritization workflow
 
 ## Self-Improvement Loop
 
@@ -806,12 +798,12 @@ This continuous feedback improves the workflow for future tech debt analyses.
 
 ## Summary
 
-The Tech Debt Discovery Workflow enables systematic identification and prioritization of codebase improvements. It produces:
+The Tech Debt Discovery Workflow enables systematic identification and documentation of codebase improvements. It produces:
 
-1. **Findings Report** - Comprehensive survey of tech debt for reviewer evaluation
-2. **Selected Handovers** - Implementation-ready issues for chosen items
-3. **Backlog** - Preserved documentation of deferred improvements
+1. **Findings Report** - Comprehensive survey of tech debt issues
+2. **Product Backlog Items** - All findings added to `/product/backlog/` with verification checks
+3. **Prioritization Handoff** - Product team uses Product Prioritization workflow to select items for implementation
 
-This workflow complements existing research and implementation workflows by focusing on breadth of discovery and selective handover based on prioritization.
+This workflow complements existing research and implementation workflows by focusing on breadth of discovery and integration with the product backlog system.
 
-**Result**: Clean, systematic tech debt discovery with clear handoff to implementation teams and preservation of deferred improvements for future consideration.
+**Result**: Clean, systematic tech debt discovery with all findings preserved in the product backlog for prioritization.

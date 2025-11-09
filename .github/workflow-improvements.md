@@ -263,6 +263,36 @@ Before any PR is marked ready for review, Copilot agents should:
 ### Suggestions
 
 - **Date**: 2025-11-09
+- **Issue/PR**: Tech debt workflow modernization
+- **What worked well**:
+  - **Process Modeling workflow** - Clear guidance on tabletop simulation and scenario creation
+  - **Scenario naming convention** - scenario-NNN-[type]-description.md format made purpose clear
+  - **Baseline vs improved pattern** - Creating both baseline and improved scenarios validated changes effectively
+  - **Regression scenario** - Testing complete integration across all three workflows caught potential issues
+  - **Decision tree format** - Issue clearly specified which workflows were affected and what needed changing
+  - **Concrete examples** - Tech debt workflow example at end made it easy to understand before/after
+  - **Verification checks** - Adding verification requirement was natural fit at Step 0 of Implementation workflow
+- **What didn't work well**:
+  - **Multiple small edits** - Made 15+ individual edits to Tech Debt workflow, could have been more efficient
+  - **Finding all references** - Had to grep multiple times to find all `/research/backlog/` references
+  - **Section renumbering** - After deleting Phase 4, had to manually update Phase 5→Phase 4, Phase 6→Phase 5 references
+- **Suggested improvement**:
+  1. **Add "Search for All References" step** to workflow modification guidance:
+     - Before making changes, grep for all variations of what's changing
+     - Example: `grep -n "research/backlog\|/research/backlog\|research backlog" file.md`
+     - Create checklist of all locations before starting edits
+     - Prevents missing references that break workflow
+  2. **Add "Phase Deletion Pattern"** to Process Modeling workflow:
+     - When deleting a phase, use find-replace for all subsequent phase numbers
+     - Example: Phase 5 → Phase 4, Phase 6 → Phase 5, etc.
+     - Check for references in examples and cross-references
+     - Prevents inconsistent phase numbering in documentation
+  3. **Consider "Bulk Edit Helper"** for large workflow changes:
+     - For changes affecting 10+ sections, create temporary notes file with all changes
+     - Review for consistency before executing
+     - Reduces risk of missing sections or inconsistent updates
+
+- **Date**: 2025-11-09
 - **Issue/PR**: Bulk improvements - Smart Mode
 - **What worked well**:
   - **Smart mode stopping criteria** - Conservative decision tree (estimate + buffer + safety checks) prevented threshold violations
