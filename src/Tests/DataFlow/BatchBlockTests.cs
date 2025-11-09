@@ -1,30 +1,14 @@
 namespace Tests.DataFlow;
 using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
+using Tests.Shared;
 using Uniun.DataFlow.Blocks.InputChannel;
 
 [IntegrationTest]
-public class BatchBlockTests
+public class BatchBlockTests : DataFlowTestBase
 {
-
-    public ITestOutputHelper Output { get; }
-    public ServiceCollection Services { get; }
-
-    private readonly ServiceProvider _serviceProvider;
-
-    public BatchBlockTests(ITestOutputHelper output)
+    public BatchBlockTests(ITestOutputHelper output) : base(output)
     {
-        Output = output;
-        Services = new ServiceCollection();
-        AddDefaultServices(Services);
-
-    }
-
-    private void AddDefaultServices(IServiceCollection services)
-    {
-        Services.AddLogging(builder => builder.AddXUnit(Output));
-        Services.AddDataFlowMetrics();
-        Services.AddDataFlows();
     }
 
     /// <summary>

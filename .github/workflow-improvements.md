@@ -176,6 +176,45 @@ Before any PR is marked ready for review, Copilot agents should:
 ### Suggestions
 
 - **Date**: 2025-11-09
+- **Issue/PR**: #197 - Reduce test boilerplate with DataFlowTestBase class
+- **What worked well**:
+  - **Backlog item structure** - Clear problem statement, suggested approach, and success criteria
+  - **Phase-based approach** recommended in backlog item helped validate incrementally
+  - **Build-test-iterate cycle** - Building and testing early caught issues with package management
+  - **Central package management** error messages were clear and actionable
+  - **Parallel tool calls** - Viewing multiple files simultaneously improved exploration efficiency
+  - **Example files in backlog** - References to specific test files helped understand the pattern
+  - **Success criteria checklist** in backlog item provided clear completion targets
+- **What didn't work well**:
+  - **Initial confusion** - Issue had generic title "Implement something" and placeholder template text
+  - **No code existed** - PR description described work not yet done, causing initial confusion
+  - **Package management learning curve** - Had to discover central package management system through build errors
+  - **No guidance on package versions** - Unclear whether to specify versions or rely on central management
+  - **Pattern discovery was manual** - Had to grep multiple times to find all files with the boilerplate pattern
+  - **No estimate validation** - Backlog said ~50-60 files, actual was only 6 files
+- **Suggested improvement**:
+  1. **Add "Verify Backlog Item Accuracy" step** to Implementation Workflow:
+     - After reading backlog item, validate key estimates (file counts, line counts)
+     - Use grep/find to confirm scope matches expectations
+     - If significantly different, document in first progress report
+     - Update backlog item with actual findings
+  2. **Add "Central Package Management" guidance** to copilot-instructions.md:
+     - Explain the Directory.Packages.props system
+     - When to add packages vs when they're already available transitively
+     - How to check if package is already in central management
+     - Example: `grep -r "PackageVersion Include=\"xunit" src/Directory.Packages.props`
+  3. **Improve implementation issue template**:
+     - Remove generic "Implement something" title
+     - Require specific backlog item ID or explicit "Next from prioritization" selection
+     - Add note: "Leave template placeholders in brackets until ready to create issue"
+     - Current format with [e.g., ...] examples is confusing
+  4. **Add "Pattern Discovery Helper"** to implementation guidance:
+     - For refactoring tasks, provide common grep patterns upfront
+     - Example: Finding boilerplate → `grep -l "public ITestOutputHelper Output" **/*.cs`
+     - Example: Counting matches → `grep -l "pattern" **/*.cs | wc -l`
+     - Saves time and ensures comprehensive coverage
+
+- **Date**: 2025-11-09
 - **Issue/PR**: copilot/implement-new-feature - File-Scoped Namespaces Modernization
 - **What worked well**:
   - **Implementation workflow guidance** was clear about checking backlog and prioritization first

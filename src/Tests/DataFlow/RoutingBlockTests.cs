@@ -8,31 +8,19 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Tests.DataFlow.Utils.Transformers;
+using Tests.Shared;
 
 [IntegrationTest]
-public class RoutingBlockTests
+public class RoutingBlockTests : DataFlowTestBase
 {
-
-    public ITestOutputHelper Output { get; }
-    public ServiceCollection Services { get; }
-
-    private readonly ServiceProvider _serviceProvider;
-
-    public RoutingBlockTests(ITestOutputHelper output)
+    public RoutingBlockTests(ITestOutputHelper output) : base(output)
     {
-        Output = output;
-        Services = new ServiceCollection();
-        AddDefaultServices(Services);
-
     }
 
-    private void AddDefaultServices(IServiceCollection services)
+    protected override void AddDefaultServices()
     {
-        Services.AddLogging(builder => builder.AddXUnit(Output));
-        services.AddDataFlows();
-
+        base.AddDefaultServices();
         Services.AddMetrics();
-        Services.AddDataFlowMetrics();
         Services.AddMemoryCache();
     }
 

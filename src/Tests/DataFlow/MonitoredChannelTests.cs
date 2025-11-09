@@ -8,24 +8,14 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.Metrics.Testing;
 using Microsoft.Extensions.Logging;
+using Tests.Shared;
 using Uniun.DataFlow.Metrics;
 
 
-public class MonitoredChannelTests
+public class MonitoredChannelTests : DataFlowTestBase
 {
-    public MonitoredChannelTests(ITestOutputHelper testOutputHelper)
+    public MonitoredChannelTests(ITestOutputHelper testOutputHelper) : base(testOutputHelper)
     {
-        Output = testOutputHelper;
-        Services = new ServiceCollection();
-        AddDefaultServices();
-    }
-
-    private void AddDefaultServices()
-    {
-        Services.AddLogging(a => a.AddXUnit(Output));
-        Services.AddDataFlowMetrics();
-        Services.AddDataFlows();
-        // Services.AddSingleton<IDataFlowMetrics, DataFlowMetrics>();
     }
 
     [IntegrationTest]
@@ -163,10 +153,6 @@ public class MonitoredChannelTests
         // The gauge should still fire even with no channels (returning empty enumerable)
         // If this doesn't work, the issue is with the meter/collector setup
     }
-
-    public IServiceCollection Services { get; set; }
-
-    public ITestOutputHelper Output { get; }
 
     private IServiceProvider CreateServiceProvider()
     {

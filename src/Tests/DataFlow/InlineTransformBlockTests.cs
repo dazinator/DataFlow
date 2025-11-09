@@ -4,6 +4,7 @@ using System.Collections.Concurrent;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Shouldly;
+using Tests.Shared;
 using Uniun.DataFlow.Blocks.Processor;
 using Uniun.DataFlow.Blocks.Producer;
 using Uniun.DataFlow.Blocks.Transform;
@@ -13,24 +14,11 @@ using Xunit.Abstractions;
 /// Tests for the inline transform block that processes items inline with downstream pull.
 /// </summary>
 [IntegrationTest]
-public class InlineTransformBlockTests
+public class InlineTransformBlockTests : DataFlowTestBase
 {
-    public InlineTransformBlockTests(ITestOutputHelper testOutputHelper)
+    public InlineTransformBlockTests(ITestOutputHelper testOutputHelper) : base(testOutputHelper)
     {
-        Output = testOutputHelper;
-        Services = new ServiceCollection();
-        AddDefaultServices();
     }
-
-    private void AddDefaultServices()
-    {
-        Services.AddLogging(builder => builder.AddXUnit(Output));
-        Services.AddDataFlows();
-        Services.AddDataFlowMetrics();
-    }
-
-    public IServiceCollection Services { get; }
-    public ITestOutputHelper Output { get; }
 
     [Fact(Skip = "Test hangs indefinitely - needs investigation. Issue with InlineTransformBlock causing deadlock.")]
     public async Task InlineTransformBlock_TransformsItemsInline()

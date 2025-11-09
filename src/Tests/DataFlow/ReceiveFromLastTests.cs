@@ -2,28 +2,16 @@ namespace Tests.DataFlow;
 
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
+using Tests.Shared;
 
 /// <summary>
 /// Tests for the ReceiveFromLast() API that enables positional chaining
 /// </summary>
 [IntegrationTest]
-public class ReceiveFromLastTests
+public class ReceiveFromLastTests : DataFlowTestBase
 {
-    public ITestOutputHelper Output { get; }
-    public ServiceCollection Services { get; }
-
-    public ReceiveFromLastTests(ITestOutputHelper output)
+    public ReceiveFromLastTests(ITestOutputHelper output) : base(output)
     {
-        Output = output;
-        Services = new ServiceCollection();
-        AddDefaultServices(Services);
-    }
-
-    private void AddDefaultServices(IServiceCollection services)
-    {
-        Services.AddLogging(builder => builder.AddXUnit(Output));
-        Services.AddDataFlowMetrics();
-        Services.AddDataFlows();
     }
 
     [Fact]

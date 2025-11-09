@@ -8,27 +8,20 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Tests.DataFlow.Utils.Transformers;
+using Tests.Shared;
 using Uniun.DataFlow.Blocks.Routing;
 
 [IntegrationTest]
-public class PersistentRoutingBlockTests
+public class PersistentRoutingBlockTests : DataFlowTestBase
 {
-    public ITestOutputHelper Output { get; }
-    public ServiceCollection Services { get; }
-
-    public PersistentRoutingBlockTests(ITestOutputHelper output)
+    public PersistentRoutingBlockTests(ITestOutputHelper output) : base(output)
     {
-        Output = output;
-        Services = new ServiceCollection();
-        AddDefaultServices(Services);
     }
 
-    private void AddDefaultServices(IServiceCollection services)
+    protected override void AddDefaultServices()
     {
-        Services.AddLogging(builder => builder.AddXUnit(Output));
-        services.AddDataFlows();
+        base.AddDefaultServices();
         Services.AddMetrics();
-        Services.AddDataFlowMetrics();
     }
 
     [Fact]
