@@ -614,6 +614,63 @@ Before any PR is marked ready for review, Copilot agents should:
 
 ### Suggestions
 
+- **Date**: 2025-11-09
+- **Issue/PR**: Tech Debt Discovery Analysis (copilot/tech-debt-discovery-workflow)
+- **What worked well**:
+  - **Tech Debt Workflow documentation** was comprehensive and well-structured with clear phases
+  - **Standard exploration areas** (7 defined) provided systematic coverage of common tech debt
+  - **Findings report template** with priority/complexity/files affected made decisions straightforward
+  - **Product backlog system** (introduced in this analysis) provides unified location for all work items
+  - **Build analysis approach** (`dotnet build | tee`, grep patterns) efficiently categorized 1,220 warnings
+  - **Multi-phase assessment guidance** helped identify which findings need phased implementation
+  - **Document Hygiene guide** was clear about using Mermaid diagrams vs text (though not needed here)
+  - **Backlog review first** step caught 2 existing items to validate/migrate
+  - **Combined POC + Production analysis** saved time since issues were similar
+  - **Quick win identification** in findings helped prioritize high-value, low-effort items
+- **What didn't work well**:
+  - **No guidance on product backlog creation** - Had to create `/product/backlog/` directories manually
+  - **Backlog migration process unclear** - How to handle existing `/research/backlog/` items superseded by findings?
+  - **Volume of findings overwhelming** - 8 findings required creating 8 backlog items (took ~2 hours)
+  - **No template guidance on handover assets** - When to create prototype folders vs just markdown?
+  - **CS8425 warnings not appearing** in build output despite code check showing issue exists
+  - **Tool recommendations guidance** in workflow but not in backlog item template
+  - **Self-improvement evaluation file very long** (608 lines) - hard to navigate and find right section
+- **Suggested improvement**:
+  1. **Add "Product Backlog Bootstrap"** step to Tech Debt Workflow Phase 1:
+     - Check if `/product/backlog/` exists, create if needed: `mkdir -p product/backlog product/resolved`
+     - Prevents confusion about where to put backlog items
+     - Add to workflow after "Create Research Folder" step
+  2. **Add "Backlog Supersession Guidance"** to Tech Debt Workflow Phase 5:
+     - When new finding supersedes existing backlog item, note in both places
+     - New item: "Supersedes: `/research/backlog/YYYY-MM-DD-name.md`"
+     - Old item: Add note "Superseded by: `/product/backlog/techdebt-YYYY-MM-DD-name.md`"
+     - Prevents duplicate implementation and maintains traceability
+     - Consider archiving old backlog items after migration
+  3. **Add "Bulk Backlog Creation Template"** to Tech Debt Workflow:
+     - When creating 5+ backlog items, provide bash script template for batch creation
+     - Generates skeleton files from findings list
+     - Reduces time from ~15 min/item to ~5 min/item for filling in details
+     - Example: `for id in TD-001 TD-002; do cat > product/backlog/techdebt-$DATE-$id.md <<EOF...`
+  4. **Expand backlog item template "Handover Assets" section**:
+     - Add decision tree: When to create handover folder vs markdown-only?
+     - Handover folder needed if: Prototype code, benchmarks, design docs, test scenarios
+     - Markdown-only if: Simple fix, clear from description, no assets to share
+     - Reduces ambiguity when creating backlog items
+  5. **Add "Warning Verification" step** to Build Health exploration:
+     - After categorizing warnings, verify a sample by finding in source code
+     - Some warnings may be suppressed in .editorconfig or build properties
+     - Prevents reporting issues that aren't actually present in current state
+  6. **Add Tool Recommendations section** to backlog item template:
+     - Copilot-friendly tools: CLI commands, dotnet format, grep/sed/awk
+     - IDE-only tools: Mark as [Requires Reviewer], note intervention point
+     - Mirrors guidance already in Tech Debt Workflow Phase 5
+     - Makes implementation easier by surfacing tool options upfront
+  7. **Improve workflow-improvements.md navigation**:
+     - Add table of contents at top with links to each section
+     - Consider splitting into separate files per workflow type
+     - Or add section markers that are easier to search for
+     - Current length (608 lines) makes finding right section difficult
+
 <!-- Add suggestions for improving documentation, issue templates, or communication -->
 <!-- Format:
 - **Date**: YYYY-MM-DD
