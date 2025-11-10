@@ -305,14 +305,13 @@ Use this workflow when:
 
 Process modeling can be initiated in **two modes**:
 
-### Mode 1: Issue-Driven (Direct Proposal)
+### Mode 1: Single Improvement (Direct Proposal)
 
-**Create a GitHub Issue** using the "Workflow Improvements" issue template:
+**Create a GitHub Issue** using the "Workflow Improvement Suggestion" issue template:
 
 1. Go to GitHub Issues → New Issue
-2. Select **"Workflow Improvements"** template
-3. Select **"Issue-Driven"** mode
-4. Fill in:
+2. Select **"Workflow Improvement Suggestion"** template
+3. Fill in:
    - Which workflow(s) are affected
    - Current state and pain points
    - Proposed improvements
@@ -321,21 +320,240 @@ Process modeling can be initiated in **two modes**:
 
 The issue will invoke this Process Modeling Workflow with your specific proposal.
 
-### Mode 2: Backlog-Driven (Process Next Suggestion)
+**For @copilot executing single improvement mode:**
 
-**Create a GitHub Issue** using the "Workflow Improvements" issue template:
+Process the workflow improvement described in the issue:
+
+1. **Read the issue** to understand the improvement proposal
+2. **Update** `/research/workflow-modeling/plan.md` with:
+   - Issue number and title
+   - Which specific improvements you're addressing
+   - Expected workflow changes
+3. **Follow standard process modeling** (create scenarios, test, refine, etc.)
+4. **After completion**:
+   - Add one-line summary to `/research/workflow-modeling/history.md`
+   - Archive plan to `/research/workflow-modeling/archive/`
+   - Close the issue
+
+### Mode 2: Bulk Processing (Process Entire Queue)
+
+**Create a GitHub Issue** using the "Bulk Process Modeling" issue template:
 
 1. Go to GitHub Issues → New Issue
-2. Select **"Workflow Improvements"** template
-3. Select one of the backlog-driven modes:
-   - **Backlog-Driven - Single**: Process one entry (default)
-   - **Backlog-Driven - Multiple**: Process N entries (specify count)
-   - **Backlog-Driven - Smart**: Process multiple with intelligent stopping
-4. Assign to @copilot or mention @copilot in comments
+2. Select **"Bulk Process Modeling"** template
+3. Assign to @copilot or mention @copilot in comments
 
-**Backlog-Driven Mode Options:**
+The issue will trigger processing of ALL issues in the process modeling queue (all issues labeled with `workflow:process-modeling`).
 
-#### Single Item Mode (Default)
+**Bulk Mode Execution:**
+
+When assigned to a **Bulk Process Modeling** issue, follow this process:
+
+#### Step 1: Identify Bulk Mode
+
+Check if the assigned issue is a bulk process modeling request:
+- Title starts with `[Process Modeling] Bulk processing`
+- Body contains "Bulk Process Modeling Instructions for @copilot"
+- Explicitly requests processing entire process modeling queue
+
+If YES → Continue with bulk mode execution
+If NO → Follow single improvement mode (process only the assigned issue)
+
+#### Step 2: Setup - Add Date to Issue Title
+
+**Update the bulk process modeling issue title to include today's date** (if not already present):
+
+```python
+from datetime import datetime
+
+# Get current issue
+current_issue = issue_read(
+    method="get",
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=BULK_PROCESS_MODELING_ISSUE_NUMBER
+)
+
+# Check if date is already in title
+current_date = datetime.now().strftime("%Y-%m-%d")
+if current_date not in current_issue['title']:
+    # Append date to title
+    new_title = f"{current_issue['title']}{current_date}"
+    issue_write(
+        method="update",
+        owner="uniun-technology",
+        repo="lib-dataflow",
+        issue_number=BULK_PROCESS_MODELING_ISSUE_NUMBER,
+        title=new_title
+    )
+```
+
+**Why**: This ensures each bulk process modeling run has a unique, identifiable title for historical tracking.
+
+#### Step 3: Query and Filter Process Modeling Queue
+
+**Query the full process modeling queue**:
+```python
+issues = list_issues(
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    labels=["workflow:process-modeling"],
+    state="OPEN"
+)
+```
+
+**Filter out the bulk process modeling issue itself**:
+- Get the current issue number (the bulk process modeling issue)
+- Exclude it from the list of issues to process
+- Only process actual workflow improvements, not the coordination issue
+
+#### Step 4: Process Each Issue
+
+For each issue in the filtered queue:
+
+1. **Read the issue** to understand the improvement proposal
+2. **Assess** the improvement using standard process modeling approach
+3. **Create test scenarios** in `/research/workflow-modeling/scenarios/[workflow-name]/`
+4. **Execute tabletop simulations** to validate changes
+5. **Implement improvements** if validated
+6. **Update workflow documentation** as needed
+7. **Archive or revert scenarios** based on retention decision
+
+**Example iteration**:
+```python
+for issue in filtered_issues:
+    # Read issue
+    issue_data = issue_read(
+        method="get",
+        owner="uniun-technology",
+        repo="lib-dataflow",
+        issue_number=issue['number']
+    )
+    
+    # Process improvement using standard process modeling workflow
+    # Create scenarios, test, refine, implement
+    # ...
+    
+    # Close the improvement issue
+    issue_write(
+        method="update",
+        owner="uniun-technology",
+        repo="lib-dataflow",
+        issue_number=issue['number'],
+        state="closed"
+    )
+    
+    # Add completion comment
+    add_issue_comment(
+        owner="uniun-technology",
+        repo="lib-dataflow",
+        issue_number=issue['number'],
+        body="✅ **Implemented**\n\n[Description of changes made]\n\nThank you for the suggestion!"
+    )
+```
+
+#### Step 5: Track Progress
+
+**Update the bulk process modeling issue with progress summaries**:
+
+After every few issues (or when complete), add a progress comment:
+
+```python
+add_issue_comment(
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=BULK_PROCESS_MODELING_ISSUE_NUMBER,
+    body="""[Copilot-Workflow: Process Modeling] Progress Update
+
+**Processed**: 3 issues
+**Remaining**: 2 issues
+
+**Workflows Affected**:
+- Implementation Workflow: 2 improvements
+- Research Workflow: 1 improvement
+
+Continuing...
+"""
+)
+```
+
+#### Step 6: Complete and Close
+
+When all issues in the queue are processed:
+
+1. **Add final summary comment** to bulk process modeling issue:
+```python
+add_issue_comment(
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=BULK_PROCESS_MODELING_ISSUE_NUMBER,
+    body="""[Copilot-Workflow: Process Modeling] ✅ Bulk Process Modeling Complete
+
+**Total Issues Processed**: 5
+
+**Workflows Updated**:
+- Implementation Workflow (#124, #127, #131)
+- Research Workflow (#125)
+- Triage Workflow (#128)
+
+All workflow improvement issues in the queue have been processed.
+"""
+)
+```
+
+2. **Close the associated pull request** (if it exists):
+```python
+# Note: Bulk process modeling PR number typically matches issue number
+# The PR tracks the workflow documentation changes
+try:
+    update_pull_request(
+        owner="uniun-technology",
+        repo="lib-dataflow",
+        pullNumber=BULK_PROCESS_MODELING_ISSUE_NUMBER,
+        state="closed"
+    )
+except Exception as e:
+    # PR may not exist or already closed
+    pass
+```
+
+3. **Close the bulk process modeling issue**:
+```python
+issue_write(
+    method="update",
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=BULK_PROCESS_MODELING_ISSUE_NUMBER,
+    state="closed"
+)
+```
+
+#### Edge Cases
+
+**Empty Queue**:
+- If no improvement issues need processing (queue only contains the bulk process modeling issue)
+- Comment that queue is empty
+- Close the bulk process modeling issue immediately
+
+**Issues Needing More Context**:
+- If an improvement issue needs clarification, add a comment requesting it
+- Keep the issue in `workflow:process-modeling`
+- Note it in the bulk process modeling summary
+- Continue processing other issues
+
+**Errors or Blockers**:
+- If you encounter an issue you can't process (unclear, ambiguous)
+- Add a comment requesting help or clarification
+- Note it in the bulk process modeling summary
+- Continue with remaining issues
+
+---
+
+## Legacy: Feedback Issue Processing
+
+**Note**: The following sections describe processing feedback issues (sub-issues of the `[Workflow Feedback] Tracker` parent). This is a legacy mode that may still be used but is being phased out in favor of direct workflow improvement issues.
+
+### Single Item Mode (Legacy - Feedback Issues)
 
 Process exactly one feedback issue then close it.
 
@@ -458,7 +676,7 @@ Process exactly one feedback issue then close it.
 
 **Unsuccessful Improvements**: Close the issue even if improvements were not viable. Document why in the closing comment. This prevents the queue from getting stuck.
 
-#### Multiple Items Mode
+#### Multiple Items Mode (Legacy - Feedback Issues)
 
 Process a specific number of feedback issues (user specifies count).
 
@@ -496,9 +714,9 @@ Process a specific number of feedback issues (user specifies count).
 17. **Archive plan** to `/research/workflow-modeling/archive/` with summary of all items
 18. **Note in plan**: "Processed [count] items in multiple-items mode"
 
-#### Smart Mode (Recommended for Batch Processing)
+#### Smart Mode (Legacy - Feedback Issues - Recommended for Batch Processing)
 
-Process multiple entries with intelligent stopping criteria. Stops when max items reached, change volume threshold exceeded, or backlog exhausted.
+Process multiple feedback entries with intelligent stopping criteria. Stops when max items reached, change volume threshold exceeded, or backlog exhausted.
 
 **Default Thresholds** (configurable in issue description):
 
