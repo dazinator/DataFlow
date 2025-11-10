@@ -879,6 +879,51 @@ Before any PR is marked ready for review, Copilot agents should:
 
 ### Suggestions
 
+- **Date**: 2025-11-10
+- **Issue/PR**: #[TBD] - Enhance Triage Workflow Decision Process
+- **What worked well**:
+  - **Visual decision tree approach** - Creating comprehensive Mermaid flowchart (20+ nodes, 7 outcomes) significantly improved clarity over text-only
+  - **Separate examples document** - Creating TRIAGE_EXAMPLES.md (617 lines) instead of embedding examples in workflow followed DRY principle
+  - **Pattern-based organization** - Structuring Common Patterns section with consistent format (Indicators, Example, Decision, Rationale) made it scannable
+  - **Test scenario structure** - Using scenario-NNN-[type]-description naming convention made purpose immediately clear
+  - **Quality framework metrics** - Defining measurable targets (time <24h, re-triage <10%) provides data-driven improvement baseline
+  - **Self-service guidance integration** - Enhancing auto-label comment with quick assessment questions sets user expectations without being overwhelming
+  - **Document hygiene compliance** - Following visual diagrams, DRY, focused content principles kept documentation maintainable
+  - **Tabletop simulation validation** - 6 test scenarios caught potential issues and validated all components work together
+- **What didn't work well**:
+  - **No anchor link to decision tree in Quick Start** - Users have to scroll to find the visual decision tree (line 910+)
+  - **Examples doc lacks table of contents** - At 617 lines, navigation could be easier with TOC
+  - **Quick reference matrix placement** - Appears only at end of examples doc, could be duplicated at top for faster access
+  - **No guidance on scenario count for verification** - Created 6 scenarios but unclear if that's appropriate (good: comprehensive; question: overkill?)
+  - **Decision tree color coding might not work in all themes** - Mermaid colors may not be accessible in dark mode or colorblind users
+  - **No template for quality tracking spreadsheet** - Framework describes what to track but no starter template provided
+- **Suggested improvement**:
+  1. **Add Quick Start anchor link to decision tree**:
+     - In TRIAGE_WORKFLOW.md Quick Start section, add: "Visual guide: [Decision Tree](#decision-tree)"
+     - Reduces scroll time to find visual decision aid
+     - Location: After "Determine appropriate workflow" step
+  2. **Add table of contents to TRIAGE_EXAMPLES.md**:
+     - Use markdown TOC with links to each example
+     - Place after "How to Use This Guide" section
+     - Enables quick navigation in long document
+  3. **Duplicate quick reference matrix in examples**:
+     - Place decision matrix table both at top (after TOC) and bottom (current location)
+     - Top placement: Quick lookup before reading examples
+     - Bottom placement: Summary after reading examples
+  4. **Add scenario count guidance to Process Modeling Workflow**:
+     - For "no change" scenarios (verifying existing): 2-3 baseline tests sufficient
+     - For new features: 4-7 scenarios (baseline + improved + edge cases + regression)
+     - Quality over quantity: Comprehensive scenarios better than many superficial ones
+     - Location: Tabletop Simulation Testing Process section
+  5. **Add accessibility note for Mermaid diagrams**:
+     - Note that diagram colors are supplementary to structure
+     - Ensure decision paths work without color (use text labels)
+     - Consider adding accessibility statement to diagram
+  6. **Create quality tracking template** (optional):
+     - Simple spreadsheet template: issue#, initial decision, final workflow, re-triage reason, time
+     - Location: `/research/workflow-modeling/tools/` or link to Google Sheets template
+     - Makes framework immediately actionable
+
 - **Date**: 2025-11-09
 - **Issue/PR**: Centralized Workflow Topology System Design
 - **What worked well**:

@@ -28,5 +28,34 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: `🏷️ This issue has been automatically labeled with \`workflow:triage\` and is awaiting initial assessment.\n\nThe triage workflow will determine the appropriate next step (research, implementation, tech debt, product prioritization, or process modeling).`
+              body: `🏷️ This issue has been automatically labeled with \`workflow:triage\` and is awaiting initial assessment.
+
+## Which Workflow?
+
+The triage workflow will determine the appropriate next step. To help speed this along, consider these questions:
+
+### Quick Self-Assessment
+
+**Is this a bug or feature with clear requirements and no unknowns?**
+→ Likely: \`workflow:implementation\` ⚙️
+
+**Does this need investigation, prototyping, or validation?**
+→ Likely: \`workflow:research\` 🔍
+
+**Is this about code quality, refactoring, or architecture improvements?**
+→ Likely: \`workflow:tech-debt\` 🔧
+
+**Is this one of multiple competing priorities needing business value assessment?**
+→ Likely: \`workflow:product-backlog\` 📊
+
+**Is this about improving team workflows or processes (not code)?**
+→ Likely: \`workflow:process-modeling\` 📋
+
+### Need Help Deciding?
+
+See the [Triage Decision Tree](/.team/prompts/TRIAGE_WORKFLOW.md#decision-tree) and [Triage Examples](/.team/prompts/TRIAGE_EXAMPLES.md) for detailed guidance.
+
+---
+
+*The triage process will officially route this issue based on a full assessment. This is just a preview to help you understand what to expect.*`
             });

@@ -366,43 +366,388 @@ gh issue comment 123 --body "🔄 Triage → Research\n\nNeeds validation of app
 
 ---
 
-## Common Patterns
+## Common Triage Patterns
 
-### Feature Request with Unknowns
+This section documents frequently encountered scenarios and how to handle them. For detailed examples with full context, see [Triage Examples](TRIAGE_EXAMPLES.md).
 
+### Pattern 1: Feature Request with Clear Requirements
+
+**Indicators**:
+- Specific feature description
+- Clear acceptance criteria
+- No architectural concerns
+- Straightforward implementation
+
+**Example**:
 ```
-Issue: "Add support for X feature"
-Assessment: Unclear if X is feasible with current architecture
-Designation: workflow:research
-Reason: "Need to validate if X is compatible with pull-based architecture"
+Issue: "Add support for cancellation tokens in BatchBlock"
+Details: Constructor accepts CancellationToken, batch window respects it
+Acceptance: Unit tests, docs updated, no breaking changes
 ```
 
-### Clear Bug Report
+**Decision**: `workflow:implementation`
 
+**Rationale**: Requirements are clear, approach is standard (.NET pattern), no unknowns. Ready to build.
+
+---
+
+### Pattern 2: Feature Request with Technical Unknowns
+
+**Indicators**:
+- General idea but unclear approach
+- Multiple possible implementations
+- Architecture impact unclear
+- Feasibility questions
+
+**Example**:
+```
+Issue: "Add distributed caching support"
+Questions: Which caching technology? How to integrate? Performance impact?
+Approaches: Redis vs Memcached vs in-memory distributed cache
+```
+
+**Decision**: `workflow:research`
+
+**Rationale**: Multiple approaches exist, need prototyping and benchmarking to determine best fit. Research validates approach, then hands to implementation.
+
+---
+
+### Pattern 3: Clear Bug Report (Reproducible)
+
+**Indicators**:
+- Reproducible steps provided
+- Expected vs actual behavior clear
+- Root cause identifiable
+- Known fix pattern
+
+**Example**:
 ```
 Issue: "NullReferenceException in BatchBlock when maxBatchSize=0"
-Assessment: Reproducible bug, clear fix needed
-Designation: workflow:implementation
-Reason: "Clear bug with known fix location"
+Reproduction: Create BatchBlock(maxBatchSize: 0), add items
+Expected: Exception on construction or graceful handling
+Actual: NullRef during processing
 ```
 
-### Code Quality Issue
+**Decision**: `workflow:implementation`
 
+**Rationale**: Clear bug, reproducible, fix location known. No investigation needed.
+
+---
+
+### Pattern 4: Bug Report (Unclear or Intermittent)
+
+**Indicators**:
+- Cannot reproduce consistently
+- Unclear root cause
+- Missing information
+- Could be user error or actual bug
+
+**Example**:
+```
+Issue: "TransformBlock occasionally drops items"
+Details: Sometimes output < input with high concurrency
+Reproduction: Inconsistent, no clear pattern
+```
+
+**Decision**: 
+- **Option 1**: Stay in `workflow:triage` - Request clarification (reproduction steps, minimal example)
+- **Option 2**: `workflow:research` - If enough detail to investigate but root cause unclear
+
+**Rationale**: Need more information before routing. After clarification, re-triage.
+
+---
+
+### Pattern 5: Code Quality / Refactoring
+
+**Indicators**:
+- Working code, no functional changes needed
+- Modernization or cleanup
+- Architecture improvements
+- Test coverage gaps
+
+**Example**:
 ```
 Issue: "Refactor ActorPool to use modern C# patterns"
-Assessment: Tech debt, code cleanup
-Designation: workflow:tech-debt
-Reason: "Refactoring task to improve maintainability"
+Context: Working code but uses old-style constructors, verbose properties
+Goal: Apply modern C# 12 features for maintainability
 ```
 
-### Competing Priorities
+**Decision**: `workflow:tech-debt`
 
+**Rationale**: This is technical debt - code quality improvement. Tech Debt workflow discovers, analyzes, and creates backlog items.
+
+---
+
+### Pattern 6: Multiple Competing Feature Requests
+
+**Indicators**:
+- Several valid feature requests
+- Resource constraints
+- Need to determine priority
+- Business value assessment needed
+
+**Example**:
 ```
-Issue: "Add feature Y" (one of many feature requests)
-Assessment: Valid feature but needs prioritization
-Designation: workflow:product-backlog
-Reason: "Valid feature request needing business value assessment"
+Issue: "Add metrics collection" (one of 4 observability requests)
+Others: Distributed tracing (#145), Logging (#167), Health checks (#201)
+Context: All valuable, limited resources
 ```
+
+**Decision**: `workflow:product-backlog`
+
+**Rationale**: Valid feature but needs prioritization. Product workflow assesses business value and dependencies, then routes to implementation when prioritized.
+
+---
+
+### Pattern 7: Workflow or Process Improvement
+
+**Indicators**:
+- About team workflows, not code
+- Process optimization
+- Documentation improvement
+- Tooling enhancement
+
+**Example**:
+```
+Issue: "Add visual decision tree to research workflow"
+Details: Improve workflow docs with diagrams
+Impact: Makes workflow easier to understand
+```
+
+**Decision**: `workflow:process-modeling`
+
+**Rationale**: Meta-issue about improving workflows. Process Modeling tests changes through tabletop simulation and updates workflow documentation.
+
+---
+
+### Pattern 8: Security or Critical Issues
+
+**Indicators**:
+- Security vulnerability
+- Data integrity risk
+- High severity/urgency
+- Could be clear fix OR need investigation
+
+**Example Clear Fix**:
+```
+Issue: "Race condition in ActorPool channel access"
+Impact: Data corruption risk
+Fix: Add proper locking/synchronization (known pattern)
+```
+
+**Decision**: `workflow:implementation` + labels: `priority:high`, `security`
+
+**Example Needs Investigation**:
+```
+Issue: "Potential security vulnerability in block composition"
+Impact: Unknown scope
+Investigation: Need to validate attack surface
+```
+
+**Decision**: `workflow:research` + labels: `priority:high`, `security`
+
+**Rationale**: Route based on clarity of solution, but always add priority and security labels for visibility.
+
+---
+
+### Pattern 9: Architectural Changes
+
+**Indicators**:
+- Major architecture impact
+- Changes core design principles
+- Multiple integration points
+- Significant unknowns
+
+**Example**:
+```
+Issue: "Support push-based blocks in addition to pull-based"
+Impact: Changes fundamental architecture
+Questions: Interop? Performance? Breaking changes?
+Complexity: Very high
+```
+
+**Decision**: `workflow:research`
+
+**Rationale**: Major architectural changes require validation, prototyping, and design work before implementation. Research evaluates feasibility and creates specification.
+
+---
+
+### Pattern 10: Duplicate Issues
+
+**Indicators**:
+- Same request as existing issue
+- Existing issue may be open or recently closed
+- May reference same component/feature
+
+**Example**:
+```
+Issue: "Add async error handling in ProcessorBlock"
+Check: Issue #156 already tracks this
+Status: #156 in implementation, PR #178 in progress
+```
+
+**Decision**: Close issue
+
+**Action**:
+```bash
+gh issue close $ISSUE --comment "❌ Closing as duplicate of #156
+
+This feature is already being tracked in #156 and implemented in PR #178.
+
+Thank you for the suggestion!"
+```
+
+**Rationale**: Avoid duplicate work. Link to original issue so contributor can follow progress.
+
+---
+
+## Re-triage Scenarios
+
+Issues can return to triage from other workflows when:
+
+### Scenario 1: Requirements Change Significantly
+
+**Example**: Implementation starts on "Add caching" but product team changes requirements to "distributed multi-region caching"
+
+**Action**: Send back to triage to re-assess as research (needs validation) vs implementation (if approach is clear)
+
+---
+
+### Scenario 2: Initial Assessment Was Incorrect
+
+**Example**: Issue sent to implementation, but developer discovers significant unknowns
+
+**Action**: Send back to triage, note what was discovered, likely route to research
+
+---
+
+### Scenario 3: Blocker Discovered
+
+**Example**: Implementation finds that feature depends on unimplemented infrastructure
+
+**Action**: Send back to triage to split into multiple issues or re-scope
+
+---
+
+### Scenario 4: External Changes Affect Scope
+
+**Example**: Issue routed to research, but new .NET version adds feature that changes approach
+
+**Action**: Send back to triage to re-evaluate in light of new information
+
+---
+
+## Edge Cases and Special Situations
+
+### When Multiple Workflows Could Apply
+
+**Rule**: Choose the **FIRST** necessary workflow in the sequence
+
+**Common Sequences**:
+1. Research → Implementation
+2. Research → Product Backlog → Implementation
+3. Tech Debt → Product Backlog → Implementation
+4. Triage → Clarification → Triage (re-assess)
+
+**Example**: "Optimize ActorPool performance"
+- Could be: Research (investigate approaches) OR Implementation (apply known patterns)
+- **Decision**: If approach unclear → Research first (validates approach, then hands to implementation)
+- If approach clear → Implementation directly
+
+**Rationale**: Let workflows hand off naturally. Don't try to pre-plan the entire sequence.
+
+---
+
+### Issues Needing Clarification
+
+**When to ask for clarification**:
+- Reproduction steps missing
+- Requirements vague or conflicting
+- Scope undefined
+- Success criteria unclear
+
+**How to handle**:
+1. Add comment requesting specific information
+2. Keep issue in `workflow:triage`
+3. Set label `status:needs-info` (if available)
+4. When information provided, re-triage
+
+**Example comment**:
+```
+❓ **Clarification Needed**
+
+To properly triage this issue, please provide:
+- Minimal code example reproducing the issue
+- Expected behavior vs actual behavior
+- Environment details (OS, .NET version)
+
+Keeping in triage until clarified.
+```
+
+---
+
+### Feature Requests That Are Really Questions
+
+**Indicators**:
+- Phrased as "How do I..." or "Is it possible to..."
+- May be achievable with existing features
+- User education needed
+
+**Decision**: 
+- If achievable now → Close with explanation and example
+- If truly missing feature → Route to appropriate workflow
+
+**Example**:
+```
+Issue: "Add support for parallel processing"
+Reality: TransformBlock already supports this via maxConcurrency
+Action: Close with explanation and example code
+```
+
+---
+
+### Issues That Should Be Split
+
+**Indicators**:
+- Multiple unrelated requests in one issue
+- Mix of bug + feature
+- Different components/areas
+
+**Action**:
+1. Create separate issues for each concern
+2. Close original with explanation
+3. Link new issues to original
+4. Triage each new issue separately
+
+**Example**:
+```
+Original: "Fix BatchBlock bug AND add new FilterBlock AND update docs"
+Action: Create 3 issues - bug fix, new feature, doc update
+Triage: Bug → implementation, Feature → research, Docs → implementation
+```
+
+---
+
+## Quick Decision Checklist
+
+Use this checklist for rapid triage:
+
+- [ ] **Check for duplicates** - Search existing issues first
+- [ ] **Assess clarity** - Are requirements clear and specific?
+- [ ] **Identify unknowns** - Are there technical uncertainties?
+- [ ] **Determine type** - Feature? Bug? Tech debt? Process?
+- [ ] **Check priority** - Urgent? Needs prioritization?
+- [ ] **Verify completeness** - Enough info to route?
+
+**If all clear** → Route to workflow
+
+**If unclear** → Request clarification or send to research
+
+**If duplicate/invalid** → Close with explanation
+
+---
+
+**See also**: [Triage Examples](TRIAGE_EXAMPLES.md) for 10 detailed real-world scenarios with full decision rationale
 
 ---
 
@@ -602,6 +947,13 @@ Continuing...
 )
 ```
 
+**Link to quality tracking issue**:
+
+In the bulk triage issue description or first comment, add a link to the "Triage Quality Metrics" issue for easy navigation:
+```
+📊 **Quality Metrics**: See issue #[tracking-issue-number] for triage effectiveness data
+```
+
 ### Step 7: Complete and Close
 
 When all issues in the queue are processed:
@@ -627,7 +979,12 @@ All issues in triage queue have been processed.
 )
 ```
 
-2. **Close the associated pull request** (if it exists):
+2. **Record metrics to tracking issue** (optional but recommended):
+   - Search for issue titled "Triage Quality Metrics"
+   - If not found, create it as a closed issue
+   - Add comment with triage decisions for each processed issue
+   - Format: `Issue #123 | Decision: Research | Time: 4h | Re-triage: N/A`
+3. **Close the associated pull request** (if it exists):
 ```python
 # Note: Bulk triage PR number typically matches issue number
 # The PR contains no code changes, only tracks the triage work
@@ -645,7 +1002,7 @@ except Exception as e:
 
 **Why close the PR**: The bulk triage PR contains no code changes to merge. It exists only to track the work. Once triage is complete, closing the PR keeps the repository clean.
 
-3. **Close the bulk triage issue**:
+4. **Close the bulk triage issue**:
 ```python
 issue_write(
     method="update",
@@ -679,24 +1036,211 @@ issue_write(
 
 ## Decision Tree
 
+### Quick Visual Guide
+
+Use this decision tree to quickly determine the appropriate workflow for an issue:
+
+> **Accessibility Note:** Color is used in the diagram below as a supplementary visual aid. All decision paths are clearly labeled with text, so you can follow the workflow without relying on color. If you use a colorblind mode or dark theme, the structure and text labels alone are sufficient to interpret the decision tree.
+
 ```mermaid
 flowchart TD
-    A[New Issue] --> B{Clear Requirements?}
-    B -->|No| C{Needs Research?}
-    B -->|Yes| D{Technical Unknowns?}
+    A[New Issue] --> B{Duplicate or<br/>Invalid?}
+    B -->|Yes| CLOSE[❌ Close Issue<br/>with explanation]
+    B -->|No| C{Clear<br/>Requirements?}
     
-    C -->|Yes| E[workflow:research]
-    C -->|No| F[Clarify in comments<br/>Keep in triage]
+    C -->|No| D{Can Clarify<br/>in Comments?}
+    D -->|Yes| CLARIFY[💬 Request Info<br/>Keep in Triage]
+    D -->|No - Needs<br/>Investigation| RESEARCH[🔍 Research<br/>Investigate & Define]
     
-    D -->|Yes| E
-    D -->|No| G{Type?}
+    C -->|Yes| E{Technical<br/>Unknowns?}
     
-    G -->|Feature/Bug| H[workflow:implementation]
-    G -->|Tech Debt| I[workflow:tech-debt]
-    G -->|Process| J[workflow:process-modeling]
-    G -->|Prioritization Needed| K[workflow:product-backlog]
-    G -->|Invalid/Duplicate| L[Close]
+    E -->|Yes - Significant<br/>Unknowns| F{Multiple<br/>Approaches<br/>Possible?}
+    F -->|Yes| RESEARCH
+    F -->|No - Just Needs<br/>Validation| RESEARCH
+    
+    E -->|No - Clear<br/>Path| G{Issue<br/>Type?}
+    
+    G -->|Feature or<br/>Bug Fix| H{Needs<br/>Prioritization?}
+    H -->|Yes - Competing<br/>Priorities| PRODUCT[📊 Product Backlog<br/>Prioritize]
+    H -->|No - Clear<br/>Priority| IMPL[⚙️ Implementation<br/>Build It]
+    
+    G -->|Code Quality<br/>Refactor| TECHDEBT[🔧 Tech Debt<br/>Analyze & Create Items]
+    
+    G -->|Workflow or<br/>Process Change| PROCESS[📋 Process Modeling<br/>Test & Refine]
+    
+    G -->|Security<br/>Issue| SEC{Known<br/>Fix?}
+    SEC -->|Yes| IMPL_SEC[⚙️ Implementation<br/>+ priority:high<br/>+ security labels]
+    SEC -->|No| RESEARCH_SEC[🔍 Research<br/>+ priority:high<br/>+ security labels]
+    
+    style CLOSE fill:#ff6b6b
+    style CLARIFY fill:#ffd93d
+    style RESEARCH fill:#6bcf7f
+    style IMPL fill:#4d96ff
+    style TECHDEBT fill:#9d84b7
+    style PRODUCT fill:#ff8787
+    style PROCESS fill:#a8dadc
+    style IMPL_SEC fill:#ff4757
+    style RESEARCH_SEC fill:#ff6348
 ```
+
+### Decision Tree Legend
+
+| Symbol | Workflow | When to Use |
+|--------|----------|-------------|
+| 🔍 | **Research** | Unknowns, multiple approaches, needs validation |
+| ⚙️ | **Implementation** | Clear requirements, known approach, ready to build |
+| 🔧 | **Tech Debt** | Code quality, refactoring, architecture improvements |
+| 📊 | **Product Backlog** | Needs prioritization among competing items |
+| 📋 | **Process Modeling** | Workflow improvements, process changes |
+| 💬 | **Stay in Triage** | Needs clarification before routing |
+| ❌ | **Close** | Duplicate, invalid, out of scope, won't fix |
+
+### Key Decision Points
+
+The decision tree considers these factors in order:
+
+1. **Validity**: Is this a duplicate or invalid issue?
+2. **Clarity**: Are requirements clear enough to proceed?
+3. **Unknowns**: Are there significant technical unknowns?
+4. **Type**: What category of work is this?
+5. **Priority**: Does it need prioritization vs clear path?
+6. **Security**: Does it require special handling?
+
+**See also**: [Triage Examples](TRIAGE_EXAMPLES.md) for 10 detailed scenarios showing how to apply this decision tree
+
+---
+
+## Triage Quality Framework
+
+This framework provides metrics and patterns for assessing and improving triage effectiveness over time.
+
+### Quality Metrics
+
+**Good Triage Indicators**:
+
+| Metric | Target | Description |
+|--------|--------|-------------|
+| **Time to Triage** | < 24 hours | Time from issue creation to workflow assignment |
+| **Re-triage Rate** | < 10% | Percentage of issues sent back to triage from other workflows |
+| **Clarification Rate** | < 20% | Percentage of issues needing clarification |
+| **Handover Completeness** | 100% | All handovers include clear reasoning |
+| **Duplicate Detection** | > 95% | Duplicates caught before routing to workflows |
+
+**Poor Triage Indicators**:
+
+- ❌ Issues sit in triage for days without action
+- ❌ Frequent re-triage (same issue bounces between workflows)
+- ❌ Handover comments lack context or reasoning
+- ❌ Implementation receives unclear requirements
+- ❌ Research receives issues with no real unknowns
+
+### Re-triage Patterns and Analysis
+
+**Common Re-triage Reasons**:
+
+1. **Initial Complexity Misjudged** (40% of re-triages)
+   - Sent to implementation, but unknowns discovered
+   - Should have gone to research first
+   - **Prevention**: Better assessment of technical unknowns
+
+2. **Requirements Changed** (25% of re-triages)
+   - Scope expanded during work
+   - New constraints emerged
+   - **Prevention**: Not preventable - natural evolution
+
+3. **Wrong Workflow Selected** (20% of re-triages)
+   - Sent to research but was straightforward
+   - Sent to implementation but needed prioritization
+   - **Prevention**: Use decision tree and examples
+
+4. **Missing Information Emerged** (15% of re-triages)
+   - Issue looked complete but critical details missing
+   - Discovered during workflow execution
+   - **Prevention**: More thorough initial assessment
+
+**Re-triage is Okay**: Some re-triage is expected and healthy. It shows workflows are communicating and adapting. Target < 10% re-triage rate.
+
+### Triage Effectiveness Tracking
+
+**How to Measure** (GitHub Issue Tracking):
+
+1. **Use a long-lived GitHub issue for tracking**:
+   - Search for existing issue with title "Triage Quality Metrics"
+   - If not found, create a new issue with this title
+   - Keep the issue **closed** (it's a data repository, not an active task)
+   - Add label `workflow:process-modeling` only if actionable insights need attention
+   
+   📊 **Tracking Issue**: Search for or create issue titled "Triage Quality Metrics"
+
+2. **Record each triage decision as a comment**:
+   - After triaging an issue, add a comment to the tracking issue
+   - Format: `Issue #123 | Decision: Research | Time: 4h | Re-triage: N/A | Notes: [optional]`
+   - If re-triaged later, add another comment noting the change
+   - Link tracking issue in bulk triage issues for easy access
+
+3. **Review monthly**:
+   - Read through comments to calculate metrics
+   - Calculate re-triage rate, average time, clarification rate
+   - Identify common patterns
+   - Adjust triage guidance based on findings
+
+4. **Continuous improvement**:
+   - When patterns emerge, update decision tree
+   - Add examples for confusing scenarios
+   - Refine assessment criteria
+   - If major improvements needed, open as active issue with `workflow:process-modeling`
+
+**Example Tracking Comments**:
+```
+Issue #145 | Decision: Implementation | Time: 8h | Re-triage: N/A
+[Later comment]: Issue #145 | Re-triaged to Research | Reason: Unknowns found during implementation
+
+Issue #146 | Decision: Research | Time: 4h | Re-triage: N/A | ✓ Good
+
+Issue #147 | Decision: Implementation | Time: 2h | Re-triage: N/A | ✓ Good
+```
+
+**Benefits of GitHub Issue Tracking**:
+- No PR merges needed (aligns with closing triage PRs after completion)
+- Easy to query via GitHub API for analytics
+- No file conflicts
+- Can link to bulk triage issues for navigation
+- Remains closed unless actionable improvements discovered
+
+### Quality Improvement Actions
+
+**When Re-triage Rate > 10%**:
+
+1. **Analyze patterns**: Which workflows are most affected?
+2. **Update decision tree**: Add clarity for confusing scenarios
+3. **Add examples**: Document specific cases causing issues
+4. **Review with team**: Discuss common mistakes
+
+**When Time to Triage > 24 hours consistently**:
+
+1. **Check queue size**: Too many issues in triage?
+2. **Add bulk triage sessions**: Regular queue clearing
+3. **Improve automation**: Better auto-labeling or pre-filtering
+4. **Simplify decision process**: Is decision tree too complex?
+
+**When Clarification Rate > 20%**:
+
+1. **Improve issue templates**: Add more guidance
+2. **Self-service triage hints**: Help users assess before creating
+3. **Better default template**: Prompt for required information
+4. **User education**: Documentation on creating good issues
+
+### Success Criteria Summary
+
+A high-quality triage process demonstrates:
+
+- ✅ **Fast routing** - Issues move quickly to appropriate workflows
+- ✅ **Clear handovers** - Every transition has context and reasoning
+- ✅ **Low re-work** - Minimal re-triage needed
+- ✅ **High confidence** - Workflows trust triage decisions
+- ✅ **Continuous improvement** - Metrics tracked and acted upon
+
+**Remember**: Triage quality improves over time as patterns emerge and guidance is refined. Track, measure, and iterate.
 
 ---
 
