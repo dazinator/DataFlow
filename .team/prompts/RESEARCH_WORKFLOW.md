@@ -6,8 +6,23 @@
 
 **If you're a Copilot agent working on a research issue:**
 
+### Required Reading (Before Starting)
+
+**📖 Read these guides before tackling any research work:**
+
+**Workflow System** (Global - ALL workflows):
+- [Workflow Topology Guide](../../.github/docs/WORKFLOW_TOPOLOGY_GUIDE.md) - Querying issues, handover patterns, workflow states
+
+**Coding Standards & Patterns** (Required for POC/exploratory code):
+- [Getting Started Guide](../../.team/GETTING_STARTED.md) - C# style, async/await patterns, testing standards, common patterns
+
+**Package Management** (When exploring dependencies):
+- [Central Package Management Guide](../../.team/CENTRAL_PACKAGE_MANAGEMENT.md) - Adding new NuGet packages, resolving version conflicts
+- [NuGet Dependency Updates Guide](../../.team/NUGET_DEPENDENCY_UPDATES.md) - Updating packages, security fixes
+
+---
+
 ### DO (During Research):
-- ✅ **Read [Document Hygiene Guide](/.github/DOCUMENT_HYGIENE.md)** before creating/updating documentation
 - ✅ Create `/research/[topic]/` with research plan, findings, design docs
 - ✅ **Place ADRs in `/poc/docs/adr/` or `/src/docs/adr/`** (with the codebase they govern, NOT in research folder)
 - ✅ Write exploratory code in `/poc/` or `/src/` to validate approaches

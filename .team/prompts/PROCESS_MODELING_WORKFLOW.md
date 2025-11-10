@@ -1716,6 +1716,63 @@ For very long workflow files (600+ lines), consider navigation and structure:
 
 **Recommendation**: Use anchor links and good section structure rather than splitting files
 
+### Documentation Scoping Decisions
+
+When considering new documentation concepts or refactoring existing content, use the formal scoping framework:
+
+**📖 See [Documentation Scope Guide](../../.team/DOCUMENTATION_SCOPE_GUIDE.md)** for the complete decision framework.
+
+**Quick Decision Process:**
+
+1. **Determine Scope** - Ask these questions:
+   - Is this needed by ALL workflows? → Consider global (copilot-instructions.md)
+   - Is this needed by ONE workflow only? → Workflow-specific (that workflow's file)
+   - Is this needed by MULTIPLE workflows but not all? → Shared (.team/ document)
+
+2. **Check Size and Complexity**:
+   - Substantial content (>100 lines)? → Strong candidate for separate .team/ document
+   - Changes frequently? → Separate document easier to maintain
+   - Concise (<50 lines) and stable? → Can be inline
+
+3. **Determine Position Within File**:
+   - **Top third**: Critical warnings, must-read-first content
+   - **Middle third**: Main workflow steps and procedures
+   - **Bottom third**: Examples, reference material, links
+
+4. **Create Cross-References**:
+   - Add references in relevant workflow files (don't duplicate content)
+   - Use "Required Reading" or "See Also" sections
+   - Provide brief context about when to consult
+
+**Example Applications:**
+
+- **Self-Improvement Loop**: Global concept (ALL workflows)
+  - Kept in copilot-instructions.md
+  - All workflows complete evaluation before PR review
+  - True cross-cutting concern
+
+- **Central Package Management**: Shared concept (Implementation + Research only)
+  - Created `.team/CENTRAL_PACKAGE_MANAGEMENT.md`
+  - Replaced detailed content in copilot-instructions.md with brief reference
+  - Added to Implementation and Research "Related Guides" sections
+  - Not needed by Process Modeling, Triage, etc.
+
+- **Coding Standards**: Shared concept (Implementation + Research only)
+  - Kept in copilot-instructions.md (exception - concise and foundational)
+  - Only code-writing workflows need these
+  - Not needed by Process Modeling, Triage, etc.
+
+- **Tabletop Simulation**: Workflow-specific (Process Modeling only)
+  - Kept in PROCESS_MODELING_WORKFLOW.md
+  - Only Process Modeling uses this technique
+  - No benefit to separating
+
+**Why This Matters:**
+- Keeps copilot-instructions.md scannable and focused
+- Prevents content duplication across workflows
+- Makes updates easier (change once, affects multiple workflows)
+- Improves navigation and findability
+
 ### Design Document Template
 
 For complex multi-file changes, consider creating a design document first to think through the solution before implementing.

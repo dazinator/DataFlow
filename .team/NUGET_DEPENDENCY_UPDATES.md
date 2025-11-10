@@ -11,6 +11,8 @@ This guide provides best practices for updating NuGet package dependencies, espe
 - Resolving NuGet package dependency conflicts
 - Maintaining package compatibility across related dependencies
 
+**Related Guide**: For adding new packages or understanding the centralized package management system, see [Central Package Management Guide](/.team/CENTRAL_PACKAGE_MANAGEMENT.md).
+
 **Note**: This guide covers **NuGet package dependencies** only. For guidance on external runtime dependencies (databases, message queues, OTLP endpoints, etc.) required by sample applications, see:
 - Implementation Workflow: `.team/prompts/IMPLEMENTATION_WORKFLOW.md` (Step 0, Step 7)
 - Research Workflow: `.team/prompts/RESEARCH_WORKFLOW.md` (Phase 5)

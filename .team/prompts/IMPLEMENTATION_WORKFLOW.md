@@ -17,9 +17,23 @@ This workflow guides implementing solutions from research handovers or direct re
 - Example: `[Copilot-Workflow: Implementation] I've completed the first phase and tests are passing...`
 
 **Core Process**
-1. **Read [Document Hygiene Guide](/.github/DOCUMENT_HYGIENE.md)** if creating/updating documentation
-
 Follow steps below
+
+---
+
+## Required Reading (Before Starting)
+
+**📖 Read these guides before tackling implementation work:**
+
+**Workflow System** (Global - ALL workflows):
+- [Workflow Topology Guide](../../.github/docs/WORKFLOW_TOPOLOGY_GUIDE.md) - Querying issues, handover patterns, workflow states
+
+**Coding Standards & Patterns** (Required for code work):
+- [Getting Started Guide](../../.team/GETTING_STARTED.md) - C# style, async/await patterns, testing standards, common patterns
+
+**Package Management** (When working with dependencies):
+- [Central Package Management Guide](../../.team/CENTRAL_PACKAGE_MANAGEMENT.md) - Adding new NuGet packages, resolving version conflicts
+- [NuGet Dependency Updates Guide](../../.team/NUGET_DEPENDENCY_UPDATES.md) - Updating packages, security fixes
 
 ---
 
@@ -984,10 +998,20 @@ public static class TestActorFactory
 - Validation and testing approaches
 - Common scenarios and best practices
 
+**For adding new packages or central package management:**
+
+📖 **See [Central Package Management Guide](../../.team/CENTRAL_PACKAGE_MANAGEMENT.md)** for:
+- Adding new NuGet packages to the solution
+- Understanding centralized version management
+- Resolving "PackageVersion" build errors
+- .NET framework compatibility rules
+- Package organization and best practices
+
 **Quick reference for common tasks:**
 - Check for outdated packages: `dotnet list package --outdated`
 - Check for vulnerabilities: `dotnet list package --vulnerable`
-- See `.team/NUGET_DEPENDENCY_UPDATES.md` for detailed patterns
+- Add new package: Check `.team/CENTRAL_PACKAGE_MANAGEMENT.md`
+- Update packages: See `.team/NUGET_DEPENDENCY_UPDATES.md`
 
 ### Documentation Requirements
 
