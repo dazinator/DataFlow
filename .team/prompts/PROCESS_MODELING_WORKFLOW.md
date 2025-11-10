@@ -434,23 +434,21 @@ parent_sub_issues = issue_read(
 # This prevents re-processing or re-closing already-closed issues
 issues = [sub for sub in parent_sub_issues if sub.state == "open"]
 
-# Optional: Double verification (only if sub-issue state data may be stale)
-# Note: The initial filter above is typically reliable. Only use this additional
-# verification if you suspect stale data (e.g., due to caching or API lag).
-# Uncomment below if needed - adds one API call per issue.
-#
-# verified_open_issues = []
-# for issue in issues:
-#     issue_details = issue_read(
-#         method="get",
-#         owner="uniun-technology",
-#         repo="lib-dataflow",
-#         issue_number=issue.number
-#     )
-#     if issue_details.get('state') == 'open':
-#         verified_open_issues.append(issue)
-# 
-# issues = verified_open_issues
+# ⚠️ REQUIRED: Double verification to prevent re-closing already-closed issues
+# The get_sub_issues data may be stale or issues may be closed concurrently.
+# Always verify current state before processing.
+verified_open_issues = []
+for issue in issues:
+    issue_details = issue_read(
+        method="get",
+        owner="uniun-technology",
+        repo="lib-dataflow",
+        issue_number=issue.number
+    )
+    if issue_details.get('state') == 'open':
+        verified_open_issues.append(issue)
+
+issues = verified_open_issues
 ```
 
 **Why this approach**: 
@@ -459,7 +457,7 @@ issues = [sub for sub in parent_sub_issues if sub.state == "open"]
 - Catches feedback items that may be missing the `workflow:process-modeling` label
 - Matches the organizational structure documented in the feedback tracker
 - **Issue-title based lookup** - resilient to issue deletion/recreation (unlike hardcoded issue numbers)
-- **Double verification** - ensures closed issues are never processed or re-closed
+- **Required double verification** - prevents re-processing or re-closing already-closed issues (guards against stale data and concurrent operations)
 
 **Filter out the bulk process modeling issue itself**:
 - Get the current issue number (the bulk process modeling issue)
@@ -993,7 +991,22 @@ Process exactly one feedback issue then close it.
        issue_number=parent.number
    )
    
+   # Filter to open sub-issues
    open_children = [c for c in parent_data.children if c.state == "open"]
+   
+   # ⚠️ REQUIRED: Verify current state to prevent re-processing closed issues
+   verified_open = []
+   for child in open_children:
+       details = issue_read(
+           method="get",
+           owner="uniun-technology",
+           repo="lib-dataflow",
+           issue_number=child.number
+       )
+       if details.get('state') == 'open':
+           verified_open.append(child)
+   
+   open_children = verified_open
    ```
 
 2. **Select** the oldest open feedback issue (first by creation date)
