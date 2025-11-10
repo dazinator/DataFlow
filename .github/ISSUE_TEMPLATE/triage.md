@@ -12,22 +12,26 @@ assignees: ''
 
 @copilot **MUST** follow the Triage workflow in `/.team/prompts/TRIAGE_WORKFLOW.md` in **BULK MODE**.
 
+**Note**: @copilot will automatically append today's date to the issue title for tracking purposes.
+
 ### Bulk Triage Instructions for @copilot:
 
 When you see this bulk triage issue:
 
-1. **Query the triage queue** to get ALL issues with `workflow:triage` label
-2. **Exclude this bulk triage issue** from the list (only process other issues)
-3. **For each issue in the queue**:
+1. **Add today's date** to the issue title (if not already present)
+2. **Detect unlabeled issues** - find ALL open issues without any workflow label and add `workflow:triage` label
+3. **Query the triage queue** to get ALL issues with `workflow:triage` label
+4. **Exclude this bulk triage issue** from the list (only process other issues)
+5. **For each issue in the queue**:
    - Read and assess the issue
    - Determine appropriate workflow
    - Update workflow label
    - Add handover comment with reasoning
-4. **Track your progress** by updating this issue with a summary:
-   - Total issues processed
+6. **Track your progress** by updating this issue with a summary:
+   - Total issues processed (including newly labeled historic issues)
    - Breakdown by destination workflow
    - Any issues needing clarification
-5. **Close this issue** when all triage work is complete
+7. **Close this issue AND its PR** when all triage work is complete
 
 ### Expected Workflow Distribution
 
@@ -48,9 +52,11 @@ After bulk triage, issues should be distributed to:
 
 ## For @copilot: Execution Plan
 
-1. Query triage queue using MCP tools
-2. Process each issue sequentially
-3. Update this issue with progress after every 5 issues (or when complete)
-4. Close this issue when done
+1. Add today's date to issue title (if not present)
+2. Detect and label historic issues without workflow labels
+3. Query triage queue using MCP tools
+4. Process each issue sequentially
+5. Update this issue with progress after every 5 issues (or when complete)
+6. Close this issue AND its PR when done
 
-**See**: `.team/prompts/TRIAGE_WORKFLOW.md` for complete triage process.
+**See**: `.team/prompts/TRIAGE_WORKFLOW.md` for complete bulk triage process.

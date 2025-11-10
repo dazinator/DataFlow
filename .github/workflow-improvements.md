@@ -1144,3 +1144,45 @@ When reviewing workflow improvement suggestions:
 - **Issue/PR**: #[number]
 - **Improvement**: [description]
 - **Implemented in**: [PR or commit reference]
+
+---
+
+## Process Modeling Workflow Improvements
+
+### Suggestions
+
+- **Date**: 2025-11-10
+- **Issue/PR**: #246 - Bulk triage improvement (copilot/improve-bulk-triage-workflow)
+- **What worked well**:
+  - Scenario-first approach (creating 7 test scenarios before changes) validated design thoroughly
+  - Baseline vs improved pattern (testing current FAIL vs new PASS) made value proposition clear
+  - Alternative exploration (scenario-007 reuse approach) prevented more complex solution
+  - Process modeling workflow guidance was comprehensive and easy to follow
+  - Test scenario naming convention (001-baseline, 002-improved, 007-alternative) organized testing well
+  - Tabletop simulation caught potential issues before implementation
+  - MCP tool research enabled proper solution (discovered update_pull_request)
+  - Verbosity check guidance helped justify documentation growth
+  - Reset plan script automated cleanup perfectly
+- **What didn't work well**:
+  - No explicit guidance on how many scenarios to create (created 7, might have been overkill)
+  - Initially unclear which MCP tool to use for PR closure (required research)
+  - Manual issue analysis was time-consuming (counted 18 unlabeled issues by hand from 30-issue list)
+  - No template for "multi-improvement" scenarios (this issue had 3 improvements, created separate scenarios for each)
+  - Scenario revert timing unclear (reverted at end, but could have been done earlier)
+- **Suggested improvement**:
+  1. **Add Scenario Count Guidance to Process Modeling Workflow**:
+     - Simple improvements: 2-3 scenarios (1 baseline + 1-2 improved)
+     - Multi-improvement issues: 3-7 scenarios (baseline for each + improved + alternatives)
+     - Complex decision logic: 4-7 scenarios (per existing guidance)
+  2. **Add MCP Tool Discovery Section**:
+     - Document common MCP tools for process modeling (update_pull_request, issue_write, etc.)
+     - Provide quick reference for frequent operations
+     - Link to full MCP tool documentation
+  3. **Add Multi-Improvement Scenario Pattern**:
+     - When issue proposes multiple improvements, test each independently
+     - Use scenario naming: 001-baseline-[improvement-A], 002-improved-[improvement-A], 003-baseline-[improvement-B], etc.
+     - Or test all improvements together: 001-baseline-all, 002-improved-all
+  4. **Add Scenario Lifecycle Timing Guidance**:
+     - Clarify: "Revert scenarios after validation OR at completion (both acceptable)"
+     - Document trade-offs of each timing choice
+

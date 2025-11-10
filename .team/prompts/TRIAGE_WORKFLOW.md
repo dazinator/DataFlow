@@ -420,9 +420,106 @@ Check if the assigned issue is a bulk triage request:
 If YES → Continue with bulk mode execution
 If NO → Follow single issue mode (process only the assigned issue)
 
-### Step 2: Query and Filter
+### Step 2: Setup - Add Date to Issue Title
 
-**Query the full triage queue**:
+**Update the bulk triage issue title to include today's date** (if not already present):
+
+```python
+from datetime import datetime
+
+# Get current issue
+current_issue = issue_read(
+    method="get",
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=BULK_TRIAGE_ISSUE_NUMBER
+)
+
+# Check if date is already in title
+current_date = datetime.now().strftime("%Y-%m-%d")
+if current_date not in current_issue['title']:
+    # Append date to title
+    new_title = f"{current_issue['title']}{current_date}"
+    issue_write(
+        method="update",
+        owner="uniun-technology",
+        repo="lib-dataflow",
+        issue_number=BULK_TRIAGE_ISSUE_NUMBER,
+        title=new_title
+    )
+```
+
+**Why**: This ensures each bulk triage run has a unique, identifiable title for historical tracking.
+
+### Step 3: Detect Unlabeled Issues
+
+**Before querying the triage queue, find and label historic issues without workflow labels:**
+
+```python
+# Query ALL open issues
+all_issues = list_issues(
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    state="OPEN",
+    perPage=100
+)
+
+# Define workflow labels
+workflow_labels = [
+    'workflow:triage',
+    'workflow:research',
+    'workflow:implementation',
+    'workflow:tech-debt',
+    'workflow:product-backlog',
+    'workflow:process-modeling'
+]
+
+# Find issues without any workflow label
+unlabeled_count = 0
+for issue in all_issues['issues']:
+    # Skip the bulk triage issue itself
+    if issue['number'] == BULK_TRIAGE_ISSUE_NUMBER:
+        continue
+    
+    # Check if issue has any workflow label
+    issue_labels = [label['name'] for label in issue['labels']]
+    has_workflow_label = any(wf_label in issue_labels for wf_label in workflow_labels)
+    
+    if not has_workflow_label:
+        # Add workflow:triage label
+        issue_write(
+            method="update",
+            owner="uniun-technology",
+            repo="lib-dataflow",
+            issue_number=issue['number'],
+            labels=["workflow:triage"]
+        )
+        
+        # Add explanatory comment
+        add_issue_comment(
+            owner="uniun-technology",
+            repo="lib-dataflow",
+            issue_number=issue['number'],
+            body="[Copilot-Workflow: Triage] 🏷️ Added to triage queue (historic issue without workflow label)"
+        )
+        
+        unlabeled_count += 1
+
+# Log the result
+if unlabeled_count > 0:
+    add_issue_comment(
+        owner="uniun-technology",
+        repo="lib-dataflow",
+        issue_number=BULK_TRIAGE_ISSUE_NUMBER,
+        body=f"[Copilot-Workflow: Triage] 🔍 Found and labeled {unlabeled_count} historic issues without workflow labels"
+    )
+```
+
+**Why**: Historic issues created before the workflow topology system may not have any workflow label. This step ensures 100% coverage of the issue backlog.
+
+### Step 4: Query and Filter Triage Queue
+
+**Query the full triage queue** (now including newly labeled issues):
 ```python
 issues = list_issues(
     owner="uniun-technology",
@@ -437,7 +534,7 @@ issues = list_issues(
 - Exclude it from the list of issues to process
 - Only process actual issues needing triage, not the coordination issue
 
-### Step 3: Process Each Issue
+### Step 5: Process Each Issue
 
 For each issue in the filtered queue:
 
@@ -479,7 +576,7 @@ for issue in filtered_issues:
     )
 ```
 
-### Step 4: Track Progress
+### Step 6: Track Progress
 
 **Update the bulk triage issue with progress summaries**:
 
@@ -505,7 +602,7 @@ Continuing...
 )
 ```
 
-### Step 5: Complete and Close
+### Step 7: Complete and Close
 
 When all issues in the queue are processed:
 
@@ -530,7 +627,25 @@ All issues in triage queue have been processed.
 )
 ```
 
-2. **Close the bulk triage issue**:
+2. **Close the associated pull request** (if it exists):
+```python
+# Note: Bulk triage PR number typically matches issue number
+# The PR contains no code changes, only tracks the triage work
+try:
+    update_pull_request(
+        owner="uniun-technology",
+        repo="lib-dataflow",
+        pullNumber=BULK_TRIAGE_ISSUE_NUMBER,
+        state="closed"
+    )
+except Exception as e:
+    # PR may not exist or already closed
+    pass
+```
+
+**Why close the PR**: The bulk triage PR contains no code changes to merge. It exists only to track the work. Once triage is complete, closing the PR keeps the repository clean.
+
+3. **Close the bulk triage issue**:
 ```python
 issue_write(
     method="update",
