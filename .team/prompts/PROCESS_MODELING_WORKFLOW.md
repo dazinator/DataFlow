@@ -78,6 +78,98 @@ gh issue list \
 
 ---
 
+## ⚠️ CRITICAL: Exclusive Ownership of Workflow Files
+
+**Process Modeling workflow has EXCLUSIVE OWNERSHIP of all workflow-related files:**
+
+### Files Owned by Process Modeling
+
+- `.team/prompts/*_WORKFLOW.md` - All workflow documentation files
+- `.github/copilot-instructions.md` - Copilot agent instructions
+- `.github/ISSUE_TEMPLATE/*.md` - All issue templates
+- `.github/docs/WORKFLOW_TOPOLOGY_GUIDE.md` - Workflow system documentation
+- Any other process/workflow documentation
+
+### Why This Matters
+
+**Workflow files are NOT regular documentation** - they require:
+
+1. **Tabletop Simulation Testing**: Changes must be validated through realistic scenarios
+2. **Cross-Workflow Impact Analysis**: Updates often affect multiple workflows
+3. **Regression Testing**: Existing scenarios must continue to pass
+4. **Systematic Refinement**: Verbosity and redundancy must be checked
+5. **Quality Assurance**: Process modeling ensures consistency across all workflows
+
+### What This Means for Other Workflows
+
+**If you're in Implementation, Research, Tech Debt, or any other workflow:**
+
+❌ **NEVER directly update workflow files** - even if the issue description includes workflow file updates
+
+✅ **ALWAYS** create or handover to a Process Modeling issue for workflow changes
+
+**Example Scenario:**
+
+Your implementation issue says:
+```
+### Task 4: Update Workflow Documentation
+- Update Implementation Workflow with new pattern
+- Update Research Workflow with handover template
+```
+
+**Correct Response:**
+1. Complete the implementation work (code, tests, etc.)
+2. Create a separate Process Modeling issue for the workflow updates
+3. Document what workflow changes are needed and why
+4. Hand over that issue to process modeling workflow
+5. Complete your implementation PR WITHOUT the workflow file changes
+
+**Handover Pattern:**
+
+```python
+# Create process modeling issue
+issue_write(
+    method="create",
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    title="[Process Modeling] Update Workflow Docs for [Feature]",
+    labels=["workflow:process-modeling"],
+    body="""## Workflow Changes Needed
+
+**Discovered During**: Implementation issue #XXX
+
+**Reason**: Implemented [feature], workflows need updates to reference it
+
+**Files to Update**:
+- `.team/prompts/IMPLEMENTATION_WORKFLOW.md`
+- `.team/prompts/RESEARCH_WORKFLOW.md`
+
+**Proposed Changes**:
+1. Add section on [new pattern]
+2. Update handover template to include [new field]
+
+**Context**:
+[Detailed explanation of what was implemented and why workflows need updating]
+
+**References**:
+- Implementation PR: #XXX
+- Design doc: [path]
+"""
+)
+```
+
+### Exception: Small Typo Fixes
+
+**Minor typo fixes** (spelling, grammar) can be included in PRs IF:
+- Single word or punctuation fix per instance
+- No semantic or structural changes
+- Noted clearly in PR description
+- Applies per instance: if the same typo appears in multiple workflow files, create a Process Modeling issue for cross-file consistency
+
+All other changes → Process Modeling issue required.
+
+---
+
 ## Label Cleanup on Entry
 
 **⚠️ IMPORTANT**: Before starting process modeling work, check for and clean up conflicting workflow labels.

@@ -193,6 +193,13 @@ Before implementing, ask yourself:
 - [ ] Are edge cases documented?
 - [ ] Is the target codebase explicitly stated (POC/Production/Both)?
 
+**⚠️ Workflow File Check (CRITICAL):**
+- [ ] Does this issue include tasks to update workflow files?
+- [ ] Workflow files include: `.team/prompts/*_WORKFLOW.md`, `.github/copilot-instructions.md`, `.github/ISSUE_TEMPLATE/*.md`, `.github/docs/WORKFLOW_TOPOLOGY_GUIDE.md`
+- [ ] **Note**: For the complete and authoritative list of process modeling–owned workflow files, see the ownership section in `.github/copilot-instructions.md`
+- [ ] **If YES**: These tasks MUST be separated into a Process Modeling issue
+- [ ] **Action**: Create separate Process Modeling issue, remove workflow file tasks from implementation scope
+
 **Tech Debt Verification (if implementing tech debt item):**
 - [ ] Does backlog item include verification check?
 - [ ] Execute verification check to confirm tech debt still exists
@@ -226,6 +233,52 @@ Before implementing, ask yourself:
 4. **Add to workflow improvements** so future handovers improve
 
 **Example**: "Handover says migrate all benchmarks but doesn't specify baseline benchmarks. Decision: Archive baseline as historical artifacts since they document the 'before' state. Create `/research/.../archived-benchmarks/` with README."
+
+### Workflow File Updates - Separate to Process Modeling
+
+**If the implementation issue includes workflow file updates:**
+
+**❌ DO NOT update workflow files yourself** - even if the issue description lists them as tasks
+
+**✅ Create a separate Process Modeling issue** for workflow changes:
+
+```python
+# Create process modeling issue for workflow updates
+issue_write(
+    method="create",
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    title="[Process Modeling] Update Workflows for [Feature Name]",
+    labels=["workflow:process-modeling"],
+    body="""## Workflow File Updates Needed
+
+**Source**: Implementation issue #XXX
+
+**Reason**: Implemented [feature/fix], workflows need updates
+
+**Files to Update**:
+- `.team/prompts/IMPLEMENTATION_WORKFLOW.md` - [what needs updating]
+- `.team/prompts/RESEARCH_WORKFLOW.md` - [what needs updating]
+- `.github/copilot-instructions.md` - [what needs updating]
+
+**Proposed Changes**:
+[Describe what needs to be added/updated in each file]
+
+**Context**:
+[Explain what was implemented and why workflows need these updates]
+
+**References**:
+- Implementation PR: #XXX
+- Design docs: [paths]
+"""
+)
+```
+
+**Then complete your implementation WITHOUT the workflow file changes**
+
+**Why**: Workflow files require tabletop simulation testing, cross-workflow validation, and systematic refinement. Process Modeling workflow owns these files exclusively.
+
+See `.github/copilot-instructions.md` section "Workflow File Ownership" for complete details.
 
 ### Tech Debt Verification Example
 

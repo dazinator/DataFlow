@@ -55,6 +55,80 @@
 
 ---
 
+## ⚠️ CRITICAL: Workflow Labels and File Ownership
+
+### Supported Workflow Labels
+
+**⚠️ REQUIRED READING**: Before labeling any issues, you MUST read the authoritative label schema:
+
+**📖 [Workflow Topology Guide - Label Schema](/.github/docs/WORKFLOW_TOPOLOGY_GUIDE.md#label-schema)**
+
+**Critical Rules:**
+
+1. **ONLY use labels from the Label Schema** - do not invent new ones
+2. **Use exact format**: `workflow:<name>` with a colon (`:`) separator
+3. **One workflow label per issue** - issues have exactly ONE workflow label at a time
+
+**❌ Common Mistakes to Avoid:**
+- `workflow-implementation` ❌ (incorrect - use `workflow:implementation`)
+- `implementation-workflow` ❌ (incorrect - use `workflow:implementation`)
+- `workflow_implementation` ❌ (incorrect - use `workflow:implementation`)
+- Inventing new workflow labels not in the schema ❌
+
+**The Label Schema is the single source of truth** - always reference it before creating or updating issue labels.
+
+### Workflow File Ownership
+
+**⚠️ CRITICAL - Process Modeling Owns Workflow Files:**
+
+The following files are **EXCLUSIVELY OWNED** by the Process Modeling workflow:
+
+- `.team/prompts/*_WORKFLOW.md` (all workflow documentation files)
+- `.github/copilot-instructions.md` (this file)
+- `.github/ISSUE_TEMPLATE/*.md` (issue templates)
+- `.github/docs/WORKFLOW_TOPOLOGY_GUIDE.md` (workflow system docs)
+
+**If you're in ANY other workflow and encounter tasks involving these files:**
+
+1. ✅ **STOP** - Do not update these files yourself
+2. ✅ **Create or update a Process Modeling issue** for the changes needed
+3. ✅ **Hand over** to process modeling workflow
+4. ✅ **Document** what workflow changes are needed and why
+
+**Example Handover:**
+```python
+# Create process modeling issue for workflow changes
+issue_write(
+    method="create",
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    title="[Process Modeling] Update [Workflow Name] for [reason]",
+    labels=["workflow:process-modeling"],
+    body="""## Workflow Changes Needed
+
+**Discovered During**: [Implementation/Research/etc.] issue #XXX
+
+**Files to Update**:
+- `.team/prompts/[NAME]_WORKFLOW.md`
+- [other workflow files]
+
+**Changes Needed**:
+[Describe what needs to be updated and why]
+
+**Context**:
+[Explain the situation that revealed the need for these changes]
+"""
+)
+```
+
+**Why This Matters:**
+- Workflow files are tested through tabletop simulation
+- Changes need validation across all workflow scenarios
+- Process modeling ensures consistency and quality
+- Prevents workflow documentation from becoming fragmented or contradictory
+
+---
+
 ## Self-Improvement Loop
 
 **⚠️ CRITICAL**: Before marking ANY PR ready for review, you MUST complete the self-improvement evaluation.
