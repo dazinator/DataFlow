@@ -5,9 +5,19 @@
 **Start here based on your task:**
 
 **For New Issues (All Workflows):**
-- First check the issue's workflow label: `workflow:triage`, `workflow:research`, `workflow:implementation`, etc.
+
+**⚠️ CRITICAL - CHECK THE WORKFLOW LABEL FIRST:**
+- **ALWAYS check the issue's workflow label BEFORE doing any other analysis**
+- The workflow label (`workflow:triage`, `workflow:research`, `workflow:implementation`, etc.) **takes precedence over issue content**
+- **DO NOT** assume workflow type from issue description - the label is the authoritative source
+- **DO NOT** proceed without checking the label - this is your primary directive
 - Query your workflow queue to find assigned issues
 - See [Workflow Topology Guide](/.github/docs/WORKFLOW_TOPOLOGY_GUIDE.md) for querying and handover patterns
+
+**Comment Prefix Convention:**
+- Prefix ALL comments and responses with `[Copilot-Workflow: <workflow-name>]` to verify you've checked the label
+- Example: `[Copilot-Workflow: Research] I've analyzed the approach...`
+- This serves as confirmation that you followed the label-first directive
 
 **By Workflow Type:**
 

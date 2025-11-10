@@ -38,6 +38,10 @@ gh issue list \
 
 This workflow defines how to automatically prioritize the product backlog based on established policy criteria. It ensures that the most valuable and urgent work items are selected for implementation while maintaining a manageable active priority list.
 
+**⚠️ Comment Prefix Convention:**
+- Prefix ALL comments with `[Copilot-Workflow: Product Prioritization]` to confirm you're following this workflow
+- Example: `[Copilot-Workflow: Product Prioritization] I've analyzed the backlog and selected 5 items based on the prioritization policy...`
+
 ## When to Use This Workflow
 
 Use this workflow when:

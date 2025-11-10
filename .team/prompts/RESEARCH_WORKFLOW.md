@@ -58,6 +58,10 @@ Research in this repository supports two distinct outcomes:
 1. **Direct Integration**: Research leads to code and documentation that can be directly integrated into the codebase
 2. **Research-to-Implementation**: Research validates viability and produces a comprehensive GitHub issue for implementation assignment (this is the focus of this workflow)
 
+**⚠️ Comment Prefix Convention:**
+- Prefix ALL comments with `[Copilot-Workflow: Research]` to confirm you're following this workflow
+- Example: `[Copilot-Workflow: Research] I've validated the approach and documented findings in /research/...`
+
 ## Workflow Queue
 
 **Query issues designated to this workflow:**

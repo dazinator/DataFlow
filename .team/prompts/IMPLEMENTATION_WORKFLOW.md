@@ -12,6 +12,10 @@ This workflow guides implementing solutions from research handovers or direct re
 3. If not, create it for multi-phase work (see below)
 4. Check `.github/initiatives/active/` for relevant ongoing initiatives
 
+**⚠️ Comment Prefix Convention:**
+- Prefix ALL comments with `[Copilot-Workflow: Implementation]` to confirm you're following this workflow
+- Example: `[Copilot-Workflow: Implementation] I've completed the first phase and tests are passing...`
+
 **Core Process**
 1. **Read [Document Hygiene Guide](/.github/DOCUMENT_HYGIENE.md)** if creating/updating documentation
 

@@ -21,6 +21,10 @@ This workflow guides the initial assessment of new issues and designation to app
 3. Determine appropriate workflow
 4. Handover to designated workflow with comment
 
+**⚠️ Comment Prefix Convention:**
+- Prefix ALL comments with `[Copilot-Workflow: Triage]` to confirm you're following this workflow
+- Example: `[Copilot-Workflow: Triage] After reviewing this issue, I recommend...`
+
 ---
 
 ## Step 1: Query Triage Queue

@@ -8,6 +8,10 @@
 
 This workflow is a specialized variant of the Research Workflow for systematically improving and refining team workflows and processes. Like other research workflows, process modeling produces **documentation and refined workflows**, not direct code merges (except for workflow documentation updates).
 
+**⚠️ Comment Prefix Convention:**
+- Prefix ALL comments with `[Copilot-Workflow: Process Modeling]` to confirm you're following this workflow
+- Example: `[Copilot-Workflow: Process Modeling] I've created test scenarios and am ready to run tabletop simulations...`
+
 ### DO (During Process Modeling):
 - ✅ **Read [Document Hygiene Guide](../DOCUMENT_HYGIENE.md)** before creating/updating documentation
 - ✅ Use the long-lived `/research/workflow-modeling/` folder for all process modeling work

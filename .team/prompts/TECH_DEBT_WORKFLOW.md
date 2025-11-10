@@ -72,6 +72,10 @@ gh issue list \
 
 Tech debt discovery is the systematic process of identifying improvement opportunities in a codebase. This workflow enables Copilot agents to comprehensively analyze code quality, developer experience, and maintenance burden, then present findings for review and selective implementation.
 
+**⚠️ Comment Prefix Convention:**
+- Prefix ALL comments with `[Copilot-Workflow: Tech Debt]` to confirm you're following this workflow
+- Example: `[Copilot-Workflow: Tech Debt] I've completed the analysis and created backlog items for all findings...`
+
 ## When to Use This Workflow
 
 Use this workflow when:
