@@ -335,7 +335,7 @@ Process the workflow improvement described in the issue:
    - Archive plan to `/research/workflow-modeling/archive/`
    - Close the issue
 
-### Mode 2: Bulk Processing (Process Entire Queue)
+### Mode 2: Bulk Processing (Progressive Processing)
 
 **Create a GitHub Issue** using the "Bulk Process Modeling" issue template:
 
@@ -343,7 +343,18 @@ Process the workflow improvement described in the issue:
 2. Select **"Bulk Process Modeling"** template
 3. Assign to @copilot or mention @copilot in comments
 
-The issue will trigger processing of ALL issues in the process modeling queue (all issues labeled with `workflow:process-modeling`).
+The issue will trigger **progressive processing** of the process modeling queue (issues labeled with `workflow:process-modeling`).
+
+**⚠️ Important - Progressive Processing:**
+
+Bulk mode uses **progressive processing** to handle large backlogs realistically:
+
+- **Always processes at least 1 item** (ensures continuous progress)
+- **Continues processing while PR < 200 lines** (keeps PRs small)
+- **Requests confirmation at 200-400 lines** (moderate PR size)
+- **Stops at 400+ lines** (prevents overwhelming PRs)
+
+**For large backlogs (20+ items)**: Expect multiple bulk processing sessions. Each creates a reviewable PR (200-400 lines), then a new bulk issue continues with remaining items.
 
 **Bulk Mode Execution:**
 
@@ -578,50 +589,127 @@ processing_queue.sort(key=lambda x: (x[0], -datetime.fromisoformat(x[1]).timesta
 # Now process in order...
 ```
 
-#### Step 4: Process Each Issue
+#### Step 4: Process Each Issue with Progressive Processing
 
-For each issue in the filtered queue:
+**⚠️ CRITICAL - Progressive Processing Approach:**
 
-1. **Read the issue** to understand the improvement proposal
-2. **Assess** the improvement using standard process modeling approach
-3. **Create test scenarios** in `/research/workflow-modeling/scenarios/[workflow-name]/`
-4. **Execute tabletop simulations** to validate changes
-5. **Implement improvements** if validated
-6. **Update workflow documentation** as needed
-7. **Archive or revert scenarios** based on retention decision
+Bulk mode uses **progressive processing** to make continuous progress without creating overwhelming PRs:
 
-**Example iteration**:
-```python
-for issue in filtered_issues:
-    # Read issue
-    issue_data = issue_read(
-        method="get",
-        owner="uniun-technology",
-        repo="lib-dataflow",
-        issue_number=issue['number']
-    )
-    
-    # Process improvement using standard process modeling workflow
-    # Create scenarios, test, refine, implement
-    # ...
-    
-    # Close the improvement issue
-    issue_write(
-        method="update",
-        owner="uniun-technology",
-        repo="lib-dataflow",
-        issue_number=issue['number'],
-        state="closed"
-    )
-    
-    # Add completion comment
-    add_issue_comment(
-        owner="uniun-technology",
-        repo="lib-dataflow",
-        issue_number=issue['number'],
-        body="✅ **Implemented**\n\n[Description of changes made]\n\nThank you for the suggestion!"
-    )
+**Progressive Processing Rules:**
+
+1. **Always process at least 1 item** - Never stop without processing at least one feedback item
+2. **Check PR size after each item** - Use `git diff --stat` to measure changes
+3. **Continue if small** - If PR < 200 lines, process another item
+4. **Stop at moderate size** - If PR reaches 200-400 lines, request confirmation before continuing
+5. **Hard stop at large** - Stop at 400+ lines, finalize PR for review
+
+**Why this approach:**
+- Ensures continuous progress (always processes ≥1 item)
+- Keeps PRs reviewable (200-400 line sweet spot)
+- Allows incremental processing of large backlogs
+- Prevents unrealistic "process everything" expectations
+
+**Line Counting:**
+```bash
+# After processing each item, check total PR size
+git diff --stat origin/main | tail -1
+# Example: "5 files changed, 187 insertions(+), 43 deletions(-)"
+# Total lines = 187 + 43 = 230 lines
 ```
+
+**What to count:**
+- ✅ Workflow documentation (`.team/prompts/*.md`)
+- ✅ Issue templates (`.github/ISSUE_TEMPLATE/*.md`)
+- ✅ Copilot instructions (`.github/copilot-instructions.md`)
+- ❌ Test scenario files (`scenarios/*.md`) - these get reverted
+
+**For each issue in the filtered queue:**
+
+1. **Before processing each item (including the first), check stopping conditions. The first item is always processed (minimum guarantee):**
+   
+   ```python
+   # Get current PR size
+   import subprocess
+   result = subprocess.run(
+       ['git', 'diff', '--stat', 'origin/main'],
+       capture_output=True, text=True
+   )
+   # Parse insertions + deletions from last line
+   # Format: "X files changed, Y insertions(+), Z deletions(-)"
+   
+   # Decision tree:
+   if items_processed == 0:
+       # Guarantee at least one item is processed (always process the first item)
+       process_next = True
+   elif total_lines < 200:
+       # PR still small, continue
+       process_next = True
+   elif total_lines < 400:
+       # Moderate size - request confirmation
+       add_issue_comment(
+           owner="uniun-technology",
+           repo="lib-dataflow",
+           issue_number=BULK_PROCESS_MODELING_ISSUE_NUMBER,
+           body=f"""[Copilot-Workflow: Process Modeling] ⚠️ **Confirmation Needed**
+
+**Progress so far:**
+- Items processed: {items_processed}
+- PR size: ~{total_lines} lines changed
+- Remaining items: {len(remaining_issues)}
+
+**Next item:** #{next_issue.number} - {next_issue.title}
+
+PR is approaching reviewable limit (400 lines). 
+
+**Options:**
+1. Reply "continue" to process next item
+2. Reply "stop" to finalize PR now for review
+
+What would you like to do?"""
+       )
+       # Wait for user response
+       process_next = False  # Pause for confirmation
+   else:
+       # PR too large, stop
+       process_next = False
+   ```
+
+2. **If stopping, finalize and close** (see Step 6: Partial Completion Pattern)
+
+3. **If continuing, process the next item:**
+   
+   a. **Read the issue** to understand the improvement proposal
+   b. **Assess** the improvement using standard process modeling approach
+   c. **Create test scenarios** in `/research/workflow-modeling/scenarios/[workflow-name]/`
+   d. **Execute tabletop simulations** to validate changes
+   e. **Implement improvements** if validated
+   f. **Update workflow documentation** as needed
+   g. **Archive or revert scenarios** based on retention decision
+   h. **Track metrics:**
+      ```python
+      items_processed += 1
+      # Update total_lines from git diff --stat
+      ```
+
+4. **Close the improvement issue:**
+   ```python
+   issue_write(
+       method="update",
+       owner="uniun-technology",
+       repo="lib-dataflow",
+       issue_number=issue['number'],
+       state="closed"
+   )
+   
+   add_issue_comment(
+       owner="uniun-technology",
+       repo="lib-dataflow",
+       issue_number=issue['number'],
+       body="✅ **Implemented**\n\n[Description of changes made]\n\nThank you for the suggestion!"
+   )
+   ```
+
+5. **Loop back** to step 1 (check stopping conditions for next item)
 
 #### Step 5: Track Progress
 
@@ -648,9 +736,13 @@ Continuing...
 )
 ```
 
-#### Step 6: Complete and Close
+#### Step 6: Complete and Close (Full or Partial)
 
-When all issues in the queue are processed:
+Bulk mode supports **two completion patterns**: full completion (all items processed) and partial completion (stopped due to PR size limits).
+
+##### Pattern A: Full Completion
+
+**When**: All issues in the queue have been processed
 
 1. **Add final summary comment** to bulk process modeling issue:
 ```python
@@ -667,28 +759,12 @@ add_issue_comment(
 - Research Workflow (#125)
 - Triage Workflow (#128)
 
-All workflow improvement issues in the queue have been processed.
+**Status**: ✅ All workflow improvement issues in the queue have been processed.
 """
 )
 ```
 
-2. **Close the associated pull request** (if it exists):
-```python
-# Note: Bulk process modeling PR number typically matches issue number
-# The PR tracks the workflow documentation changes
-try:
-    update_pull_request(
-        owner="uniun-technology",
-        repo="lib-dataflow",
-        pullNumber=BULK_PROCESS_MODELING_ISSUE_NUMBER,
-        state="closed"
-    )
-except Exception as e:
-    # PR may not exist or already closed
-    pass
-```
-
-3. **Close the bulk process modeling issue**:
+2. **Close the bulk process modeling issue**:
 ```python
 issue_write(
     method="update",
@@ -698,6 +774,63 @@ issue_write(
     state="closed"
 )
 ```
+
+3. **Mark PR ready for review** - Complete self-improvement evaluation and request code review
+
+##### Pattern B: Partial Completion
+
+**When**: Stopped due to PR size reaching 200-400 lines, or user declined to continue
+
+**Partial completion is a valid outcome** - it allows incremental progress on large backlogs without overwhelming reviewers.
+
+1. **Add partial completion comment** to bulk process modeling issue:
+```python
+add_issue_comment(
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=BULK_PROCESS_MODELING_ISSUE_NUMBER,
+    body=f"""[Copilot-Workflow: Process Modeling] ⏸️ Partial Completion
+
+**Items Processed**: {items_processed} of {total_in_queue}
+**PR Size**: ~{total_lines} lines changed
+**Stopping Reason**: {reason}
+
+**Completed Items**:
+{list_of_completed_items}
+
+**Remaining Items** ({remaining_count}):
+{list_of_remaining_items}
+
+**Recommendation**: 
+- This PR is ready for review ({total_lines} lines)
+- After merge, create new bulk processing issue for remaining {remaining_count} items
+- Progressive processing ensures reviewable PR sizes while making continuous progress
+
+**Next Steps**:
+1. Review and merge this PR
+2. Create new bulk processing issue: `[Process Modeling] Bulk processing - [next-date]`
+3. Continue processing remaining items in next batch
+"""
+)
+```
+
+2. **Keep bulk process modeling issue open** for tracking:
+```python
+# Add label to indicate partial completion
+issue_write(
+    method="update",
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=BULK_PROCESS_MODELING_ISSUE_NUMBER,
+    labels=["workflow:process-modeling", "partial-completion"]
+)
+```
+
+3. **Mark PR ready for review** - Complete self-improvement evaluation and request code review
+
+4. **After PR merges, close the bulk process modeling issue:**
+   - Close it manually or via PR description `Fixes #ISSUE_NUMBER`
+   - Reviewer can create new bulk processing issue for remaining items
 
 #### Edge Cases
 
@@ -717,6 +850,51 @@ issue_write(
 - Add a comment requesting help or clarification
 - Note it in the bulk process modeling summary
 - Continue with remaining issues
+
+**Large Backlog (20+ items)**:
+- Use progressive processing (process at least 1 item, continue until PR reaches 200-400 lines)
+- Expect multiple bulk processing sessions to clear large backlogs
+- Each session creates a reviewable PR (200-400 lines)
+- This is **intentional** - prevents unrealistic expectations of processing 20+ items in one massive PR
+- After each PR merges, create new bulk processing issue for next batch
+
+**User Confirmation Timeout**:
+- If waiting for user confirmation (PR at 200-400 lines) and no response within reasonable time
+- Finalize PR with partial completion
+- Document stopping reason: "Waiting for confirmation, finalizing for review"
+
+#### Self-Improvement Timing for Bulk Mode
+
+**When to complete self-improvement evaluation in bulk mode:**
+
+Unlike single-item mode where self-improvement happens after processing each individual issue, **bulk mode self-improvement evaluation happens at the END** of the bulk processing session (full or partial completion).
+
+**Why:**
+- Bulk mode feedback reflects on the **triage and progressive processing workflow itself**, not individual improvements
+- Evaluates: Was progressive processing effective? Did the stopping criteria work well? Was PR size manageable?
+- Avoids creating feedback issues in the middle of processing
+
+**What to evaluate:**
+
+1. **Progressive Processing Effectiveness:**
+   - Did the line thresholds (200/400) work well?
+   - Were stopping points reasonable?
+   - Did "always process at least 1 item" rule help?
+
+2. **Triage Process:**
+   - Were triage rules clear and helpful?
+   - Did priority assignment work well?
+   - Any edge cases not covered?
+
+3. **Workflow Clarity:**
+   - Were bulk mode instructions clear?
+   - Any missing guidance or confusion?
+   - What could be improved?
+
+**When to create feedback issue:**
+- After finalizing PR (full or partial completion)
+- Before marking PR ready for review
+- Reflects on entire bulk session, not individual items
 
 ---
 

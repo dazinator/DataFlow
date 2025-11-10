@@ -1,6 +1,6 @@
 ---
 name: Bulk Process Modeling
-about: Trigger bulk processing of all issues in the process modeling queue
+about: Trigger progressive processing of the process modeling queue
 title: '[Process Modeling] Bulk processing - '
 labels: ['workflow:process-modeling']
 assignees: ''
@@ -8,31 +8,49 @@ assignees: ''
 
 ## ⚠️ IMPORTANT: Bulk Process Modeling Mode
 
-**This is a BULK PROCESS MODELING issue for processing multiple workflow improvement issues at once.**
+**This is a BULK PROCESS MODELING issue for progressive processing of workflow improvement issues.**
 
 @copilot **MUST** follow the Process Modeling workflow in `/.team/prompts/PROCESS_MODELING_WORKFLOW.md` in **BULK MODE**.
 
 **Note**: @copilot will automatically append today's date to the issue title for tracking purposes.
+
+### Progressive Processing Approach
+
+Bulk mode uses **progressive processing** to handle large backlogs realistically:
+
+- ✅ **Always processes at least 1 item** (ensures continuous progress)
+- ✅ **Continues while PR < 200 lines** (keeps PRs small and reviewable)
+- ⚠️ **Requests confirmation at 200-400 lines** (moderate PR size)
+- 🛑 **Stops at 400+ lines** (prevents overwhelming PRs)
+
+**For large backlogs (20+ items)**: Expect multiple bulk processing sessions. Each creates a reviewable PR (200-400 lines), then create a new bulk issue for remaining items.
 
 ### Bulk Process Modeling Instructions for @copilot:
 
 When you see this bulk process modeling issue:
 
 1. **Add today's date** to the issue title (if not already present)
-2. **Query the process modeling queue** to get ALL issues with `workflow:process-modeling` label
-3. **Exclude this bulk process modeling issue** from the list (only process other issues)
-4. **For each issue in the queue**:
+2. **Query the process modeling queue** from the feedback tracker (structure-based query)
+3. **Exclude this bulk process modeling issue** from the list (only process workflow improvements)
+4. **Use progressive processing:**
+   - Always process at least 1 item (minimum progress guarantee)
+   - Check PR size after each item using `git diff --stat`
+   - Continue if PR < 200 lines
+   - Request confirmation if PR reaches 200-400 lines
+   - Stop at 400+ lines for review
+5. **For each item processed:**
    - Read and assess the workflow improvement
    - Create test scenarios in `/research/workflow-modeling/scenarios/`
    - Execute tabletop simulations
    - Implement validated improvements
    - Update workflow documentation
    - Archive or revert test scenarios as appropriate
-5. **Track your progress** by updating this issue with a summary:
-   - Total issues processed
-   - Workflows affected
-   - Key improvements made
-6. **Close this issue AND its PR** when all process modeling work is complete
+6. **Track your progress** with updates to this issue
+7. **Complete (full or partial):**
+   - **Full completion**: All items processed → close this issue
+   - **Partial completion**: PR size reached 200-400 lines → keep issue open with `partial-completion` label
+   - Create feedback issue for self-improvement evaluation
+   - Mark PR ready for review
 
 ### Expected Processing Approach
 
@@ -42,7 +60,7 @@ Follow the standard Process Modeling workflow for each improvement:
 - Document results
 - Refine based on feedback
 - Update workflow files
-- Archive plan and scenarios
+- Track PR size progressively
 
 ### Queue Status
 
@@ -51,12 +69,15 @@ Follow the standard Process Modeling workflow for each improvement:
 
 ---
 
-## For @copilot: Execution Plan
+## For @copilot: Progressive Processing Plan
 
 1. Add today's date to issue title (if not present)
-2. Query process modeling queue using MCP tools
-3. Process each improvement sequentially
-4. Update this issue with progress summaries
-5. Close this issue AND its PR when done
+2. Query process modeling queue using structure-based approach
+3. Process items progressively (1 minimum, continue while PR < 200 lines)
+4. Request confirmation at 200-400 lines
+5. Stop at 400+ lines
+6. Update this issue with progress summaries
+7. Complete with full or partial completion pattern
+8. Create self-improvement feedback at end
 
-**See**: `.team/prompts/PROCESS_MODELING_WORKFLOW.md` for complete process modeling workflow.
+**See**: `.team/prompts/PROCESS_MODELING_WORKFLOW.md` - Mode 2: Bulk Processing for complete instructions.
