@@ -18,7 +18,10 @@ When a new workflow improvement issue is assigned:
 
 ## Recent Completion
 
-**Last Completed**: 2025-11-10 - Workflow Template Separation
+**2025-11-10** - Bulk Processing Smart Mode  
+**See Archive**: `/research/workflow-modeling/archive/2025-11-10-bulk-processing-smart-mode.md`
+
+**2025-11-10** - Workflow Template Separation  
 **See Archive**: `/research/workflow-modeling/archive/2025-11-10-workflow-template-separation.md`
 
 ## Archive

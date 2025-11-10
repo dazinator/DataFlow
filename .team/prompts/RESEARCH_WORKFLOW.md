@@ -439,6 +439,268 @@ Based on research findings, create supporting documentation alongside the resear
 [Benchmarks that should be included in implementation]
 ```
 
+#### Approach Analysis Guidance
+
+When evaluating multiple approaches during research, use one of these documentation patterns:
+
+**Option A: Separate Documents + Comparison Matrix** (Recommended for 3+ approaches)
+- Create separate document for each approach in `/research/[topic]/design/`
+  - `approach-A-[name].md` - Detailed analysis of approach A
+  - `approach-B-[name].md` - Detailed analysis of approach B  
+  - `approach-C-[name].md` - Detailed analysis of approach C
+- Create comparison matrix in main README or separate `comparison.md`:
+
+```markdown
+| Criterion | Approach A | Approach B | Approach C |
+|-----------|-----------|-----------|-----------|
+| Performance | Fast (10ms) | Slow (100ms) | Medium (30ms) |
+| Complexity | Low | High | Medium |
+| Maintainability | High | Low | Medium |
+| **Recommendation** | ✅ **Recommended** | ❌ Not viable | ⚠️ Fallback option |
+```
+
+**Benefits**:
+- Thorough analysis of each approach
+- Easy to compare side-by-side
+- Works well for complex evaluations
+- Clear recommendation emerges from data
+
+**Option B: Single Comparison Document** (Recommended for 2 approaches)
+- Create one document with embedded analysis: `approach-comparison.md`
+- Include sections for each approach with inline comparison
+
+```markdown
+# Approach Comparison: [Topic]
+
+## Approach A: [Name]
+[Detailed analysis]
+
+**Pros**: ...
+**Cons**: ...
+
+## Approach B: [Name]
+[Detailed analysis]
+
+**Pros**: ...
+**Cons**: ...
+
+## Recommendation
+Based on analysis: **Approach A** because...
+```
+
+**Benefits**:
+- Simpler for binary choices
+- Less overhead for straightforward comparisons
+- Easier to read linearly
+
+**Choosing the Right Pattern**:
+- **3+ approaches** → Option A (separate docs + matrix)
+- **2 approaches** → Option B (single comparison doc)
+- **When in doubt** → Start with Option A, can always consolidate later
+
+#### Prototyping Scope Guidance
+
+Match prototype scope to your research questions. Choose the appropriate level based on what you need to validate:
+
+**1. Minimal POC (Proof of Concept)**
+- **Purpose**: Feasibility validation - "Is this even possible?"
+- **Scope**: Bare minimum code to prove approach works
+- **Time**: Hours to 1-2 days
+- **Example**: Quick script showing API integration works
+- **When to use**:
+  - Evaluating technical feasibility
+  - Testing if library/framework supports needed features
+  - Validating architectural assumption
+
+**2. Working Prototype**
+- **Purpose**: Performance and integration validation - "Is it fast enough? Does it integrate well?"
+- **Scope**: Functional implementation with realistic data/scenarios
+- **Time**: 2-5 days
+- **Example**: Functional component with benchmarks and integration tests
+- **When to use**:
+  - Performance is a key concern
+  - Testing integration with existing systems
+  - Validating end-to-end workflows
+  - Need concrete data for decision-making
+
+**3. Production-Ready**
+- **Purpose**: Adoption validation - "Can users actually use this?"
+- **Scope**: Polished, documented, tested implementation
+- **Time**: 1-2 weeks
+- **Example**: Complete feature with error handling, tests, documentation
+- **When to use**:
+  - Research validates that implementation can proceed immediately
+  - Code can be kept (not reverted) and merged directly
+  - Provides immediate value (e.g., test helpers, utilities)
+
+**Decision Framework**:
+
+| Research Question | Prototype Scope |
+|-------------------|----------------|
+| "Can we do X with library Y?" | Minimal POC |
+| "Is approach A faster than B?" | Working Prototype |
+| "Should we add this test helper?" | Production-Ready |
+| "How complex is integration?" | Working Prototype |
+| "Is this technically feasible?" | Minimal POC |
+
+**Default**: Start with **Minimal POC**. Upgrade to Working or Production-Ready only if research questions require it. Avoid over-engineering prototypes that will be reverted.
+
+#### Benchmark Documentation Template
+
+When performance validation is part of research, document benchmarks systematically:
+
+**Template** (save in `/research/[topic]/benchmarks/[scenario-name].md`):
+
+```markdown
+# Benchmark: [Scenario Name]
+
+## Objective
+[What are you measuring? Why does it matter?]
+
+## Test Environment
+- **Machine**: [CPU, RAM, OS details]
+- **Runtime**: [.NET version, JVM version, etc.]
+- **Test Date**: YYYY-MM-DD
+- **Conditions**: [Warm/cold start, concurrent load, etc.]
+
+## Patterns Tested
+
+### Pattern A: [Name]
+```[language]
+// Code snippet showing what was tested
+```
+
+### Pattern B: [Name]
+```[language]
+// Code snippet showing what was tested
+```
+
+## Results
+
+| Pattern | Metric 1 | Metric 2 | Metric 3 |
+|---------|----------|----------|----------|
+| Pattern A | 15ms | 1.2MB | 95% |
+| Pattern B | 45ms | 0.8MB | 87% |
+
+## Analysis
+[Interpretation of results. What do the numbers mean? Which pattern wins? Under what conditions?]
+
+**Winner**: Pattern A because...
+
+**Trade-offs**: Pattern A uses more memory but is 3x faster...
+
+## Assessment
+- ✅ **Recommendation**: Use Pattern A for high-throughput scenarios
+- ⚠️ **Caveat**: Pattern B may be better for memory-constrained environments
+- 📊 **Data Quality**: High confidence (1000 iterations, <5% variance)
+
+## References
+- Code: `/research/[topic]/handover/prototype/benchmark-code.cs`
+- Raw data: `results.csv`
+```
+
+**Benchmark Types**:
+- **Microbenchmarks**: Isolated operations (use BenchmarkDotNet for .NET)
+- **Integration benchmarks**: End-to-end workflows with realistic data
+- **Stress tests**: Performance under load/concurrency
+- **Memory profiling**: Allocation patterns and GC pressure
+
+**When to Skip Benchmarks**:
+- ❌ Not performance-sensitive (developer tools, configuration, etc.)
+- ❌ Performance is obviously acceptable (milliseconds for rare operations)
+- ❌ Prototype is Minimal POC only (feasibility, not performance)
+
+**When Benchmarks Are Required**:
+- ✅ Core library performance (data processing, algorithms)
+- ✅ Comparing multiple approaches where performance differs
+- ✅ Validating performance requirements (e.g., "must process 10k items/sec")
+
+#### Hybrid Approach Analysis Pattern
+
+When research reveals that combining multiple approaches works best, document the hybrid strategy:
+
+**Hybrid Approach Template**:
+
+```markdown
+# Hybrid Approach: [Name]
+
+## Strategy Overview
+[Brief explanation of how approaches are combined]
+
+Example: "Use simple polling (Approach A) for low-frequency scenarios (<10/min) and event-driven coordination (Approach B) for high-frequency scenarios (>100/min)."
+
+## Component Approaches
+
+### Approach A: [Name] - [When Used]
+- **Use case**: [Specific conditions]
+- **Benefits**: [Why it's good for this case]
+- **Limitations**: [Why it doesn't work for all cases]
+
+### Approach B: [Name] - [When Used]
+- **Use case**: [Specific conditions]
+- **Benefits**: [Why it's good for this case]
+- **Limitations**: [Why it doesn't work for all cases]
+
+## Decision Criteria
+
+**When to use Approach A**:
+- Condition 1: [e.g., load < threshold]
+- Condition 2: [e.g., simplicity required]
+
+**When to use Approach B**:
+- Condition 1: [e.g., load > threshold]
+- Condition 2: [e.g., performance critical]
+
+**How to decide**: [Runtime decision logic or configuration-based selection]
+
+## Phased Adoption (If Applicable)
+
+**Phase 1: Foundation (Simple)**
+- Implement Approach A only
+- Covers 80% of use cases
+- Lower risk, faster delivery
+- **Deliverable**: Working solution for common scenarios
+
+**Phase 2: Optimization (Advanced)**
+- Add Approach B for high-performance cases
+- Covers remaining 20% edge cases
+- Higher complexity but necessary for scale
+- **Deliverable**: Full hybrid implementation
+
+**Phase Transition Criteria**:
+- Move to Phase 2 when: [e.g., "user reports performance issues" or "load exceeds 100/min"]
+- Can operate indefinitely on Phase 1 if: [e.g., "performance requirements met"]
+
+## Implementation Complexity
+
+| Aspect | Approach A Only | Approach B Only | Hybrid |
+|--------|----------------|----------------|--------|
+| Lines of Code | 200 | 500 | 400 |
+| Test Complexity | Low | High | Medium |
+| Maintenance | Easy | Hard | Medium |
+| Performance | Good | Excellent | Excellent |
+
+**Recommendation**: [Hybrid | Phase 1 Only | Phase 2 after validation]
+
+**Rationale**: [Why hybrid is worth the added complexity]
+
+## References
+- Approach A prototype: `/research/[topic]/handover/prototype/approach-a/`
+- Approach B prototype: `/research/[topic]/handover/prototype/approach-b/`
+- Benchmark comparison: `/research/[topic]/benchmarks/hybrid-comparison.md`
+```
+
+**When to Use Hybrid**:
+- ✅ Different approaches excel in different scenarios
+- ✅ Single approach has unacceptable trade-offs
+- ✅ Phased adoption reduces risk
+- ✅ Runtime conditions can inform approach selection
+
+**When to Avoid Hybrid**:
+- ❌ Adds complexity without clear benefit
+- ❌ Single approach meets all requirements
+- ❌ Decision criteria are unclear or hard to determine
+
 ### Phase 5: Create Product Backlog Item
 
 The primary deliverable: a comprehensive product backlog item that enables implementation team to work from the product backlog system.
