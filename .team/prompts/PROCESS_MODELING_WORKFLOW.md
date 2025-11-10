@@ -285,7 +285,7 @@ This ensures both issues close when PR merges.
 
 Process modeling is the systematic process of improving team workflows and processes through iterative testing and refinement. This workflow enables Copilot agents to understand workflow pain points, propose improvements, test them through tabletop simulation, and refine based on feedback.
 
-**📝 Terminology Note**: Workflow feedback is now tracked as child issues under the `[Workflow Feedback] Tracker` parent issue. This replaced the previous `.github/workflow-improvements.md` file.
+**📝 Terminology Note**: Workflow feedback is now tracked as child issues under the `[Workflow Feedback] Tracker` parent issue. This replaced the previous `.github/workflow-improvements.md` file. See [Workflow Feedback Tracker Guide](/.github/docs/WORKFLOW_FEEDBACK_TRACKER.md) for complete details.
 
 ## When to Use This Workflow
 
@@ -390,21 +390,47 @@ if current_date not in current_issue['title']:
 
 **Why**: This ensures each bulk process modeling run has a unique, identifiable title for historical tracking.
 
-#### Step 3: Query and Filter Process Modeling Queue
+#### Step 3: Query Process Modeling Queue from Feedback Tracker
 
-**Query the full process modeling queue**:
+**Query feedback items from the parent tracker** (structure-based approach):
+
+**See**: [Workflow Feedback Tracker Guide](/.github/docs/WORKFLOW_FEEDBACK_TRACKER.md) for complete documentation on how the feedback tracker works.
+
 ```python
-issues = list_issues(
+# Find the feedback tracker parent issue by title
+tracker_results = search_issues(
     owner="uniun-technology",
     repo="lib-dataflow",
-    labels=["workflow:process-modeling"],
-    state="OPEN"
+    query='"[Workflow Feedback] Tracker" in:title state:open'
 )
+
+if not tracker_results or len(tracker_results) == 0:
+    raise ValueError("Feedback tracker parent issue not found. Expected issue with title '[Workflow Feedback] Tracker'")
+
+tracker_issue = tracker_results[0]
+
+# Query sub-issues from the feedback tracker parent
+parent_sub_issues = issue_read(
+    method="get_sub_issues",
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=tracker_issue.number
+)
+
+# Filter to open sub-issues only
+issues = [sub for sub in parent_sub_issues if sub.state == "open"]
 ```
+
+**Why this approach**: 
+- **Structure-based** (sub-issue relationship) vs label-based query
+- More robust - relationship is established when feedback issue is created
+- Catches feedback items that may be missing the `workflow:process-modeling` label
+- Matches the organizational structure documented in the feedback tracker
+- **Issue-title based lookup** - resilient to issue deletion/recreation (unlike hardcoded issue numbers)
 
 **Filter out the bulk process modeling issue itself**:
 - Get the current issue number (the bulk process modeling issue)
-- Exclude it from the list of issues to process
+- Exclude it from the list of issues to process if it happens to be linked to tracker
 - Only process actual workflow improvements, not the coordination issue
 
 #### Step 3.5: Triage Feedback Backlog (Optional - Use for Large Backlogs)

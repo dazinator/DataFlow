@@ -133,6 +133,60 @@ add_issue_comment(
 
 ---
 
+## Feedback Item Label Validation (Bulk Mode Only)
+
+**When**: During bulk triage mode, after label cleanup
+
+**Purpose**: Ensure feedback items linked to the tracker parent have proper workflow labels
+
+**See**: [Workflow Feedback Tracker Guide](/.github/docs/WORKFLOW_FEEDBACK_TRACKER.md) for complete documentation on the feedback tracker system.
+
+### Check for Unlabeled Feedback Items
+
+When processing issues in bulk mode:
+
+1. **For each unlabeled issue** (no workflow label at all):
+   - Check if it's linked as a sub-issue to the "[Workflow Feedback] Tracker" parent
+   - If yes: This is a feedback item that's missing its label
+
+2. **Find the feedback tracker parent**:
+   ```python
+   # Find tracker by title (robust against issue deletion/recreation)
+   tracker_results = search_issues(
+       owner="uniun-technology",
+       repo="lib-dataflow",
+       query='"[Workflow Feedback] Tracker" in:title state:open'
+   )
+   
+   if tracker_results and len(tracker_results) > 0:
+       tracker_issue_number = tracker_results[0].number
+   ```
+
+3. **Add the missing label**:
+   ```python
+   # Add workflow:process-modeling label to feedback item
+   issue_write(
+       method="update",
+       owner="uniun-technology",
+       repo="lib-dataflow",
+       issue_number=ISSUE_NUMBER,
+       labels=["workflow:process-modeling"]
+   )
+   
+   add_issue_comment(
+       owner="uniun-technology",
+       repo="lib-dataflow",
+       issue_number=ISSUE_NUMBER,
+       body="[Copilot-Workflow: Triage] 🏷️ Label added: This feedback item was linked to the tracker but missing its `workflow:process-modeling` label. Label has been applied."
+   )
+   ```
+
+4. **Skip triage** for this issue - it's already designated to process modeling workflow
+
+**Why this check**: Feedback items are sometimes created and linked to the tracker parent without labels being applied. This validation ensures they're visible to the bulk process modeling workflow, which queries sub-issues from the tracker parent.
+
+---
+
 ## Multi-Phase Issue Check
 
 **⚠️ ALWAYS**: Check if this issue is part of a multi-phase plan before starting triage work.

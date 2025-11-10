@@ -1,5 +1,20 @@
 # GitHub Copilot Instructions for DataFlow
 
+## Critical Infrastructure
+
+**⚠️ Read First - Workflow Feedback Tracker:**
+
+The **[Workflow Feedback Tracker](/.github/docs/WORKFLOW_FEEDBACK_TRACKER.md)** is a required parent issue that consolidates all workflow improvement suggestions. 
+
+- **Title**: `[Workflow Feedback] Tracker` (exact - do not change)
+- **Purpose**: Central hub for continuous workflow improvement
+- **Usage**: All workflows create feedback issues under this parent after completing work
+- **Resilience**: If deleted, recreate with exact same title - workflows find it automatically
+
+See [Workflow Feedback Tracker Guide](/.github/docs/WORKFLOW_FEEDBACK_TRACKER.md) for complete details.
+
+---
+
 ## Quick Navigation
 
 **Start here based on your task:**
@@ -156,6 +171,7 @@ issue_write(
    - Should issue templates be updated?
 
 5. **Create Feedback Issue**:
+   - See [Workflow Feedback Tracker Guide](/.github/docs/WORKFLOW_FEEDBACK_TRACKER.md) for complete details
    - Find the feedback tracker: Search for `[Workflow Feedback] Tracker` issue
    - Create child feedback issue with evaluation
    - **IMPORTANT**: Fill in all required fields (Date, Issue/PR, Workflow) - issues missing context may be deprioritized during triage
@@ -207,6 +223,8 @@ sub_issue_write(
     sub_issue_id=child.id
 )
 ```
+
+**See**: [Workflow Feedback Tracker Guide](/.github/docs/WORKFLOW_FEEDBACK_TRACKER.md) for complete documentation on how the feedback system works.
 
 **Note on Triage**: Feedback issues are periodically triaged (see `.team/prompts/PROCESS_MODELING_WORKFLOW.md` Step 3.5). Issues missing critical context (date, issue/PR, specific improvements) may be deprioritized or closed. Ensure your feedback is actionable and well-documented.
 
@@ -655,5 +673,6 @@ When suggesting code changes, ensure AGPL-3.0 compatibility.
 - Production code: `/src/` (consult specific README files)
 
 **Process Improvements:**
+- See [Workflow Feedback Tracker Guide](/.github/docs/WORKFLOW_FEEDBACK_TRACKER.md) for complete details
 - Create feedback issue under `[Workflow Feedback] Tracker` parent issue
 - Self-improvement evaluation required before PR review

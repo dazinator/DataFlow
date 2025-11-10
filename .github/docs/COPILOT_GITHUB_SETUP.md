@@ -140,7 +140,75 @@ gh label create "bug" \
   --color "D73A4A" --force
 ```
 
-### 5. Verify Configuration
+### 5. Create Required Parent Issues
+
+Create parent tracker issues that workflows depend on:
+
+#### Workflow Feedback Tracker
+
+**Complete Documentation**: See [Workflow Feedback Tracker Guide](./WORKFLOW_FEEDBACK_TRACKER.md) for comprehensive details on purpose, usage, and integration.
+
+**Required for**: Process Modeling workflow (bulk processing mode)
+
+Create an issue with the following details:
+
+- **Title**: `[Workflow Feedback] Tracker` (exact - workflows search by this title)
+- **Label**: `workflow:process-modeling`
+- **Body**: See template below
+
+**Why this is required**: The Process Modeling workflow queries sub-issues from this parent to find feedback items. The title is used for dynamic lookup, making the system resilient to issue deletion/recreation.
+
+**Template**:
+```markdown
+# Workflow Feedback Tracker
+
+This issue tracks feedback and improvement suggestions for all workflows.
+
+Each suggestion is tracked as a child issue below. **Open children = not yet addressed**.
+
+## How This Works
+
+1. **Workflow agents** create child feedback issues under this parent after completing work
+2. **Process Modeling workflow** processes open children using standard process modeling methodology
+3. **Closed children** = implemented improvements
+
+See [Process Modeling Workflow](/.team/prompts/PROCESS_MODELING_WORKFLOW.md) for details.
+
+## Providing Feedback
+
+When completing work on an issue:
+
+1. Search for this parent issue: `[Workflow Feedback] Tracker`
+2. Create child issue with your feedback
+3. Link child to this parent using `sub_issue_write` MCP tool
+
+## Query Open Feedback
+
+**For Process Modeling**:
+
+```python
+# Find parent tracker by title
+tracker_results = search_issues(
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    query='"[Workflow Feedback] Tracker" in:title state:open'
+)
+
+# Get open children from parent
+if tracker_results and len(tracker_results) > 0:
+    parent = issue_read(
+        method="get_sub_issues",
+        owner="uniun-technology",
+        repo="lib-dataflow",
+        issue_number=tracker_results[0].number
+    )
+    open_children = [c for c in parent if c.state == "open"]
+```
+```
+
+**Automation**: This issue can be created manually or via script. The key is maintaining the exact title for workflow lookups.
+
+### 6. Verify Configuration
 
 Test that Copilot agents can interact with GitHub issues:
 
