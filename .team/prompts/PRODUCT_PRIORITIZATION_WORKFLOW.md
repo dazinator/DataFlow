@@ -34,6 +34,50 @@ gh issue list \
 
 ---
 
+## Label Cleanup on Entry
+
+**⚠️ IMPORTANT**: Before starting prioritization work, check for and clean up conflicting workflow labels.
+
+### Workflow Label Validation
+
+When you start work on an issue in this workflow:
+
+1. **Check the issue's labels** for any workflow labels
+2. **Identify conflicts**: If the issue has MULTIPLE workflow labels (e.g., both `workflow:product-backlog` AND `workflow:triage`)
+3. **Determine correct label**: 
+   - If you were assigned to this issue via the product backlog queue, `workflow:product-backlog` is correct
+   - If the issue has another workflow label in addition to `workflow:product-backlog`, that's label pollution
+4. **Remove conflicting labels**: Remove any workflow label that is NOT `workflow:product-backlog`
+5. **Add cleanup comment** noting what was corrected
+
+### Label Cleanup Example
+
+**For Copilot Agents** (use MCP tools):
+
+```python
+# Example: Issue has both workflow:product-backlog and workflow:triage labels
+issue_write(
+    method="update",
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=ISSUE_NUMBER,
+    labels=["workflow:product-backlog"]  # Only keep the correct label
+)
+
+add_issue_comment(
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=ISSUE_NUMBER,
+    body="[Copilot-Workflow: Product Prioritization] 🏷️ Label cleanup: Removed conflicting `workflow:triage` label. This issue is correctly in the product backlog workflow."
+)
+```
+
+**Why this matters**: Issues should have exactly ONE workflow label at a time. Multiple labels create confusion about which workflow owns the issue.
+
+**When to skip**: If the issue only has `workflow:product-backlog` label (no conflicts), proceed directly to prioritization work.
+
+---
+
 ## Overview
 
 This workflow defines how to automatically prioritize the product backlog based on established policy criteria. It ensures that the most valuable and urgent work items are selected for implementation while maintaining a manageable active priority list.

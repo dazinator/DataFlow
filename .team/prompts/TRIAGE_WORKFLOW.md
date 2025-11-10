@@ -10,16 +10,54 @@ This workflow guides the initial assessment of new issues and designation to app
 
 **Entry Point**: Issues automatically labeled with `workflow:triage` when created.
 
-**Typical Duration**: 5-15 minutes per issue
+**Typical Duration**: 5-15 minutes per issue (single mode) or 30-90 minutes (bulk mode)
+
+---
+
+## Triage Modes
+
+The triage workflow supports two modes:
+
+### Single Issue Mode (Default)
+
+**When to use**: You're assigned to a specific issue that needs triage
+
+**Behavior**:
+- Process the assigned issue only
+- Assess and designate to appropriate workflow
+- Stop after completing this one issue
+
+### Bulk Triage Mode
+
+**When to use**: You're assigned to a "Bulk Triage" issue created from the `triage.md` template
+
+**Behavior**:
+- Query ALL issues with `workflow:triage` label
+- Exclude the bulk triage issue itself
+- Process each issue in the queue sequentially
+- Update the bulk triage issue with progress summaries
+- Continue until queue is empty
+- Close the bulk triage issue when complete
+
+**How to identify bulk mode**:
+- Issue title starts with `[Triage] Bulk triage`
+- Issue body contains "Bulk Triage Instructions for @copilot"
+- Issue explicitly requests processing the entire triage queue
 
 ---
 
 ## Quick Start
 
-1. Query issues in triage queue
-2. Read and assess each issue
-3. Determine appropriate workflow
-4. Handover to designated workflow with comment
+**Single Issue Mode**:
+1. Read and assess the assigned issue
+2. Determine appropriate workflow
+3. Handover to designated workflow with comment
+
+**Bulk Triage Mode**:
+1. Query all issues in triage queue
+2. For each issue: read, assess, and handover
+3. Update bulk triage issue with summary
+4. Close bulk triage issue when done
 
 **⚠️ Comment Prefix Convention:**
 - Prefix ALL comments with `[Copilot-Workflow: Triage]` to confirm you're following this workflow
@@ -48,6 +86,50 @@ gh issue list \
   --state open \
   --json number,title,url,createdAt
 ```
+
+---
+
+## Label Cleanup (Before Starting Triage)
+
+**⚠️ IMPORTANT**: Before triaging issues, check for and clean up conflicting workflow labels.
+
+### Workflow Label Validation
+
+When you start triage work (whether single-issue or bulk mode):
+
+1. **For each issue you're about to triage**, check its labels for workflow conflicts
+2. **Identify conflicts**: If an issue has MULTIPLE workflow labels (e.g., both `workflow:triage` AND `workflow:implementation`)
+3. **Determine correct label**: 
+   - If the issue is in the triage queue awaiting assessment, `workflow:triage` is correct
+   - If it has another workflow label, that suggests it was already triaged but the label wasn't removed
+4. **Remove conflicting labels**: Remove any workflow label that is NOT `workflow:triage`
+5. **Add cleanup comment** noting what was corrected
+
+### Label Cleanup Example
+
+**For Copilot Agents** (use MCP tools):
+
+```python
+# Example: Issue has both workflow:triage and workflow:implementation labels
+issue_write(
+    method="update",
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=ISSUE_NUMBER,
+    labels=["workflow:triage"]  # Only keep the correct label
+)
+
+add_issue_comment(
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=ISSUE_NUMBER,
+    body="[Copilot-Workflow: Triage] 🏷️ Label cleanup: Removed conflicting `workflow:implementation` label. This issue is being re-triaged."
+)
+```
+
+**Why this matters**: Issues should have exactly ONE workflow label at a time. Multiple labels create confusion about which workflow owns the issue.
+
+**When to skip**: If the issue only has `workflow:triage` label (no conflicts), proceed directly to triage assessment.
 
 ---
 
@@ -321,6 +403,162 @@ Assessment: Valid feature but needs prioritization
 Designation: workflow:product-backlog
 Reason: "Valid feature request needing business value assessment"
 ```
+
+---
+
+## Bulk Mode Execution
+
+When assigned to a **Bulk Triage** issue, follow this process:
+
+### Step 1: Identify Bulk Mode
+
+Check if the assigned issue is a bulk triage request:
+- Title starts with `[Triage] Bulk triage`
+- Body contains "Bulk Triage Instructions for @copilot"
+- Explicitly requests processing entire triage queue
+
+If YES → Continue with bulk mode execution
+If NO → Follow single issue mode (process only the assigned issue)
+
+### Step 2: Query and Filter
+
+**Query the full triage queue**:
+```python
+issues = list_issues(
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    labels=["workflow:triage"],
+    state="OPEN"
+)
+```
+
+**Filter out the bulk triage issue itself**:
+- Get the current issue number (the bulk triage issue)
+- Exclude it from the list of issues to process
+- Only process actual issues needing triage, not the coordination issue
+
+### Step 3: Process Each Issue
+
+For each issue in the filtered queue:
+
+1. **Read the issue** to understand context
+2. **Assess using Step 2 criteria** (issue type, clarity, complexity)
+3. **Determine workflow** using Step 3 designation guidance
+4. **Update workflow label** using MCP tools
+5. **Add handover comment** with reasoning
+
+**Example iteration**:
+```python
+for issue in filtered_issues:
+    # Read issue
+    issue_data = issue_read(
+        method="get",
+        owner="uniun-technology",
+        repo="lib-dataflow",
+        issue_number=issue['number']
+    )
+    
+    # Assess and determine workflow (manual analysis)
+    # ...
+    
+    # Update label
+    issue_write(
+        method="update",
+        owner="uniun-technology",
+        repo="lib-dataflow",
+        issue_number=issue['number'],
+        labels=["workflow:implementation"]  # or appropriate workflow
+    )
+    
+    # Add handover comment
+    add_issue_comment(
+        owner="uniun-technology",
+        repo="lib-dataflow",
+        issue_number=issue['number'],
+        body="[Copilot-Workflow: Triage] 🔄 Triage → Implementation\n\n[Reasoning...]"
+    )
+```
+
+### Step 4: Track Progress
+
+**Update the bulk triage issue with progress summaries**:
+
+After every 5 issues (or when complete), add a progress comment:
+
+```python
+add_issue_comment(
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=BULK_TRIAGE_ISSUE_NUMBER,
+    body="""[Copilot-Workflow: Triage] Progress Update
+
+**Processed**: 5 issues
+**Remaining**: 3 issues
+
+**Distribution**:
+- → Research: 2 issues
+- → Implementation: 2 issues
+- → Tech Debt: 1 issue
+
+Continuing...
+"""
+)
+```
+
+### Step 5: Complete and Close
+
+When all issues in the queue are processed:
+
+1. **Add final summary comment** to bulk triage issue:
+```python
+add_issue_comment(
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=BULK_TRIAGE_ISSUE_NUMBER,
+    body="""[Copilot-Workflow: Triage] ✅ Bulk Triage Complete
+
+**Total Issues Processed**: 8
+
+**Final Distribution**:
+- → Research: 2 issues (#124, #127)
+- → Implementation: 3 issues (#125, #128, #131)
+- → Tech Debt: 2 issues (#126, #130)
+- → Closed: 1 issue (#129 - duplicate)
+
+All issues in triage queue have been processed.
+"""
+)
+```
+
+2. **Close the bulk triage issue**:
+```python
+issue_write(
+    method="update",
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=BULK_TRIAGE_ISSUE_NUMBER,
+    state="closed"
+)
+```
+
+### Edge Cases
+
+**Empty Queue**:
+- If no issues need triage (queue only contains the bulk triage issue)
+- Comment that queue is empty
+- Close the bulk triage issue immediately
+
+**Issues Needing Clarification**:
+- If an issue needs clarification, add a comment requesting it
+- Keep the issue in `workflow:triage`
+- Note it in the bulk triage summary
+- Continue processing other issues
+
+**Errors or Blockers**:
+- If you encounter an issue you can't triage (unclear, ambiguous)
+- Add a comment requesting help or clarification
+- Note it in the bulk triage summary
+- Continue with remaining issues
 
 ---
 

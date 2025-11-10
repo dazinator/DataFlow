@@ -60,6 +60,50 @@ gh issue list \
 
 ---
 
+## Label Cleanup on Entry
+
+**⚠️ IMPORTANT**: Before starting implementation work, check for and clean up conflicting workflow labels.
+
+### Workflow Label Validation
+
+When you start work on an issue in this workflow:
+
+1. **Check the issue's labels** for any workflow labels
+2. **Identify conflicts**: If the issue has MULTIPLE workflow labels (e.g., both `workflow:implementation` AND `workflow:research`)
+3. **Determine correct label**: 
+   - If you were assigned to this issue via the implementation queue, `workflow:implementation` is correct
+   - If the issue has another workflow label in addition to `workflow:implementation`, that's label pollution
+4. **Remove conflicting labels**: Remove any workflow label that is NOT `workflow:implementation`
+5. **Add cleanup comment** noting what was corrected
+
+### Label Cleanup Example
+
+**For Copilot Agents** (use MCP tools):
+
+```python
+# Example: Issue has both workflow:implementation and workflow:research labels
+issue_write(
+    method="update",
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=ISSUE_NUMBER,
+    labels=["workflow:implementation"]  # Only keep the correct label
+)
+
+add_issue_comment(
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=ISSUE_NUMBER,
+    body="[Copilot-Workflow: Implementation] 🏷️ Label cleanup: Removed conflicting `workflow:research` label. This issue is correctly in the implementation workflow."
+)
+```
+
+**Why this matters**: Issues should have exactly ONE workflow label at a time. Multiple labels create confusion about which workflow owns the issue.
+
+**When to skip**: If the issue only has `workflow:implementation` label (no conflicts), proceed directly to implementation work.
+
+---
+
 ## Step 0: Handover Critical Review
 
 **⚠️ CRITICAL**: If implementing from a research handover, critically evaluate it BEFORE starting work.

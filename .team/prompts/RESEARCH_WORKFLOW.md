@@ -91,6 +91,52 @@ gh issue list \
 
 **See**: [Workflow Topology Guide](/.github/docs/WORKFLOW_TOPOLOGY_GUIDE.md) for complete documentation on querying and handover patterns.
 
+---
+
+## Label Cleanup on Entry
+
+**⚠️ IMPORTANT**: Before starting research work, check for and clean up conflicting workflow labels.
+
+### Workflow Label Validation
+
+When you start work on an issue in this workflow:
+
+1. **Check the issue's labels** for any workflow labels
+2. **Identify conflicts**: If the issue has MULTIPLE workflow labels (e.g., both `workflow:research` AND `workflow:triage`)
+3. **Determine correct label**: 
+   - If you were assigned to this issue via the research queue, `workflow:research` is correct
+   - If the issue has another workflow label in addition to `workflow:research`, that's label pollution
+4. **Remove conflicting labels**: Remove any workflow label that is NOT `workflow:research`
+5. **Add cleanup comment** noting what was corrected
+
+### Label Cleanup Example
+
+**For Copilot Agents** (use MCP tools):
+
+```python
+# Example: Issue has both workflow:research and workflow:triage labels
+issue_write(
+    method="update",
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=ISSUE_NUMBER,
+    labels=["workflow:research"]  # Only keep the correct label
+)
+
+add_issue_comment(
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=ISSUE_NUMBER,
+    body="[Copilot-Workflow: Research] 🏷️ Label cleanup: Removed conflicting `workflow:triage` label. This issue is correctly in the research workflow."
+)
+```
+
+**Why this matters**: Issues should have exactly ONE workflow label at a time. Multiple labels create confusion about which workflow owns the issue.
+
+**When to skip**: If the issue only has `workflow:research` label (no conflicts), proceed directly to research work.
+
+---
+
 ## Problem Statement
 
 During research, we need to:

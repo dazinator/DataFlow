@@ -957,6 +957,39 @@ Before any PR is marked ready for review, Copilot agents should:
      - Prevents discovering inconsistencies mid-work
 
 - **Date**: 2025-11-10
+- **Issue/PR**: Bulk Triage Process Improvement
+- **What worked well**:
+  - **Test scenario creation before implementation** - Creating 4 scenarios first clarified requirements and edge cases
+  - **Consistent section pattern** - Using same "Label Cleanup on Entry" section across all 6 workflows ensures uniform behavior
+  - **MCP tool examples** - Providing concrete `issue_write()` and `add_issue_comment()` examples in documentation prevents confusion
+  - **Edge case documentation** - Explicitly documenting empty queue, clarification needed, and errors prevents agent stalling
+  - **Tabletop simulation** - Walking through scenarios with actual workflow documentation validated clarity without needing real issues
+  - **Process Modeling Workflow structure** - Clear phases (plan → scenarios → test → refine → archive) guided work effectively
+  - **Scenario naming convention** - scenario-NNN-[baseline|improved|verify|edge-case]-description pattern made purpose clear
+- **What didn't work well**:
+  - **Initial issue description ambiguity** - Issue mentioned "long living Issue" and "triage label" but wasn't crystal clear whether to create new template or modify existing template behavior; had to interpret intent
+  - **No guidance on template naming** - Should bulk triage template be `triage.md`, `bulk-triage.md`, or `triage-bulk.md`? Chose `triage.md` based on simplicity but no convention exists
+  - **Label cleanup repetition** - Added same "Label Cleanup on Entry" section to 6 workflows manually; could have been more efficient with template/script
+  - **Scenario result format** - Had to invent format for documenting simulation results (✅ checkmarks, detailed findings); no template exists
+- **Suggested improvement**:
+  1. **Add "Issue Template Naming Convention" to Issue Template guidance**:
+     - Single word for primary action (e.g., `triage.md`, `research.md`)
+     - Hyphenated for variants (e.g., `triage-bulk.md` if both regular and bulk templates exist)
+     - Clarifies naming decisions for new templates
+  2. **Add "Multi-File Consistency Pattern" to Process Modeling Workflow**:
+     - When adding same section to multiple files (e.g., 6 workflows)
+     - Option A: Manual (5-10 files, quick edits)
+     - Option B: Script/template (10+ files, complex content)
+     - For this case: 6 workflows with ~40 lines each = borderline; manual worked but was tedious
+     - Guidance prevents second-guessing approach choice
+  3. **Add "Scenario Result Documentation Template"** to Process Modeling Workflow:
+     - Format for recording tabletop simulation results
+     - Suggested format: Status (PASS/FAIL), Simulation Steps (numbered checklist), Findings (observations), Verification (cross-checks)
+     - Ensures consistent quality and completeness of scenario documentation
+  4. **Clarify "Issue Description Interpretation"** in Process Modeling Workflow:
+     - When issue description is unclear or ambiguous, ask clarifying questions
+     - Document interpretation decisions in plan.md
+     - Prevents misalignment between intent and implementation
 - **Issue/PR**: Condense Workflow References in copilot-instructions.md
 - **What worked well**:
   - **Scenario-based testing** - Creating 3 tabletop scenarios (baseline, improved, edge case) validated the change thoroughly before making it

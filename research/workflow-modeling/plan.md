@@ -18,12 +18,24 @@ When a new workflow improvement issue is assigned:
 
 ## Recent Completion
 
+**Last Completed**: 2025-11-10 - Bulk Triage Process Improvement
+**See Archive**: `/research/workflow-modeling/archive/2025-11-10-bulk-triage-process.md`
 **Last Completed**: 2025-11-10 - Condense Workflow References in copilot-instructions.md
 **See Archive**: `/research/workflow-modeling/archive/2025-11-10-condense-workflow-references.md`
 
 ## Archive
 
 Previous work can be found in `/research/workflow-modeling/archive/`:
+- `2025-11-10-bulk-triage-process.md` - Process Modeling Archived Plan - Bulk Triage Process Improvement
+- `2025-11-08-product-backlog-system.md` - Process Modeling Plan
+- `2025-11-08-product-prioritization.md` - Process Modeling Plan
+- `2025-11-08-smart-mode-bulk-improvements.md` - Process Modeling Archived Plan - Smart Mode Bulk Improvements
+- `2025-11-08-template-simplification.md` - Process Modeling Plan - Template Simplification
+- `2025-11-08-workflow-documentation-improvements.md` - Process Modeling Archived Plan
+- `2025-11-08-workflow-improvements-template.md` - Process Modeling Plan
+- `2025-11-09-backlog-sync-exploration.md` - Process Modeling Archived Plan - Backlog-to-GitHub Issues Sync
+- `2025-11-09-smart-mode-bulk-improvements.md` - Process Modeling Archived Plan - Smart Mode Bulk Improvements
+- `2025-11-09-tech-debt-workflow-modernization.md` - Process Modeling Archived Plan - Tech Debt Workflow Modernization
 - `2025-11-10-condense-workflow-references.md` - Process Modeling Archived Plan - Condense Workflow References
 - `2025-11-09-workflow-topology-design.md` - Process Modeling Archived Plan - Centralized Workflow Topology System
 - `2025-11-09-workflow-topology-implementation.md` - Process Modeling Archived Plan - Workflow Topology System Implementation
