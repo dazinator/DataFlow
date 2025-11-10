@@ -1065,6 +1065,85 @@ Before any PR is marked ready for review, Copilot agents should:
      - Could save time on trivial improvements while maintaining rigor for complex ones
      - Guideline: If change is pure deletion/consolidation with no new logic, lighter testing may suffice
 
+- **Date**: 2025-11-10
+- **Issue/PR**: Migrate workflow-improvements log to GitHub issues
+- **What worked well**:
+  - **Process Modeling Workflow structure** - Clear exploration mode guidance helped frame this as design/validation, not immediate implementation
+  - **Tabletop simulation methodology** - Created 5 scenarios (baseline, improved, 3 edge cases) that validated approach without building
+  - **Systematic tool investigation** - Checking available GitHub MCP tools first prevented designing around unavailable features
+  - **Design document first** - Creating comprehensive design doc before scenarios clarified technical approach
+  - **Mermaid diagrams** - Visual representation of parent-child architecture made complex relationships clear
+  - **Implementation guide creation** - Documenting 6-phase implementation plan provides clear handover for execution
+  - **Scenario validation** - All 5 scenarios PASS confirmed design is sound and benefits are real (82% time reduction)
+  - **Exploration vs implementation distinction** - Recognizing this as exploration mode prevented scope creep into full migration during design phase
+- **What didn't work well**:
+  - **Scope ambiguity initially** - Issue statement said "migrate items as part of this" but unclear if that meant design or execution
+  - **Implementation timing unclear** - Should I implement now or create handover? Chose handover based on scope/review needs
+  - **Meta-problem with feedback** - This work improves the feedback system, but had to use old system to document feedback about the new system
+  - **No guidance on "design vs build" decision point** - When validation complete, unclear whether to proceed or hand off
+  - **Migration script not built** - Implementation guide provides outline but not actual working code (would need 2-3 hours to build)
+- **Suggested improvement**:
+  1. **Add "Exploration Mode Completion Criteria"** to Process Modeling Workflow:
+     - When is exploration complete? When all scenarios PASS + implementation guide created
+     - When to proceed vs handover? If implementation >5 hours or requires manual steps (GitHub issue creation), create handover
+     - When to build vs outline? Build if <2 hours and fully automatable, otherwise provide detailed outline
+     - Clarifies decision point between exploration and implementation
+  2. **Add "Meta-Problem Handling"** guidance:
+     - When improving the improvement system itself, document using current system
+     - Example: This feedback about issue-based system goes in file-based system for now
+     - After migration, this entry would move to first feedback issue
+     - Prevents circular dependency during transition
+  3. **Add "Implementation Handover Checklist"** to Process Modeling Workflow:
+     - [ ] Design document created and validated
+     - [ ] All test scenarios PASS
+     - [ ] Implementation guide with phase breakdown
+     - [ ] Effort estimate provided (hours)
+     - [ ] Success criteria defined
+     - [ ] Rollback plan documented
+     - [ ] Executive summary created
+     - Ensures handovers are complete and actionable
+  4. **Clarify "migrate as part of this" in issue template**:
+     - Add explicit choice: "Should this issue include execution or just design?"
+     - Options: Design only (create handover), Design + Execute (implement in same session)
+     - Reduces ambiguity about scope expectations
+  5. **Add "Migration Script Template"** to Process Modeling Workflow:
+     - Provide reusable template for markdown-to-issues migration
+     - Entry parsing, issue creation, parent linking patterns
+     - Reduces effort for similar migrations in future
+
+- **Date**: 2025-11-10
+- **Issue/PR**: #242 / #251 / #252 (Multi-phase migration project)
+- **What worked well**:
+  - **Multi-phase issue structure** - Creating parent issue (#251) with two sibling sub-issues (#242, #252) provided clear progress tracking
+  - **Sub-issue linking with MCP** - Using `sub_issue_write(method="add", issue_number=parent, sub_issue_id=child.id)` made parent-child relationship visible in GitHub UI
+  - **Phase separation** - Splitting design (Phase 1) from implementation (Phase 2) allowed incremental review and approval
+  - **Handover materials** - Implementation guide + design docs in `/research/` provided complete context for Phase 2
+  - **Visual progress tracking** - Sub-issues displayed under parent in GitHub showed completion status at a glance
+- **What didn't work well**:
+  - **Pattern not documented** - Multi-phase handover pattern with `sub_issue_write` was used but not documented as reusable workflow
+  - **Discovery issue** - Reviewer initially missed that issues were created because sub-issue relationship wasn't established until later
+  - **No workflow guidance** - Process Modeling Workflow doesn't mention multi-phase planning or when to use parent-child issues
+  - **Learning curve** - Had to discover `sub_issue_write` tool through exploration; would be better if documented upfront
+- **Suggested improvement**:
+  1. **Add "Multi-Phase Handover Pattern"** to Process Modeling Workflow (or appropriate workflow):
+     - When to use: Projects with 2+ phases, each requiring separate approval/review
+     - Steps:
+       1. Create parent issue describing overall plan
+       2. Create Phase 1 issue (current work)
+       3. Create Phase 2+ issues (future work)
+       4. Link all children using `sub_issue_write(method="add", issue_number=parent, sub_issue_id=child.id)`
+     - Benefits: Clear tracking, visual progress, linked context
+     - Example: Phase 1 = Design/Validation, Phase 2 = Implementation
+  2. **Document `sub_issue_write` MCP tool usage**:
+     - Add to workflow documentation as semantic operation for parent-child issue relationships
+     - Emphasize: Required for GitHub UI navigation (issues don't show as children without this step)
+     - Include code example showing both issue creation and sub-issue linking
+  3. **Add to issue handover checklist**:
+     - [ ] If multi-phase project, create parent issue
+     - [ ] Create sibling issue(s) for future phases
+     - [ ] Link all using `sub_issue_write` for proper UI display
+     - Ensures pattern is consistently applied
+
 ---
 
 ## POC Workflow Improvements

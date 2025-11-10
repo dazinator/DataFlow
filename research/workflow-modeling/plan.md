@@ -6,6 +6,13 @@
 
 ---
 
+## Recent Completion
+
+**Last Completed**: 2025-11-10 - Workflow Feedback Migration to GitHub Issues (Design & Validation)
+**See Archive**: `/research/workflow-modeling/archive/2025-11-10-feedback-issues-migration.md`
+
+---
+
 ## How to Start New Work
 
 When a new workflow improvement issue is assigned:
