@@ -956,6 +956,37 @@ Before any PR is marked ready for review, Copilot agents should:
      - Check for: Naming conventions, path formats, section structure
      - Prevents discovering inconsistencies mid-work
 
+- **Date**: 2025-11-10
+- **Issue/PR**: Condense Workflow References in copilot-instructions.md
+- **What worked well**:
+  - **Scenario-based testing** - Creating 3 tabletop scenarios (baseline, improved, edge case) validated the change thoroughly before making it
+  - **Process Modeling Workflow guidance** - Clear step-by-step process for testing verbosity/redundancy made the work straightforward
+  - **Mermaid diagram preference** - While not used in this simple change, the awareness of diagram options was helpful
+  - **DRY principle from Document Hygiene** - Document Hygiene Guide clearly articulated why redundancy should be eliminated
+  - **Quick validation** - Testing revealed all scenarios PASS on first try, confirming the improvement was sound
+  - **Clear success criteria** - "38% reduction" metric made success objective and measurable
+- **What didn't work well**:
+  - **No upfront reference count** - Would have been helpful if Process Modeling Workflow suggested counting references before/after as standard practice for redundancy reduction
+  - **Scenario revert timing unclear** - Process Modeling Workflow says to revert scenarios after completion, but didn't specify exactly when (before or after archiving plan?)
+  - **Small improvement overhead** - This was a very simple change (5 lines removed, 1 line added) but still required full scenario testing; felt like overhead for such a simple improvement
+- **Suggested improvement**:
+  1. **Add "Quantify Before/After" step** to verbosity/redundancy testing section:
+     - Before making changes, count or measure the verbosity metric (lines, references, sections, etc.)
+     - After making changes, verify the reduction matches expected outcome
+     - Provides objective validation and clear success criteria
+     - Example: "Count workflow references before (13) and after (8) to verify 38% reduction"
+  2. **Clarify scenario lifecycle timing**:
+     - Current: "Revert scenarios after completion"
+     - Add: "Revert scenarios before archiving plan" or "Revert scenarios after PR merge"
+     - Specify: Can scenarios be reverted immediately after test results documented?
+     - Helps agents know exactly when to clean up test artifacts
+  3. **Add "Lightweight Testing for Simple Changes" guidance**:
+     - When change is <10 lines and removes redundancy (not adding complexity)
+     - Consider: Single scenario + visual inspection instead of full 3-scenario suite
+     - Trade-off: Some changes are so simple that extensive testing is overkill
+     - Could save time on trivial improvements while maintaining rigor for complex ones
+     - Guideline: If change is pure deletion/consolidation with no new logic, lighter testing may suffice
+
 ---
 
 ## POC Workflow Improvements

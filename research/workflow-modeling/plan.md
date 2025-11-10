@@ -2,53 +2,7 @@
 
 ## Current Work
 
-**Issue**: Post-Migration Workflow Cleanup
-**Started**: 2025-11-09
-**Status**: Complete ✅
-
-### Workflows Being Updated
-- [x] All workflows (removing bash script references) ✅
-- [x] Copilot Instructions (removing /product/backlog references) ✅
-- [x] Issue Templates (adding default labels, removing /product/backlog) ✅
-
-### Proposed Changes
-Cleanup after GitHub issue migration (PR #220):
-1. ✅ Replace bash script references with MCP tool guidance
-2. ✅ Evaluate .team/scripts folder (kept for manual/CI use)
-3. ✅ Relocate .team/prompts/adr (location is appropriate)
-4. ✅ Remove all /product/backlog references (0 references remaining)
-5. ✅ Update issue templates with default workflow labels
-6. ✅ Add bulk mode documentation with sub-issue patterns
-
-### Testing Status
-- [x] Scenarios created ✅
-- [x] Initial tabletop simulation complete ✅
-- [x] Refinements based on feedback ✅
-- [x] All test scenarios PASS ✅
-- [x] Verbosity/redundancy check complete ✅
-
-### Test Results Summary
-All 5 test scenarios PASS:
-- Scenario 001: MCP tools as primary ✅
-- Scenario 002: Template labels correct ✅
-- Scenario 003: No backlog references ✅
-- Scenario 004: ADR location appropriate ✅
-- Scenario 005: Bulk mode documented ✅
-
-## Work Complete
-
-**Date Completed**: 2025-11-09
-
-**Changes Made**:
-- Updated all 6 workflow files to use MCP tools as primary
-- Updated all 5 issue templates with workflow: labels
-- Removed 46 references to /product/backlog
-- Removed 50 bash script references (replaced with MCP)
-- Deleted /product/backlog folder
-- Added bulk processing and sub-issue documentation
-- All test scenarios validated and passing
-
-**Files Modified**: 16 total (see PR description for complete list)
+**Status**: No active work
 
 ---
 
@@ -64,16 +18,15 @@ When a new workflow improvement issue is assigned:
 
 ## Recent Completion
 
-**Last Completed**: 2025-11-09 - Workflow Topology System Implementation
-**See Archive**: `/research/workflow-modeling/archive/2025-11-09-workflow-topology-implementation.md`
+**Last Completed**: 2025-11-10 - Condense Workflow References in copilot-instructions.md
+**See Archive**: `/research/workflow-modeling/archive/2025-11-10-condense-workflow-references.md`
 
 ## Archive
 
 Previous work can be found in `/research/workflow-modeling/archive/`:
-- `2025-11-09-workflow-topology-implementation.md` - Workflow Topology System Implementation
+- `2025-11-10-condense-workflow-references.md` - Process Modeling Archived Plan - Condense Workflow References
 - `2025-11-09-workflow-topology-design.md` - Process Modeling Archived Plan - Centralized Workflow Topology System
-- `2025-11-09-smart-mode-bulk-improvements.md` - Process Modeling Archived Plan - Smart Mode Bulk Improvements
-- `2025-11-09-tech-debt-workflow-modernization.md` - Process Modeling Archived Plan - Tech Debt Workflow Modernization
+- `2025-11-09-workflow-topology-implementation.md` - Process Modeling Archived Plan - Workflow Topology System Implementation
 - `README.md` - Process Modeling Work Archive
 - `2025-11-08-backlog-driven-mode.md` - Process Modeling Plan - Backlog-Driven Mode Enhancement
 - `2025-11-08-bulk-improvements-smart-mode.md` - Process Modeling Plan - Bulk Improvements (Smart Mode)
@@ -89,4 +42,5 @@ Previous work can be found in `/research/workflow-modeling/archive/`:
 - `2025-11-08-workflow-documentation-improvements.md` - Process Modeling Archived Plan
 - `2025-11-08-workflow-improvements-template.md` - Process Modeling Plan
 - `2025-11-09-backlog-sync-exploration.md` - Process Modeling Archived Plan - Backlog-to-GitHub Issues Sync
-
+- `2025-11-09-smart-mode-bulk-improvements.md` - Process Modeling Archived Plan - Smart Mode Bulk Improvements
+- `2025-11-09-tech-debt-workflow-modernization.md` - Process Modeling Archived Plan - Tech Debt Workflow Modernization

@@ -525,11 +525,7 @@ When suggesting code changes, ensure AGPL-3.0 compatibility.
 ## Getting Help
 
 **Workflow Questions:**
-- Research process: `.team/prompts/RESEARCH_WORKFLOW.md`
-- Implementation process: `.team/prompts/IMPLEMENTATION_WORKFLOW.md`
-- Tech debt process: `.team/prompts/TECH_DEBT_WORKFLOW.md`
-- Product prioritization: `.team/prompts/PRODUCT_PRIORITIZATION_WORKFLOW.md`
-- Process modeling: `.team/prompts/PROCESS_MODELING_WORKFLOW.md`
+- All workflows: See "By Workflow Type" section at the top of this document
 - Implementation tracking: `/implementation/README.md`
 
 **Code Questions:**
