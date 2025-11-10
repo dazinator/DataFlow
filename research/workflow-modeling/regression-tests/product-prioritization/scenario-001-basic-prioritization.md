@@ -19,7 +19,7 @@ Copilot agent is triggered to perform product backlog prioritization. The backlo
 
 ## Steps to Follow
 
-Based on `.team/workflows/PRODUCT_PRIORITIZATION_WORKFLOW.md`:
+Based on `.team/prompts/PRODUCT_PRIORITIZATION_WORKFLOW.md`:
 
 ### Step 1: Understand the Request
 1. Read the triggering GitHub issue

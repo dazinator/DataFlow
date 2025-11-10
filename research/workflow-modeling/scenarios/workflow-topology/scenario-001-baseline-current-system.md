@@ -53,9 +53,9 @@ Works, but has pain points:
 **Tabletop Simulation Notes**:
 
 Walked through current system by reading:
-- Research Workflow docs: `.team/workflows/RESEARCH_WORKFLOW.md`
+- Research Workflow docs: `.team/prompts/RESEARCH_WORKFLOW.md`
 - Product Backlog system: `/product/README.md`
-- Implementation Workflow docs: `.team/workflows/IMPLEMENTATION_WORKFLOW.md`
+- Implementation Workflow docs: `.team/prompts/IMPLEMENTATION_WORKFLOW.md`
 
 **Current Flow Validated:**
 1. ✅ Research creates handover in `/research/[topic]/handover/`

@@ -294,7 +294,7 @@ gh issue comment $ISSUE \
 - Maintains flexibility for future growth
 - Aligns with repository's incremental approach
 
-**See**: `.team/workflows/adr/2025-11-09-workflow-state-storage.md`
+**See**: `.team/adr/2025-11-09-workflow-state-storage.md`
 
 ---
 
@@ -436,7 +436,7 @@ See workflow documentation for next steps."
 
 ### Decision Records
 
-- **ADR-001**: `.team/workflows/adr/2025-11-09-workflow-state-storage.md`
+- **ADR-001**: `.team/adr/2025-11-09-workflow-state-storage.md`
 
 ### Original Context
 

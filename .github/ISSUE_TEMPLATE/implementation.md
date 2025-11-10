@@ -23,7 +23,7 @@ assignees: ''
 **@copilot**: 
 - If backlog issue number specified: Read the GitHub issue first
 - If "Next from prioritization": Query issues with `workflow:product-backlog` label, select highest priority, PAUSE for confirmation
-- See Step 2 in `.team/workflows/IMPLEMENTATION_WORKFLOW.md` for complete guidance
+- See Step 2 in `.team/prompts/IMPLEMENTATION_WORKFLOW.md` for complete guidance
 
 ### Product Backlog System
 

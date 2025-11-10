@@ -115,7 +115,7 @@ This keeps `/implementation/plan.md` available only for the current in-flight wo
 
 ## Related Documentation
 
-- Implementation workflow: `/.team/workflows/IMPLEMENTATION_WORKFLOW.md`
+- Implementation workflow: `/.team/prompts/IMPLEMENTATION_WORKFLOW.md`
 - Entry point: `/.github/copilot-instructions.md`
-- Research workflow: `/.team/workflows/RESEARCH_WORKFLOW.md`
+- Research workflow: `/.team/prompts/RESEARCH_WORKFLOW.md`
 - Workflow improvements: `/.github/workflow-improvements.md`

@@ -114,7 +114,7 @@ This workflow serves as the "front door" for issue assessment and routing.
 
 When ready to deploy:
 
-1. **Copy these examples** to `.team/workflows/` folder
+1. **Copy these examples** to `.team/prompts/` folder
 2. **Make any refinements** based on tabletop testing feedback
 3. **Update references** if folder structures changed
 4. **Commit and deploy** as part of topology system activation
@@ -125,14 +125,14 @@ To see the exact differences between the original workflow files and these updat
 
 ```bash
 # Compare IMPLEMENTATION_WORKFLOW.md
-diff .team/workflows/IMPLEMENTATION_WORKFLOW.md \
+diff .team/prompts/IMPLEMENTATION_WORKFLOW.md \
      research/workflow-topology-design/handover/examples/IMPLEMENTATION_WORKFLOW.md
 
 # Or for all workflows
 for file in IMPLEMENTATION_WORKFLOW.md RESEARCH_WORKFLOW.md TECH_DEBT_WORKFLOW.md \
             PRODUCT_PRIORITIZATION_WORKFLOW.md PROCESS_MODELING_WORKFLOW.md; do
   echo "=== Comparing $file ==="
-  diff .team/workflows/$file research/workflow-topology-design/handover/examples/$file
+  diff .team/prompts/$file research/workflow-topology-design/handover/examples/$file
 done
 ```
 

@@ -114,7 +114,7 @@ How can these be systematized into a repeatable workflow?
 ### Documentation
 - `/research/tech-debt-workflow/README.md` - Complete research findings
 - `/research/tech-debt-workflow/design/tech-debt-workflow.md` - Workflow specification
-- Tech debt workflow document in `.team/workflows/TECH_DEBT_WORKFLOW.md`
+- Tech debt workflow document in `.team/prompts/TECH_DEBT_WORKFLOW.md`
 - Templates for tech debt discovery
 
 ### Handover

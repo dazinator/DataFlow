@@ -14,7 +14,7 @@ Testing the workflow where an issue in implementation needs to go back to triage
 
 ## Steps to Follow
 
-Following `.team/workflows/IMPLEMENTATION_WORKFLOW.md` → "Handover to Triage" section:
+Following `.team/prompts/IMPLEMENTATION_WORKFLOW.md` → "Handover to Triage" section:
 
 1. **During implementation**:
    - Working on feature
@@ -30,21 +30,21 @@ Following `.team/workflows/IMPLEMENTATION_WORKFLOW.md` → "Handover to Triage" 
 
 3. **Handover back to triage**:
    ```bash
-   ./.team/scripts/workflow/handover-issue.sh \
+   ./.github/scripts/workflow/handover-issue.sh \
      126 implementation triage "Requirements unclear during implementation. 'Optimize performance' needs specific metrics and priorities. Needs reassessment."
    ```
 
 4. **Verify transition**:
    ```bash
    # Should no longer be in implementation queue
-   ./.team/scripts/workflow/query-workflow-queue.sh implementation
+   ./.github/scripts/workflow/query-workflow-queue.sh implementation
    
    # Should be back in triage queue
-   ./.team/scripts/workflow/query-workflow-queue.sh triage
+   ./.github/scripts/workflow/query-workflow-queue.sh triage
    ```
 
 5. **Triage reassesses**:
-   Following `.team/workflows/TRIAGE_WORKFLOW.md`:
+   Following `.team/prompts/TRIAGE_WORKFLOW.md`:
    - Query triage queue finds issue #126
    - Review comments (see why it came back)
    - Re-assess with new context
@@ -81,7 +81,7 @@ Walked through workflow documentation successfully:
 **Re-triage pattern documented**:
 - ✅ IMPLEMENTATION_WORKFLOW.md line 826-831 has "Handover to Triage" section
 - ✅ Clear "When" criteria: "Requirements were unclear or need re-evaluation"
-- ✅ Script command: `./.team/scripts/workflow/handover-issue.sh $ISSUE implementation triage "Requirements unclear..."`
+- ✅ Script command: `./.github/scripts/workflow/handover-issue.sh $ISSUE implementation triage "Requirements unclear..."`
 
 **Triage re-assessment capability**:
 - ✅ TRIAGE_WORKFLOW.md supports receiving issues from any workflow

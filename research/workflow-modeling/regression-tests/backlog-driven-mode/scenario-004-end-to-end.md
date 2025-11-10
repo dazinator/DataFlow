@@ -13,7 +13,7 @@ A complete end-to-end test of the backlog-driven process modeling workflow, from
 
 ## Steps to Follow
 
-Following complete process from `.github/copilot-instructions.md` → Quick Navigation → Process Modeling → `/.team/workflows/PROCESS_MODELING_WORKFLOW.md`:
+Following complete process from `.github/copilot-instructions.md` → Quick Navigation → Process Modeling → `/.team/prompts/PROCESS_MODELING_WORKFLOW.md`:
 
 ### Step 1: Initiate (Mode 2: Backlog-Driven)
 

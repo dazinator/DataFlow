@@ -64,7 +64,7 @@ Both scenarios PASS with new format:
    - Updated format and guidelines
    - Reformatted all 6 existing entries with benefits extracted from archived plans
 
-2. `.team/workflows/PROCESS_MODELING_WORKFLOW.md`
+2. `.team/prompts/PROCESS_MODELING_WORKFLOW.md`
    - Updated "History Entry Format" section
    - Updated "Completing Process Modeling Work" step 3
 
@@ -108,5 +108,5 @@ All 6 entries reformatted with benefits extracted from archived plans:
 
 ---
 
-**Process Modeling Workflow**: `.team/workflows/PROCESS_MODELING_WORKFLOW.md`
+**Process Modeling Workflow**: `.team/prompts/PROCESS_MODELING_WORKFLOW.md`
 **History File**: `/research/workflow-modeling/history.md`

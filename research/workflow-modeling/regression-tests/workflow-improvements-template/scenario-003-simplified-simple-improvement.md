@@ -48,7 +48,7 @@ Copilot receives issue and follows Process Modeling workflow:
 3. ✅ Creates/updates plan.md → Works
 4. ✅ Understands problem and proposed solution clearly
 5. ✅ Begins investigation:
-   - Discovers `.team/workflows/RESEARCH_WORKFLOW.md` using naming convention
+   - Discovers `.team/prompts/RESEARCH_WORKFLOW.md` using naming convention
    - Reads current documentation
    - Identifies where decision tree would fit
 6. ✅ Creates test scenarios

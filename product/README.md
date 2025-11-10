@@ -210,7 +210,7 @@ When completing research work:
    - Link backlog item from your research handover
 4. **Notify product team** (via GitHub issue or comment)
 
-See `.team/workflows/RESEARCH_WORKFLOW.md` for integration details.
+See `.team/prompts/RESEARCH_WORKFLOW.md` for integration details.
 
 ### For Tech Debt Team
 
@@ -229,7 +229,7 @@ When conducting tech debt analysis:
    - Add note about re-validation
    - Update priority recommendation if changed
 
-See `.team/workflows/TECH_DEBT_WORKFLOW.md` for integration details.
+See `.team/prompts/TECH_DEBT_WORKFLOW.md` for integration details.
 
 ### For Implementation Team
 
@@ -248,7 +248,7 @@ When starting implementation work:
 3. Archive to `/product/resolved/YYYY-MM/`
 4. Implementation team or product team removes from prioritization
 
-See `.team/workflows/IMPLEMENTATION_WORKFLOW.md` for integration details.
+See `.team/prompts/IMPLEMENTATION_WORKFLOW.md` for integration details.
 
 ## Searching the Backlog
 

@@ -161,8 +161,8 @@ Validate selected approach against requirements:
 - `/research/workflow-topology-design/notes/` - Working notes during exploration
 
 ### ADRs (in codebase, not research folder)
-- `.team/workflows/adr/YYYY-MM-DD-workflow-state-storage.md` - State storage decision
-- `.team/workflows/adr/YYYY-MM-DD-handover-mechanism.md` - Transition protocol decision
+- `.team/adr/YYYY-MM-DD-workflow-state-storage.md` - State storage decision
+- `.team/adr/YYYY-MM-DD-handover-mechanism.md` - Transition protocol decision
 
 ### Handover Materials
 - `/research/workflow-topology-design/handover/github-issue-implement-workflow-topology.md` - Implementation issue
@@ -203,6 +203,6 @@ If research recommends multi-phase implementation, create backlog items for:
 ## References
 
 - **Handover Document**: `/research/workflow-modeling/handover-workflow-topology.md`
-- **Current Workflows**: `.team/workflows/*.md`
-- **Research Workflow Process**: `.team/workflows/RESEARCH_WORKFLOW.md`
+- **Current Workflows**: `.team/prompts/*.md`
+- **Research Workflow Process**: `.team/prompts/RESEARCH_WORKFLOW.md`
 - **Folder Structure Guide**: `/research/FOLDER_STRUCTURE.md`

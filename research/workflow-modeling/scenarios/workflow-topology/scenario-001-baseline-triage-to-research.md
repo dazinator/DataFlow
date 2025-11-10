@@ -12,11 +12,11 @@ Testing the workflow topology system's ability to handle a common transition: a 
 
 ## Steps to Follow
 
-Following `.team/workflows/TRIAGE_WORKFLOW.md`:
+Following `.team/prompts/TRIAGE_WORKFLOW.md`:
 
 1. **Query triage queue**:
    ```bash
-   ./.team/scripts/workflow/query-workflow-queue.sh triage
+   ./.github/scripts/workflow/query-workflow-queue.sh triage
    ```
    - Expect: Issue #123 appears in results
 
@@ -27,7 +27,7 @@ Following `.team/workflows/TRIAGE_WORKFLOW.md`:
 
 3. **Handover to research**:
    ```bash
-   ./.team/scripts/workflow/handover-issue.sh 123 triage research "Needs approach validation before implementation"
+   ./.github/scripts/workflow/handover-issue.sh 123 triage research "Needs approach validation before implementation"
    ```
    - Expect: Script removes `workflow:triage`
    - Expect: Script adds `workflow:research`
@@ -35,7 +35,7 @@ Following `.team/workflows/TRIAGE_WORKFLOW.md`:
 
 4. **Verify handover**:
    ```bash
-   ./.team/scripts/workflow/query-workflow-queue.sh research
+   ./.github/scripts/workflow/query-workflow-queue.sh research
    ```
    - Expect: Issue #123 now appears in research queue
 
@@ -70,7 +70,7 @@ Walked through the workflow documentation successfully:
 **Step 1 - Query triage queue**:
 - ✅ TRIAGE_WORKFLOW.md Step 1 provides clear query command
 - ✅ Both `gh issue list` and script path documented
-- ✅ Query command is: `./.team/scripts/workflow/query-workflow-queue.sh triage`
+- ✅ Query command is: `./.github/scripts/workflow/query-workflow-queue.sh triage`
 
 **Step 2 - Assess issue**:
 - ✅ TRIAGE_WORKFLOW.md Step 2 provides assessment criteria
@@ -79,13 +79,13 @@ Walked through the workflow documentation successfully:
 
 **Step 3 - Handover to research**:
 - ✅ Found at line 453-455 in TRIAGE_WORKFLOW.md
-- ✅ Handover script command: `./.team/scripts/workflow/handover-issue.sh ISSUE triage research "Reason"`
+- ✅ Handover script command: `./.github/scripts/workflow/handover-issue.sh ISSUE triage research "Reason"`
 - ✅ Command syntax is clear
 - ✅ Example reasoning is provided
 
 **Step 4 - Verify handover**:
 - ✅ RESEARCH_WORKFLOW.md has "Workflow Queue" section for querying
-- ✅ Research team would query: `./.team/scripts/workflow/query-workflow-queue.sh research`
+- ✅ Research team would query: `./.github/scripts/workflow/query-workflow-queue.sh research`
 
 **Documentation Quality**:
 - All steps clearly documented

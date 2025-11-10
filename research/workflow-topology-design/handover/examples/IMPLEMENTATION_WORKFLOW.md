@@ -779,7 +779,7 @@ Implementation revealed technical debt that should be analyzed.
 **Debt Identified**: [Description]
 **Scope**: [Affected areas]
 
-See \`.team/workflows/TECH_DEBT_WORKFLOW.md\` for tech debt process."
+See \`.team/prompts/TECH_DEBT_WORKFLOW.md\` for tech debt process."
 ```
 
 **Or use the handover script**:
@@ -825,6 +825,6 @@ Implementation complete when:
 ## Related Documentation
 
 - **Entry point**: `.github/copilot-instructions.md` - Start here
-- **Research workflow**: `.team/workflows/RESEARCH_WORKFLOW.md`
+- **Research workflow**: `.team/prompts/RESEARCH_WORKFLOW.md`
 - **Implementation folder**: `/implementation/README.md`
 - **Workflow improvements**: `.github/workflow-improvements.md`

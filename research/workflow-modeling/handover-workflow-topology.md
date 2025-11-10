@@ -300,12 +300,12 @@ Labels remain source of truth for current state; files provide supporting docs.
 **Scope**: Update workflow documentation to reference the working label-based system
 
 **Deliverables**:
-- `.team/workflows/RESEARCH_WORKFLOW.md` - Add label query and handover sections
-- `.team/workflows/IMPLEMENTATION_WORKFLOW.md` - Add label query sections
-- `.team/workflows/TECH_DEBT_WORKFLOW.md` - Add label query and handover sections
-- `.team/workflows/PRODUCT_PRIORITIZATION_WORKFLOW.md` - Add label query sections
-- `.team/workflows/PROCESS_MODELING_WORKFLOW.md` - Add label query and bulk processing integration
-- `.team/workflows/TRIAGE_WORKFLOW.md` - New workflow documentation
+- `.team/prompts/RESEARCH_WORKFLOW.md` - Add label query and handover sections
+- `.team/prompts/IMPLEMENTATION_WORKFLOW.md` - Add label query sections
+- `.team/prompts/TECH_DEBT_WORKFLOW.md` - Add label query and handover sections
+- `.team/prompts/PRODUCT_PRIORITIZATION_WORKFLOW.md` - Add label query sections
+- `.team/prompts/PROCESS_MODELING_WORKFLOW.md` - Add label query and bulk processing integration
+- `.team/prompts/TRIAGE_WORKFLOW.md` - New workflow documentation
 - `.github/copilot-instructions.md` - Update Quick Navigation and workflow table
 - `.github/ISSUE_TEMPLATE/config.yml` - Update with new template structure
 - Create new issue template for general issues (replaces individual workflow templates)
@@ -377,6 +377,6 @@ Research is successful when:
 
 - **Design Document**: `/tmp/design-workflow-topology.md`
 - **Test Scenarios**: `/research/workflow-modeling/scenarios/workflow-topology/`
-- **Process Modeling Workflow**: `.team/workflows/PROCESS_MODELING_WORKFLOW.md`
-- **Current Workflows**: `.team/workflows/*.md`
+- **Process Modeling Workflow**: `.team/prompts/PROCESS_MODELING_WORKFLOW.md`
+- **Current Workflows**: `.team/prompts/*.md`
 - **Issue Templates**: `.github/ISSUE_TEMPLATE/*.md`

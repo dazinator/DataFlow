@@ -209,10 +209,10 @@ Complete workflow integration successful:
 5. ✅ Flexibility: Teams choose how to interact (issues vs files)
 
 **Workflow documentation updates needed** (deferred to separate Process Modeling issue after research):
-- `.team/workflows/RESEARCH_WORKFLOW.md` - Note sync when creating backlog
-- `.team/workflows/TECH_DEBT_WORKFLOW.md` - Note sync when creating backlog
-- `.team/workflows/PRODUCT_PRIORITIZATION_WORKFLOW.md` - Note issues available
-- `.team/workflows/IMPLEMENTATION_WORKFLOW.md` - Note can work from issues
+- `.team/prompts/RESEARCH_WORKFLOW.md` - Note sync when creating backlog
+- `.team/prompts/TECH_DEBT_WORKFLOW.md` - Note sync when creating backlog
+- `.team/prompts/PRODUCT_PRIORITIZATION_WORKFLOW.md` - Note issues available
+- `.team/prompts/IMPLEMENTATION_WORKFLOW.md` - Note can work from issues
 - `/product/README.md` - Document sync process
 - `.github/copilot-instructions.md` - Update backlog system description
 
@@ -228,10 +228,10 @@ The sync workflow integrates cleanly with all existing team workflows. It's an e
 
 These docs need minor updates (just add sync notes):
 
-- [x] `.team/workflows/RESEARCH_WORKFLOW.md` - Add: "After creating backlog item, trigger sync workflow to create GitHub issue"
-- [x] `.team/workflows/TECH_DEBT_WORKFLOW.md` - Add: "After creating backlog items, trigger sync workflow"
-- [x] `.team/workflows/PRODUCT_PRIORITIZATION_WORKFLOW.md` - Add: "Backlog items synced as GitHub issues with 'backlog-item' label"
-- [x] `.team/workflows/IMPLEMENTATION_WORKFLOW.md` - Add: "Can browse GitHub issues with 'backlog-item' label or read backlog files directly"
+- [x] `.team/prompts/RESEARCH_WORKFLOW.md` - Add: "After creating backlog item, trigger sync workflow to create GitHub issue"
+- [x] `.team/prompts/TECH_DEBT_WORKFLOW.md` - Add: "After creating backlog items, trigger sync workflow"
+- [x] `.team/prompts/PRODUCT_PRIORITIZATION_WORKFLOW.md` - Add: "Backlog items synced as GitHub issues with 'backlog-item' label"
+- [x] `.team/prompts/IMPLEMENTATION_WORKFLOW.md` - Add: "Can browse GitHub issues with 'backlog-item' label or read backlog files directly"
 - [x] `/product/README.md` - Add: "Backlog Sync" section explaining automatic sync to issues
 - [x] `.github/copilot-instructions.md` - Update: "Product Backlog System" section to mention sync
 

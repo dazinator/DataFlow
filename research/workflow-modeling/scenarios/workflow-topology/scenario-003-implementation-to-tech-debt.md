@@ -13,7 +13,7 @@ Testing the workflow where implementation work uncovers technical debt that shou
 
 ## Steps to Follow
 
-Following `.team/workflows/IMPLEMENTATION_WORKFLOW.md` → "Handover to Tech Debt" section:
+Following `.team/prompts/IMPLEMENTATION_WORKFLOW.md` → "Handover to Tech Debt" section:
 
 1. **Current work status**:
    - Implementing new feature
@@ -28,21 +28,21 @@ Following `.team/workflows/IMPLEMENTATION_WORKFLOW.md` → "Handover to Tech Deb
 
 3. **Handover using script**:
    ```bash
-   ./.team/scripts/workflow/handover-issue.sh \
+   ./.github/scripts/workflow/handover-issue.sh \
      125 implementation tech-debt "Implementation revealed legacy code in data access layer that needs modernization"
    ```
 
 4. **Verify transition**:
    ```bash
    # Should no longer be in implementation queue
-   ./.team/scripts/workflow/query-workflow-queue.sh implementation
+   ./.github/scripts/workflow/query-workflow-queue.sh implementation
    
    # Should now be in tech-debt queue
-   ./.team/scripts/workflow/query-workflow-queue.sh tech-debt
+   ./.github/scripts/workflow/query-workflow-queue.sh tech-debt
    ```
 
 5. **Tech debt workflow picks up**:
-   Following `.team/workflows/TECH_DEBT_WORKFLOW.md`:
+   Following `.team/prompts/TECH_DEBT_WORKFLOW.md`:
    - Query tech-debt queue finds issue #125
    - Can now do systematic analysis
    - Create findings report
@@ -79,13 +79,13 @@ Walked through workflow documentation successfully:
 - ✅ Comment template explains what tech debt was found
 
 **Script command**:
-- ✅ `./.team/scripts/workflow/handover-issue.sh $ISSUE implementation tech-debt "Implementation revealed technical debt in [area]"`
+- ✅ `./.github/scripts/workflow/handover-issue.sh $ISSUE implementation tech-debt "Implementation revealed technical debt in [area]"`
 - ✅ Placeholder for area description
 
 **Tech debt workflow reception**:
 - ✅ TECH_DEBT_WORKFLOW.md line 42-60 has "Workflow Queue" section
 - ✅ Entry points include "From Implementation workflow (debt discovered during work)"
-- ✅ Can query: `./.team/scripts/workflow/query-workflow-queue.sh tech-debt`
+- ✅ Can query: `./.github/scripts/workflow/query-workflow-queue.sh tech-debt`
 
 **Use case clarity**:
 - ✅ Clear when to use this handover

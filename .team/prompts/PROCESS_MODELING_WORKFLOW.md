@@ -21,7 +21,7 @@ This workflow is a specialized variant of the Research Workflow for systematical
 - ✅ Revert temporary test assets after each simulation (see details below)
 
 ### DO (After Testing and Refinement):
-- ✅ Update workflow documentation files in `.team/workflows/[Name]_WORKFLOW.md`
+- ✅ Update workflow documentation files in `.team/prompts/[Name]_WORKFLOW.md`
 - ✅ Update `.github/copilot-instructions.md` if systemic changes are made
 - ✅ Update issue templates in `.github/ISSUE_TEMPLATE/` if needed
 - ✅ Archive valuable test scenarios as regression tests (optional - default: revert; see archiving guidance)
@@ -325,7 +325,7 @@ Process multiple entries with intelligent stopping criteria. Stops when max item
    ```
    
    **What to count toward line threshold:**
-   - ✅ Workflow documentation (`.team/workflows/*.md`)
+   - ✅ Workflow documentation (`.team/prompts/*.md`)
    - ✅ Issue templates (`.github/ISSUE_TEMPLATE/*.md`)
    - ✅ Copilot instructions (`.github/copilot-instructions.md`)
    - ❌ Test scenario files (`scenarios/*.md`) - these get reverted
@@ -1102,7 +1102,7 @@ Process modeling can handle most workflow changes directly, including updating d
 ### What Process Modeling Can Handle Directly
 
 ✅ **Process Modeling handles**:
-- Updating workflow documentation files (`.team/workflows/*.md`)
+- Updating workflow documentation files (`.team/prompts/*.md`)
 - Updating copilot instructions (`.github/copilot-instructions.md`)
 - Creating small, single-purpose scripts invoked directly by Copilot during workflows
 - Iterating on workflow changes through scenario testing and regression testing
@@ -1589,7 +1589,7 @@ When archiving a plan to `/research/workflow-modeling/archive/YYYY-MM-DD-[name].
 **Rationale**: [Why scenarios were archived or reverted]
 
 ## Files Modified
-- `.team/workflows/[NAME]_WORKFLOW.md` - [Changes made]
+- `.team/prompts/[NAME]_WORKFLOW.md` - [Changes made]
 - `.github/copilot-instructions.md` - [Changes made if applicable]
 
 ## Lessons Learned
@@ -1682,7 +1682,7 @@ Process improvements successfully implemented and tested.
 
 **Test Results**: All scenarios PASS
 
-See: \`.team/workflows/PROCESS_MODELING_WORKFLOW.md\`"
+See: \`.team/prompts/PROCESS_MODELING_WORKFLOW.md\`"
 ```
 
 ---

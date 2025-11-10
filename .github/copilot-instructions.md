@@ -12,22 +12,22 @@
 **By Workflow Type:**
 
 1. **Triage Task** (assess and route new issues)
-   → See `.team/workflows/TRIAGE_WORKFLOW.md`
+   → See `.team/prompts/TRIAGE_WORKFLOW.md`
 
 2. **Research Task** (validate approaches, create specifications)
-   → See `.team/workflows/RESEARCH_WORKFLOW.md`
+   → See `.team/prompts/RESEARCH_WORKFLOW.md`
 
 3. **Implementation Task** (implement validated designs)
-   → See `.team/workflows/IMPLEMENTATION_WORKFLOW.md`
+   → See `.team/prompts/IMPLEMENTATION_WORKFLOW.md`
 
 4. **Tech Debt Task** (discover and address technical debt)
-   → See `.team/workflows/TECH_DEBT_WORKFLOW.md`
+   → See `.team/prompts/TECH_DEBT_WORKFLOW.md`
 
 5. **Product Prioritization** (prioritize backlog items)
-   → See `.team/workflows/PRODUCT_PRIORITIZATION_WORKFLOW.md`
+   → See `.team/prompts/PRODUCT_PRIORITIZATION_WORKFLOW.md`
 
 6. **Process Modeling Task** (improve workflows and processes)
-   → See `.team/workflows/PROCESS_MODELING_WORKFLOW.md`
+   → See `.team/prompts/PROCESS_MODELING_WORKFLOW.md`
 
 7. **POC Work** (evolving architecture exploration)
    → See section below, then follow appropriate workflow
@@ -216,7 +216,7 @@ public class MyBlockTests
 | Purpose | Validate approach, create specs | Implement validated design |
 | Code fate | REVERTED after approval | MERGED into codebase |
 | Primary output | Documentation + handover issue | Working code |
-| Workflow doc | `.team/workflows/RESEARCH_WORKFLOW.md` | `.team/workflows/IMPLEMENTATION_WORKFLOW.md` |
+| Workflow doc | `.team/prompts/RESEARCH_WORKFLOW.md` | `.team/prompts/IMPLEMENTATION_WORKFLOW.md` |
 
 **When in doubt:** Ask "Is this validating an approach (research) or implementing a validated design (implementation)?"
 
@@ -260,7 +260,7 @@ list_issues(
 
 ```bash
 # Using helper script
-./.team/scripts/workflow/query-workflow-queue.sh <workflow-name>
+./.github/scripts/workflow/query-workflow-queue.sh <workflow-name>
 
 # Direct GitHub CLI
 gh issue list --label "workflow:<workflow-name>" --state open --json number,title,url
@@ -308,7 +308,7 @@ gh issue comment 123 --body "Handover: research → implementation"
 View the state of all workflows:
 
 ```bash
-./.team/scripts/workflow/workflow-dashboard.sh
+./.github/scripts/workflow/workflow-dashboard.sh
 ```
 
 **For Copilot Agents:**
@@ -421,7 +421,7 @@ When creating or updating documentation, follow this decision tree:
 - Update main project README for production docs
 - Create directory READMEs for new modules
 
-See `.team/workflows/IMPLEMENTATION_WORKFLOW.md` for the complete documentation directory decision tree.
+See `.team/prompts/IMPLEMENTATION_WORKFLOW.md` for the complete documentation directory decision tree.
 
 ### Diagram Preferences
 
@@ -515,11 +515,11 @@ When suggesting code changes, ensure AGPL-3.0 compatibility.
 ## Getting Help
 
 **Workflow Questions:**
-- Research process: `.team/workflows/RESEARCH_WORKFLOW.md`
-- Implementation process: `.team/workflows/IMPLEMENTATION_WORKFLOW.md`
-- Tech debt process: `.team/workflows/TECH_DEBT_WORKFLOW.md`
-- Product prioritization: `.team/workflows/PRODUCT_PRIORITIZATION_WORKFLOW.md`
-- Process modeling: `.team/workflows/PROCESS_MODELING_WORKFLOW.md`
+- Research process: `.team/prompts/RESEARCH_WORKFLOW.md`
+- Implementation process: `.team/prompts/IMPLEMENTATION_WORKFLOW.md`
+- Tech debt process: `.team/prompts/TECH_DEBT_WORKFLOW.md`
+- Product prioritization: `.team/prompts/PRODUCT_PRIORITIZATION_WORKFLOW.md`
+- Process modeling: `.team/prompts/PROCESS_MODELING_WORKFLOW.md`
 - Implementation tracking: `/implementation/README.md`
 
 **Code Questions:**

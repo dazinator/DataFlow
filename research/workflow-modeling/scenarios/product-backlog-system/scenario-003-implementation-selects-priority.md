@@ -17,7 +17,7 @@ Implementation team receives a new implementation GitHub issue. The issue doesn'
 Following Implementation Workflow with product backlog integration:
 
 1. **Read copilot instructions** - Start from `.github/copilot-instructions.md`
-2. **Navigate to Implementation Workflow** - Follow pointer to `.team/workflows/IMPLEMENTATION_WORKFLOW.md`
+2. **Navigate to Implementation Workflow** - Follow pointer to `.team/prompts/IMPLEMENTATION_WORKFLOW.md`
 3. **Find backlog selection section** - Workflow should explain how to select from backlog
 4. **Check prioritization file**:
    - Navigate to `/product/prioritization.md`

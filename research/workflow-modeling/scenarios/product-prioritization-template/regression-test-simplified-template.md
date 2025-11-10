@@ -20,7 +20,7 @@ labels: ['prioritization', 'product']
 
 Request automated prioritization of items in `/product/backlog/` according to established policy.
 
-**@copilot**: Execute the Product Prioritization Workflow (`.team/workflows/PRODUCT_PRIORITIZATION_WORKFLOW.md`) to update `/product/prioritization.md`.
+**@copilot**: Execute the Product Prioritization Workflow (`.team/prompts/PRODUCT_PRIORITIZATION_WORKFLOW.md`) to update `/product/prioritization.md`.
 
 ---
 
@@ -48,7 +48,7 @@ Monthly review - no special constraints.
 
 ### Step 2: Workflow Discovery
 1. Copilot sees workflow reference in template (line 13)
-2. Copilot opens `.team/workflows/PRODUCT_PRIORITIZATION_WORKFLOW.md`
+2. Copilot opens `.team/prompts/PRODUCT_PRIORITIZATION_WORKFLOW.md`
 3. Copilot reads complete workflow (614 lines)
 
 ### Step 3: Context Extraction from Template

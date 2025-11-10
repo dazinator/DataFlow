@@ -16,11 +16,11 @@ Testing the workflow dashboard script's ability to provide a high-level view of 
 
 ## Steps to Follow
 
-Following `.team/scripts/workflow/README.md` and `WORKFLOW_TOPOLOGY_GUIDE.md`:
+Following `.github/scripts/workflow/README.md` and `WORKFLOW_TOPOLOGY_GUIDE.md`:
 
 1. **Run workflow dashboard**:
    ```bash
-   ./.team/scripts/workflow/workflow-dashboard.sh
+   ./.github/scripts/workflow/workflow-dashboard.sh
    ```
 
 2. **Expected output format**:
@@ -48,8 +48,8 @@ Following `.team/scripts/workflow/README.md` and `WORKFLOW_TOPOLOGY_GUIDE.md`:
 3. **Verify counts**:
    - Cross-check each workflow count with individual queries
    ```bash
-   ./.team/scripts/workflow/query-workflow-queue.sh triage    # Should show 3
-   ./.team/scripts/workflow/query-workflow-queue.sh research  # Should show 2
+   ./.github/scripts/workflow/query-workflow-queue.sh triage    # Should show 3
+   ./.github/scripts/workflow/query-workflow-queue.sh research  # Should show 2
    # etc.
    ```
 

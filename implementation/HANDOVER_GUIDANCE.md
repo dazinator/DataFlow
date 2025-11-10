@@ -329,6 +329,6 @@ a phased approach essential for:
 ---
 
 **Related Documentation**:
-- [Implementation Workflow](/.team/workflows/IMPLEMENTATION_WORKFLOW.md)
-- [Research Workflow](/.team/workflows/RESEARCH_WORKFLOW.md)
+- [Implementation Workflow](/.team/prompts/IMPLEMENTATION_WORKFLOW.md)
+- [Research Workflow](/.team/prompts/RESEARCH_WORKFLOW.md)
 - [Implementation Issue Template](/research/IMPLEMENTATION_ISSUE_TEMPLATE.md)

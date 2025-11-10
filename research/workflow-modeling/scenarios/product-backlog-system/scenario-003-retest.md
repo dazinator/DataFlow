@@ -17,7 +17,7 @@ Following the updated Implementation Workflow to verify fixes.
    - Repository structure shows `/product` folder
 
 2. **Navigate to Implementation Workflow** ✅
-   - Opened `.team/workflows/IMPLEMENTATION_WORKFLOW.md`
+   - Opened `.team/prompts/IMPLEMENTATION_WORKFLOW.md`
    - Found Step 2: Read Product Backlog Item
 
 3. **Read Step 2 - "Next from Prioritization" Section** ✅

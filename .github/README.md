@@ -34,14 +34,16 @@ Comprehensive guide for creating issues with templates and examples:
 
 **How to use**: Reference when creating issues to understand template usage.
 
-### Workflow Examples
-**File**: `EXAMPLE_WORKFLOWS.md`
+### Workflow System
+**Guide**: `.github/docs/WORKFLOW_TOPOLOGY_GUIDE.md`
 
-Complete examples showing how to use workflows:
-- Research workflow with example
-- Implementation workflow with research handover
-- Implementation workflow without handover
-- Tips for success
+Complete workflow topology documentation:
+- 6 workflow types with formal topology
+- Entry/exit criteria and handover patterns
+- GitHub issue-based workflow queue system
+- MCP tools for Copilot agents
+
+**How to use**: Reference to understand the workflow system and how workflows transition between each other.
 
 ### Quick Start
 **File**: `QUICK_START.md`
@@ -59,7 +61,7 @@ GitHub Copilot automatically loads `.github/copilot-instructions.md` for context
 ### For Research Work
 Create issues using the Research template or reference:
 ```markdown
-⚠️ This is a research issue. @copilot Follow `/.team/workflows/RESEARCH_WORKFLOW.md`
+⚠️ This is a research issue. @copilot Follow `/.team/prompts/RESEARCH_WORKFLOW.md`
 ```
 
 ### For Implementation Work
@@ -81,6 +83,6 @@ Helper scripts for CI/CD and automation.
 ## See Also
 
 - [Main Copilot Instructions](.github/copilot-instructions.md) - Comprehensive workflow guidance
-- [Research Workflow](/.team/workflows/RESEARCH_WORKFLOW.md) - Complete research workflow
+- [Research Workflow](/.team/prompts/RESEARCH_WORKFLOW.md) - Complete research workflow
 - [POC README](/poc/README.md) - Overview of the POC
 - [POC Documentation Structure](/poc/docs/POC_DOCUMENTATION_STRUCTURE.md) - How POC docs are organized

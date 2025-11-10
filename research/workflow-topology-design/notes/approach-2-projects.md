@@ -64,7 +64,7 @@ Use GitHub Projects v2 fields as the canonical source of truth, with GitHub labe
 - Add all repository issues to project
 
 #### 2. Workflow Configuration
-`.team/workflows/workflows.yaml`:
+`.team/prompts/workflows.yaml`:
 ```yaml
 workflows:
   triage:
@@ -319,7 +319,7 @@ if mutation.failed:
    - Aggregation and grouping
 
 5. **✅ Central Configuration**
-   - Workflow rules in `.team/workflows/workflows.yaml`
+   - Workflow rules in `.team/prompts/workflows.yaml`
    - Validation logic in one place
    - Easy to update allowed transitions
 

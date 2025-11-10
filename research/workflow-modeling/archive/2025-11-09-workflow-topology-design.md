@@ -284,12 +284,12 @@ gh issue comment <number> --body "Research complete. Handover materials in /prod
 
 1. Create new Process Modeling issue for workflow integration
 2. Update all workflow documentation:
-   - `.team/workflows/RESEARCH_WORKFLOW.md`
-   - `.team/workflows/IMPLEMENTATION_WORKFLOW.md`
-   - `.team/workflows/TECH_DEBT_WORKFLOW.md`
-   - `.team/workflows/PRODUCT_PRIORITIZATION_WORKFLOW.md`
-   - `.team/workflows/PROCESS_MODELING_WORKFLOW.md`
-   - `.team/workflows/TRIAGE_WORKFLOW.md` (new)
+   - `.team/prompts/RESEARCH_WORKFLOW.md`
+   - `.team/prompts/IMPLEMENTATION_WORKFLOW.md`
+   - `.team/prompts/TECH_DEBT_WORKFLOW.md`
+   - `.team/prompts/PRODUCT_PRIORITIZATION_WORKFLOW.md`
+   - `.team/prompts/PROCESS_MODELING_WORKFLOW.md`
+   - `.team/prompts/TRIAGE_WORKFLOW.md` (new)
 3. Update `.github/copilot-instructions.md`
 4. Update `.github/ISSUE_TEMPLATE/` templates
 5. Test updated workflows through scenarios

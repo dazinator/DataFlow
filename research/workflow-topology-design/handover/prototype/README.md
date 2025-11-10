@@ -72,7 +72,7 @@ chmod +x handover-issue.sh
 Research validated approach X
 
 See workflow documentation for next steps:
-- Implementation: `.team/workflows/IMPLEMENTATION_WORKFLOW.md`
+- Implementation: `.team/prompts/IMPLEMENTATION_WORKFLOW.md`
 ```
 
 **Metrics**:

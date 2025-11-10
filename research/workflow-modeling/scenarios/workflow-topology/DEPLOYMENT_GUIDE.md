@@ -9,8 +9,8 @@
 ## What Has Been Done
 
 ✅ **Complete**:
-1. Created shared workflow topology guide (`.team/workflows/WORKFLOW_TOPOLOGY_GUIDE.md`)
-2. Provisioned helper scripts to `.team/scripts/workflow/` (4 scripts)
+1. Created shared workflow topology guide (`.team/prompts/WORKFLOW_TOPOLOGY_GUIDE.md`)
+2. Provisioned helper scripts to `.github/scripts/workflow/` (4 scripts)
 3. Updated all 6 workflows with topology integration
 4. Updated copilot instructions with workflow topology system
 5. Created and executed 7 test scenarios - ALL PASS
@@ -65,7 +65,7 @@ workflow:process-modeling    Process modeling - workflow improvements           
 
 **Purpose**: Add workflow labels to existing open issues based on current labels
 
-**Script Location**: `.team/scripts/workflow/migrate-labels.sh`
+**Script Location**: `.github/scripts/workflow/migrate-labels.sh`
 
 **What It Does**:
 - Scans all open issues
@@ -81,7 +81,7 @@ workflow:process-modeling    Process modeling - workflow improvements           
 
 **Run Migration**:
 ```bash
-cd .team/scripts/workflow/
+cd .github/scripts/workflow/
 ./migrate-labels.sh
 ```
 
@@ -129,19 +129,19 @@ cd .team/scripts/workflow/
 
 1. **Query workflow queues**:
    ```bash
-   ./.team/scripts/workflow/query-workflow-queue.sh triage
-   ./.team/scripts/workflow/query-workflow-queue.sh research
+   ./.github/scripts/workflow/query-workflow-queue.sh triage
+   ./.github/scripts/workflow/query-workflow-queue.sh research
    # etc.
    ```
 
 2. **View dashboard**:
    ```bash
-   ./.team/scripts/workflow/workflow-dashboard.sh
+   ./.github/scripts/workflow/workflow-dashboard.sh
    ```
 
 3. **Test handover** (optional - use a test issue):
    ```bash
-   ./.team/scripts/workflow/handover-issue.sh <issue-number> triage research "Testing handover system"
+   ./.github/scripts/workflow/handover-issue.sh <issue-number> triage research "Testing handover system"
    ```
 
 4. **Verify auto-label** (create test issue):
@@ -227,18 +227,18 @@ After deployment, team should be aware of:
    - Copilot will assess and route
 
 2. **Query Your Workflow Queue**
-   - Use scripts: `./.team/scripts/workflow/query-workflow-queue.sh <workflow>`
+   - Use scripts: `./.github/scripts/workflow/query-workflow-queue.sh <workflow>`
    - Or use `gh issue list --label "workflow:<name>"`
 
 3. **Handover Between Workflows**
-   - Use script: `./.team/scripts/workflow/handover-issue.sh <issue> <from> <to> "<reason>"`
+   - Use script: `./.github/scripts/workflow/handover-issue.sh <issue> <from> <to> "<reason>"`
    - Or manual `gh` commands (documented in workflows)
 
 4. **Monitor Workflow State**
-   - Use dashboard: `./.team/scripts/workflow/workflow-dashboard.sh`
+   - Use dashboard: `./.github/scripts/workflow/workflow-dashboard.sh`
 
 5. **Reference Documentation**
-   - Complete guide: `.team/workflows/WORKFLOW_TOPOLOGY_GUIDE.md`
+   - Complete guide: `.team/prompts/WORKFLOW_TOPOLOGY_GUIDE.md`
    - Workflow docs have "Workflow Queue" and "Handover" sections
 
 ---
@@ -265,7 +265,7 @@ If issues arise:
 1. **Check GitHub Actions logs**: Repository → Actions → "Auto-Label New Issues"
 2. **Verify labels exist**: `gh label list | grep workflow`
 3. **Test scripts**: Run with `--help` flag
-4. **Review documentation**: `.team/workflows/WORKFLOW_TOPOLOGY_GUIDE.md`
+4. **Review documentation**: `.team/prompts/WORKFLOW_TOPOLOGY_GUIDE.md`
 5. **Contact**: Comment on this PR or create new issue
 
 ---
@@ -273,18 +273,18 @@ If issues arise:
 ## Files Modified in This PR
 
 **New Files Created**:
-- `.team/workflows/WORKFLOW_TOPOLOGY_GUIDE.md` (15KB reference guide)
-- `.team/scripts/workflow/` (4 helper scripts + README)
+- `.team/prompts/WORKFLOW_TOPOLOGY_GUIDE.md` (15KB reference guide)
+- `.github/scripts/workflow/` (4 helper scripts + README)
 - `.github/workflows/auto-label-triage.yml.template` (deployment template)
 - Test scenarios (7 files, to be reverted)
 
 **Files Modified**:
-- `.team/workflows/RESEARCH_WORKFLOW.md` (+84 lines)
-- `.team/workflows/IMPLEMENTATION_WORKFLOW.md` (+96 lines)
-- `.team/workflows/TECH_DEBT_WORKFLOW.md` (+64 lines)
-- `.team/workflows/PRODUCT_PRIORITIZATION_WORKFLOW.md` (+85 lines)
-- `.team/workflows/PROCESS_MODELING_WORKFLOW.md` (+60 lines)
-- `.team/workflows/TRIAGE_WORKFLOW.md` (script paths updated)
+- `.team/prompts/RESEARCH_WORKFLOW.md` (+84 lines)
+- `.team/prompts/IMPLEMENTATION_WORKFLOW.md` (+96 lines)
+- `.team/prompts/TECH_DEBT_WORKFLOW.md` (+64 lines)
+- `.team/prompts/PRODUCT_PRIORITIZATION_WORKFLOW.md` (+85 lines)
+- `.team/prompts/PROCESS_MODELING_WORKFLOW.md` (+60 lines)
+- `.team/prompts/TRIAGE_WORKFLOW.md` (script paths updated)
 - `.github/copilot-instructions.md` (+120 lines)
 
 **Total Changes**: ~900 lines added (excluding test scenarios)

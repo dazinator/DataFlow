@@ -19,7 +19,7 @@ A user creates a workflow improvement issue selecting "Backlog-Driven" mode. The
 
 ## Steps to Follow
 
-Following `/.team/workflows/PROCESS_MODELING_WORKFLOW.md` → "How to Initiate Process Modeling" → "Mode 2: Backlog-Driven":
+Following `/.team/prompts/PROCESS_MODELING_WORKFLOW.md` → "How to Initiate Process Modeling" → "Mode 2: Backlog-Driven":
 
 1. **Read** `.github/workflow-improvements.md`
 

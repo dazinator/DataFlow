@@ -22,7 +22,7 @@ Testing that all references to old `/product/backlog` file-based system are remo
 - Old backlog folder can be safely deleted
 
 ## Success Criteria
-- [ ] No grep matches for `/product/backlog` in .team/workflows/
+- [ ] No grep matches for `/product/backlog` in .team/prompts/
 - [ ] No grep matches for `/product/backlog` in .github/copilot-instructions.md
 - [ ] No grep matches for `/product/backlog` in .github/ISSUE_TEMPLATE/
 - [ ] Workflows reference `workflow:product-backlog` label instead

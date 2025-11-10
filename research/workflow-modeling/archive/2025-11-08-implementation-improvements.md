@@ -62,7 +62,7 @@ Implementation of Plain Blocks Consolidation Phase 5 revealed missing guidance i
 - Add to "Using Ecosystem Tools" section
 
 **Implementation**:
-- Added "Bulk Migration Strategies" section to `.team/workflows/IMPLEMENTATION_WORKFLOW.md` Step 6
+- Added "Bulk Migration Strategies" section to `.team/prompts/IMPLEMENTATION_WORKFLOW.md` Step 6
 - Included decision criteria table:
   - 1-5 files → Manual edits
   - 5-15 files → Helper patterns
@@ -108,7 +108,7 @@ Implementation of Plain Blocks Consolidation Phase 5 revealed missing guidance i
 1. `/research/IMPLEMENTATION_ISSUE_TEMPLATE.md`
    - Added "Baseline/Historical Artifacts" section (after line 213)
    
-2. `.team/workflows/IMPLEMENTATION_WORKFLOW.md`
+2. `.team/prompts/IMPLEMENTATION_WORKFLOW.md`
    - Added "Bulk Migration Strategies" section in Step 6 (after line 441)
 
 3. `.github/workflow-improvements.md`
@@ -144,5 +144,5 @@ Implementation of Plain Blocks Consolidation Phase 5 revealed missing guidance i
 
 ---
 
-**Process Modeling Workflow**: `.team/workflows/PROCESS_MODELING_WORKFLOW.md`
+**Process Modeling Workflow**: `.team/prompts/PROCESS_MODELING_WORKFLOW.md`
 **Backlog System**: `.github/workflow-improvements.md`

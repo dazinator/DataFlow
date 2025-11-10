@@ -7,25 +7,25 @@ Testing that all script paths referenced in workflow documentation are correct a
 ## Starting Point
 
 - All workflows updated with topology integration
-- Scripts moved to `.team/scripts/workflow/`
+- Scripts moved to `.github/scripts/workflow/`
 - Documentation references scripts
 
 ## Steps to Follow
 
 ### 1. Check Research Workflow
 
-Read `.team/workflows/RESEARCH_WORKFLOW.md`:
+Read `.team/prompts/RESEARCH_WORKFLOW.md`:
 
 1. Find "Workflow Queue" section
-2. Verify script path: `./.team/scripts/workflow/query-workflow-queue.sh research`
+2. Verify script path: `./.github/scripts/workflow/query-workflow-queue.sh research`
 3. Find "Handover to Next Workflow" section
 4. Verify script paths in handover examples
 
-**Expected**: All paths start with `./.team/scripts/workflow/`
+**Expected**: All paths start with `./.github/scripts/workflow/`
 
 ### 2. Check Implementation Workflow
 
-Read `.team/workflows/IMPLEMENTATION_WORKFLOW.md`:
+Read `.team/prompts/IMPLEMENTATION_WORKFLOW.md`:
 
 1. Find "Workflow Queue" section
 2. Verify query script path
@@ -37,17 +37,17 @@ Read `.team/workflows/IMPLEMENTATION_WORKFLOW.md`:
 ### 3. Check All Other Workflows
 
 Repeat for:
-- `.team/workflows/TECH_DEBT_WORKFLOW.md`
-- `.team/workflows/PRODUCT_PRIORITIZATION_WORKFLOW.md`
-- `.team/workflows/PROCESS_MODELING_WORKFLOW.md`
-- `.team/workflows/TRIAGE_WORKFLOW.md` (already deployed)
+- `.team/prompts/TECH_DEBT_WORKFLOW.md`
+- `.team/prompts/PRODUCT_PRIORITIZATION_WORKFLOW.md`
+- `.team/prompts/PROCESS_MODELING_WORKFLOW.md`
+- `.team/prompts/TRIAGE_WORKFLOW.md` (already deployed)
 
 ### 4. Check Workflow Topology Guide
 
-Read `.team/workflows/WORKFLOW_TOPOLOGY_GUIDE.md`:
+Read `.team/prompts/WORKFLOW_TOPOLOGY_GUIDE.md`:
 
 1. Find "Helper Scripts" section
-2. Verify: "All scripts are located in `.team/scripts/workflow/`"
+2. Verify: "All scripts are located in `.github/scripts/workflow/`"
 3. Check all example commands
 4. Verify script paths are consistent
 
@@ -66,10 +66,10 @@ From repository root:
 
 ```bash
 # These should all work (or show help if no labels exist yet)
-./.team/scripts/workflow/query-workflow-queue.sh --help
-./.team/scripts/workflow/handover-issue.sh
-./.team/scripts/workflow/workflow-dashboard.sh
-./.team/scripts/workflow/migrate-labels.sh --help
+./.github/scripts/workflow/query-workflow-queue.sh --help
+./.github/scripts/workflow/handover-issue.sh
+./.github/scripts/workflow/workflow-dashboard.sh
+./.github/scripts/workflow/migrate-labels.sh --help
 ```
 
 **Expected**: Scripts are executable and show help/usage
@@ -92,7 +92,7 @@ From repository root:
 - [x] Workflow Topology Guide paths correct
 - [x] Copilot Instructions paths correct
 - [x] Scripts are executable
-- [x] All paths start with `./.team/scripts/workflow/`
+- [x] All paths start with `./.github/scripts/workflow/`
 - [x] No references to old prototype location
 - [x] Repository structure section is accurate
 
@@ -104,7 +104,7 @@ From repository root:
 - All script paths verified across all workflows
 - TRIAGE workflow had old prototype paths - FIXED
 - All scripts confirmed executable (chmod +x)
-- All paths now consistently use `./.team/scripts/workflow/`
+- All paths now consistently use `./.github/scripts/workflow/`
 - No broken references found
 - Repository structure in copilot instructions accurate
 
@@ -115,12 +115,12 @@ From repository root:
 **Verification**:
 ```bash
 # All workflows now reference correct paths
-grep -c "\.team/scripts/workflow" .team/workflows/*_WORKFLOW.md
+grep -c "\.github/scripts/workflow" .team/prompts/*_WORKFLOW.md
 # RESEARCH: 4, IMPLEMENTATION: 5, TECH_DEBT: 4, PRODUCT_PRIORITIZATION: 3, 
 # PROCESS_MODELING: 2, TRIAGE: 5
 
 # All scripts are executable
-ls -la .team/scripts/workflow/*.sh
+ls -la .github/scripts/workflow/*.sh
 # All have -rwxrwxr-x permissions
 ```
 

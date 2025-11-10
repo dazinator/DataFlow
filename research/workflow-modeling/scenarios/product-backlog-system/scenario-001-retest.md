@@ -17,7 +17,7 @@ Following the updated Research Workflow to verify fixes.
    - Repository structure now shows `/product` folder
 
 2. **Navigate to Research Workflow** ✅
-   - Opened `.team/workflows/RESEARCH_WORKFLOW.md`
+   - Opened `.team/prompts/RESEARCH_WORKFLOW.md`
    - Found Phase 5: Create Product Backlog Item
 
 3. **Read Phase 5 Instructions** ✅

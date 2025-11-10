@@ -25,7 +25,7 @@ Successfully implemented the workflow topology system using GitHub labels across
 - Workflow state explicit via GitHub labels (workflow:triage, workflow:research, etc.)
 - Easy to query issues by workflow: `gh issue list --label "workflow:research"`
 - Formal handover scripts with audit trail comments
-- Scripts in permanent location (`.team/scripts/workflow/`)
+- Scripts in permanent location (`.github/scripts/workflow/`)
 - Dashboard for monitoring workflow state
 - Shared topology guide reduces duplication across workflows
 
@@ -40,8 +40,8 @@ Successfully implemented the workflow topology system using GitHub labels across
 ## Improvements Addressed
 
 1. **Workflow Topology System Implementation**:
-   - Created shared workflow topology guide (`.team/workflows/WORKFLOW_TOPOLOGY_GUIDE.md`)
-   - Provisioned 4 helper scripts to `.team/scripts/workflow/`
+   - Created shared workflow topology guide (`.team/prompts/WORKFLOW_TOPOLOGY_GUIDE.md`)
+   - Provisioned 4 helper scripts to `.github/scripts/workflow/`
    - Updated all 6 workflows with "Workflow Queue" and "Handover to Next Workflow" sections
    - Updated copilot instructions with workflow topology system
    - Created deployment guide for manual steps
@@ -49,15 +49,15 @@ Successfully implemented the workflow topology system using GitHub labels across
 ## Files Created
 
 **New Documentation**:
-- `.team/workflows/WORKFLOW_TOPOLOGY_GUIDE.md` (15KB reference guide)
-- `.team/scripts/workflow/README.md` (scripts documentation)
+- `.team/prompts/WORKFLOW_TOPOLOGY_GUIDE.md` (15KB reference guide)
+- `.github/scripts/workflow/README.md` (scripts documentation)
 - `research/workflow-modeling/scenarios/workflow-topology/DEPLOYMENT_GUIDE.md` (deployment guide)
 
 **Helper Scripts**:
-- `.team/scripts/workflow/query-workflow-queue.sh` (query issues by workflow)
-- `.team/scripts/workflow/handover-issue.sh` (transition between workflows)
-- `.team/scripts/workflow/workflow-dashboard.sh` (monitor workflow state)
-- `.team/scripts/workflow/migrate-labels.sh` (one-time migration)
+- `.github/scripts/workflow/query-workflow-queue.sh` (query issues by workflow)
+- `.github/scripts/workflow/handover-issue.sh` (transition between workflows)
+- `.github/scripts/workflow/workflow-dashboard.sh` (monitor workflow state)
+- `.github/scripts/workflow/migrate-labels.sh` (one-time migration)
 
 **Deployment Template**:
 - `.github/workflows/auto-label-triage.yml.template` (ready for deployment)
@@ -65,12 +65,12 @@ Successfully implemented the workflow topology system using GitHub labels across
 ## Files Modified
 
 **Workflows Updated**:
-- `.team/workflows/RESEARCH_WORKFLOW.md` (+84 lines)
-- `.team/workflows/IMPLEMENTATION_WORKFLOW.md` (+96 lines)
-- `.team/workflows/TECH_DEBT_WORKFLOW.md` (+64 lines)
-- `.team/workflows/PRODUCT_PRIORITIZATION_WORKFLOW.md` (+85 lines)
-- `.team/workflows/PROCESS_MODELING_WORKFLOW.md` (+60 lines)
-- `.team/workflows/TRIAGE_WORKFLOW.md` (script paths updated)
+- `.team/prompts/RESEARCH_WORKFLOW.md` (+84 lines)
+- `.team/prompts/IMPLEMENTATION_WORKFLOW.md` (+96 lines)
+- `.team/prompts/TECH_DEBT_WORKFLOW.md` (+64 lines)
+- `.team/prompts/PRODUCT_PRIORITIZATION_WORKFLOW.md` (+85 lines)
+- `.team/prompts/PROCESS_MODELING_WORKFLOW.md` (+60 lines)
+- `.team/prompts/TRIAGE_WORKFLOW.md` (script paths updated)
 
 **Copilot Instructions**:
 - `.github/copilot-instructions.md` (+120 lines)
@@ -111,7 +111,7 @@ Created and executed 7 comprehensive test scenarios:
 **Issue 1**: TRIAGE_WORKFLOW.md had old script paths
 - **Found**: During scenario 007 testing
 - **Impact**: Script references pointed to prototype location instead of permanent location
-- **Fix**: Updated all paths from `./research/workflow-topology-design/handover/prototype/` to `./.team/scripts/workflow/`
+- **Fix**: Updated all paths from `./research/workflow-topology-design/handover/prototype/` to `./.github/scripts/workflow/`
 - **Verification**: All 6 workflows now use consistent paths
 
 **No other issues found** - all other workflows had correct paths from the start.
@@ -128,7 +128,7 @@ The following steps require repository admin permissions and should be done afte
 
 2. **Optional - Migrate existing issues** (~5-10 min):
    ```bash
-   ./.team/scripts/workflow/migrate-labels.sh
+   ./.github/scripts/workflow/migrate-labels.sh
    ```
 
 3. **Deploy auto-label workflow** (~2 min):

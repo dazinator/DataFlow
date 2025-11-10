@@ -12,7 +12,7 @@ After completing a backlog-driven process modeling improvement, the copilot agen
 
 ## Steps to Follow
 
-Following `/.team/workflows/PROCESS_MODELING_WORKFLOW.md` → "History Tracking":
+Following `/.team/prompts/PROCESS_MODELING_WORKFLOW.md` → "History Tracking":
 
 1. **Determine what to log**:
    - Brief description of the workflow improvement made

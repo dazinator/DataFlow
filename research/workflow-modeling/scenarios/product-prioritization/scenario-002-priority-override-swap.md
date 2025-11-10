@@ -30,7 +30,7 @@ Feature D is currently NOT in the active priorities (in the "Assessed But Not Se
 
 ## Steps to Follow
 
-Based on `.team/workflows/PRODUCT_PRIORITIZATION_WORKFLOW.md`:
+Based on `.team/prompts/PRODUCT_PRIORITIZATION_WORKFLOW.md`:
 
 ### Step 1: Understand the Request
 1. Read the triggering comment: `@copilot please prioritize the product backlog`

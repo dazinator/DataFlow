@@ -13,7 +13,7 @@ Testing the workflow where tech debt analysis completes and creates backlog item
 
 ## Steps to Follow
 
-Following `.team/workflows/TECH_DEBT_WORKFLOW.md` → "Handover to Product Prioritization" section:
+Following `.team/prompts/TECH_DEBT_WORKFLOW.md` → "Handover to Product Prioritization" section:
 
 1. **Tech debt analysis complete**:
    - Explored codebase for debt
@@ -27,21 +27,21 @@ Following `.team/workflows/TECH_DEBT_WORKFLOW.md` → "Handover to Product Prior
 
 2. **Handover to product prioritization**:
    ```bash
-   ./.team/scripts/workflow/handover-issue.sh \
+   ./.github/scripts/workflow/handover-issue.sh \
      127 tech-debt product-backlog "Tech debt analysis complete. Created 5 backlog items for prioritization. See /product/backlog/ and /research/tech-debt-2025-11-09/findings.md"
    ```
 
 3. **Verify transition**:
    ```bash
    # Should no longer be in tech-debt queue
-   ./.team/scripts/workflow/query-workflow-queue.sh tech-debt
+   ./.github/scripts/workflow/query-workflow-queue.sh tech-debt
    
    # Should be in product-backlog queue
-   ./.team/scripts/workflow/query-workflow-queue.sh product-backlog
+   ./.github/scripts/workflow/query-workflow-queue.sh product-backlog
    ```
 
 4. **Product team picks up**:
-   Following `.team/workflows/PRODUCT_PRIORITIZATION_WORKFLOW.md`:
+   Following `.team/prompts/PRODUCT_PRIORITIZATION_WORKFLOW.md`:
    - Query product-backlog queue finds issue #127
    - Review backlog items created
    - Apply prioritization policy
@@ -75,7 +75,7 @@ Walked through workflow documentation successfully:
 **Tech debt handover to product**:
 - ✅ TECH_DEBT_WORKFLOW.md line 827-837 has "Handover to Product Prioritization" section
 - ✅ Clear "When" criteria: "Tech debt analysis complete, backlog items created and need prioritization"
-- ✅ Script command: `./.team/scripts/workflow/handover-issue.sh $ISSUE tech-debt product-backlog "Tech debt analysis complete. Created [N] backlog items..."`
+- ✅ Script command: `./.github/scripts/workflow/handover-issue.sh $ISSUE tech-debt product-backlog "Tech debt analysis complete. Created [N] backlog items..."`
 
 **Handover comment requirements**:
 - ✅ Documentation specifies what to include:
@@ -87,7 +87,7 @@ Walked through workflow documentation successfully:
 **Product prioritization reception**:
 - ✅ PRODUCT_PRIORITIZATION_WORKFLOW.md line 13-30 has "Workflow Queue" section
 - ✅ Entry points include "From Tech Debt workflow (debt items need priority)"
-- ✅ Can query: `./.team/scripts/workflow/query-workflow-queue.sh product-backlog`
+- ✅ Can query: `./.github/scripts/workflow/query-workflow-queue.sh product-backlog`
 
 **Process separation**:
 - ✅ Clear that tech debt doesn't go straight to implementation

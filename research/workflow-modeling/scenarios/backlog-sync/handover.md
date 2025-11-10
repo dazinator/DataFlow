@@ -14,7 +14,7 @@ Automated sync of `/product/backlog` items to GitHub issues provides significant
 - **DO**: Develop tracking mechanism and state management
 - **DO**: Test and validate the tooling with existing backlog items
 - **DO**: Create product backlog item(s) for any workflow documentation updates needed
-- **DO NOT**: Update workflow documentation files (`.team/workflows/*.md`)
+- **DO NOT**: Update workflow documentation files (`.team/prompts/*.md`)
 - **DO NOT**: Update copilot instructions (`.github/copilot-instructions.md`)
 - **DO NOT**: Update product README workflow sections
 
@@ -283,10 +283,10 @@ checksum=$(grep -A999 "^## Summary" item.md | sha256sum | cut -d' ' -f1)
 
 **Scope**: Update workflow documentation to reference sync
 **Deliverables**:
-- Updated `.team/workflows/RESEARCH_WORKFLOW.md` - note sync when creating backlog
-- Updated `.team/workflows/TECH_DEBT_WORKFLOW.md` - note sync when creating backlog
-- Updated `.team/workflows/PRODUCT_PRIORITIZATION_WORKFLOW.md` - note issues available
-- Updated `.team/workflows/IMPLEMENTATION_WORKFLOW.md` - note can work from issues
+- Updated `.team/prompts/RESEARCH_WORKFLOW.md` - note sync when creating backlog
+- Updated `.team/prompts/TECH_DEBT_WORKFLOW.md` - note sync when creating backlog
+- Updated `.team/prompts/PRODUCT_PRIORITIZATION_WORKFLOW.md` - note issues available
+- Updated `.team/prompts/IMPLEMENTATION_WORKFLOW.md` - note can work from issues
 - Updated `.github/copilot-instructions.md` - mention sync in backlog description
 
 **Why separate?**: The dependencies (GitHub Actions, scripts) must be developed and tested first. Workflow documentation should only be updated once the sync is proven to work.
@@ -317,10 +317,10 @@ These files should NOT be updated during research. Create a product backlog item
 | File | Changes | Lines Changed |
 |------|---------|---------------|
 | `/product/README.md` | Document sync process | +100-150 |
-| `.team/workflows/RESEARCH_WORKFLOW.md` | Note sync option | +5-10 |
-| `.team/workflows/TECH_DEBT_WORKFLOW.md` | Note sync option | +5-10 |
-| `.team/workflows/PRODUCT_PRIORITIZATION_WORKFLOW.md` | Note issues available | +5-10 |
-| `.team/workflows/IMPLEMENTATION_WORKFLOW.md` | Note can use issues | +5-10 |
+| `.team/prompts/RESEARCH_WORKFLOW.md` | Note sync option | +5-10 |
+| `.team/prompts/TECH_DEBT_WORKFLOW.md` | Note sync option | +5-10 |
+| `.team/prompts/PRODUCT_PRIORITIZATION_WORKFLOW.md` | Note issues available | +5-10 |
+| `.team/prompts/IMPLEMENTATION_WORKFLOW.md` | Note can use issues | +5-10 |
 | `.github/copilot-instructions.md` | Update backlog description | +5-10 |
 
 **Total workflow documentation changes**: ~150-200 lines (separate issue)
@@ -413,7 +413,7 @@ All test scenarios PASS ✅:
 
 - Product Backlog System: `/product/README.md`
 - Backlog Item Template: `/product/backlog-item-template.md`
-- Process Modeling Workflow: `.team/workflows/PROCESS_MODELING_WORKFLOW.md`
+- Process Modeling Workflow: `.team/prompts/PROCESS_MODELING_WORKFLOW.md`
 - Research folder: `/research/workflow-modeling/`
 
 ## Recommendation

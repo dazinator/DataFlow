@@ -31,7 +31,7 @@
 
 ### Automated Migration Script
 
-Created: `.team/scripts/workflow/migrate-backlog-to-issues.sh`
+Created: `.github/scripts/workflow/migrate-backlog-to-issues.sh`
 
 **What it does**:
 - Creates GitHub issue for each of the 7 backlog items
@@ -116,6 +116,6 @@ If migration needs to be reverted:
 
 ## Migration Script Location
 
-`.team/scripts/workflow/migrate-backlog-to-issues.sh`
+`.github/scripts/workflow/migrate-backlog-to-issues.sh`
 
 See script README and WORKFLOW_TOPOLOGY_GUIDE.md for usage instructions.

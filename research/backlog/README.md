@@ -43,7 +43,7 @@ Each file should contain:
 - **References** - Links to original analysis
 - **Status** - Current state (Not started/In progress/Completed)
 
-See template in `.team/workflows/TECH_DEBT_WORKFLOW.md` for full format.
+See template in `.team/prompts/TECH_DEBT_WORKFLOW.md` for full format.
 
 ## Using the Backlog
 
@@ -201,7 +201,7 @@ done
 
 ## Example Backlog Item
 
-See `2025-11-07-reduce-cs0436-warnings.md` (if it exists) or refer to the template in `.team/workflows/TECH_DEBT_WORKFLOW.md`.
+See `2025-11-07-reduce-cs0436-warnings.md` (if it exists) or refer to the template in `.team/prompts/TECH_DEBT_WORKFLOW.md`.
 
 ---
 

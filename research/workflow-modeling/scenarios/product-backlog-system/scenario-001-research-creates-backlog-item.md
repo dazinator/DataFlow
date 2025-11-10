@@ -21,7 +21,7 @@ Research team has completed research on a new feature and needs to hand over wor
 Following Research Workflow with product backlog integration:
 
 1. **Read copilot instructions** - Start from `.github/copilot-instructions.md`
-2. **Navigate to Research Workflow** - Follow pointer to `.team/workflows/RESEARCH_WORKFLOW.md`
+2. **Navigate to Research Workflow** - Follow pointer to `.team/prompts/RESEARCH_WORKFLOW.md`
 3. **Find handover section** - Research workflow should explain how to create backlog item
 4. **Create backlog item file**:
    - Navigate to `/product/backlog/`

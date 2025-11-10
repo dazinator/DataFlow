@@ -11,7 +11,7 @@ Agent receives a process modeling issue with "Backlog-Driven - Smart" mode selec
 ## Steps to Follow
 
 1. Read issue template and identify mode: "Backlog-Driven - Smart"
-2. Navigate to `.team/workflows/PROCESS_MODELING_WORKFLOW.md`
+2. Navigate to `.team/prompts/PROCESS_MODELING_WORKFLOW.md`
 3. Find "Mode 2: Backlog-Driven" → "Smart Mode" subsection
 4. Read stopping criteria:
    - MAX_ITEMS = 5

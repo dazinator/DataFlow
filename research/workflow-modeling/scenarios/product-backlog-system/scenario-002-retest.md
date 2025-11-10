@@ -16,7 +16,7 @@ Following the updated Tech Debt Workflow to verify fixes.
    - Found pointer to Tech Debt Workflow
 
 2. **Navigate to Tech Debt Workflow** ✅
-   - Opened `.team/workflows/TECH_DEBT_WORKFLOW.md`
+   - Opened `.team/prompts/TECH_DEBT_WORKFLOW.md`
    - Found Phase 1, Step 3: Review Existing Product Backlog
 
 3. **Read Backlog Check Instructions** ✅

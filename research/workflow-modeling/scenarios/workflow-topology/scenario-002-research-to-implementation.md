@@ -13,11 +13,11 @@ Testing the complete flow from research completion to implementation handover us
 
 ## Steps to Follow
 
-Following `.team/workflows/RESEARCH_WORKFLOW.md` → "Handover to Next Workflow" section:
+Following `.team/prompts/RESEARCH_WORKFLOW.md` → "Handover to Next Workflow" section:
 
 1. **Query research queue to find issue**:
    ```bash
-   ./.team/scripts/workflow/query-workflow-queue.sh research
+   ./.github/scripts/workflow/query-workflow-queue.sh research
    ```
    - Expect: Issue #124 in results
 
@@ -29,7 +29,7 @@ Following `.team/workflows/RESEARCH_WORKFLOW.md` → "Handover to Next Workflow"
 
 3. **Handover to implementation** using script:
    ```bash
-   ./.team/scripts/workflow/handover-issue.sh \
+   ./.github/scripts/workflow/handover-issue.sh \
      124 research implementation "Research validated caching approach. See /research/caching/ for details."
    ```
    - Expect: Labels changed
@@ -38,10 +38,10 @@ Following `.team/workflows/RESEARCH_WORKFLOW.md` → "Handover to Next Workflow"
 4. **Verify transition**:
    ```bash
    # Should not find in research queue
-   ./.team/scripts/workflow/query-workflow-queue.sh research
+   ./.github/scripts/workflow/query-workflow-queue.sh research
    
    # Should find in implementation queue
-   ./.team/scripts/workflow/query-workflow-queue.sh implementation
+   ./.github/scripts/workflow/query-workflow-queue.sh implementation
    ```
 
 ## Alternative Manual Method
@@ -65,7 +65,7 @@ Research validated approach. Ready for implementation.
 
 **Next Steps**: Implement based on research specifications.
 
-See: \`.team/workflows/IMPLEMENTATION_WORKFLOW.md\`"
+See: \`.team/prompts/IMPLEMENTATION_WORKFLOW.md\`"
 ```
 
 ## Expected Outcome
@@ -96,17 +96,17 @@ Walked through workflow documentation successfully:
 
 **Research workflow query**:
 - ✅ RESEARCH_WORKFLOW.md line 66-74 has "Workflow Queue" section
-- ✅ Clear query command: `./.team/scripts/workflow/query-workflow-queue.sh research`
+- ✅ Clear query command: `./.github/scripts/workflow/query-workflow-queue.sh research`
 
 **Handover to implementation documentation**:
 - ✅ RESEARCH_WORKFLOW.md line 865-878 has "Handover to Implementation" section
 - ✅ Provides both manual `gh` commands AND script method
 - ✅ Handover comment template includes all deliverables
-- ✅ Script command: `./.team/scripts/workflow/handover-issue.sh $ISSUE research implementation "Research validated approach..."`
+- ✅ Script command: `./.github/scripts/workflow/handover-issue.sh $ISSUE research implementation "Research validated approach..."`
 
 **Implementation queue verification**:
 - ✅ IMPLEMENTATION_WORKFLOW.md line 29-48 has "Workflow Queue" section
-- ✅ Can query: `./.team/scripts/workflow/query-workflow-queue.sh implementation`
+- ✅ Can query: `./.github/scripts/workflow/query-workflow-queue.sh implementation`
 
 **Handover comment template**:
 - ✅ Includes research deliverables locations

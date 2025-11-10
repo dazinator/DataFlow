@@ -8,7 +8,7 @@ A copilot agent is implementing a migration task that requires updating 25 simil
 
 - Copilot has implementation issue for "Migrate tests to unified actor API"
 - Issue mentions 20-30 test files need similar updates
-- Copilot reviewing `.team/workflows/IMPLEMENTATION_WORKFLOW.md` for guidance
+- Copilot reviewing `.team/prompts/IMPLEMENTATION_WORKFLOW.md` for guidance
 - Copilot considering whether to edit each file manually or create helper
 
 ## Steps to Follow

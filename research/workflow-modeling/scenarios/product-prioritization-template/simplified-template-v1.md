@@ -10,7 +10,7 @@ assignees: ''
 
 Request automated prioritization of items in `/product/backlog/` according to established policy.
 
-**@copilot**: Execute the Product Prioritization Workflow (`.team/workflows/PRODUCT_PRIORITIZATION_WORKFLOW.md`) to update `/product/prioritization.md`.
+**@copilot**: Execute the Product Prioritization Workflow (`.team/prompts/PRODUCT_PRIORITIZATION_WORKFLOW.md`) to update `/product/prioritization.md`.
 
 ---
 

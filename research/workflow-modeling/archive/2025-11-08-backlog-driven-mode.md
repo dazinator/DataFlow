@@ -76,7 +76,7 @@ Key findings:
 
 ## Files Modified
 
-1. **/.team/workflows/PROCESS_MODELING_WORKFLOW.md**
+1. **/.team/prompts/PROCESS_MODELING_WORKFLOW.md**
    - Added Mode 1 (Issue-Driven) and Mode 2 (Backlog-Driven) sections
    - Added detailed backlog selection logic
    - Added "History Tracking" section

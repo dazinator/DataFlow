@@ -64,7 +64,7 @@ See [Workflow Topology System Guide](../../../.github/docs/WORKFLOW_TOPOLOGY_GUI
 
 ## GitHub MCP Tooling (Primary Approach)
 
-Copilot agents interact with GitHub issues using **GitHub MCP tools** configured via `.team/COPILOT_GITHUB_SETUP.md`.
+Copilot agents interact with GitHub issues using **GitHub MCP tools** configured via `.github/docs/COPILOT_GITHUB_SETUP.md`.
 
 ### Available MCP Tools
 
@@ -110,4 +110,4 @@ add_issue_comment(
 **For Copilot Agents** (GitHub MCP):
 - Fine-grained Personal Access Token configured
 - MCP server setup completed
-- See `.team/COPILOT_GITHUB_SETUP.md` for complete setup instructions
+- See `.github/docs/COPILOT_GITHUB_SETUP.md` for complete setup instructions

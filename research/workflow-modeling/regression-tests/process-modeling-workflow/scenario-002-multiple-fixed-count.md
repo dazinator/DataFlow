@@ -13,7 +13,7 @@ Agent receives a process modeling issue with "Backlog-Driven - Multiple" mode se
 
 1. Read issue template and identify mode: "Backlog-Driven - Multiple"
 2. Note the count: 3 items
-3. Navigate to `.team/workflows/PROCESS_MODELING_WORKFLOW.md`
+3. Navigate to `.team/prompts/PROCESS_MODELING_WORKFLOW.md`
 4. Find "Mode 2: Backlog-Driven" → "Multiple Items Mode" subsection
 5. Read guidance for processing N items
 6. Initialize tracking: items_to_process = 3, items_processed = 0

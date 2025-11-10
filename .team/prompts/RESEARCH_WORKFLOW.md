@@ -800,7 +800,7 @@ When creating GitHub issues for POC research work:
 ```markdown
 ## POC Research Context
 
-⚠️ This is a research issue. @copilot Please follow the Research-to-Implementation workflow in `/.team/workflows/RESEARCH_WORKFLOW.md`.
+⚠️ This is a research issue. @copilot Please follow the Research-to-Implementation workflow in `/.team/prompts/RESEARCH_WORKFLOW.md`.
 
 **Research Objective**: [What needs to be validated/explored]
 
@@ -859,12 +859,12 @@ Research validated approach. Ready for implementation.
 
 **Next Steps**: Implement based on research specifications.
 
-See: \`.team/workflows/IMPLEMENTATION_WORKFLOW.md\`"
+See: \`.team/prompts/IMPLEMENTATION_WORKFLOW.md\`"
 ```
 
 **Or use the handover script**:
 ```bash
-./.team/scripts/workflow/handover-issue.sh \
+./.github/scripts/workflow/handover-issue.sh \
   $ISSUE research implementation "Research validated approach. See /research/[topic]/ for details."
 ```
 
@@ -873,7 +873,7 @@ See: \`.team/workflows/IMPLEMENTATION_WORKFLOW.md\`"
 **When**: Research is complete but implementation needs prioritization
 
 ```bash
-./.team/scripts/workflow/handover-issue.sh \
+./.github/scripts/workflow/handover-issue.sh \
   $ISSUE research product-backlog "Research complete, needs prioritization for implementation"
 ```
 
@@ -882,7 +882,7 @@ See: \`.team/workflows/IMPLEMENTATION_WORKFLOW.md\`"
 **When**: Research shows approach is not feasible or requirements unclear
 
 ```bash
-./.team/scripts/workflow/handover-issue.sh \
+./.github/scripts/workflow/handover-issue.sh \
   $ISSUE research triage "Approach not feasible, needs reassessment. See /research/[topic]/README.md for findings."
 ```
 

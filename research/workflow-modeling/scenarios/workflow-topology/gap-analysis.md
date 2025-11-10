@@ -17,12 +17,12 @@ The implementation team has prepared example workflow files with workflow topolo
 
 | Workflow | Actual File | Example File | Status |
 |----------|-------------|--------------|---------|
-| Triage | `.team/workflows/TRIAGE_WORKFLOW.md` | `research/.../examples/TRIAGE_WORKFLOW.md` | ✅ **IDENTICAL** - Already deployed |
-| Research | `.team/workflows/RESEARCH_WORKFLOW.md` | `research/.../examples/RESEARCH_WORKFLOW.md` | ❌ **DIFFERENT** - Not deployed |
-| Implementation | `.team/workflows/IMPLEMENTATION_WORKFLOW.md` | `research/.../examples/IMPLEMENTATION_WORKFLOW.md` | ❌ **DIFFERENT** - Not deployed |
-| Tech Debt | `.team/workflows/TECH_DEBT_WORKFLOW.md` | `research/.../examples/TECH_DEBT_WORKFLOW.md` | ❌ **DIFFERENT** - Not deployed |
-| Product Prioritization | `.team/workflows/PRODUCT_PRIORITIZATION_WORKFLOW.md` | `research/.../examples/PRODUCT_PRIORITIZATION_WORKFLOW.md` | ❌ **DIFFERENT** - Not deployed |
-| Process Modeling | `.team/workflows/PROCESS_MODELING_WORKFLOW.md` | `research/.../examples/PROCESS_MODELING_WORKFLOW.md` | ❌ **DIFFERENT** - Not deployed |
+| Triage | `.team/prompts/TRIAGE_WORKFLOW.md` | `research/.../examples/TRIAGE_WORKFLOW.md` | ✅ **IDENTICAL** - Already deployed |
+| Research | `.team/prompts/RESEARCH_WORKFLOW.md` | `research/.../examples/RESEARCH_WORKFLOW.md` | ❌ **DIFFERENT** - Not deployed |
+| Implementation | `.team/prompts/IMPLEMENTATION_WORKFLOW.md` | `research/.../examples/IMPLEMENTATION_WORKFLOW.md` | ❌ **DIFFERENT** - Not deployed |
+| Tech Debt | `.team/prompts/TECH_DEBT_WORKFLOW.md` | `research/.../examples/TECH_DEBT_WORKFLOW.md` | ❌ **DIFFERENT** - Not deployed |
+| Product Prioritization | `.team/prompts/PRODUCT_PRIORITIZATION_WORKFLOW.md` | `research/.../examples/PRODUCT_PRIORITIZATION_WORKFLOW.md` | ❌ **DIFFERENT** - Not deployed |
+| Process Modeling | `.team/prompts/PROCESS_MODELING_WORKFLOW.md` | `research/.../examples/PROCESS_MODELING_WORKFLOW.md` | ❌ **DIFFERENT** - Not deployed |
 
 ---
 
@@ -109,7 +109,7 @@ Research validated approach. Ready for implementation.
 **Problem**: Scripts are in a temporary handover folder, not a permanent location accessible to copilot agents
 
 **Proposed Solutions**:
-1. **Option A**: Move to `.team/scripts/workflow/` (new directory)
+1. **Option A**: Move to `.github/scripts/workflow/` (new directory)
    - Pro: Grouped with team workflows
    - Pro: Clear purpose
    - Con: New directory structure
@@ -124,8 +124,8 @@ Research validated approach. Ready for implementation.
    - Pro: Clear that these interact with GitHub
    - Con: New directory structure
 
-**Recommendation**: **Option A** - Create `.team/scripts/workflow/` because:
-- Workflows are in `.team/workflows/`
+**Recommendation**: **Option A** - Create `.github/scripts/workflow/` because:
+- Workflows are in `.team/prompts/`
 - Scripts are workflow-related tools
 - Clear separation from research artifacts
 - Easily accessible by all copilot agents
@@ -141,7 +141,7 @@ Research validated approach. Ready for implementation.
 1. **Quick Navigation Section**: Add Triage Workflow
    ```markdown
    1. **Triage Task** (assess and route new issues)
-      → See `.team/workflows/TRIAGE_WORKFLOW.md`
+      → See `.team/prompts/TRIAGE_WORKFLOW.md`
    ```
 
 2. **New Section**: Workflow Topology System
@@ -212,7 +212,7 @@ workflow:process-modeling
 
 **Recommendation**: Add to Process Modeling Workflow a section on "Using Workflow Topology" that other workflows can reference, reducing duplication.
 
-**Alternative**: Create a separate document `.team/workflows/WORKFLOW_TOPOLOGY_GUIDE.md` that all workflows reference.
+**Alternative**: Create a separate document `.team/prompts/WORKFLOW_TOPOLOGY_GUIDE.md` that all workflows reference.
 
 **Decision**: Use shared guide approach to avoid duplication across 6 workflows.
 
@@ -254,7 +254,7 @@ Based on gap analysis, need test scenarios for:
 | Gap Area | Severity | Action Required |
 |----------|----------|-----------------|
 | 5 workflows not updated | **HIGH** | Apply example changes to actual workflows |
-| Scripts in wrong location | **HIGH** | Move to `.team/scripts/workflow/` |
+| Scripts in wrong location | **HIGH** | Move to `.github/scripts/workflow/` |
 | Copilot instructions not updated | **HIGH** | Add workflow topology section |
 | Auto-label workflow not deployed | **MEDIUM** | Deploy after testing complete |
 | Labels not created | **MEDIUM** | Coordinate with reviewer |
@@ -266,7 +266,7 @@ Based on gap analysis, need test scenarios for:
 ## Recommended Deployment Order
 
 1. ✅ **Create Shared Topology Guide** (factor out common patterns)
-2. ✅ **Move Scripts** to `.team/scripts/workflow/`
+2. ✅ **Move Scripts** to `.github/scripts/workflow/`
 3. ✅ **Update All 5 Workflows** with topology integration
 4. ✅ **Update Copilot Instructions** with topology system
 5. ✅ **Create Test Scenarios** for all transitions

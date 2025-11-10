@@ -12,7 +12,7 @@ After completing a backlog-driven process modeling improvement, the copilot agen
 
 ## Steps to Follow
 
-Following `/.team/workflows/PROCESS_MODELING_WORKFLOW.md` → "Mode 2: Backlog-Driven" → "After completion":
+Following `/.team/prompts/PROCESS_MODELING_WORKFLOW.md` → "Mode 2: Backlog-Driven" → "After completion":
 
 1. **Remove the entire entry** from `.github/workflow-improvements.md`
 2. **Entry Removal rule**: "Remove the entire entry even if improvements were not viable. This prevents the queue from getting stuck."

@@ -23,7 +23,7 @@ Before any PR is marked ready for review, Copilot agents should:
 - **What worked well**:
   - Research workflow phase structure was excellent for systematic exploration
   - Folder structure guidance (FOLDER_STRUCTURE.md) made organization clear
-  - ADR placement in `.team/workflows/adr/` (with workflows, not research) was correct
+  - ADR placement in `.team/prompts/adr/` (with workflows, not research) was correct
   - Ability to prototype GitHub Actions and scripts validated the approach effectively
   - Comparison matrix format helped objectively evaluate alternatives
   - Benchmark/testing documentation provided concrete validation data
@@ -39,7 +39,7 @@ Before any PR is marked ready for review, Copilot agents should:
   - No template for "hybrid approach" analysis (combining multiple alternatives)
 - **Suggested improvement**:
   1. **Add ADR Guidance for Research**: Clarify when ADRs belong in research vs codebase folders:
-     - **Workflow/Process ADRs**: `.team/workflows/adr/` (system-level decisions)
+     - **Workflow/Process ADRs**: `.team/prompts/adr/` (system-level decisions)
      - **Code ADRs**: `/poc/docs/adr/` or `/src/docs/adr/` (implementation decisions)
      - Include this in research workflow documentation
   2. **Add "Alternatives Considered" Section** to research plan template:
@@ -552,7 +552,7 @@ Before any PR is marked ready for review, Copilot agents should:
   2. **Create example workflow improvement issue**:
      - Demonstrate how to fill out the template effectively
      - Show what good problem statements and proposals look like
-     - Archive in `.team/EXAMPLE_WORKFLOWS.md` or similar
+     - Archive successful examples for reference
   3. **Add "Template Testing"** step to implementation workflow:
      - After creating issue template, verify front matter syntax
      - Check that all referenced documentation paths are valid
@@ -581,7 +581,7 @@ Before any PR is marked ready for review, Copilot agents should:
 - **Suggested improvement**: 
   1. **Add Process Modeling to Quick Navigation** in copilot-instructions.md:
      - Currently navigation shows Research, Implementation, Tech Debt, POC, but not Process Modeling
-     - Add: "5. **Process Modeling Task** (workflow improvements) → See `.team/workflows/PROCESS_MODELING_WORKFLOW.md`"
+     - Add: "5. **Process Modeling Task** (workflow improvements) → See `.team/prompts/PROCESS_MODELING_WORKFLOW.md`"
      - This would have helped identify the right workflow faster
   2. **Add "Test Scenario Guidance"** to PROCESS_MODELING_WORKFLOW.md:
      - Minimum suggested scenarios: 2 baseline + 2-3 improved + 1 edge case
@@ -672,7 +672,7 @@ Before any PR is marked ready for review, Copilot agents should:
 - **Suggested improvement**: 
   1. **Add "Process Modeling Issue Indicators"** to copilot-instructions.md Quick Navigation:
      - Currently says "Workflow Improvements" but doesn't mention process modeling as a specialized workflow
-     - Add explicit mention: "Workflow improvement issues use the **Process Modeling Workflow** - see `.team/workflows/PROCESS_MODELING_WORKFLOW.md`"
+     - Add explicit mention: "Workflow improvement issues use the **Process Modeling Workflow** - see `.team/prompts/PROCESS_MODELING_WORKFLOW.md`"
      - This would have helped identify correct workflow faster
   2. **Add "Metrics Guidance"** to Process Modeling Workflow:
      - When simplifying templates or workflows, measure:
@@ -1063,7 +1063,7 @@ When reviewing workflow improvement suggestions:
 2. Prioritize suggestions that would have the most impact
 3. When implementing a suggestion, update the relevant workflow documentation:
    - `.github/copilot-instructions.md` for general Copilot guidance
-   - `/.team/workflows/RESEARCH_WORKFLOW.md` for research-specific processes
+   - `/.team/prompts/RESEARCH_WORKFLOW.md` for research-specific processes
    - `.github/ISSUE_TEMPLATE/*.md` for issue template improvements
 4. Mark implemented suggestions with `[IMPLEMENTED - YYYY-MM-DD]` prefix
 5. Archive old implemented suggestions periodically to keep the file focused

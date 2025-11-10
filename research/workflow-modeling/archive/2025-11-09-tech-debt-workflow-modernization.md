@@ -97,7 +97,7 @@ All scenarios PASS:
 
 ## Files Modified
 
-### Tech Debt Workflow (`.team/workflows/TECH_DEBT_WORKFLOW.md`)
+### Tech Debt Workflow (`.team/prompts/TECH_DEBT_WORKFLOW.md`)
 
 **Updated Sections:**
 1. DO/DON'T sections (lines 12-29)
@@ -120,7 +120,7 @@ All scenarios PASS:
 - Verification check requirement added throughout
 - Integration with Product Prioritization workflow
 
-### Implementation Workflow (`.team/workflows/IMPLEMENTATION_WORKFLOW.md`)
+### Implementation Workflow (`.team/prompts/IMPLEMENTATION_WORKFLOW.md`)
 
 **Updated Sections:**
 1. Step 0: Handover Critical Review checklist (lines 38-45)

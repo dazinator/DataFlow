@@ -53,7 +53,7 @@ All open issues have exactly ONE workflow label:
 
 ### Setup
 
-See `.team/COPILOT_GITHUB_SETUP.md` for complete setup instructions including:
+See `.github/docs/COPILOT_GITHUB_SETUP.md` for complete setup instructions including:
 - Creating fine-grained Personal Access Token
 - Configuring repository environment secrets
 - Adding MCP server configuration
@@ -96,11 +96,11 @@ list_issues(
 **Using Helper Script** (manual/CI):
 ```bash
 # Query research workflow
-./.team/scripts/workflow/query-workflow-queue.sh research
+./.github/scripts/workflow/query-workflow-queue.sh research
 
 # Query all workflows
 for wf in triage research implementation tech-debt product-backlog process-modeling; do
-  ./.team/scripts/workflow/query-workflow-queue.sh $wf
+  ./.github/scripts/workflow/query-workflow-queue.sh $wf
 done
 ```
 
@@ -131,7 +131,7 @@ Research validated approach. Ready for implementation.
 - Design: `/research/caching-strategy/design/`
 - Prototype: `/research/caching-strategy/handover/prototype/`
 
-See workflow documentation: `.team/workflows/IMPLEMENTATION_WORKFLOW.md`"""
+See workflow documentation: `.team/prompts/IMPLEMENTATION_WORKFLOW.md`"""
 )
 ```
 
@@ -150,14 +150,14 @@ Research validated approach. Ready for implementation.
 - Findings: \`/research/[topic]/README.md\`
 - Design: \`/research/[topic]/design/[component].md\`
 
-See workflow documentation: \`.team/workflows/IMPLEMENTATION_WORKFLOW.md\`"
+See workflow documentation: \`.team/prompts/IMPLEMENTATION_WORKFLOW.md\`"
 ```
 
 ### Viewing Workflow Dashboard
 
 **Using Helper Script** (provides formatted view):
 ```bash
-./.team/scripts/workflow/workflow-dashboard.sh
+./.github/scripts/workflow/workflow-dashboard.sh
 ```
 
 **Output**:
@@ -180,7 +180,7 @@ Open Issues by Workflow:
 
 ## Helper Scripts
 
-Simple command-line utilities for manual queries. Located in `.team/scripts/workflow/`
+Simple command-line utilities for manual queries. Located in `.github/scripts/workflow/`
 
 ### query-workflow-queue.sh
 
@@ -188,7 +188,7 @@ Query all issues designated to a specific workflow.
 
 **Usage**:
 ```bash
-./.team/scripts/workflow/query-workflow-queue.sh <workflow-name>
+./.github/scripts/workflow/query-workflow-queue.sh <workflow-name>
 ```
 
 ### workflow-dashboard.sh
@@ -197,10 +197,10 @@ View high-level state of all workflows.
 
 **Usage**:
 ```bash
-./.team/scripts/workflow/workflow-dashboard.sh
+./.github/scripts/workflow/workflow-dashboard.sh
 ```
 
-**Note**: Copilot agents should use GitHub MCP tools directly instead of calling these scripts. See `.team/scripts/workflow/README.md` for complete documentation.
+**Note**: Copilot agents should use GitHub MCP tools directly instead of calling these scripts. See `.github/scripts/workflow/README.md` for complete documentation.
 
 ---
 
@@ -571,7 +571,7 @@ Research validated approach. Ready for implementation.
 - Findings: `/research/[topic]/README.md`
 - Design: `/research/[topic]/design/`
 
-See workflow documentation: `.team/workflows/IMPLEMENTATION_WORKFLOW.md`"""
+See workflow documentation: `.team/prompts/IMPLEMENTATION_WORKFLOW.md`"""
 )
 ```
 
@@ -589,7 +589,7 @@ Research validated approach. Ready for implementation.
 - Findings: \`/research/[topic]/README.md\`
 - Design: \`/research/[topic]/design/\`
 
-See workflow documentation: \`.team/workflows/IMPLEMENTATION_WORKFLOW.md\`"
+See workflow documentation: \`.team/prompts/IMPLEMENTATION_WORKFLOW.md\`"
 ```
 
 ---
@@ -997,7 +997,7 @@ gh issue list \
 
 **Or use the query script:**
 ```bash
-./.team/scripts/workflow/query-workflow-queue.sh <workflow-name>
+./.github/scripts/workflow/query-workflow-queue.sh <workflow-name>
 ```
 
 **Entry Points:**
@@ -1115,7 +1115,7 @@ flowchart LR
 
 1. **Always query your workflow queue first**
    ```bash
-   ./.team/scripts/workflow/query-workflow-queue.sh <workflow-name>
+   ./.github/scripts/workflow/query-workflow-queue.sh <workflow-name>
    ```
 
 2. **Use handover script for transitions**
@@ -1137,7 +1137,7 @@ flowchart LR
 
 1. **Use dashboard to monitor workflow state**
    ```bash
-   ./.team/scripts/workflow/workflow-dashboard.sh
+   ./.github/scripts/workflow/workflow-dashboard.sh
    ```
 
 2. **Review handover comments for clarity**
@@ -1247,13 +1247,13 @@ gh auth status
 
 ```bash
 # Query workflow queue
-./.team/scripts/workflow/query-workflow-queue.sh <workflow>
+./.github/scripts/workflow/query-workflow-queue.sh <workflow>
 
 # Handover issue
-./.team/scripts/workflow/handover-issue.sh <issue> <from> <to> "<reason>"
+./.github/scripts/workflow/handover-issue.sh <issue> <from> <to> "<reason>"
 
 # View dashboard
-./.team/scripts/workflow/workflow-dashboard.sh
+./.github/scripts/workflow/workflow-dashboard.sh
 
 # Close issue
 gh issue close $ISSUE --comment "✅ Complete. [Details]"
@@ -1271,12 +1271,12 @@ Use these names with scripts:
 
 ### Related Documentation
 
-- **Triage Workflow**: `.team/workflows/TRIAGE_WORKFLOW.md`
-- **Research Workflow**: `.team/workflows/RESEARCH_WORKFLOW.md`
-- **Implementation Workflow**: `.team/workflows/IMPLEMENTATION_WORKFLOW.md`
-- **Tech Debt Workflow**: `.team/workflows/TECH_DEBT_WORKFLOW.md`
-- **Product Prioritization**: `.team/workflows/PRODUCT_PRIORITIZATION_WORKFLOW.md`
-- **Process Modeling**: `.team/workflows/PROCESS_MODELING_WORKFLOW.md`
+- **Triage Workflow**: `.team/prompts/TRIAGE_WORKFLOW.md`
+- **Research Workflow**: `.team/prompts/RESEARCH_WORKFLOW.md`
+- **Implementation Workflow**: `.team/prompts/IMPLEMENTATION_WORKFLOW.md`
+- **Tech Debt Workflow**: `.team/prompts/TECH_DEBT_WORKFLOW.md`
+- **Product Prioritization**: `.team/prompts/PRODUCT_PRIORITIZATION_WORKFLOW.md`
+- **Process Modeling**: `.team/prompts/PROCESS_MODELING_WORKFLOW.md`
 
 ---
 
@@ -1344,7 +1344,7 @@ for sub_issue in issue_data['sub_issues']:
 
 **Tech Debt Discovery**: Creates multiple backlog issues, can optionally link as sub-issues to discovery issue
 
-**Process Modeling Bulk Mode**: Processes multiple workflow improvement entries - see `.team/workflows/PROCESS_MODELING_WORKFLOW.md` (lines 112-367) for complete bulk mode documentation
+**Process Modeling Bulk Mode**: Processes multiple workflow improvement entries - see `.team/prompts/PROCESS_MODELING_WORKFLOW.md` (lines 112-367) for complete bulk mode documentation
 
 **Implementation Batch**: Multiple related features can be linked as sub-issues to an epic issue
 

@@ -210,7 +210,7 @@ If workflow requirements change:
 ## References
 
 - **Workflow Topology Guide**: `.github/docs/WORKFLOW_TOPOLOGY_GUIDE.md`
-- **Helper Scripts**: `.team/scripts/workflow/`
+- **Helper Scripts**: `.github/scripts/workflow/`
 - **Fine-grained PAT Documentation**: https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-fine-grained-personal-access-token
 - **GitHub Copilot Documentation**: https://docs.github.com/en/copilot
 

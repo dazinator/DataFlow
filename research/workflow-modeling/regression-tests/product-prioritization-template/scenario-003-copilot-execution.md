@@ -11,7 +11,7 @@ A copilot agent receives a product prioritization issue created by a human. The 
 ## Copilot Actions
 1. Copilot reads `.github/copilot-instructions.md` and navigates to workflow
 2. Copilot sees "Product Prioritization Workflow" mentioned
-3. Copilot opens `.team/workflows/PRODUCT_PRIORITIZATION_WORKFLOW.md`
+3. Copilot opens `.team/prompts/PRODUCT_PRIORITIZATION_WORKFLOW.md`
 4. Copilot reads the complete workflow documentation (614 lines)
 5. Copilot reads the issue template for specific context/guidance
 6. Copilot executes the workflow steps
@@ -68,7 +68,7 @@ A copilot agent receives a product prioritization issue created by a human. The 
 Following the simplified template:
 1. Copilot reads copilot-instructions.md ✅
 2. Copilot sees workflow reference (line 13) ✅
-3. Copilot opens `.team/workflows/PRODUCT_PRIORITIZATION_WORKFLOW.md` ✅
+3. Copilot opens `.team/prompts/PRODUCT_PRIORITIZATION_WORKFLOW.md` ✅
 4. Copilot executes Step 1: Understands request, notes any focus/guidance from lines 19-28 ✅
 5. Copilot executes Step 2-6: Follows workflow (all details in workflow doc) ✅
 6. Copilot completes successfully ✅

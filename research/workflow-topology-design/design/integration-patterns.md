@@ -123,7 +123,7 @@ This issue requires research to validate feasibility. Designated to Research Wor
 - [Question 1]
 - [Question 2]
 
-See \`.team/workflows/RESEARCH_WORKFLOW.md\` for process."
+See \`.team/prompts/RESEARCH_WORKFLOW.md\` for process."
 ```
 
 **Possible Designations**:
@@ -340,7 +340,7 @@ gh issue close $ISSUE --comment "📋 **Process Modeling Complete**
 Workflow improvements implemented.
 
 **Changes**:
-- Updated: \`.team/workflows/[workflow].md\`
+- Updated: \`.team/prompts/[workflow].md\`
 - Regression tests: \`/research/workflow-modeling/regression-tests/\`
 
 Process improvements deployed."
@@ -470,7 +470,7 @@ This is valid and supported by the workflow topology.
 #!/bin/bash
 # Migration script: Add labels to existing issues
 
-# Research issues (from .team/workflows/RESEARCH_WORKFLOW.md usage)
+# Research issues (from .team/prompts/RESEARCH_WORKFLOW.md usage)
 gh issue list --search "is:open label:research" --json number --jq '.[].number' | \
   xargs -I {} gh issue edit {} --add-label "workflow:research"
 
@@ -485,7 +485,7 @@ gh issue list --search "is:open -label:workflow:*" --json number --jq '.[].numbe
 
 ### Step 2: Update Workflow Documentation
 
-Update each workflow document (`.team/workflows/*.md`) to reference label-based queries:
+Update each workflow document (`.team/prompts/*.md`) to reference label-based queries:
 
 **Before**:
 ```markdown

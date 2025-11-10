@@ -88,7 +88,7 @@ All 6 test scenarios PASS ✅:
 
 ## Files Modified
 
-1. `.team/workflows/PROCESS_MODELING_WORKFLOW.md`
+1. `.team/prompts/PROCESS_MODELING_WORKFLOW.md`
    - Added "Backlog-Driven Mode Options" section (~180 lines)
    - Three subsections: Single Item Mode, Multiple Items Mode, Smart Mode
    - PR Description Consolidation Pattern section

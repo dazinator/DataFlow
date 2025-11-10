@@ -116,7 +116,7 @@ This issue requires research to validate feasibility and approach.
 - [Question 1]
 - [Question 2]
 
-See \`.team/workflows/RESEARCH_WORKFLOW.md\` for research process."
+See \`.team/prompts/RESEARCH_WORKFLOW.md\` for research process."
 ```
 
 ---
@@ -141,7 +141,7 @@ Requirements are clear. Ready for implementation.
 
 **Summary**: [Brief description]
 
-See \`.team/workflows/IMPLEMENTATION_WORKFLOW.md\` for implementation process."
+See \`.team/prompts/IMPLEMENTATION_WORKFLOW.md\` for implementation process."
 ```
 
 ---
@@ -166,7 +166,7 @@ This is a technical debt item requiring analysis and prioritization.
 
 **Debt Category**: [Code Quality / Architecture / Testing / Documentation]
 
-See \`.team/workflows/TECH_DEBT_WORKFLOW.md\` for tech debt process."
+See \`.team/prompts/TECH_DEBT_WORKFLOW.md\` for tech debt process."
 ```
 
 ---
@@ -191,7 +191,7 @@ This item needs prioritization against other backlog items.
 
 **Context**: [Business context or dependency info]
 
-See \`.team/workflows/PRODUCT_PRIORITIZATION_WORKFLOW.md\` for prioritization process."
+See \`.team/prompts/PRODUCT_PRIORITIZATION_WORKFLOW.md\` for prioritization process."
 ```
 
 ---
@@ -216,7 +216,7 @@ This is a process improvement item.
 
 **Area**: [Workflow / Tooling / Documentation / Other]
 
-See \`.team/workflows/PROCESS_MODELING_WORKFLOW.md\` for process modeling workflow."
+See \`.team/prompts/PROCESS_MODELING_WORKFLOW.md\` for process modeling workflow."
 ```
 
 ---
@@ -402,7 +402,7 @@ If someone is already working on it:
 ### View Triage Queue Status
 
 ```bash
-./.team/scripts/workflow/workflow-dashboard.sh
+./.github/scripts/workflow/workflow-dashboard.sh
 ```
 
 ### Find Stale Triage Issues
@@ -459,7 +459,7 @@ Any workflow can send an issue back to triage if:
 ## References
 
 - **Integration Patterns**: `/research/workflow-topology-design/design/integration-patterns.md`
-- **Workflow Topology ADR**: `.team/workflows/adr/2025-11-09-workflow-state-storage.md`
+- **Workflow Topology ADR**: `.team/adr/2025-11-09-workflow-state-storage.md`
 - **Research Findings**: `/research/workflow-topology-design/README.md`
 - **Helper Scripts**: `/research/workflow-topology-design/handover/prototype/`
 

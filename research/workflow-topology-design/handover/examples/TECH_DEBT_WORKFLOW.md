@@ -94,7 +94,7 @@ The issue template includes:
 - Reminder to review existing backlog first
 - Expected deliverables and success criteria
 
-**Alternative**: For ad-hoc analysis, create a blank issue and reference this workflow document (`/.team/workflows/TECH_DEBT_WORKFLOW.md`) with clear instructions for @copilot.
+**Alternative**: For ad-hoc analysis, create a blank issue and reference this workflow document (`/.team/prompts/TECH_DEBT_WORKFLOW.md`) with clear instructions for @copilot.
 
 ## Differences from Standard Research Workflow
 
@@ -650,7 +650,7 @@ grep -l "Priority: High" product/backlog/*.md
 - Review all backlog items
 - Consider current priorities and capacity
 - Create `/product/prioritization.md` with ordered list
-- See `.team/workflows/PRODUCT_PRIORITIZATION_WORKFLOW.md`
+- See `.team/prompts/PRODUCT_PRIORITIZATION_WORKFLOW.md`
 
 ### Implementing Backlog Items
 
@@ -837,7 +837,7 @@ Tech debt analysis complete. Backlog items need prioritization.
 **Backlog Items**: \`/product/backlog/techdebt-[date]-*.md\`
 **Count**: [number] items
 
-See \`.team/workflows/PRODUCT_PRIORITIZATION_WORKFLOW.md\` for prioritization process."
+See \`.team/prompts/PRODUCT_PRIORITIZATION_WORKFLOW.md\` for prioritization process."
 ```
 
 **Or use the handover script**:

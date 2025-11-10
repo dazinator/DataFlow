@@ -1,5 +1,15 @@
 # Example: Using Instructions with GitHub Copilot
 
+> **⚠️ ARCHIVED**: This document is no longer maintained. It was created before the 
+> 6-workflow topology system was implemented and only covers 2 of the 6 workflows.
+> 
+> **For current workflow guidance:**
+> - **Issue Templates**: `.github/ISSUE_TEMPLATE/` - Comprehensive templates for all 6 workflows
+> - **Workflow Prompts**: `.team/prompts/` - Detailed step-by-step workflow guidance
+> - **System Overview**: `.github/docs/WORKFLOW_TOPOLOGY_GUIDE.md` - Complete workflow topology
+> 
+> This document is preserved for historical reference only.
+
 This document demonstrates how to use the research and implementation instructions when working on issues.
 
 ## Two Workflows
@@ -10,7 +20,7 @@ The repository supports two distinct workflows:
    - Use for: Researching any code (POC or production) where outcome is specification for implementation
    - Output: Comprehensive documentation + implementation-ready issue
    - Code reversion: Only when PR reviewer approves and requests it
-   - See: `/.team/workflows/RESEARCH_WORKFLOW.md`
+   - See: `/.team/prompts/RESEARCH_WORKFLOW.md`
 
 2. **Implementation Workflow**: Implementation based on research handover or direct requirements
    - Use for: Implementing features in POC or production code based on validated designs
@@ -32,7 +42,7 @@ Use the "Research Issue" template (`.github/ISSUE_TEMPLATE/research.md`) or:
 
 ## Research Context
 
-⚠️ This is a research issue. @copilot Please follow the Research-to-Implementation workflow in `/.team/workflows/RESEARCH_WORKFLOW.md`.
+⚠️ This is a research issue. @copilot Please follow the Research-to-Implementation workflow in `/.team/prompts/RESEARCH_WORKFLOW.md`.
 
 **Research Objective**: Validate approaches for coordinating transactions across distributed DataFlow nodes
 
@@ -263,7 +273,7 @@ The system works because:
 
 ## See Also
 
-- **Research Workflow**: `/.team/workflows/RESEARCH_WORKFLOW.md` - Complete research workflow
+- **Research Workflow**: `/.team/prompts/RESEARCH_WORKFLOW.md` - Complete research workflow
 - **Implementation Workflow**: See `.github/copilot-instructions.md` (Implementation Team Workflow section)
 - **Issue Templates**: 
   - `.github/ISSUE_TEMPLATE/research.md` - Research workflow template

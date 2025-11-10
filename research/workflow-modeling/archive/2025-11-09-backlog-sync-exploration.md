@@ -183,10 +183,10 @@ Process modeling identified this requires:
 
 No workflow documentation was updated as part of this exploration. If sync is implemented, these docs will need updates:
 
-- `.team/workflows/RESEARCH_WORKFLOW.md` - Note sync when creating backlog items
-- `.team/workflows/TECH_DEBT_WORKFLOW.md` - Note sync when creating backlog items
-- `.team/workflows/PRODUCT_PRIORITIZATION_WORKFLOW.md` - Note issues available
-- `.team/workflows/IMPLEMENTATION_WORKFLOW.md` - Note can work from issues
+- `.team/prompts/RESEARCH_WORKFLOW.md` - Note sync when creating backlog items
+- `.team/prompts/TECH_DEBT_WORKFLOW.md` - Note sync when creating backlog items
+- `.team/prompts/PRODUCT_PRIORITIZATION_WORKFLOW.md` - Note issues available
+- `.team/prompts/IMPLEMENTATION_WORKFLOW.md` - Note can work from issues
 - `/product/README.md` - Document sync process
 - `.github/copilot-instructions.md` - Update backlog system description
 

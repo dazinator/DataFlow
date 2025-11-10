@@ -66,7 +66,7 @@ Table format provides:
    - Added Scenario column (extracted from regression tests and archived plans)
    - All 7 existing entries updated
 
-2. `.team/workflows/PROCESS_MODELING_WORKFLOW.md`
+2. `.team/prompts/PROCESS_MODELING_WORKFLOW.md`
    - Updated "History Entry Format" section with table format
    - Updated "Completing Process Modeling Work" step 3
 
@@ -109,5 +109,5 @@ Converted 7 history entries with proper area identification:
 
 ---
 
-**Process Modeling Workflow**: `.team/workflows/PROCESS_MODELING_WORKFLOW.md`
+**Process Modeling Workflow**: `.team/prompts/PROCESS_MODELING_WORKFLOW.md`
 **History File**: `/research/workflow-modeling/history.md`

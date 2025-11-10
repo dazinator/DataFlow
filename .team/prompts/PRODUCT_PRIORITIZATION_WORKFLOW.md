@@ -308,7 +308,7 @@ These items were reviewed during prioritization but are not currently selected f
 
 ## Prioritization Policy
 
-This prioritization follows the policy defined in `.team/workflows/PRODUCT_PRIORITIZATION_WORKFLOW.md`:
+This prioritization follows the policy defined in `.team/prompts/PRODUCT_PRIORITIZATION_WORKFLOW.md`:
 - Critical security vulnerabilities take precedence
 - At least 1 tech debt item included when available
 - Priority overrides honored
@@ -664,7 +664,7 @@ When prioritization is complete, hand over high-priority items to the appropriat
 **When**: Priority items are ready for implementation
 
 ```bash
-./.team/scripts/workflow/handover-issue.sh \
+./.github/scripts/workflow/handover-issue.sh \
   $ISSUE product-backlog implementation "Prioritization complete. Priority [N] assigned. Ready for implementation."
 ```
 
@@ -678,7 +678,7 @@ When prioritization is complete, hand over high-priority items to the appropriat
 **When**: High-priority item needs validation before implementation
 
 ```bash
-./.team/scripts/workflow/handover-issue.sh \
+./.github/scripts/workflow/handover-issue.sh \
   $ISSUE product-backlog research "High-priority item needs approach validation before implementation"
 ```
 
@@ -703,6 +703,6 @@ Prioritization review complete.
 **High Priority Items**:
 - [List P1/P2 items]
 
-See: \`.team/workflows/PRODUCT_PRIORITIZATION_WORKFLOW.md\`"
+See: \`.team/prompts/PRODUCT_PRIORITIZATION_WORKFLOW.md\`"
 ```
 

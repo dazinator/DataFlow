@@ -66,7 +66,7 @@ gh issue list \
 \`\`\`
 ```
 
-**Status**: These are example templates for review and tabletop testing. The actual workflow files in `.team/workflows/` remain unchanged until after process modeling review and approval.
+**Status**: These are example templates for review and tabletop testing. The actual workflow files in `.team/prompts/` remain unchanged until after process modeling review and approval.
 
 ### 2. New Triage Workflow Example ✅
 
@@ -252,7 +252,7 @@ This will:
 - Tabletop testing complete with examples
 
 **Steps**:
-1. Copy workflow documentation examples from `research/workflow-topology-design/handover/examples/` to `.team/workflows/`
+1. Copy workflow documentation examples from `research/workflow-topology-design/handover/examples/` to `.team/prompts/`
 2. Copy auto-label workflow to `.github/workflows/`
 3. Update Copilot instructions with topology guidance
 4. Commit and merge
@@ -419,7 +419,7 @@ Use this template to document gaps found during testing:
 
 ### Design Decisions Documented
 
-**See**: `.team/workflows/adr/2025-11-09-workflow-state-storage.md`
+**See**: `.team/adr/2025-11-09-workflow-state-storage.md`
 
 Key decisions:
 - Labels vs Projects vs Hybrid: Chose labels (Phase 1)
@@ -457,7 +457,7 @@ research/workflow-topology-design/handover/examples/TRIAGE_WORKFLOW.md          
 research/workflow-topology-design/handover/examples/README.md                           (+177 lines, guide)
 ```
 
-**Note**: These are example templates for review. The actual workflow files in `.team/workflows/` remain unchanged.
+**Note**: These are example templates for review. The actual workflow files in `.team/prompts/` remain unchanged.
 
 ### Scripts
 ```
@@ -499,7 +499,7 @@ These can be deployed after process modeling review and approval.
 
 1. **Research Findings**: `/research/workflow-topology-design/README.md`
 2. **Integration Patterns**: `/research/workflow-topology-design/design/integration-patterns.md`
-3. **ADR**: `.team/workflows/adr/2025-11-09-workflow-state-storage.md`
+3. **ADR**: `.team/adr/2025-11-09-workflow-state-storage.md`
 4. **Comparison Matrix**: `/research/workflow-topology-design/design/comparison-matrix.md`
 5. **Prototype README**: `/research/workflow-topology-design/handover/prototype/README.md`
 
@@ -520,12 +520,12 @@ These can be deployed after process modeling review and approval.
 
 ```bash
 # View what changed in each workflow doc
-git diff HEAD~4 HEAD -- .team/workflows/RESEARCH_WORKFLOW.md
-git diff HEAD~4 HEAD -- .team/workflows/IMPLEMENTATION_WORKFLOW.md
+git diff HEAD~4 HEAD -- .team/prompts/RESEARCH_WORKFLOW.md
+git diff HEAD~4 HEAD -- .team/prompts/IMPLEMENTATION_WORKFLOW.md
 # etc.
 
 # View new Triage workflow
-cat .team/workflows/TRIAGE_WORKFLOW.md
+cat .team/prompts/TRIAGE_WORKFLOW.md
 ```
 
 ### Propose Changes
@@ -559,7 +559,7 @@ If testing reveals needed improvements:
 For questions about this handover:
 
 - **Implementation Details**: See `/research/workflow-topology-design/`
-- **Design Decisions**: See `.team/workflows/adr/2025-11-09-workflow-state-storage.md`
+- **Design Decisions**: See `.team/adr/2025-11-09-workflow-state-storage.md`
 - **Research Validation**: See `/research/workflow-topology-design/benchmarks/`
 - **Integration Patterns**: See `/research/workflow-topology-design/design/integration-patterns.md`
 

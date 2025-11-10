@@ -374,7 +374,7 @@ Key points:
 ### Well-Factored Documentation
 
 ```
-.team/workflows/
+.team/prompts/
 ├── RESEARCH_WORKFLOW.md          # Single purpose: research process
 ├── IMPLEMENTATION_WORKFLOW.md    # Single purpose: implementation  
 ├── TECH_DEBT_WORKFLOW.md         # Single purpose: tech debt discovery

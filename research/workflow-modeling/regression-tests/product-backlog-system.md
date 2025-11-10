@@ -26,7 +26,7 @@ For each scenario below:
 
 **Test Steps**:
 1. Open `.github/copilot-instructions.md` → Find Research Workflow pointer
-2. Open `.team/workflows/RESEARCH_WORKFLOW.md` → Find Phase 5
+2. Open `.team/prompts/RESEARCH_WORKFLOW.md` → Find Phase 5
 3. Verify Phase 5 has "Create Product Backlog Item" instructions
 4. Verify naming convention explained: `research-YYYY-MM-DD-[name].md`
 5. Verify template provided inline
@@ -54,7 +54,7 @@ For each scenario below:
 **Status**: PASS (as of 2025-11-08)
 
 **Test Steps**:
-1. Open `.team/workflows/TECH_DEBT_WORKFLOW.md` → Find Phase 1, Step 3
+1. Open `.team/prompts/TECH_DEBT_WORKFLOW.md` → Find Phase 1, Step 3
 2. Verify references `/product/backlog/` not `/research/backlog/`
 3. Verify search examples use correct paths
 4. Verify `techdebt-*.md` filtering explained
@@ -82,7 +82,7 @@ For each scenario below:
 **Status**: PASS (as of 2025-11-08)
 
 **Test Steps**:
-1. Open `.team/workflows/IMPLEMENTATION_WORKFLOW.md` → Find Step 2
+1. Open `.team/prompts/IMPLEMENTATION_WORKFLOW.md` → Find Step 2
 2. Verify "Next from Prioritization" section exists
 3. Verify instructions to open `/product/prioritization.md`
 4. Verify PAUSE requirement is explicit

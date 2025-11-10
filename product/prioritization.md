@@ -35,7 +35,7 @@ These items were reviewed during prioritization but are not currently selected f
 
 ## Prioritization Policy
 
-This prioritization follows the policy defined in `.team/workflows/PRODUCT_PRIORITIZATION_WORKFLOW.md`:
+This prioritization follows the policy defined in `.team/prompts/PRODUCT_PRIORITIZATION_WORKFLOW.md`:
 - Critical security vulnerabilities take precedence
 - At least 1 tech debt item included when available
 - Priority overrides honored

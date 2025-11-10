@@ -62,7 +62,7 @@ Total: 17 test scenarios created
 
 ## Files Modified
 
-- `.team/workflows/PROCESS_MODELING_WORKFLOW.md` - All 5 entries updated this file
+- `.team/prompts/PROCESS_MODELING_WORKFLOW.md` - All 5 entries updated this file
   - Entry 1: +34 lines (smart mode section)
   - Entry 2: +76 lines (backlog-driven mode section, completion section, tabletop simulation section)
     - _Note: Classified as "framework change" based on the nature of changes (new process logic and detection mechanisms), though line count is below typical framework range (150-200). The estimation framework provides typical ranges, but actual classifications are based on the nature and impact of changes rather than line count alone._

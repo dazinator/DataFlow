@@ -81,7 +81,7 @@ Validation approach: Code review and verification that all suggestions were addr
 
 ## Files Modified
 
-### .team/workflows/PROCESS_MODELING_WORKFLOW.md
+### .team/prompts/PROCESS_MODELING_WORKFLOW.md
 **Changes made**: Added 6 new guidance sections totaling ~322 lines
 1. **Scenario Naming Convention** (after line 461) - Added format, types, examples
 2. **Before/After Impact Section** (in archived plan template) - Added new template section

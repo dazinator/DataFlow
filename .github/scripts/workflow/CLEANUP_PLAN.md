@@ -26,7 +26,7 @@ Transition from `gh` CLI-based scripts to GitHub MCP tooling approach.
 - Already correct - focuses on MCP server setup
 - Minor updates to clarify MCP is primary approach
 
-### .team/scripts/workflow/README.md
+### .github/scripts/workflow/README.md
 - Remove documentation for deleted scripts
 - Update to reflect MCP-first approach
 - Keep query and dashboard scripts
@@ -39,6 +39,6 @@ Transition from `gh` CLI-based scripts to GitHub MCP tooling approach.
 
 1. Delete redundant scripts
 2. Update WORKFLOW_TOPOLOGY_GUIDE.md
-3. Update .team/scripts/workflow/README.md
+3. Update .github/scripts/workflow/README.md
 4. Update workflow files
 5. Update PR description

@@ -4,7 +4,7 @@
 
 ### Structure Overview
 
-The research workflow in `.team/workflows/RESEARCH_WORKFLOW.md` has:
+The research workflow in `.team/prompts/RESEARCH_WORKFLOW.md` has:
 - 6 phases: Planning, Research & Exploration, Document Findings, Create Supporting Docs, Create Implementation Issue, Code Reversion
 - Uses `/research/[topic]/` folder structure
 - Exploratory code goes in `/poc/` or `/src/` and is reverted after reviewer approval
@@ -265,7 +265,7 @@ If time permits or if specific areas warrant investigation:
 2. **Findings Report** (new - for PR review)
 3. **Tech Debt Handover Issue** (adaptation of IMPLEMENTATION_ISSUE_TEMPLATE.md)
 4. **Backlog Item** (new - lightweight format)
-5. **Tech Debt Workflow Guide** (new - .team/workflows/TECH_DEBT_WORKFLOW.md)
+5. **Tech Debt Workflow Guide** (new - .team/prompts/TECH_DEBT_WORKFLOW.md)
 
 ## Next Steps
 

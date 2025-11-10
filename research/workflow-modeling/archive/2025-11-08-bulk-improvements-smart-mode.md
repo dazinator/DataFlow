@@ -78,9 +78,9 @@ Processed 2 backlog improvement entries in smart mode with intelligent stopping.
 ## Files Modified
 
 **Workflows Updated**:
-- `.team/workflows/IMPLEMENTATION_WORKFLOW.md` (+89 lines)
-- `.team/workflows/RESEARCH_WORKFLOW.md` (+7 lines)
-- `.team/workflows/PROCESS_MODELING_WORKFLOW.md` (+129 lines)
+- `.team/prompts/IMPLEMENTATION_WORKFLOW.md` (+89 lines)
+- `.team/prompts/RESEARCH_WORKFLOW.md` (+7 lines)
+- `.team/prompts/PROCESS_MODELING_WORKFLOW.md` (+129 lines)
 
 **Templates Updated**:
 - `product/backlog-item-template.md` (+27 lines)

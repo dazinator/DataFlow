@@ -43,7 +43,7 @@ gh issue list \
 
 **Or use the query script:**
 ```bash
-./.team/scripts/workflow/query-workflow-queue.sh implementation
+./.github/scripts/workflow/query-workflow-queue.sh implementation
 ```
 
 **Entry Points:**
@@ -812,7 +812,7 @@ Successfully implemented [feature/fix].
 
 All success criteria met.
 
-See: `.team/workflows/IMPLEMENTATION_WORKFLOW.md`"""
+See: `.team/prompts/IMPLEMENTATION_WORKFLOW.md`"""
 )
 ```
 
@@ -830,7 +830,7 @@ Successfully implemented [feature/fix].
 
 All success criteria met.
 
-See: \`.team/workflows/IMPLEMENTATION_WORKFLOW.md\`"
+See: \`.team/prompts/IMPLEMENTATION_WORKFLOW.md\`"
 ```
 
 ### Handover to Tech Debt
@@ -852,12 +852,12 @@ Implementation revealed technical debt that should be addressed.
 
 **Context**: [Why this surfaced during implementation]
 
-See: \`.team/workflows/TECH_DEBT_WORKFLOW.md\`"
+See: \`.team/prompts/TECH_DEBT_WORKFLOW.md\`"
 ```
 
 **Or use the handover script**:
 ```bash
-./.team/scripts/workflow/handover-issue.sh \
+./.github/scripts/workflow/handover-issue.sh \
   $ISSUE implementation tech-debt "Implementation revealed technical debt in [area]"
 ```
 
@@ -866,7 +866,7 @@ See: \`.team/workflows/TECH_DEBT_WORKFLOW.md\`"
 **When**: Implementation uncovers unknowns requiring research
 
 ```bash
-./.team/scripts/workflow/handover-issue.sh \
+./.github/scripts/workflow/handover-issue.sh \
   $ISSUE implementation research "Implementation revealed unknowns requiring validation. See comments for details."
 ```
 
@@ -875,7 +875,7 @@ See: \`.team/workflows/TECH_DEBT_WORKFLOW.md\`"
 **When**: Requirements were unclear or need re-evaluation
 
 ```bash
-./.team/scripts/workflow/handover-issue.sh \
+./.github/scripts/workflow/handover-issue.sh \
   $ISSUE implementation triage "Requirements unclear during implementation. Needs reassessment."
 ```
 
@@ -884,7 +884,7 @@ See: \`.team/workflows/TECH_DEBT_WORKFLOW.md\`"
 **When**: Implementation is paused pending prioritization decision
 
 ```bash
-./.team/scripts/workflow/handover-issue.sh \
+./.github/scripts/workflow/handover-issue.sh \
   $ISSUE implementation product-backlog "Implementation paused, needs prioritization decision"
 ```
 
@@ -893,6 +893,6 @@ See: \`.team/workflows/TECH_DEBT_WORKFLOW.md\`"
 ## Related Documentation
 
 - **Entry point**: `.github/copilot-instructions.md` - Start here
-- **Research workflow**: `.team/workflows/RESEARCH_WORKFLOW.md`
+- **Research workflow**: `.team/prompts/RESEARCH_WORKFLOW.md`
 - **Implementation folder**: `/implementation/README.md`
 - **Workflow improvements**: `.github/workflow-improvements.md`

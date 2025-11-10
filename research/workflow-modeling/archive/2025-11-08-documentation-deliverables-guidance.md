@@ -46,12 +46,12 @@ Addressed documentation deliverables and example tests guidance gaps in the prod
 
 ### ✅ Improvement #3: Documentation Directory Decision Tree
 **Status**: ALREADY IMPLEMENTED
-**Location**: `.team/workflows/IMPLEMENTATION_WORKFLOW.md` (lines 505-527)
+**Location**: `.team/prompts/IMPLEMENTATION_WORKFLOW.md` (lines 505-527)
 **Notes**: No action needed. Implementation Workflow already has comprehensive decision tree.
 
 ### ✅ Improvement #4: Navigation File Updates
 **Status**: ALREADY IMPLEMENTED
-**Location**: `.team/workflows/IMPLEMENTATION_WORKFLOW.md` (lines 535-550)
+**Location**: `.team/prompts/IMPLEMENTATION_WORKFLOW.md` (lines 535-550)
 **Notes**: No action needed. Implementation Workflow already has checkpoint and navigation file list.
 
 ## Test Results

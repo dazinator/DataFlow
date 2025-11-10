@@ -27,7 +27,7 @@ Research was conducted to validate the approach and inform this implementation.
 - Main findings: `/research/workflow-topology-design/README.md`
 - Comparison matrix: `/research/workflow-topology-design/design/comparison-matrix.md`
 - Integration patterns: `/research/workflow-topology-design/design/integration-patterns.md`
-- ADR: `.team/workflows/adr/2025-11-09-workflow-state-storage.md`
+- ADR: `.team/adr/2025-11-09-workflow-state-storage.md`
 - Prototypes: `/research/workflow-topology-design/handover/prototype/`
 
 **Key Findings from Research**:
@@ -69,7 +69,7 @@ Implement a simple, proven approach using GitHub Labels as the canonical source 
 
 Supporting documentation created during research:
 
-- **ADR**: `.team/workflows/adr/2025-11-09-workflow-state-storage.md`
+- **ADR**: `.team/adr/2025-11-09-workflow-state-storage.md`
 - **Comparison Matrix**: `/research/workflow-topology-design/design/comparison-matrix.md`
 - **Integration Patterns**: `/research/workflow-topology-design/design/integration-patterns.md`
 - **Benchmarks**: `/research/workflow-topology-design/benchmarks/`
@@ -219,7 +219,7 @@ Research complete. See /research/[topic]/ for details."
 | **Process Modeling** | `.github/workflow-improvements.md` | Query `workflow:process-modeling` labels |
 
 **Changes Required**:
-- Update `.team/workflows/*.md` to reference label-based queries
+- Update `.team/prompts/*.md` to reference label-based queries
 - Keep existing entry points during transition (backward compatibility)
 - Document handover patterns in each workflow doc
 
@@ -340,11 +340,11 @@ This implementation is atomic and should be done together because:
 
 **Files to Update**:
 
-1. `.team/workflows/RESEARCH_WORKFLOW.md`
-2. `.team/workflows/IMPLEMENTATION_WORKFLOW.md`
-3. `.team/workflows/TECH_DEBT_WORKFLOW.md`
-4. `.team/workflows/PRODUCT_PRIORITIZATION_WORKFLOW.md`
-5. `.team/workflows/PROCESS_MODELING_WORKFLOW.md`
+1. `.team/prompts/RESEARCH_WORKFLOW.md`
+2. `.team/prompts/IMPLEMENTATION_WORKFLOW.md`
+3. `.team/prompts/TECH_DEBT_WORKFLOW.md`
+4. `.team/prompts/PRODUCT_PRIORITIZATION_WORKFLOW.md`
+5. `.team/prompts/PROCESS_MODELING_WORKFLOW.md`
 
 **Changes for Each Workflow**:
 
@@ -405,7 +405,7 @@ See [Integration Patterns](/research/workflow-topology-design/design/integration
 
 **Steps**:
 
-1. Create `.team/workflows/TRIAGE_WORKFLOW.md` based on integration patterns
+1. Create `.team/prompts/TRIAGE_WORKFLOW.md` based on integration patterns
 
 2. Include:
    - Purpose: Assess new issues and designate to appropriate workflow
@@ -517,8 +517,8 @@ Update workflow table with triage workflow entry.
 ## Documentation Deliverables
 
 - [x] `.github/workflows/auto-label-triage.yml` - Auto-label workflow
-- [x] `.team/workflows/TRIAGE_WORKFLOW.md` - Triage workflow documentation
-- [x] `.team/workflows/*.md` - Updated with query and handover patterns
+- [x] `.team/prompts/TRIAGE_WORKFLOW.md` - Triage workflow documentation
+- [x] `.team/prompts/*.md` - Updated with query and handover patterns
 - [x] `.github/copilot-instructions.md` - Updated with workflow topology guidance
 - [x] Migration verification (all issues labeled)
 
@@ -564,7 +564,7 @@ Update workflow table with triage workflow entry.
 ## References
 
 - **Research Folder**: `/research/workflow-topology-design/`
-- **ADR**: `.team/workflows/adr/2025-11-09-workflow-state-storage.md`
+- **ADR**: `.team/adr/2025-11-09-workflow-state-storage.md`
 - **Integration Patterns**: `/research/workflow-topology-design/design/integration-patterns.md`
 - **Prototypes**: `/research/workflow-topology-design/handover/prototype/`
 - **Comparison Matrix**: `/research/workflow-topology-design/design/comparison-matrix.md`

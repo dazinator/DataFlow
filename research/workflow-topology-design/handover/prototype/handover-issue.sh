@@ -32,11 +32,11 @@ gh issue comment $ISSUE \
 $REASON
 
 See workflow documentation for next steps:
-- Triage: \`.team/workflows/TRIAGE_WORKFLOW.md\` (to be created)
-- Research: \`.team/workflows/RESEARCH_WORKFLOW.md\`
-- Implementation: \`.team/workflows/IMPLEMENTATION_WORKFLOW.md\`
-- Tech Debt: \`.team/workflows/TECH_DEBT_WORKFLOW.md\`
-- Product: \`.team/workflows/PRODUCT_PRIORITIZATION_WORKFLOW.md\`
-- Process Modeling: \`.team/workflows/PROCESS_MODELING_WORKFLOW.md\`"
+- Triage: \`.team/prompts/TRIAGE_WORKFLOW.md\`
+- Research: \`.team/prompts/RESEARCH_WORKFLOW.md\`
+- Implementation: \`.team/prompts/IMPLEMENTATION_WORKFLOW.md\`
+- Tech Debt: \`.team/prompts/TECH_DEBT_WORKFLOW.md\`
+- Product: \`.team/prompts/PRODUCT_PRIORITIZATION_WORKFLOW.md\`
+- Process Modeling: \`.team/prompts/PROCESS_MODELING_WORKFLOW.md\`"
 
 echo "✅ Handover complete!"

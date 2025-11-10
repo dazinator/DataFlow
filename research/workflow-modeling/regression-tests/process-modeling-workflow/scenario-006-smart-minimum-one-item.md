@@ -14,7 +14,7 @@ Agent receives a process modeling issue with "Backlog-Driven - Smart" mode selec
 ## Steps to Follow
 
 1. Read issue template and identify mode: "Backlog-Driven - Smart"
-2. Navigate to `.team/workflows/PROCESS_MODELING_WORKFLOW.md`
+2. Navigate to `.team/prompts/PROCESS_MODELING_WORKFLOW.md`
 3. Find "Smart Mode" subsection
 4. Read edge case guidance: "Process at least 1 item, even if it exceeds thresholds"
 5. Initialize tracking:

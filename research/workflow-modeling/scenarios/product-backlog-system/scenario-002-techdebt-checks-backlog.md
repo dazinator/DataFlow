@@ -17,7 +17,7 @@ Tech debt team is conducting analysis and has discovered a potential improvement
 Following Tech Debt Workflow with product backlog integration:
 
 1. **Read copilot instructions** - Start from `.github/copilot-instructions.md`
-2. **Navigate to Tech Debt Workflow** - Follow pointer to `.team/workflows/TECH_DEBT_WORKFLOW.md`
+2. **Navigate to Tech Debt Workflow** - Follow pointer to `.team/prompts/TECH_DEBT_WORKFLOW.md`
 3. **Find backlog check section** - Workflow should explain to check existing backlog first
 4. **Search existing backlog**:
    - Read `/product/README.md` to understand how to search

@@ -15,7 +15,7 @@
 Cleanup after GitHub issue migration (PR #220):
 1. ✅ Replace bash script references with MCP tool guidance
 2. ✅ Evaluate .team/scripts folder (kept for manual/CI use)
-3. ✅ Relocate .team/workflows/adr (location is appropriate)
+3. ✅ Relocate .team/prompts/adr (location is appropriate)
 4. ✅ Remove all /product/backlog references (0 references remaining)
 5. ✅ Update issue templates with default workflow labels
 6. ✅ Add bulk mode documentation with sub-issue patterns

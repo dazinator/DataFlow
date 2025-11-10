@@ -104,7 +104,7 @@ The issue template includes:
 - Reminder to review existing backlog first
 - Expected deliverables and success criteria
 
-**Alternative**: For ad-hoc analysis, create a blank issue and reference this workflow document (`/.team/workflows/TECH_DEBT_WORKFLOW.md`) with clear instructions for @copilot.
+**Alternative**: For ad-hoc analysis, create a blank issue and reference this workflow document (`/.team/prompts/TECH_DEBT_WORKFLOW.md`) with clear instructions for @copilot.
 
 ## Differences from Standard Research Workflow
 
@@ -696,7 +696,7 @@ grep -l "Priority: High" product/backlog/*.md
 - Review all backlog items
 - Consider current priorities and capacity
 - Create `/product/prioritization.md` with ordered list
-- See `.team/workflows/PRODUCT_PRIORITIZATION_WORKFLOW.md`
+- See `.team/prompts/PRODUCT_PRIORITIZATION_WORKFLOW.md`
 
 ### Implementing Backlog Items
 
@@ -891,7 +891,7 @@ add_issue_comment(
 **When**: Findings reveal unknowns requiring deeper validation
 
 ```bash
-./.team/scripts/workflow/handover-issue.sh \
+./.github/scripts/workflow/handover-issue.sh \
   $ISSUE tech-debt research "Tech debt analysis uncovered unknowns requiring research. See findings report."
 ```
 
@@ -900,7 +900,7 @@ add_issue_comment(
 **When**: Critical tech debt item identified that needs immediate attention
 
 ```bash
-./.team/scripts/workflow/handover-issue.sh \
+./.github/scripts/workflow/handover-issue.sh \
   $ISSUE tech-debt implementation "Critical tech debt identified, needs immediate implementation"
 ```
 
@@ -920,7 +920,7 @@ Analysis complete with [N] findings.
 
 All findings available for product team prioritization.
 
-See: \`.team/workflows/TECH_DEBT_WORKFLOW.md\`"
+See: \`.team/prompts/TECH_DEBT_WORKFLOW.md\`"
 ```
 
 

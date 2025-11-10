@@ -17,7 +17,7 @@ Copilot would:
 
 1. Read `.github/copilot-instructions.md` Quick Navigation section
 2. Identify this is an implementation task
-3. Navigate to `.team/workflows/IMPLEMENTATION_WORKFLOW.md`
+3. Navigate to `.team/prompts/IMPLEMENTATION_WORKFLOW.md`
 4. Follow "Quick Start" section
 5. Look for guidance on checking for existing implementation plans
 6. If guidance exists, check `/implementation/plan.md`

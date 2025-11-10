@@ -4,7 +4,7 @@
 
 **This is an IMPLEMENTATION issue based on completed research.**
 
-The engineering team should follow the Implementation workflow in `/.team/workflows/IMPLEMENTATION_WORKFLOW.md`.
+The engineering team should follow the Implementation workflow in `/.team/prompts/IMPLEMENTATION_WORKFLOW.md`.
 
 ## Context and Objectives
 
