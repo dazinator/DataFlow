@@ -407,6 +407,151 @@ issues = list_issues(
 - Exclude it from the list of issues to process
 - Only process actual workflow improvements, not the coordination issue
 
+#### Step 3.5: Triage Feedback Backlog (Optional - Use for Large Backlogs)
+
+**When to use triage**: When processing a large backlog of feedback issues (10+ items), especially after migration or long periods without bulk processing.
+
+**Purpose**: Early dismissal of low-value items and prioritization of remaining feedback.
+
+##### Triage Rules
+
+Apply these rules sequentially to each issue:
+
+**Rule 1: Already Implemented** ✅
+- **Trigger**: Issue body contains "✅ ADDRESSED", "✅ IMPLEMENTED", or similar completion markers
+- **Action**: Close issue with comment: `"[Copilot-Workflow: Process Modeling] This feedback has already been implemented. Closing as complete."`
+- **Rationale**: No value in processing already-actioned feedback
+
+**Rule 2: Template Placeholder** 📝
+- **Trigger**: 
+  - Title contains "Template placeholder" OR
+  - Body contains only template placeholders like "[description]", "YYYY-MM-DD" with minimal/no real content
+- **Action**: Close issue as "not planned" with comment: `"[Copilot-Workflow: Process Modeling] This appears to be a template artifact from migration. Closing as not actionable."`
+- **Rationale**: Migration artifacts have no value
+
+**Rule 3: Missing Critical Context** ❓
+- **Trigger**:
+  - Date field is "YYYY-MM-DD" (not filled in) AND
+  - Issue/PR field is "#[number]" or "[description]" (not filled in) AND  
+  - "Suggested Improvement" section is empty or only contains placeholder text
+- **Action**: Add label `"needs-context"` and assign **Priority: P3 (Low)**
+- **Rationale**: Hard to assess value without context; deprioritize but don't close in case it becomes relevant later
+
+**Rule 4: Process Modeling Self-Reference** 🔄
+- **Trigger**: Issue specifically mentions improvements to "Process Modeling Workflow" itself
+- **Action**: Assign **Priority: P1 (High)**
+- **Rationale**: Improvements to process modeling directly improve our ability to process other feedback - highest leverage
+
+**Rule 5: Priority Assignment** (for issues not caught by Rules 1-4)
+
+Assign priority based on:
+- **P1 (High)**: 
+  - Process modeling self-improvements (Rule 4)
+  - Contains keywords: "critical", "urgent", "severe", "blocking"
+- **P2 (Medium)**: 
+  - Has clear context (date, issue/PR reference filled in)
+  - Specific, actionable improvements
+  - Affects commonly-used workflows (Implementation, Research)
+- **P3 (Low)**:
+  - Missing context (Rule 3)
+  - Vague or unclear improvements
+  - Affects rarely-used workflows
+
+##### Processing Order
+
+After triage, process feedback in this order:
+
+1. **Priority first**: P1 → P2 → P3
+2. **Within each priority**: **Date descending** (most recent feedback first)
+
+**Rationale**: Recent feedback reflects current pain points; older feedback may have been naturally resolved.
+
+##### Supersedence Check
+
+**Before processing each item**, manually check:
+- Is there a newer feedback issue covering the same workflow/area?
+- Does a more recent issue supersede this one's suggestions?
+
+**If superseded**: Close with comment linking to superseding issue:
+```python
+add_issue_comment(
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=OLD_ISSUE_NUMBER,
+    body="[Copilot-Workflow: Process Modeling] This feedback has been superseded by #NEW_ISSUE_NUMBER which covers the same area with more recent context. Closing in favor of the newer feedback."
+)
+
+issue_write(
+    method="update",
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=OLD_ISSUE_NUMBER,
+    state="closed"
+)
+```
+
+##### Triage Example
+
+```python
+# After querying issues
+for issue in filtered_issues:
+    issue_data = issue_read(
+        method="get",
+        owner="uniun-technology",
+        repo="lib-dataflow",
+        issue_number=issue['number']
+    )
+    
+    # Rule 1: Already Implemented?
+    if "✅ ADDRESSED" in issue_data['body'] or "✅ IMPLEMENTED" in issue_data['body']:
+        add_issue_comment(...)  # Close as implemented
+        issue_write(method="update", state="closed", ...)
+        continue
+    
+    # Rule 2: Template Placeholder?
+    # Check for placeholder patterns in title and body
+    has_placeholder_title = "Template placeholder" in issue_data['title'] or \
+                           ("YYYY-MM-DD" in issue_data['title'] and "#[number]" in issue_data['title'])
+    has_placeholder_body = "[List positives]" in issue_data['body'] or \
+                          "[List issues]" in issue_data['body'] or \
+                          "[Specific improvement]" in issue_data['body']
+    
+    if has_placeholder_title or has_placeholder_body:
+        add_issue_comment(...)  # Close as template artifact
+        issue_write(method="update", state="closed", ...)
+        continue
+    
+    # Rule 3: Missing Context?
+    # Check if required fields contain only placeholder values
+    has_date_placeholder = "YYYY-MM-DD" in issue_data['body'] and \
+                          "**Date**: YYYY-MM-DD" in issue_data['body']
+    has_issue_placeholder = ("#[number]" in issue_data['body'] or \
+                            "[description]" in issue_data['body']) and \
+                            "**Issue/PR**:" in issue_data['body']
+    has_empty_improvement = "[Specific improvement]" in issue_data['body'] or \
+                           "### Suggested Improvement\n\n[" in issue_data['body']
+    
+    if has_date_placeholder and has_issue_placeholder and has_empty_improvement:
+        # Add label and mark as P3
+        issue_write(method="update", labels=[...existing..., "needs-context"], ...)
+        priority = "P3"
+        continue
+    
+    # Rule 4: Process Modeling Self-Reference?
+    if "Process Modeling Workflow" in issue_data['body']:
+        priority = "P1"
+    else:
+        priority = "P2"  # Default for issues with context
+    
+    # Add to processing queue with priority
+    processing_queue.append((priority, issue_data['created_at'], issue_data))
+
+# Sort by priority then date descending
+processing_queue.sort(key=lambda x: (x[0], -datetime.fromisoformat(x[1]).timestamp()))
+
+# Now process in order...
+```
+
 #### Step 4: Process Each Issue
 
 For each issue in the filtered queue:

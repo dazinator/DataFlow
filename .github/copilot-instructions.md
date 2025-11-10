@@ -158,6 +158,7 @@ issue_write(
 5. **Create Feedback Issue**:
    - Find the feedback tracker: Search for `[Workflow Feedback] Tracker` issue
    - Create child feedback issue with evaluation
+   - **IMPORTANT**: Fill in all required fields (Date, Issue/PR, Workflow) - issues missing context may be deprioritized during triage
    - Link child to parent using `sub_issue_write` MCP tool
 
 **Creating Feedback Issue:**
@@ -170,26 +171,30 @@ results = search_issues(
 )
 
 # Create feedback issue
+# ⚠️ IMPORTANT: Fill in actual values for Date, Issue/PR, and Workflow
+# Issues with placeholder values may be deprioritized or closed during triage
+from datetime import datetime
+
 child = issue_write(
     method="create",
     owner="uniun-technology",
     repo="lib-dataflow",
     title="[Brief description of improvement]",
     labels=["workflow:process-modeling"],
-    body="""## Workflow Feedback Entry
+    body=f"""## Workflow Feedback Entry
 
-**Date**: YYYY-MM-DD
-**Issue/PR**: #XXX
-**Workflow**: [Workflow Name]
+**Date**: {datetime.now().strftime("%Y-%m-%d")}
+**Issue/PR**: #{CURRENT_ISSUE_NUMBER}  # Replace with actual issue number
+**Workflow**: [Workflow Name]  # Replace with actual workflow (Research, Implementation, etc.)
 
 ### What Worked Well
-[List positives]
+[List specific positives - what helped you succeed]
 
 ### What Didn't Work Well
-[List issues]
+[List specific issues - what caused delays or confusion]
 
 ### Suggested Improvement
-[Specific improvement]
+[Specific, actionable improvements - be concrete]
 """
 )
 
@@ -202,6 +207,8 @@ sub_issue_write(
     sub_issue_id=child.id
 )
 ```
+
+**Note on Triage**: Feedback issues are periodically triaged (see `.team/prompts/PROCESS_MODELING_WORKFLOW.md` Step 3.5). Issues missing critical context (date, issue/PR, specific improvements) may be deprioritized or closed. Ensure your feedback is actionable and well-documented.
 
 ### Why This Matters
 
