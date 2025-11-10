@@ -75,18 +75,52 @@
    - What new guidance should be added?
    - Should issue templates be updated?
 
-5. **Add to Workflow Improvements File**:
-   - Open `.github/workflow-improvements.md`
-   - Check if your suggestion already exists
-   - If new, add your evaluation using the template format
+5. **Create Feedback Issue**:
+   - Find the feedback tracker: Search for `[Workflow Feedback] Tracker` issue
+   - Create child feedback issue with evaluation
+   - Link child to parent using `sub_issue_write` MCP tool
 
-**Example Entry:**
-```markdown
-- **Date**: 2025-11-05
-- **Issue/PR**: #123
-- **What worked well**: Handover document template was comprehensive
-- **What didn't work well**: No guidance on when to create benchmarks
-- **Suggested improvement**: Add decision tree for "When to Create Benchmarks"
+**Creating Feedback Issue:**
+```python
+# Find parent tracker
+results = search_issues(
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    query='"[Workflow Feedback] Tracker" in:title state:open'
+)
+
+# Create feedback issue
+child = issue_write(
+    method="create",
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    title="[Brief description of improvement]",
+    labels=["workflow:process-modeling"],
+    body="""## Workflow Feedback Entry
+
+**Date**: YYYY-MM-DD
+**Issue/PR**: #XXX
+**Workflow**: [Workflow Name]
+
+### What Worked Well
+[List positives]
+
+### What Didn't Work Well
+[List issues]
+
+### Suggested Improvement
+[Specific improvement]
+"""
+)
+
+# Link to parent
+sub_issue_write(
+    method="add",
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=results[0].number,
+    sub_issue_id=child.id
+)
 ```
 
 ### Why This Matters
@@ -121,8 +155,9 @@ This self-improvement loop ensures our workflows continuously evolve based on re
 ```
 .github/
 ├── workflows/                       # GitHub Actions workflows
+├── scripts/                         # Migration and utility scripts
 ├── copilot-instructions.md          # This file (navigation hub)
-└── workflow-improvements.md         # Self-improvement tracking
+└── archive/                         # Archived files
 
 .team/
 ├── workflows/                       # Workflow documentation
@@ -533,5 +568,5 @@ When suggesting code changes, ensure AGPL-3.0 compatibility.
 - Production code: `/src/` (consult specific README files)
 
 **Process Improvements:**
-- Add suggestions to `.github/workflow-improvements.md`
+- Create feedback issue under `[Workflow Feedback] Tracker` parent issue
 - Self-improvement evaluation required before PR review

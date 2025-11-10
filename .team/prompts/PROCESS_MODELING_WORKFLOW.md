@@ -30,7 +30,7 @@ This workflow is a specialized variant of the Research Workflow for systematical
 - ✅ Update issue templates in `.github/ISSUE_TEMPLATE/` if needed
 - ✅ Archive valuable test scenarios as regression tests (optional - default: revert; see archiving guidance)
 - ✅ Update plan.md with completion status
-- ✅ **Complete self-improvement evaluation** in `.github/workflow-improvements.md`
+- ✅ **Complete self-improvement evaluation** by creating feedback issue (see section below)
 
 ### DON'T:
 - ❌ Skip tabletop simulation testing
@@ -71,7 +71,7 @@ gh issue list \
 
 **Entry Points:**
 - From Triage workflow (process improvement identified)
-- From backlog-driven mode (processing workflow-improvements.md entries)
+- From backlog-driven mode (processing workflow feedback issues)
 - From ad-hoc process improvement requests
 
 **See**: [Workflow Topology Guide](/.github/docs/WORKFLOW_TOPOLOGY_GUIDE.md) for complete documentation on querying and handover patterns.
@@ -126,7 +126,7 @@ add_issue_comment(
 
 Process modeling is the systematic process of improving team workflows and processes through iterative testing and refinement. This workflow enables Copilot agents to understand workflow pain points, propose improvements, test them through tabletop simulation, and refine based on feedback.
 
-**📝 Terminology Note**: The improvement tracking file is `.github/workflow-improvements.md` (not "process-improvements.md"). This file tracks suggestions for improving workflows and processes.
+**📝 Terminology Note**: Workflow feedback is now tracked as child issues under the `[Workflow Feedback] Tracker` parent issue. This replaced the previous `.github/workflow-improvements.md` file.
 
 ## When to Use This Workflow
 
@@ -178,20 +178,48 @@ The issue will invoke this Process Modeling Workflow with your specific proposal
 
 #### Single Item Mode (Default)
 
-Process exactly one backlog entry then stop.
+Process exactly one feedback issue then close it.
 
 **For @copilot executing single-item mode:**
 
-1. **Read** `.github/workflow-improvements.md`
-2. **Select** the top unaddressed entry:
-   - Scan sections in order: Research → Implementation → General → POC → Documentation
-   - Find first entry with at least one unaddressed improvement (no ✅ marker)
-   - If all improvements in an entry are marked ✅, skip to next entry
-3. **Extract context** from the selected entry:
+1. **Query** open feedback issues:
+   ```python
+   # Find parent tracker
+   results = search_issues(
+       owner="uniun-technology",
+       repo="lib-dataflow",
+       query='"[Workflow Feedback] Tracker" in:title state:open'
+   )
+   parent = results[0] if results else None
+   
+   # Get open children
+   parent_data = issue_read(
+       method="get_sub_issues",
+       owner="uniun-technology",
+       repo="lib-dataflow",
+       issue_number=parent.number
+   )
+   
+   open_children = [c for c in parent_data.children if c.state == "open"]
+   ```
+
+2. **Select** the oldest open feedback issue (first by creation date)
+
+3. **Read issue details**:
+   ```python
+   feedback = issue_read(
+       method="get",
+       owner="uniun-technology",
+       repo="lib-dataflow",
+       issue_number=selected.number
+   )
+   ```
+
+4. **Extract context** from the feedback issue body:
    - Date and Issue/PR reference
    - What worked well
    - What didn't work well
-   - Suggested improvement(s) - identify which are unaddressed
+   - Suggested improvement(s)
    - Which workflow(s) affected
    
    **Suggestion Context Consideration:**
@@ -204,11 +232,13 @@ Process exactly one backlog entry then stop.
    - Consider whether pain point is still relevant
    - Document context assessment in archived plan
    - Still evaluate the suggestion, but be aware context affects relevance
-4. **Update** `/research/workflow-modeling/plan.md` with:
-   - Selected entry details
+
+5. **Update** `/research/workflow-modeling/plan.md` with:
+   - Selected feedback issue number and title
    - Which specific improvements you're addressing
    - Expected workflow changes
-5. **Follow standard process modeling** (create scenarios, test, refine, etc.)
+
+6. **Follow standard process modeling** (create scenarios, test, refine, etc.)
    
    **Already Implemented Detection:**
    
@@ -220,8 +250,8 @@ Process exactly one backlog entry then stop.
    2. Still count as successful processing of entry:
       - Improvement is addressed (even if by earlier work)
       - Prevents entry from staying in backlog indefinitely
-   3. Remove entry from backlog per standard process:
-      - Entry is "done" even though no new changes were made
+   3. Close feedback issue per standard process:
+      - Issue is "done" even though no new changes were made
       - Keeps backlog clean and prevents re-suggestions
    4. Note in history that improvement was already present:
       - History entry format: "Verified [improvement] already present (No changes needed)"
@@ -229,24 +259,49 @@ Process exactly one backlog entry then stop.
    
    **Missing Section Handling:**
    
-   If backlog entry references a non-existent section (e.g., "Using Ecosystem Tools"):
+   If feedback references a non-existent section (e.g., "Using Ecosystem Tools"):
    - Find most appropriate existing section for the guidance
    - Document section choice in archived plan with rationale
-   - Don't create new top-level sections just to match backlog suggestion
+   - Don't create new top-level sections just to match feedback suggestion
    - Example: Guidance for "Using Ecosystem Tools" could fit in "Implementation Patterns" or "Coding Standards"
    - Rationale: Maintain existing workflow structure, avoid fragmentation
 
-6. **After completion**:
-   - Remove the entire entry from `.github/workflow-improvements.md`
+7. **After completion**:
+   - Close the feedback issue with implementation comment:
+     ```python
+     issue_write(
+         method="update",
+         owner="uniun-technology",
+         repo="lib-dataflow",
+         issue_number=feedback.number,
+         state="closed"
+     )
+     
+     add_issue_comment(
+         owner="uniun-technology",
+         repo="lib-dataflow",
+         issue_number=feedback.number,
+         body="""✅ **Implemented**
+         
+         [Description of changes made]
+         
+         **Pull Request**: #XXX
+         **Documentation**: [links to updated files]
+         
+         Thank you for the feedback!
+         """
+     )
+     ```
    - Add one-line summary to `/research/workflow-modeling/history.md`
    - Archive plan to `/research/workflow-modeling/archive/`
-7. **STOP** - Do not process additional entries
 
-**Entry Removal**: Remove the entire entry even if improvements were not viable. This prevents the queue from getting stuck. Document unsuccessful attempts in history.md.
+8. **STOP** - Do not process additional feedback issues
+
+**Unsuccessful Improvements**: Close the issue even if improvements were not viable. Document why in the closing comment. This prevents the queue from getting stuck.
 
 #### Multiple Items Mode
 
-Process a specific number of backlog entries (user specifies count).
+Process a specific number of feedback issues (user specifies count).
 
 **For @copilot executing multiple-items mode:**
 
@@ -259,21 +314,21 @@ Process a specific number of backlog entries (user specifies count).
    - Items to process: [count]
    - Running summary of processed items
 
-**For each iteration (repeat N times or until backlog exhausted):**
+**For each iteration (repeat N times or until feedback queue exhausted):**
 
 4. **Check**: If `items_processed >= items_to_process` → **STOP**
-5. **Read** `.github/workflow-improvements.md`
-6. **Select** next unaddressed entry (same selection criteria as single-item mode)
-7. **Extract context** from the entry
+5. **Query** open feedback issues (see Single Item Mode for query pattern)
+6. **Select** oldest open feedback issue
+7. **Extract context** from the feedback issue
 8. **Create scenarios and test** for this improvement
 9. **Apply changes** if viable
 10. **Update tracking**:
     - `items_processed++`
     - Add summary to plan.md
 11. **Update history.md** with new entry for this improvement
-12. **Remove entry** from `.github/workflow-improvements.md`
+12. **Close feedback issue** with implementation comment
 13. **Update PR description** with consolidated summary (see consolidation pattern below)
-14. **Check backlog**: If no more unaddressed entries → **STOP**
+14. **Check backlog**: If no more open feedback issues → **STOP**
 15. **Loop back** to step 4
 
 **After all iterations:**
@@ -344,23 +399,24 @@ Process multiple entries with intelligent stopping criteria. Stops when max item
    - If `items_processed >= max_items` → **STOP** (reason: max items threshold)
    - If `total_lines_changed >= max_lines` → **STOP** (reason: change volume threshold)
    - If decision tree says STOP → **STOP** (reason: approaching change volume threshold)
-   - If no more unaddressed entries → **STOP** (reason: backlog exhausted)
+   - If no more open feedback issues → **STOP** (reason: feedback queue exhausted)
    - **Exception**: Always process at least 1 item, even if it exceeds thresholds
    
    **Optional: Request approval before continuing (if request_approval=true):**
    - If `items_processed >= 1` and stopping conditions not met → **REQUEST APPROVAL**:
      - _Rationale: Approval is not requested before the first item to ensure every run makes at least some progress, even if thresholds would otherwise prevent it. This guarantees the workflow doesn't stall without processing any items._
-     1. Read next unaddressed entry from `.github/workflow-improvements.md`
+     1. Query next open feedback issue
      2. Reply to PR comment with summary:
-        - Entry date and Issue/PR reference
+        - Feedback issue number and title
         - Brief description of suggested improvements
         - Current metrics (items processed, lines changed)
         - Link to plan.md
      3. Wait for reviewer response
      4. If approved → Continue to step 5
      5. If not approved → **STOP** (reason: approval not granted)
-5. If not stopping: **Read** `.github/workflow-improvements.md`
-6. **Select** next unaddressed entry
+
+5. If not stopping: **Query** open feedback issues
+6. **Select** oldest open feedback issue
 7. **Extract context** and process improvement
 8. **Apply changes** if viable
 9. **Track changes** for this improvement:
@@ -390,7 +446,7 @@ Process multiple entries with intelligent stopping criteria. Stops when max item
     - `total_lines_changed +=` (insertions + deletions from git diff)
     - Add metrics to plan.md
 11. **Update history.md** with new entry
-12. **Remove entry** from `.github/workflow-improvements.md`
+12. **Close feedback issue** with implementation comment
 13. **Update PR description** with running summary and metrics
 14. **Loop back** to step 4
 
@@ -1083,7 +1139,7 @@ Process modeling directly feeds the self-improvement loop:
 
 1. **During Testing**: Document what works well and what doesn't
 2. **In Refinement**: Implement improvements based on feedback
-3. **Before Completion**: Add evaluation to `.github/workflow-improvements.md`
+3. **Before Completion**: Create feedback issue under `[Workflow Feedback] Tracker` parent
 4. **Archive Learnings**: Include key insights in plan.md before archiving
 
 ## History Tracking
@@ -1138,10 +1194,11 @@ History is maintained as a markdown table in `/research/workflow-modeling/histor
 
 ### For Backlog-Driven Mode
 
-When processing an entry from workflow-improvements.md:
+When processing feedback issues:
 - Add history table row even if improvement was not viable
 - For unsuccessful improvements: note "Attempted but not viable" in Improvement column
 - Include scenario that determined non-viability
+- Close feedback issue with explanation
 
 ## Identifying When Research Is Needed
 
@@ -1360,8 +1417,8 @@ When work on an issue is complete:
    - Avoid: "Better workflow" or "Improved process"
    - **When quantifying benefits** (e.g., time savings): Use measured data when available (such as logs, time tracking, or historical records). If only an estimate is possible, clearly indicate it is an estimate and briefly explain the basis (e.g., "Estimated based on typical troubleshooting time in last 3 updates"). This ensures benefit statements are transparent and reproducible.
 
-4. **For backlog-driven mode**: Remove processed entry from `.github/workflow-improvements.md`
-5. **Complete self-improvement evaluation**: Add to workflow-improvements.md (issue-driven) or included in history (backlog-driven)
+4. **For backlog-driven mode**: Close processed feedback issue with implementation comment
+5. **Complete self-improvement evaluation**: Create feedback issue under tracker parent (issue-driven) or included in history (backlog-driven)
 6. **Archive the plan**: Move current plan to `/research/workflow-modeling/archive/YYYY-MM-DD-[name].md`
 7. **Reset plan.md to clean state**: Use automation script (recommended) or manual template
    - **Recommended**: Use the reset script for automatic archive scanning
@@ -1658,7 +1715,7 @@ When archiving a plan to `/research/workflow-modeling/archive/YYYY-MM-DD-[name].
 6. **Check verbosity**: Try condensed version → PASS
 7. **Archive scenario**: Move to regression-tests
 8. **Update plan.md**: Mark complete
-9. **Self-improvement**: Add learnings to workflow-improvements.md
+9. **Self-improvement**: Create feedback issue under tracker parent
 
 ## Success Criteria
 

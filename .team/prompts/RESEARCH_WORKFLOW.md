@@ -27,8 +27,8 @@
 - ✅ **Evaluate research workflow effectiveness** for this task
 - ✅ **Document what worked well** and what didn't in the research process
 - ✅ **Propose specific improvements** to the research workflow documentation
-- ✅ **Add suggestions to `.github/workflow-improvements.md`** in the Research Workflow section
-- ✅ Check if your suggestion already exists before adding
+- ✅ **Create feedback issue** under the `[Workflow Feedback] Tracker` parent (see section below)
+- ✅ Link feedback issue to tracker using `sub_issue_write` MCP tool
 
 **Example**: "The handover template was clear, but lacked guidance on when to create benchmarks. Suggest adding decision criteria: performance-sensitive (required), API validation (optional), prototypes (skip)."
 
@@ -994,6 +994,59 @@ This workflow supports POC work that will be directly integrated:
 1. Reflect on the research workflow you followed
 2. Document what worked well and what didn't
 3. Propose specific, actionable improvements
-4. Add your suggestions to `.github/workflow-improvements.md` in the Research Workflow section
+4. Create a feedback issue (see instructions below)
 
 This continuous feedback loop helps evolve our research processes based on real experiences. Your insights directly improve the workflow for future research work.
+
+### Creating Feedback Issues
+
+**Find the parent tracker:**
+```python
+# Search for the feedback tracker parent issue
+results = search_issues(
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    query='"[Workflow Feedback] Tracker" in:title state:open'
+)
+parent = results[0] if results else None
+```
+
+**Create child feedback issue:**
+```python
+child = issue_write(
+    method="create",
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    title="[Brief description of improvement]",
+    labels=["workflow:process-modeling"],
+    body="""## Workflow Feedback Entry
+
+**Date**: YYYY-MM-DD
+**Issue/PR**: #XXX - Brief description
+**Workflow**: Research Workflow
+
+### What Worked Well
+
+- [List things that worked well]
+
+### What Didn't Work Well
+
+- [List pain points or confusion]
+
+### Suggested Improvement
+
+[Specific, actionable improvement with rationale]
+"""
+)
+```
+
+**Link to parent as sub-issue:**
+```python
+sub_issue_write(
+    method="add",
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=parent.number,
+    sub_issue_id=child.id
+)
+```

@@ -805,7 +805,51 @@ Quick checklist:
 2. Document what worked well
 3. Document what didn't work well or could improve
 4. Propose specific, actionable improvements
-5. Add to `.github/workflow-improvements.md`
+5. Create feedback issue under `[Workflow Feedback] Tracker` parent
+6. Link feedback issue using `sub_issue_write` MCP tool
+
+**Creating Feedback Issue:**
+```python
+# Find parent tracker
+results = search_issues(
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    query='"[Workflow Feedback] Tracker" in:title state:open'
+)
+
+# Create feedback issue
+child = issue_write(
+    method="create",
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    title="[Brief improvement description]",
+    labels=["workflow:process-modeling"],
+    body="""## Workflow Feedback Entry
+
+**Date**: YYYY-MM-DD
+**Issue/PR**: #XXX
+**Workflow**: Implementation Workflow
+
+### What Worked Well
+[List positives]
+
+### What Didn't Work Well
+[List issues]
+
+### Suggested Improvement
+[Specific improvement]
+"""
+)
+
+# Link to parent
+sub_issue_write(
+    method="add",
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=results[0].number,
+    sub_issue_id=child.id
+)
+```
 
 ---
 
@@ -943,4 +987,4 @@ See: \`.team/prompts/TECH_DEBT_WORKFLOW.md\`"
 - **Entry point**: `.github/copilot-instructions.md` - Start here
 - **Research workflow**: `.team/prompts/RESEARCH_WORKFLOW.md`
 - **Implementation folder**: `/implementation/README.md`
-- **Workflow improvements**: `.github/workflow-improvements.md`
+- **Workflow feedback**: Search for `[Workflow Feedback] Tracker` issue

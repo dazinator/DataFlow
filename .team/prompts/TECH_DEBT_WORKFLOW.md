@@ -23,7 +23,7 @@ This workflow is a specialized variant of the Research Workflow for systematical
 - ✅ Save important prototype code to handover folders in `/research/tech-debt-[date]/`
 - ✅ **REVERT all exploratory code changes** from `/poc/` and `/src/`
 - ✅ Keep all documentation in research folder
-- ✅ **Complete self-improvement evaluation** in `.github/workflow-improvements.md`
+- ✅ **Complete self-improvement evaluation** by creating feedback issue (see section below)
 - ✅ Product team will prioritize issues using Product Prioritization workflow
 
 ### DON'T:
@@ -974,13 +974,56 @@ See: \`.team/prompts/TECH_DEBT_WORKFLOW.md\`"
 
 ## Self-Improvement Loop
 
-**Before marking PR ready for review**, complete evaluation in `.github/workflow-improvements.md`:
+**Before marking PR ready for review**, create feedback issue:
 
 1. Reflect on tech debt workflow effectiveness
 2. Document what worked well
 3. Document what didn't work well
 4. Propose specific improvements
-5. Add to workflow improvements file
+5. Create feedback issue under `[Workflow Feedback] Tracker` parent
+
+**Creating Feedback Issue:**
+```python
+# Find parent tracker
+results = search_issues(
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    query='"[Workflow Feedback] Tracker" in:title state:open'
+)
+
+# Create feedback issue
+child = issue_write(
+    method="create",
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    title="[Brief improvement description]",
+    labels=["workflow:process-modeling"],
+    body="""## Workflow Feedback Entry
+
+**Date**: YYYY-MM-DD
+**Issue/PR**: #XXX
+**Workflow**: Tech Debt Workflow
+
+### What Worked Well
+[List positives]
+
+### What Didn't Work Well
+[List issues]
+
+### Suggested Improvement
+[Specific improvement]
+"""
+)
+
+# Link to parent
+sub_issue_write(
+    method="add",
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=results[0].number,
+    sub_issue_id=child.id
+)
+```
 
 This continuous feedback improves the workflow for future tech debt analyses.
 
