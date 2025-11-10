@@ -133,6 +133,73 @@ add_issue_comment(
 
 ---
 
+## Multi-Phase Issue Check
+
+**⚠️ ALWAYS**: Check if this issue is part of a multi-phase plan before starting triage work.
+
+### Quick Check
+
+```python
+# Get current issue details
+issue = issue_read(
+    method="get",
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=CURRENT_ISSUE_NUMBER
+)
+
+# Check if parent exists
+if issue.parent:
+    # This is a sub-issue - read parent context
+    parent = issue_read(
+        method="get",
+        owner="uniun-technology",
+        repo="lib-dataflow",
+        issue_number=issue.parent.number
+    )
+    # Review parent to understand overall triage plan
+else:
+    # Standalone triage - proceed with normal workflow
+```
+
+### If This is a Sub-Issue
+
+**DO:**
+1. ✅ Read parent issue to understand overall triage plan
+2. ✅ Note which triage phase this represents
+3. ✅ Review completed phases for context
+4. ✅ Update parent description as triage progresses
+5. ✅ Check if this is the last sub-issue before finalizing
+
+**Parent Update Pattern:**
+
+When completing triage:
+```python
+# Update parent issue description to reflect progress
+# Example: Change "Phase 2 - Issue Assessment" to "Phase 2 - 10 issues triaged, handovers complete"
+issue_write(
+    method="update",
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=parent_number,
+    body=updated_description
+)
+```
+
+**Closing Parent (Last Sub-Issue Only):**
+
+If this is the last open sub-issue of the triage plan, include parent in PR description:
+```markdown
+Fixes #CURRENT_ISSUE
+Fixes #PARENT_ISSUE
+```
+
+This ensures both issues close when PR merges.
+
+**See:** [Multi-Phase Issue Procedures](/.team/MULTI_PHASE_ISSUES.md) for complete guidance including examples and troubleshooting.
+
+---
+
 ## Step 2: Assessment Criteria
 
 For each issue, assess the following:

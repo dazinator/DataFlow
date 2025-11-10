@@ -112,6 +112,73 @@ add_issue_comment(
 
 ---
 
+## Multi-Phase Issue Check
+
+**⚠️ ALWAYS**: Check if this issue is part of a multi-phase plan before starting tech debt discovery.
+
+### Quick Check
+
+```python
+# Get current issue details
+issue = issue_read(
+    method="get",
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=CURRENT_ISSUE_NUMBER
+)
+
+# Check if parent exists
+if issue.parent:
+    # This is a sub-issue - read parent context
+    parent = issue_read(
+        method="get",
+        owner="uniun-technology",
+        repo="lib-dataflow",
+        issue_number=issue.parent.number
+    )
+    # Review parent to understand overall tech debt investigation plan
+else:
+    # Standalone discovery - proceed with normal workflow
+```
+
+### If This is a Sub-Issue
+
+**DO:**
+1. ✅ Read parent issue to understand overall tech debt investigation plan
+2. ✅ Note which exploration phase this represents
+3. ✅ Review completed phases for already-discovered debt
+4. ✅ Update parent description as findings emerge
+5. ✅ Check if this is the last sub-issue before finalizing
+
+**Parent Update Pattern:**
+
+When documenting findings:
+```python
+# Update parent issue description to reflect discovery progress
+# Example: Change "Phase 2 - Test Infrastructure" to "Phase 2 - 5 items found, handovers ready"
+issue_write(
+    method="update",
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=parent_number,
+    body=updated_description
+)
+```
+
+**Closing Parent (Last Sub-Issue Only):**
+
+If this is the last open sub-issue of the tech debt investigation, include parent in PR description:
+```markdown
+Fixes #CURRENT_ISSUE
+Fixes #PARENT_ISSUE
+```
+
+This ensures both issues close when PR merges.
+
+**See:** [Multi-Phase Issue Procedures](/.team/MULTI_PHASE_ISSUES.md) for complete guidance including examples and troubleshooting.
+
+---
+
 ## Overview
 
 Tech debt discovery is the systematic process of identifying improvement opportunities in a codebase. This workflow enables Copilot agents to comprehensively analyze code quality, developer experience, and maintenance burden, then present findings for review and selective implementation.

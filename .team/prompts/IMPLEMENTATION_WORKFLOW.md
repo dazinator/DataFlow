@@ -104,6 +104,73 @@ add_issue_comment(
 
 ---
 
+## Multi-Phase Issue Check
+
+**⚠️ ALWAYS**: Check if this issue is part of a multi-phase plan before starting work.
+
+### Quick Check
+
+```python
+# Get current issue details
+issue = issue_read(
+    method="get",
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=CURRENT_ISSUE_NUMBER
+)
+
+# Check if parent exists
+if issue.parent:
+    # This is a sub-issue - read parent context
+    parent = issue_read(
+        method="get",
+        owner="uniun-technology",
+        repo="lib-dataflow",
+        issue_number=issue.parent.number
+    )
+    # Review parent to understand overall plan and which phase this represents
+else:
+    # Standalone issue - proceed with normal workflow
+```
+
+### If This is a Sub-Issue
+
+**DO:**
+1. ✅ Read parent issue to understand overall plan
+2. ✅ Note which phase this represents
+3. ✅ Review completed phases for context
+4. ✅ Update parent description as you make progress
+5. ✅ Check if this is the last sub-issue before creating PR
+
+**Parent Update Pattern:**
+
+When reporting progress:
+```python
+# Update parent issue description to reflect current status
+# Example: Change "Phase 2 - NOT STARTED" to "Phase 2 - Core complete, tests passing"
+issue_write(
+    method="update",
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=parent_number,
+    body=updated_description
+)
+```
+
+**Closing Parent (Last Sub-Issue Only):**
+
+If this is the last open sub-issue, include parent in PR description:
+```markdown
+Fixes #CURRENT_ISSUE
+Fixes #PARENT_ISSUE
+```
+
+This ensures both issues close when PR merges.
+
+**See:** [Multi-Phase Issue Procedures](/.team/MULTI_PHASE_ISSUES.md) for complete guidance including examples and troubleshooting.
+
+---
+
 ## Step 0: Handover Critical Review
 
 **⚠️ CRITICAL**: If implementing from a research handover, critically evaluate it BEFORE starting work.

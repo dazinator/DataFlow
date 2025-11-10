@@ -47,6 +47,12 @@
 
 **⚠️ ALWAYS complete self-improvement evaluation before PR review** (see below)
 
+**Multi-Phase Issues:**
+- **ALWAYS check if your issue is part of a multi-phase plan** at workflow start
+- See [Multi-Phase Issue Procedures](/.team/MULTI_PHASE_ISSUES.md) for complete guidance
+- Update parent issue as work progresses
+- Close parent automatically when completing last sub-issue
+
 ---
 
 ## Self-Improvement Loop

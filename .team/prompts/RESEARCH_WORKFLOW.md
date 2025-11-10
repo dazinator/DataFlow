@@ -137,6 +137,77 @@ add_issue_comment(
 
 ---
 
+## Multi-Phase Issue Check
+
+**⚠️ ALWAYS**: Check if this issue is part of a multi-phase plan before starting research.
+
+### Quick Check
+
+```python
+# Get current issue details
+issue = issue_read(
+    method="get",
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=CURRENT_ISSUE_NUMBER
+)
+
+# Check if parent exists
+if issue.parent:
+    # This is a sub-issue - read parent context
+    parent = issue_read(
+        method="get",
+        owner="uniun-technology",
+        repo="lib-dataflow",
+        issue_number=issue.parent.number
+    )
+    # Review parent to understand overall research plan
+else:
+    # Standalone research - proceed with normal workflow
+```
+
+### If This is a Sub-Issue
+
+**DO:**
+1. ✅ Read parent issue to understand overall research plan
+2. ✅ Note which research phase this represents
+3. ✅ Review completed phases for context and findings
+4. ✅ Update parent description as research progresses
+5. ✅ Check if this is the last sub-issue before creating PR
+
+**Parent Update Pattern:**
+
+When documenting findings:
+```python
+# Update parent issue description to reflect research status
+# Example: Change "Phase 2 - Exploration" to "Phase 2 - Validation complete, handover ready"
+issue_write(
+    method="update",
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=parent_number,
+    body=updated_description
+)
+```
+
+**Closing Parent (Last Sub-Issue Only):**
+
+If this is the last open sub-issue of the research plan, include parent in PR description:
+```markdown
+Fixes #CURRENT_ISSUE
+Fixes #PARENT_ISSUE
+```
+
+This ensures both issues close when PR merges.
+
+**Research Handover Context:**
+
+When creating implementation handover, include reference to parent issue to provide full context of the multi-phase research effort.
+
+**See:** [Multi-Phase Issue Procedures](/.team/MULTI_PHASE_ISSUES.md) for complete guidance including examples and troubleshooting.
+
+---
+
 ## Problem Statement
 
 During research, we need to:
