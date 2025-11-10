@@ -1,7 +1,7 @@
 ---
 name: Implementation Issue
 about: Implementation work from product backlog
-title: '[Implementation] '
+title: 'Implementation: [Brief Description]'
 labels: ['workflow:implementation']
 assignees: ''
 ---
@@ -10,12 +10,16 @@ assignees: ''
 
 ⚠️ **This is an implementation issue.** @copilot Please follow the Implementation workflow guidelines in `.github/copilot-instructions.md`.
 
+⚠️ **Note to issue creator**: Replace all `[placeholders]` with actual values. Remove options you're not using.
+
 ### Product Backlog Item
 
-**Backlog Issue**: [e.g., #123]
+**Choose ONE of the following options:**
 
-**OR**
+**Option 1 - Specific Backlog Issue** (preferred):  
+**Backlog Issue**: #[NUMBER]
 
+**Option 2 - Next from Prioritization**:  
 **Backlog Item**: Next from prioritization list
 
 ---

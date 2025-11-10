@@ -315,6 +315,48 @@ This self-improvement loop ensures our workflows continuously evolve based on re
 - Always respect `CancellationToken` - pass it through all async operations
 - Use `ConfigureAwait(false)` in library code (not in test code)
 
+### Central Package Management
+
+DataFlow uses **centralized package version management** via `Directory.Packages.props`:
+
+**How it works:**
+- All package versions are defined in `src/Directory.Packages.props`
+- Project files (`*.csproj`) reference packages WITHOUT specifying versions
+- Version updates happen in one central location
+
+**Before adding a new package:**
+
+1. **Check if package already exists**:
+   ```bash
+   grep "PackageVersion Include=\"<package-name>\"" src/Directory.Packages.props
+   ```
+
+2. **Check if available transitively**:
+   - Many packages come as transitive dependencies
+   - Try building first - package may already be available
+   - Look at build output for "Package ... is already defined" messages
+
+3. **Add to central management** (if needed):
+   ```xml
+   <!-- In src/Directory.Packages.props -->
+   <PackageVersion Include="PackageName" Version="1.2.3" />
+   ```
+
+4. **Reference in project** (without version):
+   ```xml
+   <!-- In src/MyProject/MyProject.csproj -->
+   <PackageReference Include="PackageName" />
+   ```
+
+**Why this matters:**
+- Prevents version conflicts across projects
+- Ensures consistent dependency versions
+- Simplifies dependency upgrades
+- Build errors about "PackageVersion" point to this system
+
+**Common pattern for test packages:**
+Most test packages (xunit, Shouldly, Moq) are already in `Directory.Packages.props`. Check there before adding.
+
 ### Testing Standards
 
 **Test Categories:**

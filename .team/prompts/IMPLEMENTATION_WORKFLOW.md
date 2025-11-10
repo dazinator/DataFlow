@@ -414,6 +414,168 @@ add_issue_comment(
 )
 ```
 
+### Verify Backlog Item Accuracy
+
+**⚠️ IMPORTANT**: Before starting implementation, validate key estimates from the backlog item.
+
+Backlog items may contain estimates for scope (file counts, line counts, complexity). These estimates can be outdated or inaccurate. Validate them upfront to set correct expectations and avoid surprises mid-implementation.
+
+**Verification Steps**:
+
+1. **Identify estimates** in backlog item:
+   - File counts ("~50-60 files need updating")
+   - Line counts ("~200 lines of code")  
+   - Component counts ("5 similar classes")
+
+2. **Validate with grep/find**:
+   ```bash
+   # Count files matching a pattern
+   find . -name "*.cs" -exec grep -l "pattern to find" {} + | wc -l
+   
+   # Find specific boilerplate
+   find . -name "*.cs" -exec grep -l "public ITestOutputHelper Output" {} +
+   
+   # Count lines of code in target files
+   find src -name "*.cs" -exec wc -l {} + | tail -1
+   ```
+
+3. **Document discrepancies** in first progress report if actual scope differs significantly:
+   ```markdown
+   **Scope Validation**: Backlog estimated ~50-60 files, actual count is 6 files matching the pattern.
+   ```
+
+4. **Update backlog issue** if estimates are way off (10x difference):
+   ```python
+   add_issue_comment(
+       owner="uniun-technology",
+       repo="lib-dataflow",
+       issue_number=[backlog-issue-number],
+       body="📊 Scope validation: Backlog estimated X files, found Y files. Proceeding with corrected scope."
+   )
+   ```
+
+5. **Handle scope expansion** when you find more issues than documented:
+   
+   **If you discover additional instances** (e.g., backlog says "3 files" but build shows 6 warnings):
+   
+   - ✅ **Fix all instances** - Proceed with comprehensive fix for completeness
+   - 📝 **Document expansion** in first progress report:
+     ```markdown
+     **Scope Expansion**: Backlog item documented 3 instances, but build validation found 6 CS8425 warnings. Fixing all 6 for completeness.
+     ```
+   - 💬 **Update backlog issue** noting expanded scope:
+     ```python
+     add_issue_comment(
+         owner="uniun-technology",
+         repo="lib-dataflow",
+         issue_number=[backlog-issue-number],
+         body="📊 Scope expanded: Found 6 instances (3 more than documented). Fixing all for completeness."
+     )
+     ```
+   
+   **Why fix all instances?**
+   - Prevents partial fixes that leave inconsistency
+   - Comprehensive solution is easier to review than selective application
+   - Avoids "why wasn't this one fixed?" questions in review
+   - Documents the scope accurately for future reference
+
+**Why This Matters**: Validating estimates upfront helps:
+- Set realistic expectations for reviewers
+- Identify if backlog item scope changed (partial implementation already done)
+- Plan work allocation appropriately
+- Catch potential misunderstandings of the requirement early
+
+### Verify Work Still Needed
+
+**⚠️ IMPORTANT**: After validating accuracy, verify the work is still needed. Sometimes backlog items describe work that has already been completed by another PR or was addressed indirectly.
+
+**Quick Validation Steps**:
+
+1. **Check the specific change** described in backlog:
+   ```bash
+   # Example: For "modernize namespaces" check if namespaces are already modern
+   grep -r "namespace.*{" src/  # Should return 0 if file-scoped namespaces used
+   
+   # Example: For "add EnumeratorCancellation attributes" check if they exist
+   grep -l "\[EnumeratorCancellation\]" src/**/*.cs | wc -l
+   ```
+
+2. **Run build/tests** to confirm current state:
+   ```bash
+   dotnet build
+   dotnet test
+   ```
+
+3. **Evaluate results**:
+   - **Work already complete**: Validation shows change already implemented
+   - **Work still needed**: Validation confirms work needs to be done
+
+**If Work Already Complete**:
+
+1. ✅ **This is a VALID and POSITIVE outcome** - not a failure!
+
+2. **Close the backlog issue** with state_reason="completed":
+   ```python
+   issue_write(
+       method="update",
+       owner="uniun-technology",
+       repo="lib-dataflow",
+       issue_number=[backlog-issue-number],
+       state="closed",
+       state_reason="completed"
+   )
+   
+   add_issue_comment(
+       owner="uniun-technology",
+       repo="lib-dataflow",
+       issue_number=[backlog-issue-number],
+       body="""✅ Work validation complete
+
+**Status**: Already implemented
+
+**Validation**: [Describe validation performed]
+- grep check showed 0 instances of old pattern
+- Build successful
+- Tests passing
+
+**Conclusion**: This work was completed in a previous PR or through indirect changes. No implementation needed."""
+   )
+   ```
+
+3. **Report in implementation issue**:
+   ```python
+   add_issue_comment(
+       owner="uniun-technology",
+       repo="lib-dataflow",
+       issue_number=[current-implementation-issue],
+       body="🔍 Investigation complete\n\nValidation revealed backlog item #[N] work was already complete. See backlog issue for details. Ready for next assignment."
+   )
+   ```
+
+4. **Close implementation issue** (work complete, just differently than expected):
+   ```python
+   issue_write(
+       method="update",
+       owner="uniun-technology",
+       repo="lib-dataflow",
+       issue_number=[current-implementation-issue],
+       state="closed",
+       state_reason="completed"
+   )
+   ```
+
+5. **STOP and wait** for reviewer to assign new work
+
+**If Work Still Needed**:
+
+✅ Continue with implementation following remaining steps
+
+**Benefits of This Check**:
+- Saves 15-30 minutes vs full implementation attempt
+- Prevents duplicate work
+- Keeps backlog accurate
+- Clear communication to reviewers
+
 ### After Implementation Complete
 
 **1. Update backlog issue** to mark as completed:
@@ -700,6 +862,67 @@ Follow handover guidance (if applicable) and:
 3. **Test frequently** - after each meaningful change
 4. **Handle edge cases** from handover documentation
 5. **Document decisions** - especially when deviating from handover
+
+### Pattern Discovery Helpers
+
+For refactoring or migration tasks, use these grep patterns to comprehensively find and count target files:
+
+**Finding files with specific patterns:**
+```bash
+# Find files containing a pattern
+find . -name "*.cs" -exec grep -l "public ITestOutputHelper Output" {} +
+
+# Find files with multiple patterns (all must match)
+find . -name "*.cs" -exec grep -l "pattern1" {} + | xargs grep -l "pattern2"
+
+# Find with context (see surrounding lines)
+find . -name "*.cs" -exec grep -B2 -A2 "pattern" {} +
+```
+
+**Counting matches:**
+```bash
+# Count files matching a pattern
+find . -name "*.cs" -exec grep -l "pattern" {} + | wc -l
+
+# Count total occurrences (not just files)
+find . -name "*.cs" -exec grep -o "pattern" {} + | wc -l
+```
+
+**Finding boilerplate for cleanup:**
+```bash
+# Common test boilerplate patterns
+find . -name "*.cs" -exec grep -l "public ITestOutputHelper Output" {} +
+find . -name "*.cs" -exec grep -l "private readonly ITestOutputHelper" {} +
+
+# Common service registration patterns  
+find . -name "*.cs" -exec grep -l "Services.AddLogging" {} +
+
+# Find usages of deprecated APIs
+find src -name "*.cs" -exec grep -l "OldApiName" {} +
+```
+
+**Why use these helpers:**
+- Ensures comprehensive coverage (don't miss files)
+- Provides accurate scope estimates upfront (see "Verify Backlog Item Accuracy")
+- Documents search methodology for PR reviewers
+- Catches edge cases (different formatting, naming variations)
+
+**Example workflow:**
+```bash
+# 1. Find all target files
+find . -name "*.cs" -exec grep -l "old pattern" {} + > /tmp/target-files.txt
+
+# 2. Review the list
+cat /tmp/target-files.txt
+
+# 3. Count for scope validation
+wc -l /tmp/target-files.txt
+
+# 4. Implement changes on each file
+while read file; do
+    # Make changes...
+done < /tmp/target-files.txt
+```
 
 ### Bulk Migration Strategies
 
