@@ -349,12 +349,14 @@ The issue will trigger **progressive processing** of the process modeling queue 
 
 Bulk mode uses **progressive processing** to handle large backlogs realistically:
 
-- **Always processes at least 1 item** (ensures continuous progress)
-- **Continues processing while PR < 200 lines** (keeps PRs small)
+- **Always processes at least 1 item** (ensures continuous progress - full workflow, not just triage)
+- **Continues automatically while PR < 200 lines** (keeps PRs small when possible)
 - **Requests confirmation at 200-400 lines** (moderate PR size)
-- **Stops at 400+ lines** (prevents overwhelming PRs)
+- **Requests confirmation at 400+ lines** (advisory - can continue with approval)
 
-**For large backlogs (20+ items)**: Expect multiple bulk processing sessions. Each creates a reviewable PR (200-400 lines), then a new bulk issue continues with remaining items.
+**Key Principle**: Making progress on at least one improvement is more important than PR size limits. Size thresholds are advisory guidelines - with confirmation, processing continues regardless of size.
+
+**For large backlogs (20+ items)**: Expect multiple bulk processing sessions. Each creates a reviewable PR, then a new bulk issue continues with remaining items. PR size is a guideline, not a barrier to progress.
 
 **Bulk Mode Execution:**
 
@@ -428,8 +430,27 @@ parent_sub_issues = issue_read(
     issue_number=tracker_issue.number
 )
 
-# Filter to open sub-issues only
+# ⚠️ CRITICAL: Filter to OPEN sub-issues only
+# This prevents re-processing or re-closing already-closed issues
 issues = [sub for sub in parent_sub_issues if sub.state == "open"]
+
+# Optional: Double verification (only if sub-issue state data may be stale)
+# Note: The initial filter above is typically reliable. Only use this additional
+# verification if you suspect stale data (e.g., due to caching or API lag).
+# Uncomment below if needed - adds one API call per issue.
+#
+# verified_open_issues = []
+# for issue in issues:
+#     issue_details = issue_read(
+#         method="get",
+#         owner="uniun-technology",
+#         repo="lib-dataflow",
+#         issue_number=issue.number
+#     )
+#     if issue_details.get('state') == 'open':
+#         verified_open_issues.append(issue)
+# 
+# issues = verified_open_issues
 ```
 
 **Why this approach**: 
@@ -438,6 +459,7 @@ issues = [sub for sub in parent_sub_issues if sub.state == "open"]
 - Catches feedback items that may be missing the `workflow:process-modeling` label
 - Matches the organizational structure documented in the feedback tracker
 - **Issue-title based lookup** - resilient to issue deletion/recreation (unlike hardcoded issue numbers)
+- **Double verification** - ensures closed issues are never processed or re-closed
 
 **Filter out the bulk process modeling issue itself**:
 - Get the current issue number (the bulk process modeling issue)
@@ -539,6 +561,11 @@ for issue in filtered_issues:
         issue_number=issue['number']
     )
     
+    # ⚠️ GUARD: Skip if issue is already closed
+    # This prevents re-closing issues or wasting time on closed items
+    if issue_data.get('state') == 'closed':
+        continue
+    
     # Rule 1: Already Implemented?
     if "✅ ADDRESSED" in issue_data['body'] or "✅ IMPLEMENTED" in issue_data['body']:
         add_issue_comment(...)  # Close as implemented
@@ -597,17 +624,30 @@ Bulk mode uses **progressive processing** to make continuous progress without cr
 
 **Progressive Processing Rules:**
 
-1. **Always process at least 1 item** - Never stop without processing at least one feedback item
+1. **Always process at least 1 item** - Never stop without processing at least one feedback item (complete the full process modeling workflow: read and assess, create test scenarios, execute tabletop simulations, implement validated improvements, update workflow documentation, and archive or revert scenarios)
 2. **Check PR size after each item** - Use `git diff --stat` to measure changes
-3. **Continue if small** - If PR < 200 lines, process another item
-4. **Stop at moderate size** - If PR reaches 200-400 lines, request confirmation before continuing
-5. **Hard stop at large** - Stop at 400+ lines, finalize PR for review
+3. **Continue if small** - If PR < 200 lines, process another item automatically
+4. **Request confirmation at moderate size** - If PR reaches 200-400 lines, ask before continuing
+5. **Request confirmation at large size** - If PR exceeds 400 lines, ask before continuing (size is advisory, not a hard limit)
+
+**⚠️ IMPORTANT - What "Processing 1 Item" Means:**
+
+"Processing at least 1 item" means completing the FULL process modeling workflow for 1 improvement:
+- ✅ Read and assess the improvement
+- ✅ Create test scenarios
+- ✅ Execute tabletop simulations
+- ✅ Implement validated improvements
+- ✅ Update workflow documentation
+- ✅ Archive or revert scenarios
+
+**Triage alone is NOT processing** - you must complete at least one improvement end-to-end.
 
 **Why this approach:**
-- Ensures continuous progress (always processes ≥1 item)
-- Keeps PRs reviewable (200-400 line sweet spot)
+- Ensures continuous progress (always processes ≥1 item completely)
+- Keeps PRs reviewable when possible (200-400 line sweet spot)
 - Allows incremental processing of large backlogs
-- Prevents unrealistic "process everything" expectations
+- PR size is advisory - with confirmation, can process items even if >400 lines
+- Prevents stalling on triage without making real progress
 
 **Line Counting:**
 ```bash
@@ -639,13 +679,14 @@ git diff --stat origin/main | tail -1
    
    # Decision tree:
    if items_processed == 0:
-       # Guarantee at least one item is processed (always process the first item)
+       # Guarantee at least one item is FULLY PROCESSED (scenarios, testing, implementation)
+       # Not just triaged - must complete the full improvement workflow
        process_next = True
    elif total_lines < 200:
-       # PR still small, continue
+       # PR still small, continue automatically
        process_next = True
    elif total_lines < 400:
-       # Moderate size - request confirmation
+       # Moderate size - request confirmation before continuing
        add_issue_comment(
            owner="uniun-technology",
            repo="lib-dataflow",
@@ -659,7 +700,7 @@ git diff --stat origin/main | tail -1
 
 **Next item:** #{next_issue.number} - {next_issue.title}
 
-PR is approaching reviewable limit (400 lines). 
+PR is approaching moderate size (200-400 lines). 
 
 **Options:**
 1. Reply "continue" to process next item
@@ -670,8 +711,33 @@ What would you like to do?"""
        # Wait for user response
        process_next = False  # Pause for confirmation
    else:
-       # PR too large, stop
-       process_next = False
+       # PR large (400+ lines) - request confirmation before continuing
+       # This is ADVISORY, not a hard stop - with approval, can continue
+       add_issue_comment(
+           owner="uniun-technology",
+           repo="lib-dataflow",
+           issue_number=BULK_PROCESS_MODELING_ISSUE_NUMBER,
+           body=f"""[Copilot-Workflow: Process Modeling] ⚠️ **Confirmation Needed - Large PR**
+
+**Progress so far:**
+- Items processed: {items_processed}
+- PR size: ~{total_lines} lines changed
+- Remaining items: {len(remaining_issues)}
+
+**Next item:** #{next_issue.number} - {next_issue.title}
+
+PR has exceeded typical size threshold (400+ lines). This is advisory, not a hard limit.
+
+**Options:**
+1. Reply "continue" to process next item despite size
+2. Reply "stop" to finalize PR now for review
+
+**Note:** With your approval, I can continue processing improvements regardless of PR size.
+
+What would you like to do?"""
+       )
+       # Wait for user response
+       process_next = False  # Pause for confirmation
    ```
 
 2. **If stopping, finalize and close** (see Step 6: Partial Completion Pattern)
@@ -779,7 +845,7 @@ issue_write(
 
 ##### Pattern B: Partial Completion
 
-**When**: Stopped due to PR size reaching 200-400 lines, or user declined to continue
+**When**: Stopped due to user declining to continue at any PR size threshold (200-400 lines or 400+ lines)
 
 **Partial completion is a valid outcome** - it allows incremental progress on large backlogs without overwhelming reviewers.
 
@@ -852,14 +918,15 @@ issue_write(
 - Continue with remaining issues
 
 **Large Backlog (20+ items)**:
-- Use progressive processing (process at least 1 item, continue until PR reaches 200-400 lines)
+- Use progressive processing (process at least 1 item completely, continue with user confirmation at size thresholds)
 - Expect multiple bulk processing sessions to clear large backlogs
-- Each session creates a reviewable PR (200-400 lines)
-- This is **intentional** - prevents unrealistic expectations of processing 20+ items in one massive PR
+- Each session processes items until user declines to continue at a size threshold
+- Size thresholds (200/400 lines) are advisory - with confirmation, can continue regardless of size
+- This is **intentional** - provides natural pause points without blocking progress
 - After each PR merges, create new bulk processing issue for next batch
 
 **User Confirmation Timeout**:
-- If waiting for user confirmation (PR at 200-400 lines) and no response within reasonable time
+- If waiting for user confirmation (at any size threshold) and no response within reasonable time
 - Finalize PR with partial completion
 - Document stopping reason: "Waiting for confirmation, finalizing for review"
 
