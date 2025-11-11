@@ -19,19 +19,13 @@ assignees: ''
 When you see this bulk triage issue:
 
 1. **Add today's date** to the issue title (if not already present)
-2. **Detect unlabeled issues** - find ALL open issues without any workflow label and add `workflow:triage` label
-3. **Query the triage queue** to get ALL issues with `workflow:triage` label
-4. **Exclude this bulk triage issue** from the list (only process other issues)
-5. **For each issue in the queue**:
-   - Read and assess the issue
-   - Determine appropriate workflow
-   - Update workflow label
-   - Add handover comment with reasoning
-6. **Track your progress** by updating this issue with a summary:
+2. follow the Triage workflow in `/.team/prompts/TRIAGE_WORKFLOW.md` in **BULK MODE**.
+
+**Please track your progress** by updating this issue with a summary:
    - Total issues processed (including newly labeled historic issues)
    - Breakdown by destination workflow
    - Any issues needing clarification
-7. **Close this issue AND its PR** when all triage work is complete
+7. **Close this issue once the workflow is completed.
 
 ### Expected Workflow Distribution
 
@@ -49,14 +43,5 @@ After bulk triage, issues should be distributed to:
 **Queue Size at Creation**: [Manual: check queue size when creating this issue]
 
 ---
-
-## For @copilot: Execution Plan
-
-1. Add today's date to issue title (if not present)
-2. Detect and label historic issues without workflow labels
-3. Query triage queue using MCP tools
-4. Process each issue sequentially
-5. Update this issue with progress after every 5 issues (or when complete)
-6. Close this issue AND its PR when done
 
 **See**: `.team/prompts/TRIAGE_WORKFLOW.md` for complete bulk triage process.
