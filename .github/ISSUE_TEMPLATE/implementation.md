@@ -50,21 +50,31 @@ The backlog item or context below should clearly indicate which codebase this im
 
 **@copilot**: If the target codebase is unclear from the backlog item and context, **STOP** and ask the user to clarify before proceeding.
 
+---
+
+## For @copilot
+
+**Workflow**: Follow `.team/prompts/IMPLEMENTATION_WORKFLOW.md` for complete implementation process.
+
+**Quick Reference:**
+- Label `workflow:implementation` ensures correct workflow routing
+- Check `/implementation/plan.md` for ongoing work before starting
+- See [Getting Started Guide](../.team/GETTING_STARTED.md) for coding standards
+- Complete self-improvement evaluation before PR review
+
+---
+
 ## Implementation Checklist
 
 Based on the backlog item, the implementation should include:
 
 - [ ] Read backlog item completely
 - [ ] Review handover assets (if folder exists)
-- [ ] Update backlog item status to "In Progress"
 - [ ] Implementation with tests
 - [ ] Performance validation (if specified in backlog item)
 - [ ] Documentation updates
-- [ ] Edge cases handled (as specified in backlog item)
 - [ ] Code review and validation
-- [ ] Update backlog item status to "Completed"
-- [ ] Archive backlog item to `/product/resolved/YYYY-MM/`
-- [ ] **Before PR review: Complete self-improvement evaluation in `.github/workflow-improvements.md`**
+- [ ] Self-improvement evaluation completed
 
 ## Additional Context (if needed)
 
@@ -76,6 +86,6 @@ Based on the backlog item, the implementation should include:
 - [ ] Tests passing
 - [ ] Performance requirements met (if applicable)
 - [ ] Documentation updated
-- [ ] Backlog item status updated and archived
-- [ ] **Self-improvement evaluation completed in `.github/workflow-improvements.md`**
+- [ ] Self-improvement evaluation completed
+
 

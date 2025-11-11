@@ -1231,6 +1231,106 @@ Documentation: In Process Modeling Workflow
 Rationale: Works for 80%+ cases, approval mode available for incremental control
 ```
 
+### Workflow Maintenance
+
+**📖 See [Workflow Maintenance Guide](../../.team/WORKFLOW_MAINTENANCE_GUIDE.md)** for complete guidance on parameter management and template simplification.
+
+This section provides procedures for updating workflow documents and issue templates as part of process modeling work.
+
+---
+
+#### Procedure: Updating a Workflow Document
+
+When updating workflow documentation files (`.team/prompts/*_WORKFLOW.md`):
+
+**1. Make Content Changes**
+- Update workflow steps, guidance, or documentation
+- Add new sections or refine existing ones
+- Document rationale for changes in plan.md
+
+**2. Refactoring Step - Parameter Extraction**
+
+After content changes, review for parameter extraction opportunities:
+
+**Check for extractable parameters:**
+- [ ] Scan workflow for numeric values, thresholds, limits
+- [ ] Apply [3-question decision framework](../../.team/WORKFLOW_MAINTENANCE_GUIDE.md#decision-framework)
+- [ ] Identify values used in workflow logic/algorithms
+- [ ] Determine which values should be user-configurable
+
+**Extract parameters if applicable:**
+- [ ] Create or update `[WORKFLOW_NAME]_PARAMS.md` file
+- [ ] Follow [parameter file structure pattern](../../.team/WORKFLOW_MAINTENANCE_GUIDE.md#how-to-structure-parameter-files)
+- [ ] Update workflow to reference params file
+- [ ] Document extraction in plan.md
+
+**See**: [Workflow Maintenance Guide - Parameter Management](../../.team/WORKFLOW_MAINTENANCE_GUIDE.md#workflow-parameter-management) for complete details.
+
+**3. Test Changes**
+- Create test scenarios
+- Run tabletop simulation
+- Verify workflow still works correctly
+
+**4. Document and Archive**
+- Update plan.md with completion status
+- Archive test scenarios or revert as appropriate
+
+---
+
+#### Procedure: Updating an Issue Template
+
+When updating issue templates (`.github/ISSUE_TEMPLATE/*.md`):
+
+**1. Make Content Changes**
+- Update context gathering fields
+- Add new sections or refine existing ones
+- Ensure template serves its purpose
+
+**2. Refactoring Step - Template Simplification**
+
+After content changes, review for simplification opportunities:
+
+**Check for workflow duplication:**
+- [ ] Compare template with related workflow documentation
+- [ ] Identify procedural steps duplicated from workflow
+- [ ] Identify algorithmic details duplicated from workflow
+- [ ] Find checklists that repeat workflow steps
+
+**Simplify template if applicable:**
+- [ ] Remove procedural instructions (keep in workflow doc only)
+- [ ] Remove algorithmic details (keep in workflow doc only)
+- [ ] Remove duplicate checklists (keep in workflow doc only)
+- [ ] Strengthen workflow reference (clear link + label)
+- [ ] Keep context gathering fields and outcome expectations
+- [ ] Ensure "For @copilot" section points to workflow, doesn't duplicate
+
+**Apply core principle**: Templates gather context, workflows contain procedures
+
+**See**: [Workflow Maintenance Guide - Template Simplification](../../.team/WORKFLOW_MAINTENANCE_GUIDE.md#issue-template-simplification) for complete details including antipatterns and examples.
+
+**3. Test Navigation**
+- Verify agent can navigate from template to workflow
+- Confirm template still provides needed context
+- Create test scenario if significant changes
+
+**4. Document Changes**
+- Update plan.md
+- Note simplification in PR description
+
+---
+
+**Quick Reference:**
+
+**Parameter Management:**
+- Extract configurable values (WIP limits, pagination, thresholds) to `[WORKFLOW_NAME]_PARAMS.md`
+- Use 3-question decision framework to determine extract vs inline
+- Follow PRODUCT_PRIORITIZATION_WORKFLOW_PARAMS.md as structure pattern
+
+**Template Simplification:**
+- Core principle: Templates gather context, workflows contain procedures
+- Remove procedural checklists and algorithmic details from templates
+- Strengthen workflow references, rely on label routing
+
 ## Verbosity and Redundancy Testing
 
 Part of the refinement process is testing whether workflows are overly verbose or contain unused information:

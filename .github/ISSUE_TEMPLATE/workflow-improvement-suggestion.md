@@ -65,13 +65,12 @@ Check all that apply:
 
 ## For @copilot
 
-**Investigation Steps:**
-1. Read `.team/prompts/PROCESS_MODELING_WORKFLOW.md` for complete workflow
-2. Update `/research/workflow-modeling/plan.md` to track this work
-3. Create test scenarios in `/research/workflow-modeling/scenarios/[workflow-name]/`
-4. Validate changes through tabletop simulation
-5. Update relevant documentation based on test results
-6. Archive successful scenarios (or revert if appropriate)
-7. Complete self-improvement evaluation
+**Workflow**: Follow `.team/prompts/PROCESS_MODELING_WORKFLOW.md` for complete process.
+
+**Quick Reference:**
+- Read [Document Hygiene Guide](../.team/DOCUMENT_HYGIENE.md) before creating/updating documentation
+- Create test scenarios in `/research/workflow-modeling/scenarios/[workflow-name]/`
+- Execute tabletop simulations to validate changes
+- Complete self-improvement evaluation before PR review
 
 **Documentation Convention:** Workflow documentation follows the naming pattern `[Name]_WORKFLOW.md` in the `.team/prompts/` folder.
