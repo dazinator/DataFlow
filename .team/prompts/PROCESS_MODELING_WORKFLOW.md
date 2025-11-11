@@ -956,6 +956,144 @@ How will you validate the changes?
 - Provides clear reference during implementation
 - Can be referenced in archived plan
 
+### Historical Data Handling During System Transitions
+
+When simplifying or migrating a system, consider how to handle existing historical data:
+
+**Key Principle**: **Focus migration effort on making the NEW system work, not perfect historical conversion.**
+
+**Decision Framework**:
+
+1. **Does historical data provide ongoing value?**
+   - Audit trails → Yes, keep as-is
+   - Reference documentation → Yes, keep as-is
+   - Temporary artifacts → No, can be cleaned up
+   - Example: Historical feedback sub-issues serve as audit trail → Keep them
+
+2. **Would migration add value?**
+   - Improves searchability? → Maybe migrate
+   - Required for new features? → Migrate
+   - Just for consistency? → Usually not worth it
+   - Creates noise in new system? → Don't migrate
+
+3. **What's the migration effort vs value?**
+   - High effort + low value → Leave as-is
+   - Low effort + high value → Migrate
+   - High effort + high value → Consider partial migration
+   - Example: 30 sub-issues × (read + comment + close) = high effort for low value → Leave as-is
+
+**Best Practices**:
+
+- ✅ **Document the cutover point** clearly
+  - Example: "Feedback after November 2025 uses comments"
+  - Include in tracker issue description
+  - Update documentation to guide future behavior
+
+- ✅ **Update NEW system documentation** to reflect current approach
+  - Don't leave old instructions that confuse future users
+  - Clearly mark legacy items as "historical"
+  - Example: "Historical sub-issues remain for reference"
+
+- ✅ **Leave historical data as-is** when:
+  - It serves as audit trail or reference
+  - Migration would be time-consuming
+  - Migration creates noise without clear benefit
+  - Historical context is preserved adequately
+
+- ❌ **Don't spend effort on perfect historical conversion** when:
+  - Primary goal is simplification
+  - Historical data still accessible and understandable
+  - Migration doesn't improve future workflow
+  - Time better spent on new system quality
+
+**Example - Workflow Feedback Tracker Transition**:
+
+```
+Before: Sub-issues under parent tracker
+After: Comments on tracker issue
+Historical: 30 sub-issues remain as-is
+Rationale: 
+- Sub-issues serve as historical audit trail
+- Migration (30 × 3 API calls = 90 operations) adds noise
+- Comment system works for NEW feedback
+- Cutover documented: "Feedback after Nov 2025 uses comments"
+Result: Clean new system, preserved history, minimal migration effort
+```
+
+### Pragmatic Simplification Pattern
+
+**Core Concept**: Simplification means reducing **FUTURE** complexity, not necessarily cleaning up **ALL** past artifacts.
+
+**When Simplifying a System**:
+
+1. **Define the New Pattern**
+   - What's the simplified approach?
+   - Why is it better than before?
+   - Example: "Comments instead of sub-issues - simpler to submit, no relationship management"
+
+2. **Document the Transition**
+   - Clear cutover date or event
+   - What happens to existing items?
+   - Example: "After November 2025: use comments. Historical sub-issues: remain for reference."
+
+3. **Update Forward-Looking Guidance**
+   - All NEW instructions use simplified approach
+   - Legacy approach clearly marked as historical
+   - No ambiguity about what to do going forward
+
+4. **Pragmatic Historical Handling**
+   - Don't turn simplification into complex migration project
+   - Historical artifacts can remain if they don't harm new system
+   - Focus effort on making new system excellent
+
+**Anti-Pattern: Over-Migration**
+
+```
+❌ BAD: Spend hours migrating all historical data
+- Convert 30 historical sub-issues to comments
+- Creates noise in tracker issue (30+ comments)
+- Time-consuming (90+ API operations)
+- Doesn't improve future workflow
+- Turns "simplification" into "complex migration"
+
+✅ GOOD: Document cutover, keep history as-is
+- Update tracker: "New feedback: use comments"
+- Mark existing sub-issues: "Historical - before Nov 2025"
+- Focus on new comment system quality
+- Historical sub-issues remain accessible
+- Simplification achieved in minutes, not hours
+```
+
+**Decision Checklist**:
+
+Before migrating historical data, ask:
+- [ ] Does this migration make the NEW system work better?
+- [ ] Is historical data inaccessible or confusing without migration?
+- [ ] Is the effort justified by ongoing value?
+- [ ] Will migration create noise or clutter?
+- [ ] Could effort be better spent improving new system?
+
+**If "No" to first question**: Leave historical data as-is, document the transition clearly, move forward with new system.
+
+**Example Applications**:
+
+- **Feedback tracker**: Sub-issues → Comments
+  - Decision: Leave 30 historical sub-issues as-is
+  - Rationale: Accessible, serve as audit trail, migration adds noise
+  - Documentation: "Historical sub-issues remain for reference"
+
+- **File format change**: Old format → New format
+  - Decision: Migrate critical files, leave archived files in old format
+  - Rationale: Archived files rarely accessed, migration effort not justified
+  - Documentation: "Files before YYYY-MM-DD use old format"
+
+- **API endpoint change**: Old endpoint → New endpoint
+  - Decision: Maintain old endpoint for deprecation period
+  - Rationale: Breaking existing integrations is high cost
+  - Documentation: "Old endpoint deprecated, use new endpoint for new work"
+
+**Remember**: Perfect is the enemy of good. A clean future system with documented historical artifacts is better than a complex migration that delays the improvement.
+
 ### Markdown Table Formatting Guidance
 
 When updating workflow documentation or issue templates with markdown tables:
