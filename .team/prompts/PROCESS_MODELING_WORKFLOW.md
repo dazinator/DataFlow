@@ -434,9 +434,9 @@ parent_sub_issues = issue_read(
 # This prevents re-processing or re-closing already-closed issues
 issues = [sub for sub in parent_sub_issues if sub.state == "open"]
 
-# ⚠️ REQUIRED: Double verification to prevent re-closing already-closed issues
-# The get_sub_issues data may be stale or issues may be closed concurrently.
-# Always verify current state before processing.
+# ⚠️ CRITICAL: Double verification - ALWAYS verify each issue is truly open
+# The sub-issue query may return stale data. Verify state before processing.
+# This prevents re-closing already-closed issues (which creates false progress).
 verified_open_issues = []
 for issue in issues:
     issue_details = issue_read(
@@ -446,7 +446,7 @@ for issue in issues:
         issue_number=issue.number
     )
     if issue_details.get('state') == 'open':
-        verified_open_issues.append(issue)
+        verified_open_issues.append(issue_details)
 
 issues = verified_open_issues
 ```
@@ -457,7 +457,7 @@ issues = verified_open_issues
 - Catches feedback items that may be missing the `workflow:process-modeling` label
 - Matches the organizational structure documented in the feedback tracker
 - **Issue-title based lookup** - resilient to issue deletion/recreation (unlike hardcoded issue numbers)
-- **Required double verification** - prevents re-processing or re-closing already-closed issues (guards against stale data and concurrent operations)
+- **Double verification ALWAYS required** - sub-issue queries may return stale data; individual issue queries are authoritative
 
 **Filter out the bulk process modeling issue itself**:
 - Get the current issue number (the bulk process modeling issue)
@@ -469,6 +469,13 @@ issues = verified_open_issues
 **When to use triage**: When processing a large backlog of feedback issues (10+ items), especially after migration or long periods without bulk processing.
 
 **Purpose**: Early dismissal of low-value items and prioritization of remaining feedback.
+
+**⚠️ CRITICAL - Triage Is NOT Progress**:
+- Triage does NOT count toward the "at least 1 item processed" requirement
+- Closing issues during triage is preparatory work, not workflow improvement completion
+- You MUST complete at least one full improvement workflow (scenarios → testing → implementation) after triage
+- Progress = sub-items closed by completing the full process modeling workflow for an improvement
+- Do NOT exit after triage alone - that's exiting without making any real progress
 
 ##### Triage Rules
 
@@ -623,10 +630,8 @@ Bulk mode uses **progressive processing** to make continuous progress without cr
 **Progressive Processing Rules:**
 
 1. **Always process at least 1 item** - Never stop without processing at least one feedback item (complete the full process modeling workflow: read and assess, create test scenarios, execute tabletop simulations, implement validated improvements, update workflow documentation, and archive or revert scenarios)
-2. **Check PR size after each item** - Use `git diff --stat` to measure changes
-3. **Continue if small** - If PR < 200 lines, process another item automatically
-4. **Request confirmation at moderate size** - If PR reaches 200-400 lines, ask before continuing
-5. **Request confirmation at large size** - If PR exceeds 400 lines, ask before continuing (size is advisory, not a hard limit)
+2. **Continue processing until PR is sizable** - Workflow file changes and copilot instructions are easy to review, so PR size is not a primary concern
+3. **Track progress by sub-items closed** - Only items that complete the full workflow count as progress (triage alone does NOT count)
 
 **⚠️ IMPORTANT - What "Processing 1 Item" Means:**
 
@@ -642,105 +647,15 @@ Bulk mode uses **progressive processing** to make continuous progress without cr
 
 **Why this approach:**
 - Ensures continuous progress (always processes ≥1 item completely)
-- Keeps PRs reviewable when possible (200-400 line sweet spot)
-- Allows incremental processing of large backlogs
-- PR size is advisory - with confirmation, can process items even if >400 lines
+- Workflow files and copilot instructions are very easy to review (structure is clear, changes are focused)
+- PR size is NOT a concern for workflow documentation changes
+- Progress = completing improvements and closing sub-items
+- If the input queue cannot be processed, the system will fail based on entropy over time
 - Prevents stalling on triage without making real progress
-
-**Line Counting:**
-```bash
-# After processing each item, check total PR size
-git diff --stat origin/main | tail -1
-# Example: "5 files changed, 187 insertions(+), 43 deletions(-)"
-# Total lines = 187 + 43 = 230 lines
-```
-
-**What to count:**
-- ✅ Workflow documentation (`.team/prompts/*.md`)
-- ✅ Issue templates (`.github/ISSUE_TEMPLATE/*.md`)
-- ✅ Copilot instructions (`.github/copilot-instructions.md`)
-- ❌ Test scenario files (`scenarios/*.md`) - these get reverted
 
 **For each issue in the filtered queue:**
 
-1. **Before processing each item (including the first), check stopping conditions. The first item is always processed (minimum guarantee):**
-   
-   ```python
-   # Get current PR size
-   import subprocess
-   result = subprocess.run(
-       ['git', 'diff', '--stat', 'origin/main'],
-       capture_output=True, text=True
-   )
-   # Parse insertions + deletions from last line
-   # Format: "X files changed, Y insertions(+), Z deletions(-)"
-   
-   # Decision tree:
-   if items_processed == 0:
-       # Guarantee at least one item is FULLY PROCESSED (scenarios, testing, implementation)
-       # Not just triaged - must complete the full improvement workflow
-       process_next = True
-   elif total_lines < 200:
-       # PR still small, continue automatically
-       process_next = True
-   elif total_lines < 400:
-       # Moderate size - request confirmation before continuing
-       add_issue_comment(
-           owner="uniun-technology",
-           repo="lib-dataflow",
-           issue_number=BULK_PROCESS_MODELING_ISSUE_NUMBER,
-           body=f"""[Copilot-Workflow: Process Modeling] ⚠️ **Confirmation Needed**
-
-**Progress so far:**
-- Items processed: {items_processed}
-- PR size: ~{total_lines} lines changed
-- Remaining items: {len(remaining_issues)}
-
-**Next item:** #{next_issue.number} - {next_issue.title}
-
-PR is approaching moderate size (200-400 lines). 
-
-**Options:**
-1. Reply "continue" to process next item
-2. Reply "stop" to finalize PR now for review
-
-What would you like to do?"""
-       )
-       # Wait for user response
-       process_next = False  # Pause for confirmation
-   else:
-       # PR large (400+ lines) - request confirmation before continuing
-       # This is ADVISORY, not a hard stop - with approval, can continue
-       add_issue_comment(
-           owner="uniun-technology",
-           repo="lib-dataflow",
-           issue_number=BULK_PROCESS_MODELING_ISSUE_NUMBER,
-           body=f"""[Copilot-Workflow: Process Modeling] ⚠️ **Confirmation Needed - Large PR**
-
-**Progress so far:**
-- Items processed: {items_processed}
-- PR size: ~{total_lines} lines changed
-- Remaining items: {len(remaining_issues)}
-
-**Next item:** #{next_issue.number} - {next_issue.title}
-
-PR has exceeded typical size threshold (400+ lines). This is advisory, not a hard limit.
-
-**Options:**
-1. Reply "continue" to process next item despite size
-2. Reply "stop" to finalize PR now for review
-
-**Note:** With your approval, I can continue processing improvements regardless of PR size.
-
-What would you like to do?"""
-       )
-       # Wait for user response
-       process_next = False  # Pause for confirmation
-   ```
-
-2. **If stopping, finalize and close** (see Step 6: Partial Completion Pattern)
-
-3. **If continuing, process the next item:**
+1. **Process the next item:**
    
    a. **Read the issue** to understand the improvement proposal
    b. **Assess** the improvement using standard process modeling approach
@@ -749,13 +664,12 @@ What would you like to do?"""
    e. **Implement improvements** if validated
    f. **Update workflow documentation** as needed
    g. **Archive or revert scenarios** based on retention decision
-   h. **Track metrics:**
+   h. **Track progress:**
       ```python
       items_processed += 1
-      # Update total_lines from git diff --stat
       ```
 
-4. **Close the improvement issue:**
+2. **Close the improvement issue:**
    ```python
    issue_write(
        method="update",
@@ -773,7 +687,7 @@ What would you like to do?"""
    )
    ```
 
-5. **Loop back** to step 1 (check stopping conditions for next item)
+3. **Continue to next item** - Process until all items in queue are complete
 
 #### Step 5: Track Progress
 
@@ -800,11 +714,7 @@ Continuing...
 )
 ```
 
-#### Step 6: Complete and Close (Full or Partial)
-
-Bulk mode supports **two completion patterns**: full completion (all items processed) and partial completion (stopped due to PR size limits).
-
-##### Pattern A: Full Completion
+#### Step 6: Complete and Close
 
 **When**: All issues in the queue have been processed
 
@@ -841,61 +751,6 @@ issue_write(
 
 3. **Mark PR ready for review** - Complete self-improvement evaluation and request code review
 
-##### Pattern B: Partial Completion
-
-**When**: Stopped due to user declining to continue at any PR size threshold (200-400 lines or 400+ lines)
-
-**Partial completion is a valid outcome** - it allows incremental progress on large backlogs without overwhelming reviewers.
-
-1. **Add partial completion comment** to bulk process modeling issue:
-```python
-add_issue_comment(
-    owner="uniun-technology",
-    repo="lib-dataflow",
-    issue_number=BULK_PROCESS_MODELING_ISSUE_NUMBER,
-    body=f"""[Copilot-Workflow: Process Modeling] ⏸️ Partial Completion
-
-**Items Processed**: {items_processed} of {total_in_queue}
-**PR Size**: ~{total_lines} lines changed
-**Stopping Reason**: {reason}
-
-**Completed Items**:
-{list_of_completed_items}
-
-**Remaining Items** ({remaining_count}):
-{list_of_remaining_items}
-
-**Recommendation**: 
-- This PR is ready for review ({total_lines} lines)
-- After merge, create new bulk processing issue for remaining {remaining_count} items
-- Progressive processing ensures reviewable PR sizes while making continuous progress
-
-**Next Steps**:
-1. Review and merge this PR
-2. Create new bulk processing issue: `[Process Modeling] Bulk processing - [next-date]`
-3. Continue processing remaining items in next batch
-"""
-)
-```
-
-2. **Keep bulk process modeling issue open** for tracking:
-```python
-# Add label to indicate partial completion
-issue_write(
-    method="update",
-    owner="uniun-technology",
-    repo="lib-dataflow",
-    issue_number=BULK_PROCESS_MODELING_ISSUE_NUMBER,
-    labels=["workflow:process-modeling", "partial-completion"]
-)
-```
-
-3. **Mark PR ready for review** - Complete self-improvement evaluation and request code review
-
-4. **After PR merges, close the bulk process modeling issue:**
-   - Close it manually or via PR description `Fixes #ISSUE_NUMBER`
-   - Reviewer can create new bulk processing issue for remaining items
-
 #### Edge Cases
 
 **Empty Queue**:
@@ -915,36 +770,23 @@ issue_write(
 - Note it in the bulk process modeling summary
 - Continue with remaining issues
 
-**Large Backlog (20+ items)**:
-- Use progressive processing (process at least 1 item completely, continue with user confirmation at size thresholds)
-- Expect multiple bulk processing sessions to clear large backlogs
-- Each session processes items until user declines to continue at a size threshold
-- Size thresholds (200/400 lines) are advisory - with confirmation, can continue regardless of size
-- This is **intentional** - provides natural pause points without blocking progress
-- After each PR merges, create new bulk processing issue for next batch
-
-**User Confirmation Timeout**:
-- If waiting for user confirmation (at any size threshold) and no response within reasonable time
-- Finalize PR with partial completion
-- Document stopping reason: "Waiting for confirmation, finalizing for review"
-
 #### Self-Improvement Timing for Bulk Mode
 
 **When to complete self-improvement evaluation in bulk mode:**
 
-Unlike single-item mode where self-improvement happens after processing each individual issue, **bulk mode self-improvement evaluation happens at the END** of the bulk processing session (full or partial completion).
+Unlike single-item mode where self-improvement happens after processing each individual issue, **bulk mode self-improvement evaluation happens at the END** of the bulk processing session.
 
 **Why:**
-- Bulk mode feedback reflects on the **triage and progressive processing workflow itself**, not individual improvements
-- Evaluates: Was progressive processing effective? Did the stopping criteria work well? Was PR size manageable?
+- Bulk mode feedback reflects on the **triage and processing workflow itself**, not individual improvements
+- Evaluates: Was the workflow effective? Did it help make progress? Were instructions clear?
 - Avoids creating feedback issues in the middle of processing
 
 **What to evaluate:**
 
-1. **Progressive Processing Effectiveness:**
-   - Did the line thresholds (200/400) work well?
-   - Were stopping points reasonable?
-   - Did "always process at least 1 item" rule help?
+1. **Processing Effectiveness:**
+   - Did the workflow help make continuous progress?
+   - Were all items in the queue processed successfully?
+   - Did "always process at least 1 item" rule prevent stalling?
 
 2. **Triage Process:**
    - Were triage rules clear and helpful?
@@ -957,7 +799,7 @@ Unlike single-item mode where self-improvement happens after processing each ind
    - What could be improved?
 
 **When to create feedback issue:**
-- After finalizing PR (full or partial completion)
+- After finalizing PR
 - Before marking PR ready for review
 - Reflects on entire bulk session, not individual items
 

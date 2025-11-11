@@ -18,14 +18,13 @@ assignees: ''
 
 ## What This Does
 
-Bulk mode processes multiple workflow improvement issues in a single PR using **progressive processing**:
+Bulk mode processes multiple workflow improvement issues in a single PR:
 
-- ✅ **Always processes at least 1 item** (minimum progress guarantee)
-- ✅ **Continues automatically while PR < 200 lines** (keeps PRs reviewable)
-- ⚠️ **Requests confirmation at 200-400 lines** (moderate PR size)
-- ⚠️ **Requests confirmation at 400+ lines** (advisory - can continue with approval)
+- ✅ **Always processes at least 1 item** (minimum progress guarantee - full workflow completion required)
+- ✅ **Continues processing until queue is complete** (workflow files are easy to review, PR size not a concern)
+- ✅ **Tracks progress by sub-items closed** (triage alone does NOT count as progress)
 
-**For large backlogs (20+ items)**: Multiple bulk sessions expected. Each creates a reviewable PR, then a new bulk issue continues with remaining items.
+**Note**: Workflow file changes and copilot instructions are very easy to review. PR size is not a limiting factor for process modeling work.
 
 ---
 
@@ -36,12 +35,8 @@ Bulk mode processes multiple workflow improvement issues in a single PR using **
 **Quick summary**:
 1. Add today's date to this issue title
 2. Query process modeling queue (structure-based from feedback tracker)
-3. Process items progressively (complete workflow per item)
-4. Check PR size after each item
-5. Request confirmation at thresholds or finalize PR
-6. Complete self-improvement evaluation
-
-**Progressive Processing**:
-- 1 item minimum (full workflow: scenarios → testing → implementation → documentation)
-- Continue automatically if PR < 200 lines
-- Request confirmation at 200+ lines (you decide when to stop for review)
+3. **Optional triage** (for large backlogs 10+ items) - dismiss low-value items
+4. **Process all items** (complete workflow per item: scenarios → testing → implementation → documentation)
+5. **Triage alone is NOT progress** - must complete at least one full improvement workflow
+6. **Continue until queue is complete** - workflow files are easy to review, no PR size concerns
+7. Complete self-improvement evaluation
