@@ -491,8 +491,8 @@ Review:
 find research/ -name "*.md" -type f | xargs grep -l "nullable warnings"
 find research/ -name "*.md" -type f | xargs grep -l "test helpers"
 
-# Check product backlog for similar items
-grep -r "compiler warnings" product/backlog/
+# Check GitHub issues for similar backlog items
+gh issue list --label "workflow:product-backlog" --search "compiler warnings" --state all
 ```
 
 **For each potential duplicate**:
@@ -767,7 +767,7 @@ git checkout HEAD -- poc/DataFlow.POC/
 git checkout HEAD -- poc/DataFlow.POC.Tests/
 git checkout HEAD -- src/
 
-# Verify only docs and backlog items remain
+# Verify only docs remain
 git status
 ```
 
@@ -775,14 +775,13 @@ git status
 
 ```bash
 git add research/tech-debt-[date]/
-git add product/backlog/
 git commit -m "Tech debt analysis findings and handovers"
 ```
 
 **What Stays**:
 - ✅ Research folder with all documentation
 - ✅ Findings report
-- ✅ Product backlog items for all findings
+- ✅ Product backlog items created as GitHub issues
 - ✅ Prototype code in handover folders
 
 **What Gets Reverted**:
@@ -795,14 +794,14 @@ git commit -m "Tech debt analysis findings and handovers"
 ### Browsing the Backlog
 
 ```bash
-# List all tech debt backlog items chronologically
-ls -lt product/backlog/techdebt-*.md
+# List all tech debt backlog items
+gh issue list --label "workflow:product-backlog" --search "in:title techdebt" --state open
 
 # Search for specific categories
-grep -l "Category: Compiler Warnings" product/backlog/*.md
+gh issue list --label "workflow:product-backlog" --search "Compiler Warnings" --state open
 
 # Find high-priority items
-grep -l "Priority: High" product/backlog/*.md
+gh issue list --label "workflow:product-backlog" --search "Priority: High" --state open
 ```
 
 ### Prioritizing Backlog Items

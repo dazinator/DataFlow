@@ -988,7 +988,437 @@ for issue in filtered_issues:
     )
 ```
 
-### Step 6: Track Progress
+### Step 6: Housekeeping (Duplicate Detection & Cleanup)
+
+**⚠️ NEW**: After routing is complete, perform housekeeping to identify and flag duplicates, completed items, and stale issues across ALL workflow labels.
+
+**When to run**: Only in Bulk Triage Mode, after all routing is complete (Step 5 finished)
+
+**Scope**: Queries ALL open issues (not limited to any specific workflow label)
+
+#### Step 6a: Detect Duplicate Issues
+
+**Query ALL open issues across all workflows:**
+
+```python
+# Get ALL open issues for duplicate detection (with pagination)
+# Note: In actual implementation, you would need: from difflib import SequenceMatcher
+all_open_issues = []
+page = 1
+
+while True:
+    issues_page = list_issues(
+        owner="uniun-technology",
+        repo="lib-dataflow",
+        state="OPEN",
+        perPage=100,
+        page=page
+    )
+    if not issues_page:
+        break
+    all_open_issues.extend(issues_page)
+    if len(issues_page) < 100:
+        break
+    page += 1
+
+def are_similar_titles(title1, title2, threshold=0.8):
+    """Check if two titles are similar enough to be potential duplicates"""
+    # Uses SequenceMatcher from difflib module
+    return SequenceMatcher(None, title1.lower(), title2.lower()).ratio() > threshold
+
+# Find potential duplicates
+potential_duplicates = []
+issues_list = all_open_issues
+
+for i, issue1 in enumerate(issues_list):
+    for issue2 in issues_list[i+1:]:
+        similarity = SequenceMatcher(None, issue1['title'].lower(), issue2['title'].lower()).ratio()
+        if similarity > 0.8:
+            potential_duplicates.append({
+                'duplicate': issue2['number'],
+                'original': issue1['number'],
+                'similarity': similarity,
+                'title1': issue1['title'],
+                'title2': issue2['title']
+            })
+
+# Flag duplicates with comments (do NOT auto-close)
+for dup in potential_duplicates:
+    add_issue_comment(
+        owner="uniun-technology",
+        repo="lib-dataflow",
+        issue_number=dup['duplicate'],
+        body=f"""[Copilot-Workflow: Triage] 🔍 **Potential Duplicate Detected**
+
+This issue appears to be a duplicate of #{dup['original']}.
+
+**Similarity Analysis**:
+- Title similarity: {dup['similarity']:.0%}
+- Original: {dup['title1']}
+- This issue: {dup['title2']}
+
+**Recommendation**: 
+- Human review needed to confirm if this is a true duplicate
+- If duplicate: Close this issue and reference #{dup['original']}
+- If not duplicate: Add distinguishing details to title/description
+
+**@maintainers**: Please review and take appropriate action.
+"""
+    )
+```
+
+#### Step 6b: Identify Completed Items
+
+**Find issues marked as completed but still open:**
+
+```python
+# Search for completed items still in open state
+# These are issues with "Completed" status in metadata or with merged PRs
+completed_items = []
+
+for issue in issues_list:
+    # Check if issue body contains "Status: Completed" or similar
+    if issue.get('body') and any(marker in issue['body'] for marker in ['Status: Completed', 'Status: Complete', '**Status**: Completed']):
+        completed_items.append({
+            'number': issue['number'],
+            'title': issue['title'],
+            'reason': 'Status marked as completed in issue body'
+        })
+        continue
+    
+    # Check if issue references a merged PR in comments
+    # (This requires checking comments - simplified version shown)
+    # Add to completed_items if merged PR found
+
+# Flag completed items for closure
+for item in completed_items:
+    add_issue_comment(
+        owner="uniun-technology",
+        repo="lib-dataflow",
+        issue_number=item['number'],
+        body=f"""[Copilot-Workflow: Triage] ✅ **Completed Item - Ready to Archive**
+
+This issue appears to be completed: {item['reason']}
+
+**Recommended Actions**:
+1. Close this issue (work is complete)
+2. Any supporting artifacts referenced in the issue remain in the repository for historical reference
+
+**@maintainers**: Please review and close if confirmed.
+"""
+    )
+```
+
+#### Step 6c: Identify Stale Items
+
+**Find issues with no activity for >6 months:**
+
+```python
+# Note: In actual implementation, you would need: from datetime import datetime, timedelta
+
+# Calculate 6 months ago
+six_months_ago = datetime.now() - timedelta(days=180)
+
+stale_items = []
+
+for issue in issues_list:
+    updated_at = datetime.fromisoformat(issue['updated_at'].replace('Z', '+00:00'))
+    
+    # Check if last update was >6 months ago
+    if updated_at < six_months_ago:
+        months_inactive = (datetime.now() - updated_at).days // 30
+        stale_items.append({
+            'number': issue['number'],
+            'title': issue['title'],
+            'months_inactive': months_inactive,
+            'last_updated': updated_at.strftime('%Y-%m-%d')
+        })
+
+# Flag stale items for review
+for item in stale_items:
+    add_issue_comment(
+        owner="uniun-technology",
+        repo="lib-dataflow",
+        issue_number=item['number'],
+        body=f"""[Copilot-Workflow: Triage] 🕰️ **Stale Item - Review Needed**
+
+This issue has had no updates in {item['months_inactive']} months (last update: {item['last_updated']}).
+
+**Recommendation**: Please review and determine if this item is still relevant.
+- If still needed: Update description and provide current status
+- If no longer needed: Close this issue
+- If unclear: Add comment with current thinking
+
+**@maintainers**: Please review at your convenience.
+"""
+    )
+```
+
+#### Step 6d: Present Housekeeping Summary
+
+**Helper functions for table formatting:**
+
+```python
+def format_duplicates_table(duplicates):
+    if not duplicates:
+        return "| - | No duplicates detected | - | - |"
+    
+    rows = []
+    for dup in duplicates:
+        rows.append(f"| #{dup['duplicate']} | {dup['title2'][:50]}... | Close as duplicate of #{dup['original']} | {dup['similarity']:.0%} title similarity |")
+    return '\n'.join(rows)
+
+def format_completed_table(completed):
+    if not completed:
+        return "| - | No completed items found | - | - |"
+    
+    rows = []
+    for item in completed:
+        rows.append(f"| #{item['number']} | {item['title'][:50]}... | Close as completed | {item['reason']} |")
+    return '\n'.join(rows)
+
+def format_stale_table(stale):
+    if not stale:
+        return "| - | No stale items found | - | - |"
+    
+    rows = []
+    for item in stale:
+        rows.append(f"| #{item['number']} | {item['title'][:50]}... | Close as not planned | {item['months_inactive']} months inactive |")
+    return '\n'.join(rows)
+```
+
+**Add a summary comment to the bulk triage issue with suggested actions in tabular format:**
+
+```python
+add_issue_comment(
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=BULK_TRIAGE_ISSUE_NUMBER,
+    body=f"""[Copilot-Workflow: Triage] 🧹 **Housekeeping Summary**
+
+Completed duplicate detection and cleanup scan across all open issues.
+
+## 🔍 Suggested Housekeeping Actions
+
+Please review the following suggested cleanup actions. Reply with your approval to execute them automatically.
+
+### Duplicates to Close
+
+| Issue # | Title | Action | Reason |
+|---------|-------|--------|--------|
+{format_duplicates_table(potential_duplicates)}
+
+### Completed Items to Close
+
+| Issue # | Title | Action | Reason |
+|---------|-------|--------|--------|
+{format_completed_table(completed_items)}
+
+### Stale Items to Close
+
+| Issue # | Title | Action | Reason |
+|---------|-------|--------|--------|
+{format_stale_table(stale_items)}
+
+---
+
+**To approve these actions**, reply with:
+- `@copilot approve all` - Execute all suggested actions
+- `@copilot approve duplicates` - Only close duplicates
+- `@copilot approve completed` - Only close completed items
+- `@copilot approve stale` - Only close stale items
+- `@copilot approve #228, #230, #232` - Approve specific issue numbers
+
+**To reject**, reply with:
+- `@copilot skip housekeeping` - No automatic cleanup needed
+
+Any actions not approved will remain as flagged comments on the respective issues for manual review.
+
+**Housekeeping Statistics**:
+- Potential duplicates detected: {len(potential_duplicates)}
+- Completed items flagged: {len(completed_items)}
+- Stale items flagged: {len(stale_items)}
+- Total issues scanned: {len(issues_list)}
+"""
+)
+```
+
+#### Step 6e: Wait for Approval and Execute
+
+**Monitor for reviewer response with approval command.**
+
+When reviewer responds with an approval command, parse it and execute approved actions:
+
+**Parsing approval commands:**
+
+```python
+# Note: In actual implementation, you would need: import re
+
+def parse_approval_command(comment_body):
+    """Parse reviewer approval command and return approved actions"""
+    
+    # Normalize comment
+    comment = comment_body.lower().strip()
+    
+    # Check for approval patterns
+    if "approve all" in comment or "approve everything" in comment:
+        return {"duplicates": True, "completed": True, "stale": True, "specific": []}
+    
+    if "approve duplicates" in comment:
+        return {"duplicates": True, "completed": False, "stale": False, "specific": []}
+    
+    if "approve completed" in comment:
+        return {"duplicates": False, "completed": True, "stale": False, "specific": []}
+    
+    if "approve stale" in comment:
+        return {"duplicates": False, "completed": False, "stale": True, "specific": []}
+    
+    # Check for specific issue numbers
+    specific_pattern = r"approve\s+#?(\d+(?:\s*,\s*#?\d+)*)"
+    match = re.search(specific_pattern, comment)
+    if match:
+        issue_numbers = [int(n.strip().lstrip('#')) for n in match.group(1).split(',')]
+        return {"duplicates": False, "completed": False, "stale": False, "specific": issue_numbers}
+    
+    # Check for skip/reject
+    if "skip housekeeping" in comment or "skip cleanup" in comment or "no cleanup" in comment:
+        return None
+    
+    return None  # No valid approval found
+```
+
+**Executing approved actions:**
+
+```python
+# Example: After receiving "@copilot approve duplicates"
+approval = parse_approval_command(reviewer_comment)
+
+if approval and approval['duplicates']:
+    # Close duplicate issues
+    for dup in potential_duplicates:
+        add_issue_comment(
+            owner="uniun-technology",
+            repo="lib-dataflow",
+            issue_number=dup['duplicate'],
+            body=f"""[Copilot-Workflow: Triage] ✅ **Closed as Duplicate**
+
+This issue is a duplicate of #{dup['original']}.
+
+**Action taken**: Closed automatically per reviewer approval in bulk triage housekeeping.
+
+Please continue discussion in #{dup['original']}.
+"""
+        )
+        
+        issue_write(
+            method="update",
+            owner="uniun-technology",
+            repo="lib-dataflow",
+            issue_number=dup['duplicate'],
+            state="closed",
+            state_reason="not_planned"
+        )
+
+if approval and approval['completed']:
+    # Close completed items
+    for item in completed_items:
+        add_issue_comment(
+            owner="uniun-technology",
+            repo="lib-dataflow",
+            issue_number=item['number'],
+            body=f"""[Copilot-Workflow: Triage] ✅ **Closed as Completed**
+
+This issue has been completed.
+
+**Action taken**: Closed automatically per reviewer approval in bulk triage housekeeping.
+**Reason**: {item['reason']}
+"""
+        )
+        
+        issue_write(
+            method="update",
+            owner="uniun-technology",
+            repo="lib-dataflow",
+            issue_number=item['number'],
+            state="closed",
+            state_reason="completed"
+        )
+
+if approval and approval['stale']:
+    # Close stale items
+    for item in stale_items:
+        add_issue_comment(
+            owner="uniun-technology",
+            repo="lib-dataflow",
+            issue_number=item['number'],
+            body=f"""[Copilot-Workflow: Triage] ⏸️ **Closed as Not Planned**
+
+This issue has been inactive for {item['months_inactive']} months and is being closed.
+
+**Action taken**: Closed automatically per reviewer approval in bulk triage housekeeping.
+
+If this work is still needed, please reopen with updated context and priority justification.
+"""
+        )
+        
+        issue_write(
+            method="update",
+            owner="uniun-technology",
+            repo="lib-dataflow",
+            issue_number=item['number'],
+            state="closed",
+            state_reason="not_planned"
+        )
+
+# Handle specific issue approvals
+if approval and approval.get('specific'):
+    for issue_num in approval['specific']:
+        # Find which category this issue belongs to and close appropriately
+        # ... (implementation details)
+        pass
+
+# Report execution results
+if approval:
+    # Count executed actions
+    duplicates_closed = len([d for d in potential_duplicates if approval.get('duplicates') or d['duplicate'] in approval.get('specific', [])])
+    completed_closed = len([c for c in completed_items if approval.get('completed') or c['number'] in approval.get('specific', [])])
+    stale_closed = len([s for s in stale_items if approval.get('stale') or s['number'] in approval.get('specific', [])])
+    
+    add_issue_comment(
+        owner="uniun-technology",
+        repo="lib-dataflow",
+        issue_number=BULK_TRIAGE_ISSUE_NUMBER,
+        body=f"""[Copilot-Workflow: Triage] ✅ **Housekeeping Actions Executed**
+
+**Approved by**: @reviewer-username
+**Executed**: {datetime.now().strftime("%Y-%m-%d %H:%M")}
+
+### Actions Completed
+
+**Duplicates Closed**: {duplicates_closed} issues
+**Completed Items Closed**: {completed_closed} issues
+**Stale Items Closed**: {stale_closed} issues
+
+**Total Issues Cleaned**: {duplicates_closed + completed_closed + stale_closed}
+
+All closed issues have been commented with closure reasons and references.
+"""
+    )
+```
+
+**Benefits of Housekeeping in Bulk Triage:**
+- ✅ **Cross-workflow cleanup**: Works across ALL workflow labels, not just product backlog
+- ✅ **Consolidated maintenance**: One place for all issue hygiene tasks
+- ✅ **Automated but safe**: Flags issues, requires approval, then executes
+- ✅ **Audit trail**: Clear record of what was cleaned and why
+- ✅ **Regular cadence**: Runs whenever bulk triage runs
+
+**When to skip housekeeping:**
+- If no duplicates, completed items, or stale items found, skip Step 6e
+- If reviewer responds with `@copilot skip housekeeping`, skip execution
+- Continue to Step 7 (Track Progress)
+
+### Step 7: Track Progress
 
 **Update the bulk triage issue with progress summaries**:
 
@@ -1021,7 +1451,7 @@ In the bulk triage issue description or first comment, add a link to the "Triage
 📊 **Quality Metrics**: See issue #[tracking-issue-number] for triage effectiveness data
 ```
 
-### Step 7: Complete and Close
+### Step 8: Complete and Close
 
 When all issues in the queue are processed:
 

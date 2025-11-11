@@ -167,11 +167,13 @@ Use this workflow when:
 
 ## Prioritization Policy
 
-### Maximum Selected Items
+**See**: `.team/prompts/PRODUCT_PRIORITIZATION_WORKFLOW_PARAMS.md` for complete policy details and configurable parameters.
 
-**MAX_SELECTED_ITEMS = 5**
+### Key Parameters
 
-The active priority list is limited to 5 items to maintain focus and ensure clear priorities for the implementation team.
+- **IMPLEMENTATION_QUEUE_LIMIT** = 10 (maximum items in implementation workflow)
+- **SELECTION_BATCH_SIZE** = 100 (items per page when querying backlog)
+- **DUPLICATE_SIMILARITY_THRESHOLD** = 0.8 (handled by Bulk Triage)
 
 ### Priority Levels
 
@@ -256,162 +258,285 @@ Maintain two tables in `/product/prioritization.md`:
 
 #### Selected Items Table (Max 5)
 
-| Priority | Backlog Item ID | Title | Category | Rationale |
-|----------|----------------|-------|----------|-----------|
-| 1 | ... | ... | Security | Critical CVE in core code |
-| 2 | ... | ... | Feature | High business value |
-| 3 | ... | ... | Tech Debt | Quick win cleanup |
-| 3 | ... | ... | Feature | User-requested |
-| 3 | ... | ... | Bug Fix | Affects multiple users |
+| Priority | Issue # | Title | Category | Rationale |
+|----------|---------|-------|----------|-----------|
+| 1 | #123 | ... | Security | Critical CVE in core code |
+| 2 | #124 | ... | Feature | High business value |
+| 3 | #125 | ... | Tech Debt | Quick win cleanup |
+| 3 | #126 | ... | Feature | User-requested |
+| 3 | #127 | ... | Bug Fix | Affects multiple users |
 
 #### Assessed But Not Selected
 
 Items that were reviewed but not chosen for active prioritization.
 
-| Backlog Item ID | Title | Category | Assessment Priority | Notes |
-|----------------|-------|----------|-------------------|-------|
-| ... | ... | ... | 3 | Good candidate but current priorities take precedence |
-| ... | ... | ... | 4 | Nice-to-have, defer until capacity |
-| ... | ... | ... | 5 | Low impact, archive candidate |
+| Issue # | Title | Category | Assessment Priority | Notes |
+|---------|-------|----------|-------------------|-------|
+| #128 | ... | ... | 3 | Good candidate but current priorities take precedence |
+| #129 | ... | ... | 4 | Nice-to-have, defer until capacity |
+| #130 | ... | ... | 5 | Low impact, archive candidate |
 
 **Purpose**: Provides transparency about what was considered and why it wasn't selected.
 
 ## Workflow Steps
 
+**See**: `.team/prompts/PRODUCT_PRIORITIZATION_WORKFLOW_PARAMS.md` for all configurable parameters.
+
 ### For Copilot Agents
 
 When triggered to prioritize the backlog:
 
-#### Step 1: Understand the Request
+#### Step 1: Collect All Backlog Items
 
-1. Read the issue or comment that triggered prioritization
-2. Check if specific guidance is provided (e.g., "prioritize security items")
-3. Note any human input or constraints
+**⚠️ IMPORTANT**: GitHub issues with the `workflow:product-backlog` label are the **primary and authoritative backlog source**.
 
-#### Step 2: Collect All Backlog Items
-
-Query all backlog GitHub issues:
+Query all open backlog GitHub issues with pagination support:
 
 ```python
-# Get all open backlog issues
-list_issues(
-    owner="uniun-technology",
-    repo="lib-dataflow",
-    labels=["workflow:product-backlog"],
-    state="OPEN"
-)
+# Collect all backlog issues with pagination
+all_backlog_issues = []
+page = 1
+SELECTION_BATCH_SIZE = 100  # From PRODUCT_PRIORITIZATION_WORKFLOW_PARAMS.md
+
+while True:
+    batch = list_issues(
+        owner="uniun-technology",
+        repo="lib-dataflow",
+        labels=["workflow:product-backlog"],
+        state="OPEN",  # Active backlog items only
+        page=page,
+        perPage=SELECTION_BATCH_SIZE
+    )
+    
+    if not batch:
+        break
+    
+    all_backlog_issues.extend(batch)
+    page += 1
+
+print(f"Collected {len(all_backlog_issues)} open backlog items")
 ```
 
-For each backlog issue:
-1. Read the issue completely
-2. Extract key metadata from issue body and labels:
-   - Issue number
-   - Source (research/tech-debt/ad-hoc - from labels)
-   - Category (from labels or issue body)
-   - Status (OPEN issues are active)
-   - Priority labels (if set)
-3. Create an inventory list
+For each backlog issue, extract key metadata:
+- Issue number
+- Title  
+- Labels (to determine category, source)
+- Body content (for priority override, CVE info, effort estimate)
 
-#### Step 3: Apply Selection Criteria
+**Note**: Housekeeping (duplicate detection, stale items, completed items) is handled by **Bulk Triage workflow** (`.team/prompts/TRIAGE_WORKFLOW.md` Step 6). Product Prioritization focuses purely on prioritization and selection.
 
-**3.1: Identify Security Vulnerabilities**
+#### Step 2: Apply Prioritization Criteria
 
-Search for security items using these criteria:
-1. **Category field** equals "Security" OR
-2. **Filename** starts with "security-" OR
-3. **Content** contains CVE references (search for "CVE-")
+Analyze all collected items and assign priorities based on the policy (see `PRODUCT_PRIORITIZATION_WORKFLOW_PARAMS.md`):
 
-For each security item found:
-- Perform risk assessment (core vs. non-core code)
-- Assign priority based on CVE criticality
-- Flag for selection if Priority 1 or 2
+**Prioritization Order:**
+1. **Security Vulnerabilities** (check for CVE references, security category)
+   - Core code Critical/High CVE → Priority 1
+   - Core code Medium CVE → Priority 2
+   - Core code Low CVE or Non-core → Priority 3
+2. **Priority Overrides** (check issue body for manual overrides)
+   - Apply any explicit priority overrides from product team
+3. **Tech Debt** (check for tech-debt label or source)
+   - Identify "quick wins" (effort < 1 day, high impact)
+4. **Standard Items** (features, bugs, enhancements)
+   - Assess based on business value, impact, dependencies
 
-**3.2: Identify Tech Debt Items**
+**Output**: Create a prioritized list of ALL backlog items sorted by priority (1-5).
 
-Filter items with source = "Tech Debt" OR category = "Tech Debt"
+**Example Analysis:**
+```python
+prioritized_items = []
 
-**Quick Win Criteria:**
-A tech debt item qualifies as a "quick win" if it meets ANY of:
-- Effort estimate ≤ 1 day
-- Notes section explicitly states "quick win"
-- Description indicates small, focused change with clear value
-- Low effort indicators in content
+for issue in all_backlog_issues:
+    # Determine priority based on criteria
+    priority = assess_priority(issue)  # Returns 1-5
+    
+    prioritized_items.append({
+        'number': issue['number'],
+        'title': issue['title'],
+        'priority': priority,
+        'category': get_category(issue),
+        'rationale': get_rationale(issue, priority)
+    })
 
-Select at least 1 tech debt item for inclusion, preferring quick wins when available.
+# Sort by priority (1 = highest)
+prioritized_items.sort(key=lambda x: x['priority'])
+```
 
-**3.3: Check Priority Overrides**
-- Review all items for "Priority Override" field
-- Sort override items by priority level
-- Compare to currently selected items
-- Swap in higher priority overrides if applicable
+#### Step 3: Present Prioritization for Review
 
-**3.4: Fill Remaining Slots**
+**Before proceeding to selection**, present the prioritized list to the reviewer for confirmation.
 
-After security, tech debt, and overrides processed, fill remaining slots using this decision framework:
+Post a comment on the prioritization issue with:
 
-**Decision Framework:**
-1. **Production-impacting bugs** > Features (bugs that affect production users take priority)
-2. **User-requested features** > Internal improvements
-3. **High-value, low-effort** > High-value, high-effort (when comparing similar items)
-4. **When priorities are equal**: Use creation date (older items first)
-
-Select based on:
-- Business value and impact
-- Dependencies and blockers
-- Effort vs. value ratio
-- Stakeholder input
-
-Assign Priority 3 (Normal) unless other criteria apply.
-
-#### Step 4: Generate Prioritization Tables
-
-Create two tables as defined in policy (see Assessment Table section).
-
-**Selected Items Table:**
-- Maximum 5 items
-- Sort by priority (1 → 5)
-- Include rationale for each selection
-
-**Assessed But Not Selected Table:**
-- All remaining "Active" backlog items
-- Show assessment priority (default 3)
-- Brief notes on why not selected
-
-#### Step 5: Update Prioritization File
-
-Update `/product/prioritization.md` following this process:
-
-**File Update Process:**
-1. If `/product/prioritization.md` doesn't exist, create from template below
-2. Update "Last Updated" date to current date
-3. Update "Updated By" field (e.g., "Copilot Agent - Automated Prioritization")
-4. **Replace** entire "Active Priorities" table with new selected items
-5. **Replace** entire "Assessed But Not Selected" section (or create if missing)
-6. **Append** to Notes section (preserve previous notes if they provide valuable context)
-7. Do **NOT** modify "Priority Legend" or "Prioritization Policy" sections (these are static)
-
-**Template:**
 ```markdown
-# Product Backlog Prioritization
+[Copilot-Workflow: Product Prioritization] 📊 **Prioritization Analysis Complete**
 
-**Last Updated**: YYYY-MM-DD
+I've analyzed {total_items} backlog items and assigned priorities based on the policy.
+
+## Prioritized Backlog Items
+
+**Priority 1 (Highest)**:
+- #{number}: {title} - {rationale}
+
+**Priority 2 (High)**:
+- #{number}: {title} - {rationale}
+
+**Priority 3 (Normal)**:
+- #{number}: {title} - {rationale}
+[... up to 10-15 items shown ...]
+
+**Lower priorities**: {count} additional items prioritized as P4-P5
+
+---
+
+## Prioritization Policy Applied
+
+✅ Security vulnerabilities assessed (core vs non-core)
+✅ Priority overrides honored
+✅ Tech debt items identified ({count} found, {quick_wins} quick wins)
+✅ Standard selection criteria applied
+
+---
+
+**Next Step: Selection**
+
+To proceed with selection and move items to the implementation queue, reply with:
+- `@copilot proceed with selection` - Use default limits from params file
+- `@copilot skip` - Review only, no selection
+
+**To adjust prioritization**: Reply with specific feedback and I'll re-analyze.
+
+See `.team/prompts/PRODUCT_PRIORITIZATION_WORKFLOW_PARAMS.md` for configuration details.
+```
+
+**Wait for reviewer response** before proceeding to Step 4.
+
+#### Step 4: Check Implementation Queue Capacity
+
+**Only proceed after reviewer approves prioritization in Step 3.**
+
+Query the current implementation queue to determine available capacity:
+
+```python
+# Get current implementation queue size
+IMPLEMENTATION_QUEUE_LIMIT = 10  # From PRODUCT_PRIORITIZATION_WORKFLOW_PARAMS.md
+
+implementation_queue = list_issues(
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    labels=["workflow:implementation"],
+    state="OPEN"
+)
+
+current_queue_size = len(implementation_queue)
+available_slots = IMPLEMENTATION_QUEUE_LIMIT - current_queue_size
+
+print(f"Implementation queue: {current_queue_size}/{IMPLEMENTATION_QUEUE_LIMIT} items")
+print(f"Available slots: {available_slots}")
+```
+
+**If no slots available** (`available_slots <= 0`):
+```markdown
+[Copilot-Workflow: Product Prioritization] ⏸️ **Implementation Queue Full**
+
+The implementation queue currently has {current_queue_size} open items (limit: {IMPLEMENTATION_QUEUE_LIMIT}).
+
+**No items will be selected** until implementation team completes current work.
+
+**Recommendation**: Wait for implementation queue to clear, then re-run prioritization.
+
+**Current queue status**: [List top 5 items in implementation queue]
+```
+
+Stop here - do not select any items.
+
+**If slots available** (`available_slots > 0`):
+Proceed to Step 5.
+
+#### Step 5: Select Items for Implementation Queue
+
+Select the top-priority items (up to `available_slots`) from the prioritized list and move them to the implementation workflow.
+
+```python
+# Select top items based on available capacity
+items_to_select = prioritized_items[:available_slots]
+
+print(f"Selecting {len(items_to_select)} items for implementation queue")
+
+# Move selected items to implementation workflow
+for item in items_to_select:
+    # Update workflow label
+    issue_write(
+        method="update",
+        owner="uniun-technology",
+        repo="lib-dataflow",
+        issue_number=item['number'],
+        labels=["workflow:implementation"]  # Remove product-backlog, add implementation
+    )
+    
+    # Add handover comment
+    add_issue_comment(
+        owner="uniun-technology",
+        repo="lib-dataflow",
+        issue_number=item['number'],
+        body=f"""[Copilot-Workflow: Product Prioritization] 🔄 **Selected for Implementation**
+
+This item has been prioritized and moved to the implementation queue.
+
+**Priority**: {item['priority']}
+**Rationale**: {item['rationale']}
+
+See `.team/prompts/IMPLEMENTATION_WORKFLOW.md` for implementation guidance.
+"""
+    )
+```
+
+#### Step 6: Update Prioritization File
+
+Update `/product/prioritization.md` with the results:
+
+```python
+# Create prioritization summary
+prioritization_content = f"""# Product Backlog Prioritization
+
+**Last Updated**: {datetime.now().strftime("%Y-%m-%d")}
 **Updated By**: Copilot Agent - Automated Prioritization
 
-## Active Priorities (Max 5)
+## Selection Summary
 
-These items are approved for immediate implementation. Implementation team should select from this list.
+**Items Selected for Implementation**: {len(items_to_select)}
+**Implementation Queue Status**: {current_queue_size + len(items_to_select)}/{IMPLEMENTATION_QUEUE_LIMIT}
+**Backlog Items Reviewed**: {len(all_backlog_issues)}
 
-| Priority | Backlog Item ID | Title | Category | Rationale |
-|----------|----------------|-------|----------|-----------|
-| ... | ... | ... | ... | ... |
+### Selected Items (Moved to Implementation Queue)
 
-## Assessed But Not Selected
+| Priority | Issue # | Title | Category | Rationale |
+|----------|---------|-------|----------|-----------|
+"""
 
-These items were reviewed during prioritization but are not currently selected for active work.
+for item in items_to_select:
+    prioritization_content += f"| {item['priority']} | #{item['number']} | {item['title'][:50]}... | {item['category']} | {item['rationale'][:80]}... |\n"
 
-| Backlog Item ID | Title | Category | Assessment Priority | Notes |
-|----------------|-------|----------|-------------------|-------|
-| ... | ... | ... | 3 | ... |
+prioritization_content += f"""
+
+## Remaining Backlog Items
+
+**Priority 1-2 (High)**: {len([item for item in prioritized_items[len(items_to_select):] if item['priority'] in [1, 2]])} items
+**Priority 3 (Normal)**: {len([item for item in prioritized_items[len(items_to_select):] if item['priority'] == 3])} items  
+**Priority 4-5 (Lower)**: {len([item for item in prioritized_items[len(items_to_select):] if item['priority'] in [4, 5]])} items
+
+Top unselected items:
+
+| Priority | Issue # | Title | Category | Notes |
+|----------|---------|-------|----------|-------|
+"""
+
+# Show top 10 unselected items
+for item in prioritized_items[len(items_to_select):len(items_to_select)+10]:
+    prioritization_content += f"| {item['priority']} | #{item['number']} | {item['title'][:50]}... | {item['category']} | Awaiting capacity |\n"
+
+prioritization_content += f"""
 
 ## Priority Legend
 
@@ -423,60 +548,89 @@ These items were reviewed during prioritization but are not currently selected f
 
 ## Prioritization Policy
 
-This prioritization follows the policy defined in `.team/prompts/PRODUCT_PRIORITIZATION_WORKFLOW.md`:
+See `.team/prompts/PRODUCT_PRIORITIZATION_WORKFLOW_PARAMS.md` for complete policy details:
 - Critical security vulnerabilities take precedence
-- At least 1 tech debt item included when available
+- At least 1 tech debt item included when available  
 - Priority overrides honored
-- Maximum 5 selected items maintained
+- Selection based on implementation queue capacity
 
 ## Notes
 
-[Add any specific notes about this prioritization cycle:
-- Special considerations applied
-- Items that were close calls
-- Changes from previous prioritization
-- etc.]
+**Policy Compliance**:
+- ✅ Security vulnerabilities assessed
+- ✅ Tech debt requirement met ({tech_debt_count} items available, {tech_debt_selected} selected)
+- ✅ Priority overrides applied ({override_count} overrides processed)
+- ✅ Queue capacity checked ({available_slots} slots available)
+
+**Housekeeping**: Duplicate detection, stale items, and completed items are managed by Bulk Triage workflow (`.team/prompts/TRIAGE_WORKFLOW.md` Step 6).
+"""
+
+# Write to file (would use create_or_update_file in actual implementation)
 ```
 
-#### Step 6: Report Completion
+#### Step 7: Report Completion
 
-After updating the prioritization file:
+Post a summary comment on the triggering issue:
 
-1. Commit changes to `/product/prioritization.md`
-2. Comment on the triggering issue/PR with summary:
-   - Number of items prioritized
-   - Priority breakdown (how many P1, P2, P3, etc.)
-   - Notable selections (security items, tech debt, overrides applied)
-   - Link to updated prioritization file
-3. If triggered by comment, respond with confirmation
-
-**Example Comment:**
 ```markdown
-✅ **Backlog Prioritization Complete**
+[Copilot-Workflow: Product Prioritization] ✅ **Prioritization and Selection Complete**
 
-**Summary:**
-- Total backlog items reviewed: 12
-- Active priorities selected: 5
-- Items assessed but not selected: 7
+## Summary
 
-**Priority Breakdown:**
-- Priority 1 (Highest): 1 item (Security - Critical CVE)
-- Priority 2 (High): 1 item (Feature - High business value)
-- Priority 3 (Normal): 3 items (1 Tech Debt quick win, 2 Features)
+**Backlog Analyzed**: {total_items} open items
+**Items Selected**: {selected_count} items moved to implementation queue
+**Implementation Queue**: {new_queue_size}/{IMPLEMENTATION_QUEUE_LIMIT} items
 
-**Notable Selections:**
-- Security vulnerability in core code prioritized as P1
-- Tech debt item "modernize-namespaces" included as quick win
-- Priority override applied for item "add-logging-framework" (swapped in at P2)
+## Selected Items
 
-**Updated File:** `/product/prioritization.md`
+{list_selected_items_with_priorities}
 
-View the complete prioritization: [Link]
+## Implementation Queue Status
+
+**Before**: {current_queue_size} items
+**After**: {new_queue_size} items  
+**Remaining Capacity**: {remaining_capacity} slots
+
+## Prioritization Details
+
+**Priority Distribution** (remaining in backlog):
+- P1 (Highest): {p1_count} items
+- P2 (High): {p2_count} items
+- P3 (Normal): {p3_count} items
+- P4-P5 (Lower): {p4_p5_count} items
+
+**Policy Compliance**:
+- ✅ Security vulnerabilities prioritized
+- ✅ Tech debt requirement met
+- ✅ Priority overrides honored
+- ✅ Queue capacity managed
+
+**Updated File**: `/product/prioritization.md`
+
+---
+
+**Next Steps**:
+- Implementation team: Select from items now in `workflow:implementation` queue
+- Product team: Review remaining high-priority items for next cycle
+- For housekeeping: Create Bulk Triage issue to clean duplicates/stale items
+
+See `.team/prompts/PRODUCT_PRIORITIZATION_WORKFLOW_PARAMS.md` for configuration.
 ```
+
 
 ## Handling Edge Cases
 
 The workflow should gracefully handle these edge cases:
+
+### No Implementation Queue Capacity
+
+**Scenario**: Implementation queue is at or over capacity (`workflow:implementation` has >= IMPLEMENTATION_QUEUE_LIMIT items)
+
+**Action**:
+- Do NOT select any items
+- Report queue status
+- Recommend waiting for implementation team to complete current work
+- Prioritization analysis can still be performed and shared for review
 
 ### No Tech Debt Items Exist
 
@@ -484,48 +638,48 @@ The workflow should gracefully handle these edge cases:
 
 **Action**: 
 - Skip tech debt policy requirement
-- Select 5 items from security, features, and bugs
 - Note in prioritization: "No tech debt items in backlog"
+- Select items from security, features, and bugs
 
-### More Than 5 High-Priority Items
+### More High-Priority Items Than Slots
 
-**Scenario**: More than 5 items qualify as Priority 1 or Priority 2 (e.g., multiple critical CVEs)
+**Scenario**: More items qualify as Priority 1 or Priority 2 than available implementation slots
 
 **Action**:
 - Select highest priority items first (P1 before P2)
 - Use creation date as tie-breaker (older items first)
-- Place remaining high-priority items in "Assessed But Not Selected" with note explaining they're next in line
-- Example: "4 P1 items selected, 2 additional P1 items in queue - will move to active when slots open"
+- Remaining high-priority items stay in backlog for next cycle
+- Document in summary: "X additional P1/P2 items awaiting capacity"
 
-### Fewer Than 5 Active Items
+### Fewer Items Than Available Slots
 
-**Scenario**: Backlog has fewer than 5 active items total
+**Scenario**: Backlog has fewer items than available implementation slots
 
 **Action**:
-- Select all active items (OK to have fewer than 5)
-- Note in prioritization: "All X active items selected (fewer than max of 5)"
-- No need to fill to 5 artificially
+- Select all backlog items (OK to have fewer than limit)
+- Note in summary: "All X backlog items selected (fewer than limit of Y)"
+- No need to fill artificially
 
 ### All Items Equal Priority
 
-**Scenario**: After applying criteria, many items appear to have equal value/priority
+**Scenario**: After applying criteria, many items appear to have equal priority
 
 **Action**:
-- Use decision framework from Step 3.4
-- If still equal after framework: Use creation date (oldest first)
+- Apply standard selection criteria (business value, dependencies, effort)
+- If still equal: Use creation date (oldest first)
 - Rationale: Older items have been waiting longer
 
 ### Priority Override Conflicts
 
 **Scenario**: Multiple items have priority overrides that exceed available slots
 
-**Example**: 3 items with P1 override, but only 5 slots total, and 2 P1 security items already selected
+**Example**: 3 items with P1 override, but only 2 slots available, and 1 P1 security item already selected
 
 **Action**:
 - Security items take precedence over overrides (security policy first)
 - Select highest-priority overrides that fit
-- Remaining override items go to "Assessed But Not Selected" with note about conflict
-- Human should review and potentially adjust overrides
+- Remaining override items stay in backlog for next cycle
+- Human should review and potentially adjust overrides if needed
 
 ### Malformed Override Field
 
@@ -535,7 +689,7 @@ The workflow should gracefully handle these edge cases:
 - If priority number is present and valid (1-5): Use it
 - If missing required fields (who set it, reason): Use the priority but note the incomplete data
 - If priority number is invalid or missing: Ignore the override and process as normal item
-- Add note in prioritization about malformed override found
+- Document any malformed overrides found
 
 ### No Security Core/Non-Core Clarity
 
@@ -546,6 +700,9 @@ Use this classification:
 - **Core**: `/src/` excluding test projects (DataFlow.Core, DataFlow.Common, etc.)
 - **Non-Core**: `/sample/`, `/tools/`, `/poc/`, test projects, build scripts
 - If unclear: Treat as non-core (safer, caps at P3) and note the assumption
+
+**Note on Housekeeping**: Duplicate detection, completed item closure, and stale item flagging are now handled by the **Bulk Triage workflow** (`.team/prompts/TRIAGE_WORKFLOW.md` Step 6). Product Prioritization focuses purely on prioritization and selection.
+
 
 ## Triggering Prioritization
 
@@ -710,6 +867,8 @@ Prioritization is successful when:
 - ✅ `/product/prioritization.md` updated and committed
 - ✅ Summary comment posted
 
+**Note**: Housekeeping (duplicate detection, stale items, completed items) is now handled in the Bulk Triage workflow, not Product Prioritization.
+
 ## Examples
 
 ### Example 1: Security-Driven Prioritization
@@ -765,6 +924,8 @@ Prioritization is successful when:
 ---
 
 **Remember**: The goal of prioritization is to ensure the implementation team always has clear, focused priorities that deliver maximum value while managing risk and maintaining code quality.
+
+**Note on Housekeeping**: For duplicate detection, stale item cleanup, and completed item closure across all workflow labels, use the **Bulk Triage workflow** (see `.team/prompts/TRIAGE_WORKFLOW.md` Step 6).
 
 ---
 

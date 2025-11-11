@@ -618,26 +618,38 @@ add_issue_comment(
 - **YYYY-MM-DD**: Completed (PR: #[N])
 ```
 
-**2. Archive backlog item** to resolved folder:
+**2. Close the backlog issue** (work is complete):
 
-```bash
-# Create monthly archive folder if needed
-mkdir -p product/resolved/$(date +%Y-%m)
+```python
+# Close the GitHub issue that was being implemented
+issue_write(
+    method="update",
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=BACKLOG_ISSUE_NUMBER,
+    state="closed",
+    state_reason="completed"
+)
 
-# Move backlog item file
-mv product/backlog/[item-id].md product/resolved/$(date +%Y-%m)/
+# Add completion comment
+add_issue_comment(
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=BACKLOG_ISSUE_NUMBER,
+    body=f"""✅ **Implementation Complete**
 
-# Move handover folder if exists
-if [ -d "product/backlog/[item-id]" ]; then
-  mv product/backlog/[item-id]/ product/resolved/$(date +%Y-%m)/
-fi
+Completed in PR #{PR_NUMBER}
+
+All deliverables have been implemented and verified.
+"""
+)
 ```
 
-**3. Commit the archive**:
+**3. Commit the changes**:
 
 ```bash
-git add product/backlog/
-git add product/resolved/
+git add src/
+git add docs/
 git commit -m "Archive completed backlog item: [item-id]"
 ```
 

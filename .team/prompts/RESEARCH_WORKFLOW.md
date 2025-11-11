@@ -869,8 +869,9 @@ The issue contains:
 ⚠️ **This phase is deprecated**. Use Phase 5 (Create Product Backlog Issue) instead.
 
 **Old workflow**: Created handover issues in `/research/[topic]/handover/github-issue-*.md`
-**Old workflow**: Created backlog files in `/product/backlog/research-YYYY-MM-DD-[name].md`
 **New workflow**: Create GitHub issues with `workflow:product-backlog` label
+
+**Supporting artifacts**: If research produces designs, diagrams, or other assets, store them in `/research/[topic]/` and reference the path in the GitHub issue description.
 
 See Phase 5 above for current process.
 

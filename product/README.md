@@ -2,26 +2,39 @@
 
 The `/product` folder contains the centralized backlog system for managing work items across all team workflows. This system separates **backlog registration** (what work exists) from **prioritization** (what work to do next).
 
+## ⚠️ IMPORTANT: Backlog Source Priority
+
+**Primary and Authoritative Source**: **GitHub issues with the `workflow:product-backlog` label**
+
+The product backlog is managed through GitHub issues. 
+
+**GitHub Issues** are the **single source of truth** for backlog items:
+- All backlog items exist as GitHub issues with `workflow:product-backlog` label
+- Allows querying, filtering, and automated workflows
+- Enables workflow transitions and tracking
+
+**Backlog Items as GitHub Issues:**
+
+All backlog items are tracked as GitHub issues with the `workflow:product-backlog` label. Each issue contains:
+- Title and description
+- Metadata (source, category, effort estimate)
+- Labels and workflow state
+- Links to any supporting research or handover assets (if applicable)
+
 ## Overview
 
 The product backlog serves as:
-- **Single source of truth** for all work items ready for implementation
+- **Single source of truth** for all work items ready for implementation (via GitHub issues)
 - **Prioritization hub** managed by the product team
 - **Integration point** for all team workflows (Research, Tech Debt, etc.)
-- **Handover mechanism** from discovery/research teams to implementation team
 
 ## Folder Structure
 
 ```
 /product/
 ├── README.md                    # This file - system overview and usage guide
-├── backlog/                     # Active backlog items
-│   ├── [backlog-item-id].md    # Individual backlog item files
-│   ├── [backlog-item-id]/      # Optional handover folder (same name as item)
-│   │   ├── prototype/          # Prototype code
-│   │   ├── design/             # Design documents
-│   │   └── benchmarks/         # Performance data
-│   └── ...
+└── prioritization.md            # Current prioritization decisions (updated by Product Prioritization workflow)
+```
 ├── prioritization.md           # Current prioritization (managed by product team)
 └── resolved/                   # Completed backlog items (archived)
     ├── YYYY-MM/                # Monthly archives
@@ -32,113 +45,18 @@ The product backlog serves as:
 
 ## Backlog Item Format
 
-Each backlog item is an **independent markdown file** with a unique ID-based filename.
-
-### File Naming Convention
-
-Format: `[source]-[date]-[short-kebab-case-name].md`
-
-Examples:
-- `research-2025-11-08-flow-composability.md`
-- `techdebt-2025-11-07-modernize-namespaces.md`
-- `adhoc-2025-11-10-add-logging-helpers.md`
-
-**Source Prefixes:**
-- `research-` - From Research Workflow handovers
-- `techdebt-` - From Tech Debt Workflow discoveries
-- `adhoc-` - Direct product team additions or other sources
-
-The filename serves as the **backlog item ID** for referencing in workflows and issues.
-
-### Backlog Item Structure
-
-Each backlog item file contains:
-
-```markdown
-# [Title]
-
-**Backlog ID**: [filename without .md]
-**Source**: [Research/Tech Debt/Ad-hoc]
-**Category**: [Feature/Bug Fix/Tech Debt/Performance/etc.]
-**Status**: Active / In Progress / Completed
-**Created**: YYYY-MM-DD
-**Updated**: YYYY-MM-DD
-
-## Summary
-
-[Brief description of what needs to be implemented]
-
-## Context
-
-[Background and rationale - why this work is needed]
-
-## Implementation Guidance
-
-[High-level guidance for implementation team]
-- Key requirements
-- Constraints or considerations
-- Suggested approach (if any)
-
-## Success Criteria
-
-- [ ] Criterion 1
-- [ ] Criterion 2
-- [ ] Criterion 3
-
-## Handover Assets
-
-[If handover folder exists]
-- **Location**: `/product/backlog/[backlog-item-id]/`
-- **Contents**: [List what's in the handover folder]
-  - Prototype code
-  - Design documents
-  - Benchmarks
-  - etc.
-
-[If no handover folder]
-- No additional assets
-
-## References
-
-- Source handover/analysis: [path to research folder or tech debt analysis]
-- Related issues: #[issue numbers]
-- Related PRs: #[PR numbers]
-
-## Notes
-
-[Any additional context or considerations]
-```
-
-### Handover Folders
-
-If a backlog item needs supporting assets (prototype code, design docs, benchmarks), create a folder with the same name as the backlog item file (minus `.md` extension):
-
-```
-/product/backlog/
-├── research-2025-11-08-flow-composability.md
-└── research-2025-11-08-flow-composability/
-    ├── prototype/
-    │   └── UnifiedFlowBuilder.cs
-    ├── design/
-    │   └── architecture-diagram.md
-    └── benchmarks/
-        └── composability-perf.md
-```
-
-**When to use handover folders:**
-- Research handovers with prototype code
-- Design documents or ADRs specific to the work item
-- Performance benchmarks or data
-- Test scenarios or examples
-
-**When NOT to use handover folders:**
-- Simple tech debt items that are self-explanatory
-- Bug fixes with clear reproduction steps
-- Items that only need description in the markdown file
-
 ## Prioritization System
 
-The product team maintains prioritization separately in `/product/prioritization.md`.
+The product team maintains prioritization in `/product/prioritization.md`, which references **GitHub issue numbers**.
+
+**Prioritization Process:**
+1. Query all GitHub issues with `workflow:product-backlog` label
+2. Apply prioritization policy (security → tech debt → overrides → standard criteria)
+3. Check implementation queue capacity
+4. Select top items and move to `workflow:implementation` queue
+5. Update `/product/prioritization.md` with results
+
+See `.team/prompts/PRODUCT_PRIORITIZATION_WORKFLOW.md` for complete workflow documentation.
 
 ### Prioritization File Format
 
@@ -152,11 +70,25 @@ The product team maintains prioritization separately in `/product/prioritization
 
 These items are approved for immediate implementation. Implementation team should select from this list.
 
-| Priority | Backlog Item ID | Title | Rationale |
-|----------|----------------|-------|-----------|
-| 1 (Highest) | research-2025-11-08-flow-composability | Flow Composability Unification | Critical for v2.0 API |
-| 2 | techdebt-2025-11-07-modernize-namespaces | Modernize Namespace Declarations | Blocking other cleanups |
-| 3 (Normal) | research-2025-11-05-performance-optimization | Channel Performance Optimization | User-reported perf issue |
+| Priority | Backlog Item (Issue #) | Title | Category | Rationale |
+|----------|----------------------|-------|----------|-----------|
+| 1 (Highest) | #251 | Implement caching layer | Feature | Critical for v2.0 API |
+| 2 | #234 | Fix security vulnerability CVE-2025-1234 | Security | High CVE in core code |
+| 3 (Normal) | #245 | Modernize namespace declarations | Tech Debt | Quick win cleanup |
+
+## Assessed But Not Selected
+
+Items reviewed but not currently selected for active work.
+
+| Backlog Item (Issue #) | Title | Category | Assessment Priority | Notes |
+|----------------------|-------|----------|-------------------|-------|
+| #250 | Add XML comments | Documentation | 3 | Good candidate but current priorities take precedence |
+
+## Backlog Housekeeping Summary
+
+**Duplicates Detected**: 2 potential duplicates flagged (#228, #229 duplicates of #221)
+**Completed Items**: 1 item suggested for archival (#230)
+**Stale Items**: 0
 
 ## Notes
 
@@ -178,37 +110,40 @@ These items are approved for immediate implementation. Implementation team shoul
 
 **Adding Items to Backlog:**
 1. Create backlog item file following naming convention
-2. Fill in all sections of the template
-3. Create handover folder if needed
-4. Item is now in backlog but not prioritized
+### For Product Team
+
+**Adding Items to Backlog:**
+
+1. Create GitHub issue using "Product Backlog Item" template (`.github/ISSUE_TEMPLATE/backlog-item.md`)
+2. Add `workflow:product-backlog` label
+3. Fill in all metadata fields (source, category, effort, etc.)
+4. If handover assets exist, reference their location in the issue body
+5. Item is now in backlog, ready for prioritization
 
 **Prioritizing Items:**
-1. Review backlog items in `/product/backlog/`
-2. Update `/product/prioritization.md`
-3. Select up to 5 items for active priorities
-4. Assign priority levels (1-5)
-5. Add rationale for prioritization decisions
+1. Create "Product Backlog Prioritization" GitHub issue (or trigger via comment)
+2. @copilot executes prioritization workflow (queries GitHub issues with `workflow:product-backlog`)
+3. Review `/product/prioritization.md` after completion
+4. Top items are automatically moved to `workflow:implementation` queue based on capacity
 
 **Archiving Completed Items:**
-1. When implementation team completes work, they update item status
-2. Move completed item to `/product/resolved/YYYY-MM/`
-3. Move associated handover folder (if exists)
-4. Remove from prioritization list
+1. When implementation completes, close the GitHub issue with appropriate reason
+2. Item automatically removed from backlog queries (issue is closed)
 
 ### For Research Team
 
 When completing research work:
 
-1. **Create backlog item** in `/product/backlog/`
-   - Use `research-YYYY-MM-DD-[name].md` naming
-   - Fill in template with research findings
-2. **Create handover folder** if you have assets
-   - Copy prototype code to `/product/backlog/[item-id]/prototype/`
-   - Copy design docs to `/product/backlog/[item-id]/design/`
-   - Copy benchmarks to `/product/backlog/[item-id]/benchmarks/`
-3. **Reference in research folder**
-   - Link backlog item from your research handover
-4. **Notify product team** (via GitHub issue or comment)
+1. **Create GitHub issue** using "Product Backlog Item" template
+   - Add `workflow:product-backlog` label
+   - Fill in metadata (source: Research, category, etc.)
+   - Include implementation guidance and success criteria
+2. **Reference handover assets** if they exist
+   - Link to research folder with prototype/design/benchmarks
+   - Use issue body to document asset locations
+3. **Link from research handover**
+   - Reference the backlog GitHub issue from your research folder
+4. **Notify product team** (via comment on backlog issue)
 
 See `.team/prompts/RESEARCH_WORKFLOW.md` for integration details.
 
@@ -216,17 +151,19 @@ See `.team/prompts/RESEARCH_WORKFLOW.md` for integration details.
 
 When conducting tech debt analysis:
 
-1. **Check existing backlog first**
+1. **Check existing backlog first** - Query GitHub issues:
    ```bash
-   grep -r "keyword" product/backlog/*.md
+   gh issue list --label "workflow:product-backlog" --search "keyword in:title,body"
    ```
 2. **For NEW findings:**
-   - Create backlog item using `techdebt-YYYY-MM-DD-[name].md`
-   - Fill in template with finding details
-   - Create handover folder if needed (e.g., for prototype fixes)
+   - Create GitHub issue using "Product Backlog Item" template
+   - Add `workflow:product-backlog` and `tech-debt` labels
+   - Fill in metadata (source: Tech Debt, category, effort, CVE if security)
+   - Create markdown file + handover folder if needed (for prototype fixes, analysis docs)
+
 3. **For EXISTING items:**
-   - Update the existing backlog item if needed
-   - Add note about re-validation
+   - Update the existing GitHub issue with new findings
+   - Add comment about re-validation
    - Update priority recommendation if changed
 
 See `.team/prompts/TECH_DEBT_WORKFLOW.md` for integration details.
@@ -236,51 +173,40 @@ See `.team/prompts/TECH_DEBT_WORKFLOW.md` for integration details.
 When starting implementation work:
 
 1. **Check prioritization file**: `/product/prioritization.md`
-2. **Select highest priority item** (or specific item if assigned)
-3. **Read backlog item file** completely
-4. **Review handover assets** (if folder exists)
-5. **Update item status** to "In Progress"
-6. **Reference backlog item** in implementation PR
+2. **Find backlog GitHub issue** by issue number from prioritization file
+3. **Read issue completely** - all metadata, description, acceptance criteria
+4. **Review handover assets** if referenced in the issue body
+5. **Update issue** - add comment "Starting implementation"
+6. **Reference issue** in implementation PR (e.g., "Implements #251")
 
 **When work is complete:**
-1. Update backlog item status to "Completed"
-2. Add PR link to backlog item
-3. Archive to `/product/resolved/YYYY-MM/`
-4. Implementation team or product team removes from prioritization
+1. Close the backlog GitHub issue (or it will auto-close when PR with "Fixes #XXX" merges)
+2. Item is automatically removed from backlog queries (closed issues are filtered out)
 
 See `.team/prompts/IMPLEMENTATION_WORKFLOW.md` for integration details.
 
 ## Searching the Backlog
 
-### Finding Items
+### Finding Items (GitHub Issues)
+
+Use GitHub CLI or web interface to query backlog issues:
 
 ```bash
 # List all active backlog items
-ls product/backlog/*.md
+gh issue list --label "workflow:product-backlog" --state open
 
-# List by source
-ls product/backlog/research-*.md
-ls product/backlog/techdebt-*.md
+# Filter by additional labels
+gh issue list --label "workflow:product-backlog,tech-debt" --state open
+gh issue list --label "workflow:product-backlog,security" --state open
 
 # Search by keyword
-grep -l "performance" product/backlog/*.md
+gh issue list --label "workflow:product-backlog" --search "caching in:title,body"
 
-# Search by category
-grep "Category: Tech Debt" product/backlog/*.md
+# Find high-priority items
+gh issue list --label "workflow:product-backlog" --search "Priority Override in:body"
 
-# Find items with handover folders
-for f in product/backlog/*.md; do
-  basename="${f%.md}"
-  if [ -d "$basename" ]; then
-    echo "$f has handover folder"
-  fi
-done
-
-# Count active items
-ls product/backlog/*.md | wc -l
-
-# List recent items (last 7 days)
-find product/backlog -name "*.md" -mtime -7
+# Count active backlog items
+gh issue list --label "workflow:product-backlog" --state open --json number | jq 'length'
 ```
 
 ### Finding Prioritized Items
@@ -289,8 +215,8 @@ find product/backlog -name "*.md" -mtime -7
 # View current priorities
 cat product/prioritization.md
 
-# Find highest priority item
-grep "1 (Highest)" product/prioritization.md
+# Find items selected for implementation
+grep "workflow:implementation" product/prioritization.md
 ```
 
 ### Finding Completed Items
@@ -330,38 +256,11 @@ Resolved items are archived monthly:
 └── 2026-01/
 ```
 
-## Migration from Old System
-
-### Tech Debt Backlog Migration
-
-Existing tech debt backlog items in `/research/backlog/` should be migrated:
-
-1. For each item in `/research/backlog/*.md`:
-   - Create new file in `/product/backlog/` with `techdebt-` prefix
-   - Copy content and update format to match new template
-   - Update references if needed
-2. After migration, add note to `/research/backlog/README.md` pointing to new location
-3. Optionally archive old backlog files
-
 ## Integration with GitHub Issues
 
-### Implementation Issues
+All backlog items are tracked as GitHub issues. The system is designed to work exclusively with GitHub's issue tracking capabilities.
 
-When creating implementation GitHub issues:
-
-**Option 1: Specific backlog item**
-```markdown
-**Backlog Item**: `research-2025-11-08-flow-composability`
-**Backlog Path**: `/product/backlog/research-2025-11-08-flow-composability.md`
-```
-
-**Option 2: Next highest priority**
-```markdown
-**Backlog Item**: Next from prioritization list
-**Implementation team**: Please check `/product/prioritization.md` and comment with selected item
-```
-
-See `.github/ISSUE_TEMPLATE/implementation.md` for updated template.
+See `.github/ISSUE_TEMPLATE/backlog-item.md` for the backlog item template and `.github/ISSUE_TEMPLATE/implementation.md` for implementation issue template.
 
 ## Best Practices
 
