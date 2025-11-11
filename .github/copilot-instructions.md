@@ -546,31 +546,24 @@ public class MyProducer : IProducer<int>
 
 ## Documentation Standards
 
-**📖 Read First**: [Document Hygiene Guide](/.team/DOCUMENT_HYGIENE.md) - Essential principles for maintainable documentation including separation of concerns, DRY principles, and when to use visual diagrams.
+**📖 Read First**: 
+- [Document Hygiene Guide](/.team/DOCUMENT_HYGIENE.md) - Essential principles for maintainable documentation
+- [Documentation Artifacts System](/.team/DOCUMENTATION_ARTIFACTS.md) - How to create analysis, design, and ADR documentation
 
-### Documentation Placement
+### Supporting Documentation for GitHub Issues
 
-When creating or updating documentation, follow this decision tree:
+When working on issues that require supporting documentation (analysis, design, or architectural decisions), use the **global documentation artifacts system** described in [Documentation Artifacts](/.team/DOCUMENTATION_ARTIFACTS.md).
 
-- **Research artifacts/analysis** → `/research/[topic]/`
-- **Architecture Decision Records (ADRs)**:
-  - POC code → `/poc/docs/adr/`
-  - Production code → `/src/docs/adr/`
-- **POC-specific implementation guides** → `/poc/docs/guides/`
-- **Production user-facing documentation** → `/docs/`
-- **Module/directory READMEs** → In the directory itself
+**Quick Reference**:
+- **Analysis documents** (investigations, benchmarks) → `/docs/analysis/<topic>/`
+- **Design documents** (solution proposals) → `/docs/design/<topic>/`
+- **ADRs** (architectural decisions):
+  - POC-specific → `/docs/adr/poc/YYYY-MM-DD-title.md`
+  - Production → `/docs/adr/YYYY-MM-DD-title.md`
 
-**Examples:**
-- Test helper usage guide → `/poc/docs/guides/testing-guide.md`
-- ADR for design decision → `/poc/docs/adr/YYYY-MM-DD-decision-name.md`
-- Research findings → `/research/topic-name/README.md`
+**Issue Templates**: Use "Analysis Document", "Design Document", or "ADR" templates from `.github/ISSUE_TEMPLATE/`
 
-**Navigation Updates**: After adding new documentation:
-- Update `/poc/docs/INDEX.md` for POC guides
-- Update main project README for production docs
-- Create directory READMEs for new modules
-
-See `.team/prompts/IMPLEMENTATION_WORKFLOW.md` for the complete documentation directory decision tree.
+**For complete guidance**: See [Documentation Artifacts System](/.team/DOCUMENTATION_ARTIFACTS.md)
 
 ### Diagram Preferences
 

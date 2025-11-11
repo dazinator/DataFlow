@@ -254,7 +254,9 @@ For remaining slots (after security, tech debt, and overrides):
 
 ### Assessment Table
 
-Maintain two tables in `/product/prioritization.md`:
+Maintain two tables in the **product-backlog analysis document**:
+
+**Document Location**: Analysis document under topic `product-backlog` - see [Documentation Artifacts](/.team/DOCUMENTATION_ARTIFACTS.md)
 
 #### Selected Items Table (Max 5)
 
@@ -492,9 +494,9 @@ See `.team/prompts/IMPLEMENTATION_WORKFLOW.md` for implementation guidance.
     )
 ```
 
-#### Step 6: Update Prioritization File
+#### Step 6: Update Prioritization Analysis
 
-Update `/product/prioritization.md` with the results:
+Update the **product-backlog analysis document** with the results:
 
 ```python
 # Create prioritization summary
@@ -605,7 +607,7 @@ Post a summary comment on the triggering issue:
 - ✅ Priority overrides honored
 - ✅ Queue capacity managed
 
-**Updated File**: `/product/prioritization.md`
+**Updated Document**: Product-backlog analysis (see [Documentation Artifacts](/.team/DOCUMENTATION_ARTIFACTS.md))
 
 ---
 
@@ -738,7 +740,7 @@ On any existing issue, add a comment:
 Copilot will:
 1. Recognize the trigger
 2. Execute prioritization workflow
-3. Update `/product/prioritization.md`
+3. Update the product-backlog analysis document
 4. Reply with summary comment
 
 ## Periodic Review
@@ -864,7 +866,7 @@ Prioritization is successful when:
 - ✅ All priority overrides processed correctly
 - ✅ "Assessed But Not Selected" table is complete
 - ✅ Rationale provided for all selections
-- ✅ `/product/prioritization.md` updated and committed
+- ✅ Product-backlog analysis document updated and committed
 - ✅ Summary comment posted
 
 **Note**: Housekeeping (duplicate detection, stale items, completed items) is now handled in the Bulk Triage workflow, not Product Prioritization.
@@ -962,7 +964,7 @@ When prioritization is complete, hand over high-priority items to the appropriat
 
 **When**: Item assessed but not selected for immediate implementation
 
-No handover needed - item remains in `workflow:product-backlog` with "Assessed But Not Selected" status in `/product/prioritization.md`.
+No handover needed - item remains in `workflow:product-backlog` with "Assessed But Not Selected" status in the product-backlog analysis document.
 
 ### Close Issue
 
@@ -974,7 +976,7 @@ gh issue close $ISSUE --comment "✅ **Product Prioritization Complete**
 Prioritization review complete.
 
 **Selected Items**: [N] items prioritized
-**Prioritization Document**: \`/product/prioritization.md\`
+**Prioritization Document**: Product-backlog analysis (see `.team/DOCUMENTATION_ARTIFACTS.md`)
 
 **High Priority Items**:
 - [List P1/P2 items]

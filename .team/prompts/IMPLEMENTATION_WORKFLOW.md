@@ -1031,43 +1031,35 @@ public static class TestActorFactory
 - Update `/poc/docs/POC_GLOSSARY.md` with new terminology
 - Create guides in `/poc/docs/guides/` for patterns
 - Document benchmarks if conducting performance analysis
-- Create ADRs in `/poc/docs/adr/` for significant decisions
+- **Create ADRs** - see [Documentation Standards](/.github/copilot-instructions.md#documentation-standards) for proper location
 
 **For Production Implementation:**
 - Update API documentation
 - Update user guides if needed
-- Create ADRs in `/src/docs/adr/` for significant decisions
+- **Create ADRs or design documents** - see [Documentation Standards](/.github/copilot-instructions.md#documentation-standards)
 - Update CHANGELOG for breaking changes
 
-### Documentation Directory Decision Tree
+### Documentation for Implementation Work
 
-When creating or updating documentation, use this decision tree to determine placement:
+When your implementation requires supporting documentation (analysis, design, or architectural decisions):
 
-```
-Where should I put this documentation?
+**📖 See**: [Documentation Standards](/.github/copilot-instructions.md#documentation-standards) in copilot-instructions.md for the complete documentation system.
 
-├─ Is it research artifacts/analysis?
-│  └─ YES → `/research/[topic]/`
-│
-├─ Is it an Architecture Decision Record?
-│  ├─ For POC code → `/poc/docs/adr/`
-│  └─ For Production code → `/src/docs/adr/`
-│
-├─ Is it POC-specific implementation guidance?
-│  └─ YES → `/poc/docs/guides/`
-│
-├─ Is it production user-facing documentation?
-│  └─ YES → `/docs/`
-│
-└─ Is it a module/directory README?
-   └─ YES → In the directory itself (e.g., `/poc/DataFlow.POC.Tests/TestHelpers/README.md`)
-```
+**Quick Reference**:
+- **Analysis documents** (investigations, benchmarks) → `/docs/analysis/<topic>/`
+- **Design documents** (solution proposals) → `/docs/design/<topic>/`
+- **ADRs** (architectural decisions):
+  - POC-specific → `/docs/adr/poc/YYYY-MM-DD-title.md`
+  - Production → `/docs/adr/YYYY-MM-DD-title.md`
+- **POC implementation guides** → `/poc/docs/guides/`
+- **Temporary research work** → `/research/[topic]/`
 
-**Examples:**
-- Test helper usage guide → `/poc/docs/guides/testing-guide.md`
-- ADR for ActorBlock design → `/poc/docs/adr/2025-11-07-actor-block-rotation.md`
-- Research findings → `/research/testing-approaches/README.md`
-- Production API docs → `/docs/api/`
+**Documentation Structure Examples**:
+- Performance analysis → `/docs/analysis/performance-comparison/README.md`
+- Feature design → `/docs/design/new-feature/README.md`
+- POC ADR → `/docs/adr/poc/2025-11-11-actor-block-rotation.md`
+- Production ADR → `/docs/adr/2025-11-11-di-strategy.md`
+- POC guide → `/poc/docs/guides/testing-guide.md`
 
 ### Navigation File Updates
 

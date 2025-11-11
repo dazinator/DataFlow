@@ -23,8 +23,8 @@
 ---
 
 ### DO (During Research):
-- ✅ Create `/research/[topic]/` with research plan, findings, design docs
-- ✅ **Place ADRs in `/poc/docs/adr/` or `/src/docs/adr/`** (with the codebase they govern, NOT in research folder)
+- ✅ Create `/research/[topic]/` for temporary research work (findings, experiments, prototypes)
+- ✅ **Create formal documentation** (analysis, design, ADRs) - see [Documentation Standards](/.github/copilot-instructions.md#documentation-standards)
 - ✅ Write exploratory code in `/poc/` or `/src/` to validate approaches
 - ✅ Create tests to validate concepts
 - ✅ Run benchmarks to measure performance
@@ -34,8 +34,8 @@
 - ✅ Save important prototype code to `/research/[topic]/handover/prototype/`
 - ✅ Create implementation-ready issue in `/research/[topic]/handover/`
 - ✅ **REVERT all exploratory code changes** from `/poc/` and `/src/`
-- ✅ Keep all documentation in `/research/[topic]/`
-- ✅ **Keep ADRs in `/poc/docs/adr/` or `/src/docs/adr/`** (ADRs are NOT reverted - they belong with the codebase)
+- ✅ Keep temporary research artifacts in `/research/[topic]/`
+- ✅ **Keep formal documentation** (analysis docs, design docs, ADRs) - these are NOT reverted
 - ✅ **Complete self-improvement evaluation** (see below)
 
 ### DO (Self-Improvement Loop - Required Before PR Review):
@@ -237,6 +237,31 @@ This workflow is for research that will produce an **implementation-ready GitHub
 
 **What is "Implementation-Ready"?** An issue that contains comprehensive specifications, test scenarios, performance requirements, design references, and all context needed for an engineering team to independently implement the solution in the main codebase without consulting the researcher.
 
+### Documentation: Research vs Formal Documentation
+
+**⚠️ Important Distinction**:
+
+The repository has TWO documentation systems that serve different purposes:
+
+1. **Temporary Research Work** (`/research/[topic]/`):
+   - Working notes, experiments, prototypes
+   - Temporary investigation artifacts
+   - Research-specific findings
+   - Gets created and potentially archived after research completes
+
+2. **Formal Documentation** (`/docs/`):
+   - **Analysis** (`/docs/analysis/`) - Formal investigations, benchmarks, studies
+   - **Design** (`/docs/design/`) - Solution proposals and plans
+   - **ADRs** (`/docs/adr/`) - Architectural decisions
+   - Permanent documentation supporting GitHub issues
+   - NOT reverted - stays in the repository
+
+**When to use which**:
+- Use `/research/[topic]/` for **temporary research work** specific to this exploration
+- Use `/docs/` for **formal documentation** that supports long-term understanding
+
+**📖 See**: [Documentation Standards](/.github/copilot-instructions.md#documentation-standards) for complete guidance on creating formal documentation (analysis, design, ADRs).
+
 ### Phase 1: Research Planning and Setup
 
 When starting research that will result in an implementation handoff:
@@ -284,8 +309,7 @@ Define how success will be measured:
 ## Expected Outcomes
 - Research documentation in /research/[topic]/
 - Implementation-ready GitHub issue in /research/[topic]/handover/
-- Supporting design documentation in /research/[topic]/design/
-- **ADRs in /poc/docs/adr/ or /src/docs/adr/** (with the codebase they govern)
+- **Formal documentation** (analysis, design, ADRs) - see [Documentation Standards](/.github/copilot-instructions.md#documentation-standards)
 - Prototype code in /research/[topic]/handover/prototype/ (if applicable)
 
 ## Timeline
