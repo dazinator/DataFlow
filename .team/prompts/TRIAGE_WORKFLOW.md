@@ -50,12 +50,12 @@ The triage workflow supports two modes:
 
 **Single Issue Mode**:
 1. Read and assess the assigned issue
-2. Determine appropriate workflow
+2. Determine appropriate workflow (see [Decision Tree](#decision-tree) for visual guide)
 3. Handover to designated workflow with comment
 
 **Bulk Triage Mode**:
 1. Query all issues in triage queue
-2. For each issue: read, assess, and handover
+2. For each issue: read, assess, and handover (see [Decision Tree](#decision-tree) for visual guide)
 3. Update bulk triage issue with summary
 4. Close bulk triage issue when done
 
