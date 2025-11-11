@@ -42,8 +42,7 @@
 - ✅ **Evaluate research workflow effectiveness** for this task
 - ✅ **Document what worked well** and what didn't in the research process
 - ✅ **Propose specific improvements** to the research workflow documentation
-- ✅ **Create feedback issue** under the `[Workflow Feedback] Tracker` parent (see section below)
-- ✅ Link feedback issue to tracker using `sub_issue_write` MCP tool
+- ✅ **Add feedback comment** to the `[Workflow Feedback] Tracker` issue (see section below)
 
 **Example**: "The handover template was clear, but lacked guidance on when to create benchmarks. Suggest adding decision criteria: performance-sensitive (required), API validation (optional), prototypes (skip)."
 
@@ -1346,30 +1345,83 @@ This workflow supports POC work that will be directly integrated:
 
 This continuous feedback loop helps evolve our research processes based on real experiences. Your insights directly improve the workflow for future research work.
 
-### Creating Feedback Issues
+### Creating Feedback Comments
 
-**Find the parent tracker:**
+**Find the tracker:**
 ```python
-# Search for the feedback tracker parent issue
+from datetime import datetime
+
+# Search for the feedback tracker issue (create if not found)
 results = search_issues(
     owner="uniun-technology",
     repo="lib-dataflow",
     query='"[Workflow Feedback] Tracker" in:title state:open'
 )
-parent = results[0] if results else None
-```
 
-**Create child feedback issue:**
-```python
-child = issue_write(
-    method="create",
-    owner="uniun-technology",
-    repo="lib-dataflow",
-    title="[Brief description of improvement]",
-    labels=["workflow:process-modeling"],
-    body="""## Workflow Feedback Entry
+if not results or len(results) == 0:
+    # Create new tracker if none exists
+    tracker = issue_write(
+        method="create",
+        owner="uniun-technology",
+        repo="lib-dataflow",
+        title="[Workflow Feedback] Tracker",
+        labels=["workflow:process-modeling"],
+        body="""# Workflow Feedback Tracker
+
+This issue tracks feedback and improvement suggestions for all workflows.
+
+**⚠️ IMPORTANT**: Feedback is submitted as **comments on this issue**, not as sub-issues.
+
+## How to Submit Feedback
+
+When completing work on an issue:
+
+1. **Find this tracker issue**: Search for `[Workflow Feedback] Tracker`
+2. **Add a comment** with your feedback using the template below
+
+### Feedback Comment Template
+
+\```markdown
+## Workflow Feedback Entry
 
 **Date**: YYYY-MM-DD
+**Issue/PR**: #XXX or branch-name
+**Workflow**: [Workflow Name]
+
+### What Worked Well
+[List specific positives]
+
+### What Didn't Work Well
+[List specific issues]
+
+### Suggested Improvement
+[Specific, actionable improvements]
+\```
+
+## For Process Modeling Workflow
+
+When assigned to address feedback:
+
+1. Read through recent feedback comments on this issue
+2. Group related feedback
+3. Address improvements using standard Process Modeling workflow
+4. Mark feedback as addressed by adding a reply comment
+"""
+    )
+    tracker_number = tracker.number
+else:
+    tracker_number = results[0].number
+```
+
+**Add feedback comment:**
+```python
+add_issue_comment(
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=tracker_number,
+    body=f"""## Workflow Feedback Entry
+
+**Date**: {datetime.now().strftime("%Y-%m-%d")}
 **Issue/PR**: #XXX - Brief description
 **Workflow**: Research Workflow
 
@@ -1385,16 +1437,5 @@ child = issue_write(
 
 [Specific, actionable improvement with rationale]
 """
-)
-```
-
-**Link to parent as sub-issue:**
-```python
-sub_issue_write(
-    method="add",
-    owner="uniun-technology",
-    repo="lib-dataflow",
-    issue_number=parent.number,
-    sub_issue_id=child.id
 )
 ```

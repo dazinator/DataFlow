@@ -170,33 +170,84 @@ issue_write(
    - What new guidance should be added?
    - Should issue templates be updated?
 
-5. **Create Feedback Issue**:
+5. **Create Feedback Comment**:
    - See [Workflow Feedback Tracker Guide](/.github/docs/WORKFLOW_FEEDBACK_TRACKER.md) for complete details
    - Find the feedback tracker: Search for `[Workflow Feedback] Tracker` issue
-   - Create child feedback issue with evaluation
-   - **IMPORTANT**: Fill in all required fields (Date, Issue/PR, Workflow) - issues missing context may be deprioritized during triage
-   - Link child to parent using `sub_issue_write` MCP tool
+   - Add feedback comment with evaluation
+   - **IMPORTANT**: Fill in all required fields (Date, Issue/PR, Workflow) - feedback missing context may be deprioritized
 
-**Creating Feedback Issue:**
+**Creating Feedback Comment:**
 ```python
-# Find parent tracker
+from datetime import datetime
+
+# Find tracker (create if not found)
 results = search_issues(
     owner="uniun-technology",
     repo="lib-dataflow",
     query='"[Workflow Feedback] Tracker" in:title state:open'
 )
 
-# Create feedback issue
-# ⚠️ IMPORTANT: Fill in actual values for Date, Issue/PR, and Workflow
-# Issues with placeholder values may be deprioritized or closed during triage
-from datetime import datetime
+if not results or len(results) == 0:
+    # Create new tracker if none exists
+    tracker = issue_write(
+        method="create",
+        owner="uniun-technology",
+        repo="lib-dataflow",
+        title="[Workflow Feedback] Tracker",
+        labels=["workflow:process-modeling"],
+        body="""# Workflow Feedback Tracker
 
-child = issue_write(
-    method="create",
+This issue tracks feedback and improvement suggestions for all workflows.
+
+**⚠️ IMPORTANT**: Feedback is submitted as **comments on this issue**, not as sub-issues.
+
+## How to Submit Feedback
+
+When completing work on an issue:
+
+1. **Find this tracker issue**: Search for `[Workflow Feedback] Tracker`
+2. **Add a comment** with your feedback using the template below
+
+### Feedback Comment Template
+
+\```markdown
+## Workflow Feedback Entry
+
+**Date**: YYYY-MM-DD
+**Issue/PR**: #XXX or branch-name
+**Workflow**: [Workflow Name]
+
+### What Worked Well
+[List specific positives]
+
+### What Didn't Work Well
+[List specific issues]
+
+### Suggested Improvement
+[Specific, actionable improvements]
+\```
+
+## For Process Modeling Workflow
+
+When assigned to address feedback:
+
+1. Read through recent feedback comments on this issue
+2. Group related feedback
+3. Address improvements using standard Process Modeling workflow
+4. Mark feedback as addressed by adding a reply comment
+"""
+    )
+    tracker_number = tracker.number
+else:
+    tracker_number = results[0].number
+
+# Add feedback comment
+# ⚠️ IMPORTANT: Fill in actual values for Date, Issue/PR, and Workflow
+# Feedback with placeholder values may be deprioritized
+add_issue_comment(
     owner="uniun-technology",
     repo="lib-dataflow",
-    title="[Brief description of improvement]",
-    labels=["workflow:process-modeling"],
+    issue_number=tracker_number,
     body=f"""## Workflow Feedback Entry
 
 **Date**: {datetime.now().strftime("%Y-%m-%d")}
@@ -213,20 +264,11 @@ child = issue_write(
 [Specific, actionable improvements - be concrete]
 """
 )
-
-# Link to parent
-sub_issue_write(
-    method="add",
-    owner="uniun-technology",
-    repo="lib-dataflow",
-    issue_number=results[0].number,
-    sub_issue_id=child.id
-)
 ```
 
 **See**: [Workflow Feedback Tracker Guide](/.github/docs/WORKFLOW_FEEDBACK_TRACKER.md) for complete documentation on how the feedback system works.
 
-**Note on Triage**: Feedback issues are periodically triaged (see `.team/prompts/PROCESS_MODELING_WORKFLOW.md` Step 3.5). Issues missing critical context (date, issue/PR, specific improvements) may be deprioritized or closed. Ensure your feedback is actionable and well-documented.
+**Note on Processing**: Feedback comments are processed when a human reviewer assigns @copilot to the tracker issue and requests addressing pending feedback. Ensure your feedback is actionable and well-documented.
 
 ### Why This Matters
 

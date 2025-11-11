@@ -148,7 +148,7 @@ Create parent tracker issues that workflows depend on:
 
 **Complete Documentation**: See [Workflow Feedback Tracker Guide](./WORKFLOW_FEEDBACK_TRACKER.md) for comprehensive details on purpose, usage, and integration.
 
-**Required for**: Process Modeling workflow (bulk processing mode)
+**Required for**: Process Modeling workflow
 
 Create an issue with the following details:
 
@@ -156,7 +156,7 @@ Create an issue with the following details:
 - **Label**: `workflow:process-modeling`
 - **Body**: See template below
 
-**Why this is required**: The Process Modeling workflow queries sub-issues from this parent to find feedback items. The title is used for dynamic lookup, making the system resilient to issue deletion/recreation.
+**Why this is required**: The Process Modeling workflow reads feedback comments from this issue. The title is used for dynamic lookup, making the system resilient to issue deletion/recreation.
 
 **Template**:
 ```markdown
@@ -164,46 +164,42 @@ Create an issue with the following details:
 
 This issue tracks feedback and improvement suggestions for all workflows.
 
-Each suggestion is tracked as a child issue below. **Open children = not yet addressed**.
+**⚠️ IMPORTANT**: Feedback is submitted as **comments on this issue**, not as sub-issues.
 
-## How This Works
-
-1. **Workflow agents** create child feedback issues under this parent after completing work
-2. **Process Modeling workflow** processes open children using standard process modeling methodology
-3. **Closed children** = implemented improvements
-
-See [Process Modeling Workflow](/.team/prompts/PROCESS_MODELING_WORKFLOW.md) for details.
-
-## Providing Feedback
+## How to Submit Feedback
 
 When completing work on an issue:
 
-1. Search for this parent issue: `[Workflow Feedback] Tracker`
-2. Create child issue with your feedback
-3. Link child to this parent using `sub_issue_write` MCP tool
+1. **Find this tracker issue**: Search for `[Workflow Feedback] Tracker`
+2. **Add a comment** with your feedback using the template below
 
-## Query Open Feedback
+### Feedback Comment Template
 
-**For Process Modeling**:
+\```markdown
+## Workflow Feedback Entry
 
-```python
-# Find parent tracker by title
-tracker_results = search_issues(
-    owner="uniun-technology",
-    repo="lib-dataflow",
-    query='"[Workflow Feedback] Tracker" in:title state:open'
-)
+**Date**: YYYY-MM-DD
+**Issue/PR**: #XXX or branch-name
+**Workflow**: [Workflow Name]
 
-# Get open children from parent
-if tracker_results and len(tracker_results) > 0:
-    parent = issue_read(
-        method="get_sub_issues",
-        owner="uniun-technology",
-        repo="lib-dataflow",
-        issue_number=tracker_results[0].number
-    )
-    open_children = [c for c in parent if c.state == "open"]
-```
+### What Worked Well
+[List specific positives]
+
+### What Didn't Work Well
+[List specific issues]
+
+### Suggested Improvement
+[Specific, actionable improvements]
+\```
+
+## For Process Modeling Workflow
+
+When assigned to address feedback:
+
+1. Read through recent feedback comments on this issue
+2. Group related feedback
+3. Address improvements using standard Process Modeling workflow
+4. Mark feedback as addressed by adding a reply comment
 ```
 
 **Automation**: This issue can be created manually or via script. The key is maintaining the exact title for workflow lookups.

@@ -285,7 +285,7 @@ This ensures both issues close when PR merges.
 
 Process modeling is the systematic process of improving team workflows and processes through iterative testing and refinement. This workflow enables Copilot agents to understand workflow pain points, propose improvements, test them through tabletop simulation, and refine based on feedback.
 
-**📝 Terminology Note**: Workflow feedback is now tracked as child issues under the `[Workflow Feedback] Tracker` parent issue. This replaced the previous `.github/workflow-improvements.md` file. See [Workflow Feedback Tracker Guide](/.github/docs/WORKFLOW_FEEDBACK_TRACKER.md) for complete details.
+**📝 Terminology Note**: Workflow feedback is now tracked as comments on the `[Workflow Feedback] Tracker` issue. This replaced the previous sub-issue approach. See [Workflow Feedback Tracker Guide](/.github/docs/WORKFLOW_FEEDBACK_TRACKER.md) for complete details.
 
 ## When to Use This Workflow
 
@@ -303,9 +303,9 @@ Use this workflow when:
 
 ## How to Initiate Process Modeling
 
-Process modeling can be initiated in **two modes**:
+Process modeling can be initiated in **two ways**:
 
-### Mode 1: Single Improvement (Direct Proposal)
+### Method 1: Direct Workflow Improvement Issue
 
 **Create a GitHub Issue** using the "Workflow Improvement Suggestion" issue template:
 
@@ -316,11 +316,12 @@ Process modeling can be initiated in **two modes**:
    - Current state and pain points
    - Proposed improvements
    - Expected benefits
+4. Apply label: `workflow:process-modeling`
 5. Assign to @copilot or mention @copilot in comments
 
 The issue will invoke this Process Modeling Workflow with your specific proposal.
 
-**For @copilot executing single improvement mode:**
+**For @copilot executing a workflow improvement issue:**
 
 Process the workflow improvement described in the issue:
 
@@ -335,793 +336,81 @@ Process the workflow improvement described in the issue:
    - Archive plan to `/research/workflow-modeling/archive/`
    - Close the issue
 
-### Mode 2: Bulk Processing (Progressive Processing)
+### Method 2: Feedback Processing from Tracker Issue
 
-**Create a GitHub Issue** using the "Bulk Process Modeling" issue template:
+**Assign @copilot to the Feedback Tracker Issue** when feedback has accumulated:
 
-1. Go to GitHub Issues → New Issue
-2. Select **"Bulk Process Modeling"** template
-3. Assign to @copilot or mention @copilot in comments
+1. Navigate to the `[Workflow Feedback] Tracker` issue
+2. Review accumulated feedback comments
+3. Assign @copilot to the issue
+4. Add a comment: "Please review and address the pending feedback comments"
 
-The issue will trigger **progressive processing** of the process modeling queue (issues labeled with `workflow:process-modeling`).
+@copilot will then:
+- Read all comments on the tracker issue
+- Identify unaddressed feedback (comments without ✅ prefix)
+- Process feedback through standard process modeling workflow
+- Mark addressed feedback with ✅ reply comments
 
-**⚠️ Important - Progressive Processing:**
+**For @copilot processing feedback from tracker:**
 
-Bulk mode uses **progressive processing** to handle large backlogs realistically:
+When assigned to the `[Workflow Feedback] Tracker` issue:
 
-- **Always processes at least 1 item** (ensures continuous progress - full workflow, not just triage)
-- **Continues automatically while PR < 200 lines** (keeps PRs small when possible)
-- **Requests confirmation at 200-400 lines** (moderate PR size)
-- **Requests confirmation at 400+ lines** (advisory - can continue with approval)
-
-**Key Principle**: Making progress on at least one improvement is more important than PR size limits. Size thresholds are advisory guidelines - with confirmation, processing continues regardless of size.
-
-**For large backlogs (20+ items)**: Expect multiple bulk processing sessions. Each creates a reviewable PR, then a new bulk issue continues with remaining items. PR size is a guideline, not a barrier to progress.
-
-**Bulk Mode Execution:**
-
-When assigned to a **Bulk Process Modeling** issue, follow this process:
-
-#### Step 1: Identify Bulk Mode
-
-Check if the assigned issue is a bulk process modeling request:
-- Title starts with `[Process Modeling] Bulk processing`
-- Body contains "Bulk Process Modeling Instructions for @copilot"
-- Explicitly requests processing entire process modeling queue
-
-If YES → Continue with bulk mode execution
-If NO → Follow single improvement mode (process only the assigned issue)
-
-#### Step 2: Setup - Add Date to Issue Title
-
-**Update the bulk process modeling issue title to include today's date** (if not already present):
-
-```python
-from datetime import datetime
-
-# Get current issue
-current_issue = issue_read(
-    method="get",
-    owner="uniun-technology",
-    repo="lib-dataflow",
-    issue_number=BULK_PROCESS_MODELING_ISSUE_NUMBER
-)
-
-# Check if date is already in title
-current_date = datetime.now().strftime("%Y-%m-%d")
-if current_date not in current_issue['title']:
-    # Append date to title
-    new_title = f"{current_issue['title']}{current_date}"
-    issue_write(
-        method="update",
-        owner="uniun-technology",
-        repo="lib-dataflow",
-        issue_number=BULK_PROCESS_MODELING_ISSUE_NUMBER,
-        title=new_title
-    )
-```
-
-**Why**: This ensures each bulk process modeling run has a unique, identifiable title for historical tracking.
-
-#### Step 3: Query Process Modeling Queue from Feedback Tracker
-
-**Query feedback items from the parent tracker** (structure-based approach):
-
-**See**: [Workflow Feedback Tracker Guide](/.github/docs/WORKFLOW_FEEDBACK_TRACKER.md) for complete documentation on how the feedback tracker works.
-
-```python
-# Find the feedback tracker parent issue by title
-tracker_results = search_issues(
-    owner="uniun-technology",
-    repo="lib-dataflow",
-    query='"[Workflow Feedback] Tracker" in:title state:open'
-)
-
-if not tracker_results or len(tracker_results) == 0:
-    raise ValueError("Feedback tracker parent issue not found. Expected issue with title '[Workflow Feedback] Tracker'")
-
-tracker_issue = tracker_results[0]
-
-# Query sub-issues from the feedback tracker parent
-parent_sub_issues = issue_read(
-    method="get_sub_issues",
-    owner="uniun-technology",
-    repo="lib-dataflow",
-    issue_number=tracker_issue.number
-)
-
-# ⚠️ CRITICAL: Filter to OPEN sub-issues only
-# This prevents re-processing or re-closing already-closed issues
-issues = [sub for sub in parent_sub_issues if sub.state == "open"]
-
-# ⚠️ CRITICAL: Double verification - ALWAYS verify each issue is truly open
-# The sub-issue query may return stale data. Verify state before processing.
-# This prevents re-closing already-closed issues (which creates false progress).
-verified_open_issues = []
-for issue in issues:
-    issue_details = issue_read(
-        method="get",
-        owner="uniun-technology",
-        repo="lib-dataflow",
-        issue_number=issue.number
-    )
-    if issue_details.get('state') == 'open':
-        verified_open_issues.append(issue_details)
-
-issues = verified_open_issues
-```
-
-**Why this approach**: 
-- **Structure-based** (sub-issue relationship) vs label-based query
-- More robust - relationship is established when feedback issue is created
-- Catches feedback items that may be missing the `workflow:process-modeling` label
-- Matches the organizational structure documented in the feedback tracker
-- **Issue-title based lookup** - resilient to issue deletion/recreation (unlike hardcoded issue numbers)
-- **Double verification ALWAYS required** - sub-issue queries may return stale data; individual issue queries are authoritative
-
-**Filter out the bulk process modeling issue itself**:
-- Get the current issue number (the bulk process modeling issue)
-- Exclude it from the list of issues to process if it happens to be linked to tracker
-- Only process actual workflow improvements, not the coordination issue
-
-#### Step 3.5: Triage Feedback Backlog (Optional - Use for Large Backlogs)
-
-**When to use triage**: When processing a large backlog of feedback issues (10+ items), especially after migration or long periods without bulk processing.
-
-**Purpose**: Early dismissal of low-value items and prioritization of remaining feedback.
-
-**⚠️ CRITICAL - Triage Is NOT Progress**:
-- Triage does NOT count toward the "at least 1 item processed" requirement
-- Closing issues during triage is preparatory work, not workflow improvement completion
-- You MUST complete at least one full improvement workflow (scenarios → testing → implementation) after triage
-- Progress = sub-items closed by completing the full process modeling workflow for an improvement
-- Do NOT exit after triage alone - that's exiting without making any real progress
-
-##### Triage Rules
-
-Apply these rules sequentially to each issue:
-
-**Rule 1: Already Implemented** ✅
-- **Trigger**: Issue body contains "✅ ADDRESSED", "✅ IMPLEMENTED", or similar completion markers
-- **Action**: Close issue with comment: `"[Copilot-Workflow: Process Modeling] This feedback has already been implemented. Closing as complete."`
-- **Rationale**: No value in processing already-actioned feedback
-
-**Rule 2: Template Placeholder** 📝
-- **Trigger**: 
-  - Title contains "Template placeholder" OR
-  - Body contains only template placeholders like "[description]", "YYYY-MM-DD" with minimal/no real content
-- **Action**: Close issue as "not planned" with comment: `"[Copilot-Workflow: Process Modeling] This appears to be a template artifact from migration. Closing as not actionable."`
-- **Rationale**: Migration artifacts have no value
-
-**Rule 3: Missing Critical Context** ❓
-- **Trigger**:
-  - Date field is "YYYY-MM-DD" (not filled in) AND
-  - Issue/PR field is "#[number]" or "[description]" (not filled in) AND  
-  - "Suggested Improvement" section is empty or only contains placeholder text
-- **Action**: Add label `"needs-context"` and assign **Priority: P3 (Low)**
-- **Rationale**: Hard to assess value without context; deprioritize but don't close in case it becomes relevant later
-
-**Rule 4: Process Modeling Self-Reference** 🔄
-- **Trigger**: Issue specifically mentions improvements to "Process Modeling Workflow" itself
-- **Action**: Assign **Priority: P1 (High)**
-- **Rationale**: Improvements to process modeling directly improve our ability to process other feedback - highest leverage
-
-**Rule 5: Priority Assignment** (for issues not caught by Rules 1-4)
-
-Assign priority based on:
-- **P1 (High)**: 
-  - Process modeling self-improvements (Rule 4)
-  - Contains keywords: "critical", "urgent", "severe", "blocking"
-- **P2 (Medium)**: 
-  - Has clear context (date, issue/PR reference filled in)
-  - Specific, actionable improvements
-  - Affects commonly-used workflows (Implementation, Research)
-- **P3 (Low)**:
-  - Missing context (Rule 3)
-  - Vague or unclear improvements
-  - Affects rarely-used workflows
-
-##### Processing Order
-
-After triage, process feedback in this order:
-
-1. **Priority first**: P1 → P2 → P3
-2. **Within each priority**: **Date descending** (most recent feedback first)
-
-**Rationale**: Recent feedback reflects current pain points; older feedback may have been naturally resolved.
-
-##### Supersedence Check
-
-**Before processing each item**, manually check:
-- Is there a newer feedback issue covering the same workflow/area?
-- Does a more recent issue supersede this one's suggestions?
-
-**If superseded**: Close with comment linking to superseding issue:
-```python
-add_issue_comment(
-    owner="uniun-technology",
-    repo="lib-dataflow",
-    issue_number=OLD_ISSUE_NUMBER,
-    body="[Copilot-Workflow: Process Modeling] This feedback has been superseded by #NEW_ISSUE_NUMBER which covers the same area with more recent context. Closing in favor of the newer feedback."
-)
-
-issue_write(
-    method="update",
-    owner="uniun-technology",
-    repo="lib-dataflow",
-    issue_number=OLD_ISSUE_NUMBER,
-    state="closed"
-)
-```
-
-##### Triage Example
-
-```python
-# After querying issues
-for issue in filtered_issues:
-    issue_data = issue_read(
-        method="get",
-        owner="uniun-technology",
-        repo="lib-dataflow",
-        issue_number=issue['number']
-    )
-    
-    # ⚠️ GUARD: Skip if issue is already closed
-    # This prevents re-closing issues or wasting time on closed items
-    if issue_data.get('state') == 'closed':
-        continue
-    
-    # Rule 1: Already Implemented?
-    if "✅ ADDRESSED" in issue_data['body'] or "✅ IMPLEMENTED" in issue_data['body']:
-        add_issue_comment(...)  # Close as implemented
-        issue_write(method="update", state="closed", ...)
-        continue
-    
-    # Rule 2: Template Placeholder?
-    # Check for placeholder patterns in title and body
-    has_placeholder_title = "Template placeholder" in issue_data['title'] or \
-                           ("YYYY-MM-DD" in issue_data['title'] and "#[number]" in issue_data['title'])
-    has_placeholder_body = "[List positives]" in issue_data['body'] or \
-                          "[List issues]" in issue_data['body'] or \
-                          "[Specific improvement]" in issue_data['body']
-    
-    if has_placeholder_title or has_placeholder_body:
-        add_issue_comment(...)  # Close as template artifact
-        issue_write(method="update", state="closed", ...)
-        continue
-    
-    # Rule 3: Missing Context?
-    # Check if required fields contain only placeholder values
-    has_date_placeholder = "YYYY-MM-DD" in issue_data['body'] and \
-                          "**Date**: YYYY-MM-DD" in issue_data['body']
-    has_issue_placeholder = ("#[number]" in issue_data['body'] or \
-                            "[description]" in issue_data['body']) and \
-                            "**Issue/PR**:" in issue_data['body']
-    has_empty_improvement = "[Specific improvement]" in issue_data['body'] or \
-                           "### Suggested Improvement\n\n[" in issue_data['body']
-    
-    if has_date_placeholder and has_issue_placeholder and has_empty_improvement:
-        # Add label and mark as P3
-        issue_write(method="update", labels=[...existing..., "needs-context"], ...)
-        priority = "P3"
-        continue
-    
-    # Rule 4: Process Modeling Self-Reference?
-    if "Process Modeling Workflow" in issue_data['body']:
-        priority = "P1"
-    else:
-        priority = "P2"  # Default for issues with context
-    
-    # Add to processing queue with priority
-    processing_queue.append((priority, issue_data['created_at'], issue_data))
-
-# Sort by priority then date descending
-processing_queue.sort(key=lambda x: (x[0], -datetime.fromisoformat(x[1]).timestamp()))
-
-# Now process in order...
-```
-
-#### Step 4: Process Each Issue with Progressive Processing
-
-**⚠️ CRITICAL - Progressive Processing Approach:**
-
-Bulk mode uses **progressive processing** to make continuous progress without creating overwhelming PRs:
-
-**Progressive Processing Rules:**
-
-1. **Always process at least 1 item** - Never stop without processing at least one feedback item (complete the full process modeling workflow: read and assess, create test scenarios, execute tabletop simulations, implement validated improvements, update workflow documentation, and archive or revert scenarios)
-2. **Continue processing until PR is sizable** - Workflow file changes and copilot instructions are easy to review, so PR size is not a primary concern
-3. **Track progress by sub-items closed** - Only items that complete the full workflow count as progress (triage alone does NOT count)
-
-**⚠️ IMPORTANT - What "Processing 1 Item" Means:**
-
-"Processing at least 1 item" means completing the FULL process modeling workflow for 1 improvement:
-- ✅ Read and assess the improvement
-- ✅ Create test scenarios
-- ✅ Execute tabletop simulations
-- ✅ Implement validated improvements
-- ✅ Update workflow documentation
-- ✅ Archive or revert scenarios
-
-**Triage alone is NOT processing** - you must complete at least one improvement end-to-end.
-
-**Why this approach:**
-- Ensures continuous progress (always processes ≥1 item completely)
-- Workflow files and copilot instructions are very easy to review (structure is clear, changes are focused)
-- PR size is NOT a concern for workflow documentation changes
-- Progress = completing improvements and closing sub-items
-- If the input queue cannot be processed, the system will fail based on entropy over time
-- Prevents stalling on triage without making real progress
-
-**For each issue in the filtered queue:**
-
-1. **Process the next item:**
-   
-   a. **Read the issue** to understand the improvement proposal
-   b. **Assess** the improvement using standard process modeling approach
-   c. **Create test scenarios** in `/research/workflow-modeling/scenarios/[workflow-name]/`
-   d. **Execute tabletop simulations** to validate changes
-   e. **Implement improvements** if validated
-   f. **Update workflow documentation** as needed
-   g. **Archive or revert scenarios** based on retention decision
-   h. **Track progress:**
-      ```python
-      items_processed += 1
-      ```
-
-2. **Close the improvement issue:**
+1. **Read the assignment comment** to understand what's requested
+2. **Query feedback comments**:
    ```python
-   issue_write(
-       method="update",
-       owner="uniun-technology",
-       repo="lib-dataflow",
-       issue_number=issue['number'],
-       state="closed"
-   )
-   
-   add_issue_comment(
-       owner="uniun-technology",
-       repo="lib-dataflow",
-       issue_number=issue['number'],
-       body="✅ **Implemented**\n\n[Description of changes made]\n\nThank you for the suggestion!"
-   )
-   ```
-
-3. **Continue to next item** - Process until all items in queue are complete
-
-#### Step 5: Track Progress
-
-**Update the bulk process modeling issue with progress summaries**:
-
-After every few issues (or when complete), add a progress comment:
-
-```python
-add_issue_comment(
-    owner="uniun-technology",
-    repo="lib-dataflow",
-    issue_number=BULK_PROCESS_MODELING_ISSUE_NUMBER,
-    body="""[Copilot-Workflow: Process Modeling] Progress Update
-
-**Processed**: 3 issues
-**Remaining**: 2 issues
-
-**Workflows Affected**:
-- Implementation Workflow: 2 improvements
-- Research Workflow: 1 improvement
-
-Continuing...
-"""
-)
-```
-
-#### Step 6: Complete and Close
-
-**When**: All issues in the queue have been processed
-
-1. **Add final summary comment** to bulk process modeling issue:
-```python
-add_issue_comment(
-    owner="uniun-technology",
-    repo="lib-dataflow",
-    issue_number=BULK_PROCESS_MODELING_ISSUE_NUMBER,
-    body="""[Copilot-Workflow: Process Modeling] ✅ Bulk Process Modeling Complete
-
-**Total Issues Processed**: 5
-
-**Workflows Updated**:
-- Implementation Workflow (#124, #127, #131)
-- Research Workflow (#125)
-- Triage Workflow (#128)
-
-**Status**: ✅ All workflow improvement issues in the queue have been processed.
-"""
-)
-```
-
-2. **Close the bulk process modeling issue**:
-```python
-issue_write(
-    method="update",
-    owner="uniun-technology",
-    repo="lib-dataflow",
-    issue_number=BULK_PROCESS_MODELING_ISSUE_NUMBER,
-    state="closed"
-)
-```
-
-3. **Mark PR ready for review** - Complete self-improvement evaluation and request code review
-
-#### Edge Cases
-
-**Empty Queue**:
-- If no improvement issues need processing (queue only contains the bulk process modeling issue)
-- Comment that queue is empty
-- Close the bulk process modeling issue immediately
-
-**Issues Needing More Context**:
-- If an improvement issue needs clarification, add a comment requesting it
-- Keep the issue in `workflow:process-modeling`
-- Note it in the bulk process modeling summary
-- Continue processing other issues
-
-**Errors or Blockers**:
-- If you encounter an issue you can't process (unclear, ambiguous)
-- Add a comment requesting help or clarification
-- Note it in the bulk process modeling summary
-- Continue with remaining issues
-
-#### Self-Improvement Timing for Bulk Mode
-
-**When to complete self-improvement evaluation in bulk mode:**
-
-Unlike single-item mode where self-improvement happens after processing each individual issue, **bulk mode self-improvement evaluation happens at the END** of the bulk processing session.
-
-**Why:**
-- Bulk mode feedback reflects on the **triage and processing workflow itself**, not individual improvements
-- Evaluates: Was the workflow effective? Did it help make progress? Were instructions clear?
-- Avoids creating feedback issues in the middle of processing
-
-**What to evaluate:**
-
-1. **Processing Effectiveness:**
-   - Did the workflow help make continuous progress?
-   - Were all items in the queue processed successfully?
-   - Did "always process at least 1 item" rule prevent stalling?
-
-2. **Triage Process:**
-   - Were triage rules clear and helpful?
-   - Did priority assignment work well?
-   - Any edge cases not covered?
-
-3. **Workflow Clarity:**
-   - Were bulk mode instructions clear?
-   - Any missing guidance or confusion?
-   - What could be improved?
-
-**When to create feedback issue:**
-- After finalizing PR
-- Before marking PR ready for review
-- Reflects on entire bulk session, not individual items
-
----
-
-## Legacy: Feedback Issue Processing
-
-**Note**: The following sections describe processing feedback issues (sub-issues of the `[Workflow Feedback] Tracker` parent). This is a legacy mode that may still be used but is being phased out in favor of direct workflow improvement issues.
-
-### Single Item Mode (Legacy - Feedback Issues)
-
-Process exactly one feedback issue then close it.
-
-**For @copilot executing single-item mode:**
-
-1. **Query** open feedback issues:
-   ```python
-   # Find parent tracker
-   results = search_issues(
+   # Find tracker issue by title
+   tracker_results = search_issues(
        owner="uniun-technology",
        repo="lib-dataflow",
        query='"[Workflow Feedback] Tracker" in:title state:open'
    )
-   parent = results[0] if results else None
    
-   # Get open children
-   parent_data = issue_read(
-       method="get_sub_issues",
+   tracker_issue = tracker_results[0]
+   
+   # Get all comments
+   comments = issue_read(
+       method="get_comments",
        owner="uniun-technology",
        repo="lib-dataflow",
-       issue_number=parent.number
+       issue_number=tracker_issue.number
    )
    
-   # Filter to open sub-issues
-   open_children = [c for c in parent_data.children if c.state == "open"]
-   
-   # ⚠️ REQUIRED: Verify current state to prevent re-processing closed issues
-   verified_open = []
-   for child in open_children:
-       details = issue_read(
-           method="get",
-           owner="uniun-technology",
-           repo="lib-dataflow",
-           issue_number=child.number
+   # Filter to unaddressed feedback
+   # Check if any subsequent comment addresses this feedback (starts with "✅")
+   feedback_comments = [
+       c for idx, c in enumerate(comments)
+       if "## Workflow Feedback Entry" in c.body
+       and not any(
+           later_c.body.startswith("✅") for later_c in comments[idx+1:]
        )
-       if details.get('state') == 'open':
-           verified_open.append(child)
-   
-   open_children = verified_open
+   ]
    ```
 
-2. **Select** the oldest open feedback issue (first by creation date)
-
-3. **Read issue details**:
+3. **Update** `/research/workflow-modeling/plan.md` with feedback being addressed
+4. **Process each feedback item** through standard process modeling workflow
+5. **Mark as addressed** by adding reply comment:
    ```python
-   feedback = issue_read(
-       method="get",
+   add_issue_comment(
        owner="uniun-technology",
        repo="lib-dataflow",
-       issue_number=selected.number
+       issue_number=tracker_issue.number,
+       body=f"""✅ **Addressed** - Feedback from {feedback_date}
+
+**What was implemented**: [Description]
+
+**Changes made**:
+- [List changes]
+
+**PR**: #{PR_NUMBER}
+
+Thank you for the feedback!
+"""
    )
    ```
 
-4. **Extract context** from the feedback issue body:
-   - Date and Issue/PR reference
-   - What worked well
-   - What didn't work well
-   - Suggested improvement(s)
-   - Which workflow(s) affected
-   
-   **Suggestion Context Consideration:**
-   - Check when suggestion was made and in what context
-   - Implementation-phase feedback may not reflect steady-state experience
-   - Context examples:
-     * During implementation: May reflect temporary confusion, not long-term issue
-     * During first use: May reflect learning curve, not workflow gap
-     * After extended use: Likely reflects genuine pain point
-   - Consider whether pain point is still relevant
-   - Document context assessment in archived plan
-   - Still evaluate the suggestion, but be aware context affects relevance
+6. **After completion**: Update history, archive plan, unassign from tracker
 
-5. **Update** `/research/workflow-modeling/plan.md` with:
-   - Selected feedback issue number and title
-   - Which specific improvements you're addressing
-   - Expected workflow changes
-
-6. **Follow standard process modeling** (create scenarios, test, refine, etc.)
-   
-   **Already Implemented Detection:**
-   
-   When testing reveals an improvement is already implemented:
-   1. Document the finding in scenario test notes:
-      - Note: "Testing revealed improvement already exists in [file]"
-      - Cite specific section/line numbers showing existing implementation
-      - Include evidence (quotes from current workflow)
-   2. Still count as successful processing of entry:
-      - Improvement is addressed (even if by earlier work)
-      - Prevents entry from staying in backlog indefinitely
-   3. Close feedback issue per standard process:
-      - Issue is "done" even though no new changes were made
-      - Keeps backlog clean and prevents re-suggestions
-   4. Note in history that improvement was already present:
-      - History entry format: "Verified [improvement] already present (No changes needed)"
-      - Documents that suggestion was evaluated, not ignored
-   
-   **Missing Section Handling:**
-   
-   If feedback references a non-existent section (e.g., "Using Ecosystem Tools"):
-   - Find most appropriate existing section for the guidance
-   - Document section choice in archived plan with rationale
-   - Don't create new top-level sections just to match feedback suggestion
-   - Example: Guidance for "Using Ecosystem Tools" could fit in "Implementation Patterns" or "Coding Standards"
-   - Rationale: Maintain existing workflow structure, avoid fragmentation
-
-7. **After completion**:
-   - Close the feedback issue with implementation comment:
-     ```python
-     issue_write(
-         method="update",
-         owner="uniun-technology",
-         repo="lib-dataflow",
-         issue_number=feedback.number,
-         state="closed"
-     )
-     
-     add_issue_comment(
-         owner="uniun-technology",
-         repo="lib-dataflow",
-         issue_number=feedback.number,
-         body="""✅ **Implemented**
-         
-         [Description of changes made]
-         
-         **Pull Request**: #XXX
-         **Documentation**: [links to updated files]
-         
-         Thank you for the feedback!
-         """
-     )
-     ```
-   - Add one-line summary to `/research/workflow-modeling/history.md`
-   - Archive plan to `/research/workflow-modeling/archive/`
-
-8. **STOP** - Do not process additional feedback issues
-
-**Unsuccessful Improvements**: Close the issue even if improvements were not viable. Document why in the closing comment. This prevents the queue from getting stuck.
-
-#### Multiple Items Mode (Legacy - Feedback Issues)
-
-Process a specific number of feedback issues (user specifies count).
-
-**For @copilot executing multiple-items mode:**
-
-1. **Check issue description** for specified count (e.g., "Process 3 items")
-2. **Initialize tracking**:
-   - `items_to_process` = [count from issue]
-   - `items_processed` = 0
-3. **Update** `/research/workflow-modeling/plan.md` with:
-   - Mode: Multiple Items (N items)
-   - Items to process: [count]
-   - Running summary of processed items
-
-**For each iteration (repeat N times or until feedback queue exhausted):**
-
-4. **Check**: If `items_processed >= items_to_process` → **STOP**
-5. **Query** open feedback issues (see Single Item Mode for query pattern)
-6. **Select** oldest open feedback issue
-7. **Extract context** from the feedback issue
-8. **Create scenarios and test** for this improvement
-9. **Apply changes** if viable
-10. **Update tracking**:
-    - `items_processed++`
-    - Add summary to plan.md
-11. **Update history.md** with new entry for this improvement
-12. **Close feedback issue** with implementation comment
-13. **Update PR description** with consolidated summary (see consolidation pattern below)
-14. **Check backlog**: If no more open feedback issues → **STOP**
-15. **Loop back** to step 4
-
-**After all iterations:**
-
-16. **Finalize PR description** with complete summary of all improvements
-17. **Archive plan** to `/research/workflow-modeling/archive/` with summary of all items
-18. **Note in plan**: "Processed [count] items in multiple-items mode"
-
-#### Smart Mode (Legacy - Feedback Issues - Recommended for Batch Processing)
-
-Process multiple feedback entries with intelligent stopping criteria. Stops when max items reached, change volume threshold exceeded, or backlog exhausted.
-
-**Default Thresholds** (configurable in issue description):
-
-- **MAX_ITEMS**: 5 items
-- **MAX_LINES**: 500 lines changed (insertions + deletions)
-- **REQUEST_APPROVAL**: Optional - request approval before each new item (default: false)
-
-**For @copilot executing smart mode:**
-
-1. **Check issue description** for custom thresholds (if specified):
-   - `max_items`: Number (default 5)
-   - `max_lines`: Number (default 500)
-   - `request_approval`: yes/no (default no)
-   
-2. **Initialize tracking**:
-   - `items_processed` = 0
-   - `total_lines_changed` = 0
-   - `max_items` = 5 (or custom value)
-   - `max_lines` = 500 (or custom value)
-   - `request_approval` = false (or true if specified)
-   
-3. **Update** `/research/workflow-modeling/plan.md` with:
-   - Mode: Smart Mode
-   - Thresholds: [max_items] items, [max_lines] lines
-   - Approval mode: enabled/disabled
-   - Running metrics
-
-**For each iteration:**
-
-4. **Check stopping conditions BEFORE processing next item**:
-   
-   **First, estimate next item's line changes:**
-   - **Framework-heavy improvements** (thresholds, patterns, new features): 150-200 lines typical
-   - **Clarification improvements** (guidance notes, examples): 80-120 lines typical
-   - **Template updates** (issue templates, small edits): 30-50 lines typical
-   
-   **If an improvement overlaps multiple categories** (e.g., clarification plus template update):
-   - Use the higher estimate if both are substantial
-   - Or sum the estimates if they're clearly separate components
-   - When in doubt, default to the more conservative (higher) estimate
-   - Document your classification choice in plan.md for transparency
-   
-   **Then, apply conservative stopping decision tree:**
-   ```
-   Calculate: current_lines + estimated_lines + 50 (safety buffer)
-   
-   Decision rules:
-   - Result > MAX_LINES? → STOP (prevents threshold violation)
-   - Result < (MAX_LINES - 100)? → CONTINUE (safe margin)
-   - In between? → Evaluate item complexity:
-     * Simple clarification → CONTINUE
-     * Framework/template change → STOP  
-     * When uncertain → STOP (conservative default)
-   ```
-   
-   **Final stopping checks:**
-   - If `items_processed >= max_items` → **STOP** (reason: max items threshold)
-   - If `total_lines_changed >= max_lines` → **STOP** (reason: change volume threshold)
-   - If decision tree says STOP → **STOP** (reason: approaching change volume threshold)
-   - If no more open feedback issues → **STOP** (reason: feedback queue exhausted)
-   - **Exception**: Always process at least 1 item, even if it exceeds thresholds
-   
-   **Optional: Request approval before continuing (if request_approval=true):**
-   - If `items_processed >= 1` and stopping conditions not met → **REQUEST APPROVAL**:
-     - _Rationale: Approval is not requested before the first item to ensure every run makes at least some progress, even if thresholds would otherwise prevent it. This guarantees the workflow doesn't stall without processing any items._
-     1. Query next open feedback issue
-     2. Reply to PR comment with summary:
-        - Feedback issue number and title
-        - Brief description of suggested improvements
-        - Current metrics (items processed, lines changed)
-        - Link to plan.md
-     3. Wait for reviewer response
-     4. If approved → Continue to step 5
-     5. If not approved → **STOP** (reason: approval not granted)
-
-5. If not stopping: **Query** open feedback issues
-6. **Select** oldest open feedback issue
-7. **Extract context** and process improvement
-8. **Apply changes** if viable
-9. **Track changes** for this improvement:
-   ```bash
-   # Get line changes for current improvement
-   git diff --stat | tail -1
-   # Example output: "3 files changed, 42 insertions(+), 15 deletions(-)"
-   # Extract insertions + deletions: 42 + 15 = 57 lines changed
-   # Can use: git diff --stat | tail -1 | awk '{print $4 + $6}'
-   ```
-   
-   **What to count toward line threshold:**
-   - ✅ Workflow documentation (`.team/prompts/*.md`)
-   - ✅ Issue templates (`.github/ISSUE_TEMPLATE/*.md`)
-   - ✅ Copilot instructions (`.github/copilot-instructions.md`)
-   - ❌ Test scenario files (`scenarios/*.md`) - these get reverted
-   - ❌ Test assets - these get reverted
-   
-   **Rationale**: Test scenarios are created during testing, used for validation, 
-   then reverted after completion. They don't count toward the line threshold but 
-   do require time to create. Focus line tracking on permanent workflow documentation 
-   changes only. This prevents inflated line counts from temporary test files while 
-   still acknowledging the time investment in scenario creation.
-   
-10. **Update tracking**:
-    - `items_processed++`
-    - `total_lines_changed +=` (insertions + deletions from git diff)
-    - Add metrics to plan.md
-11. **Update history.md** with new entry
-12. **Close feedback issue** with implementation comment
-13. **Update PR description** with running summary and metrics
-14. **Loop back** to step 4
-
-**After stopping:**
-
-15. **Finalize PR description** with:
-    - Total items processed
-    - Total lines changed
-    - Reason for stopping
-    - List of all improvements
-16. **Archive plan** with complete summary and stopping reason
-17. **Note in plan**: "Processed [X] items in smart mode. Stopped due to: [reason]"
-
-**Change Volume Measurement:**
-
-- Use `git diff --stat` to count insertions + deletions
-- Include workflow documentation changes
-- Include issue template changes
-- Exclude test scenario files (those get reverted after testing)
-
-**Stopping Reason Examples:**
-
-- "Stopped after 5 items (max items threshold)"
-- "Stopped after 3 items with ~520 lines changed (change volume threshold)"
-- "Stopped after 4 items (backlog exhausted - no more unaddressed entries)"
-
-**Edge Case**: If first item alone exceeds line threshold, still process it (minimum 1 item rule). Then stop before processing 2nd item.
+---
 
 ## Long-Lived Research Folder Structure
 

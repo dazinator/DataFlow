@@ -1041,33 +1041,87 @@ See: \`.team/prompts/TECH_DEBT_WORKFLOW.md\`"
 
 ## Self-Improvement Loop
 
-**Before marking PR ready for review**, create feedback issue:
+**Before marking PR ready for review**, add feedback comment:
 
 1. Reflect on tech debt workflow effectiveness
 2. Document what worked well
 3. Document what didn't work well
 4. Propose specific improvements
-5. Create feedback issue under `[Workflow Feedback] Tracker` parent
+5. Add feedback comment to `[Workflow Feedback] Tracker` issue
 
-**Creating Feedback Issue:**
+**Creating Feedback Comment:**
 ```python
-# Find parent tracker
+from datetime import datetime
+
+# Find tracker (create if not found)
 results = search_issues(
     owner="uniun-technology",
     repo="lib-dataflow",
     query='"[Workflow Feedback] Tracker" in:title state:open'
 )
 
-# Create feedback issue
-child = issue_write(
-    method="create",
-    owner="uniun-technology",
-    repo="lib-dataflow",
-    title="[Brief improvement description]",
-    labels=["workflow:process-modeling"],
-    body="""## Workflow Feedback Entry
+if not results or len(results) == 0:
+    # Create new tracker if none exists
+    tracker = issue_write(
+        method="create",
+        owner="uniun-technology",
+        repo="lib-dataflow",
+        title="[Workflow Feedback] Tracker",
+        labels=["workflow:process-modeling"],
+        body="""# Workflow Feedback Tracker
+
+This issue tracks feedback and improvement suggestions for all workflows.
+
+**⚠️ IMPORTANT**: Feedback is submitted as **comments on this issue**, not as sub-issues.
+
+## How to Submit Feedback
+
+When completing work on an issue:
+
+1. **Find this tracker issue**: Search for `[Workflow Feedback] Tracker`
+2. **Add a comment** with your feedback using the template below
+
+### Feedback Comment Template
+
+\```markdown
+## Workflow Feedback Entry
 
 **Date**: YYYY-MM-DD
+**Issue/PR**: #XXX or branch-name
+**Workflow**: [Workflow Name]
+
+### What Worked Well
+[List specific positives]
+
+### What Didn't Work Well
+[List specific issues]
+
+### Suggested Improvement
+[Specific, actionable improvements]
+\```
+
+## For Process Modeling Workflow
+
+When assigned to address feedback:
+
+1. Read through recent feedback comments on this issue
+2. Group related feedback
+3. Address improvements using standard Process Modeling workflow
+4. Mark feedback as addressed by adding a reply comment
+"""
+    )
+    tracker_number = tracker.number
+else:
+    tracker_number = results[0].number
+
+# Add feedback comment
+add_issue_comment(
+    owner="uniun-technology",
+    repo="lib-dataflow",
+    issue_number=tracker_number,
+    body=f"""## Workflow Feedback Entry
+
+**Date**: {datetime.now().strftime("%Y-%m-%d")}
 **Issue/PR**: #XXX
 **Workflow**: Tech Debt Workflow
 
@@ -1080,15 +1134,6 @@ child = issue_write(
 ### Suggested Improvement
 [Specific improvement]
 """
-)
-
-# Link to parent
-sub_issue_write(
-    method="add",
-    owner="uniun-technology",
-    repo="lib-dataflow",
-    issue_number=results[0].number,
-    sub_issue_id=child.id
 )
 ```
 
