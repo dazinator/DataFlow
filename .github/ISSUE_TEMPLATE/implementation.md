@@ -59,7 +59,7 @@ The backlog item or context below should clearly indicate which codebase this im
 **Quick Reference:**
 - Label `workflow:implementation` ensures correct workflow routing
 - Check `/implementation/plan.md` for ongoing work before starting
-- See [Getting Started Guide](../.team/GETTING_STARTED.md) for coding standards
+- See [Getting Started Guide](../../docs/guides/GETTING_STARTED.md) for coding standards
 - Complete self-improvement evaluation before PR review
 
 ---

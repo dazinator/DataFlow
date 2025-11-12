@@ -773,7 +773,7 @@ update_work_item(
 
 **Test Methodology**: End-to-end scenario testing
 
-**Test Location**: `/research/workflow-modeling/scenarios/duties/triage/`
+**Test Location**: `.team/duties/tests/triage/`
 
 **Test Scenarios**:
 1. Single work item triage (clear requirements)

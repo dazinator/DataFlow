@@ -61,7 +61,7 @@ To create multi-phase work:
 ```markdown
 ## Creating Multi-Phase Work
 
-See [Multi-Phase Issue Procedures](../../.team/MULTI_PHASE_ISSUES.md) for complete guidance on parent-child work items.
+See [Multi-Phase Issue Procedures](../../.team/procedures/multi-phase-work-items.md) for complete guidance on parent-child work items.
 ```
 
 #### Checking DOCUMENTATION_ARTIFACTS.md dependency
@@ -84,7 +84,7 @@ Research should be documented in:
 ```markdown
 ## Research Documentation
 
-Follow the [Documentation Artifacts System](../../.team/DOCUMENTATION_ARTIFACTS.md) for research folder structure.
+Follow the [Documentation Artifacts System](../../../docs/DOCUMENTATION_ARTIFACTS.md) for research folder structure.
 ```
 
 #### Checking DOCUMENT_HYGIENE.md dependency
@@ -107,11 +107,11 @@ Agent checks for proper reference patterns:
 
 ✅ **Good Reference Patterns Found**:
 ```markdown
-See [Document Hygiene](../../.team/DOCUMENT_HYGIENE.md) for documentation standards.
+See [Document Hygiene](../../docs/DOCUMENT_HYGIENE.md) for documentation standards.
 
-Follow the [Multi-Phase Procedures](../../.team/MULTI_PHASE_ISSUES.md) when creating parent-child work items.
+Follow the [Multi-Phase Procedures](../../.team/procedures/multi-phase-work-items.md) when creating parent-child work items.
 
-_Supplemental: [Documentation Artifacts](../../.team/DOCUMENTATION_ARTIFACTS.md) provides guidance on folder structure._
+_Supplemental: [Documentation Artifacts](../../../docs/DOCUMENTATION_ARTIFACTS.md) provides guidance on folder structure._
 ```
 
 ❌ **Bad Patterns (Duplications)**:
@@ -143,7 +143,7 @@ To create multi-phase work:
 ```markdown
 ## Multi-Phase Work Items
 
-For multi-phase work, see [Multi-Phase Issue Procedures](../../.team/MULTI_PHASE_ISSUES.md).
+For multi-phase work, see [Multi-Phase Issue Procedures](../../.team/procedures/multi-phase-work-items.md).
 ```
 
 Or with Required Context:
@@ -152,7 +152,7 @@ Or with Required Context:
 
 **⚠️ IMPORTANT**: Read the following documents before proceeding:
 
-- **[Multi-Phase Issue Procedures](../../.team/MULTI_PHASE_ISSUES.md)** - Required for parent-child work item management
+- **[Multi-Phase Issue Procedures](../../.team/procedures/multi-phase-work-items.md)** - Required for parent-child work item management
 ```
 
 ### Step 5: Document Check Results
@@ -242,17 +242,17 @@ Found dependencies:
 
 **Good Reference Patterns Identified**:
 ```markdown
-See [Document Hygiene](../../.team/DOCUMENT_HYGIENE.md) for documentation standards.
+See [Document Hygiene](../../docs/DOCUMENT_HYGIENE.md) for documentation standards.
 ```
 - ✅ Clear, concise, directs to canonical source
 
 ```markdown
-Follow the [Multi-Phase Procedures](../../.team/MULTI_PHASE_ISSUES.md) when creating parent-child work items.
+Follow the [Multi-Phase Procedures](../../.team/procedures/multi-phase-work-items.md) when creating parent-child work items.
 ```
 - ✅ Action-oriented reference with context
 
 ```markdown
-_Supplemental: [Documentation Artifacts](../../.team/DOCUMENTATION_ARTIFACTS.md) provides guidance on folder structure._
+_Supplemental: [Documentation Artifacts](../../../docs/DOCUMENTATION_ARTIFACTS.md) provides guidance on folder structure._
 ```
 - ✅ Indicates optional/supplemental nature
 
@@ -280,14 +280,14 @@ To create multi-phase work:
 **After (Reference)**:
 ```markdown
 ## Multi-Phase Work Items
-For multi-phase work, see [Multi-Phase Issue Procedures](../../.team/MULTI_PHASE_ISSUES.md).
+For multi-phase work, see [Multi-Phase Issue Procedures](../../.team/procedures/multi-phase-work-items.md).
 ```
 
 **Alternative with Required Context**:
 ```markdown
 ## Required Context
 **⚠️ IMPORTANT**: Read the following documents before proceeding:
-- **[Multi-Phase Issue Procedures](../../.team/MULTI_PHASE_ISSUES.md)** - Required for parent-child work item management
+- **[Multi-Phase Issue Procedures](../../.team/procedures/multi-phase-work-items.md)** - Required for parent-child work item management
 ```
 
 **Observation**: Refactoring guidance is clear with concrete before/after examples

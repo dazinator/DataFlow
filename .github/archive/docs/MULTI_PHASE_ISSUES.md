@@ -430,5 +430,6 @@ When adding multi-phase procedures to a workflow:
 
 **See Also:**
 - [Workflow Topology Guide](/.github/docs/WORKFLOW_TOPOLOGY_GUIDE.md) - For workflow transitions
-- [Implementation Workflow](/.team/prompts/IMPLEMENTATION_WORKFLOW.md) - Implementation-specific guidance
-- [Research Workflow](/.team/prompts/RESEARCH_WORKFLOW.md) - Research-specific guidance
+- [Implementation Duty](/.team/duties/IMPLEMENTATION_DUTY.md) - Implementation-specific guidance
+- [Research Duty](/.team/duties/RESEARCH_DUTY.md) - Research-specific guidance
+- [Multi-Phase Work Items Procedure](/.team/procedures/multi-phase-work-items.md) - Complete multi-phase guidance

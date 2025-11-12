@@ -69,6 +69,58 @@ This document provides an overview of the GitHub Actions workflows implemented f
 - Allows comparing performance over time via git history
 - POC epoch benchmarks are prefixed with `poc-` for easy identification
 
+### 3. Prompt Architecture Validation (`.github/workflows/validate-prompt-architecture.yml`)
+
+**Trigger:** 
+- Pull requests that modify files in `.team/**`, `.github/copilot-instructions.md`, or `docs/design/prompt-engineering/**`
+- Pushes to `main` or `develop` branches with the same path filters
+
+**Purpose:** Automated validation of the prompt/workflow architecture to ensure integrity and prevent leaks
+
+**Job: validate-prompt-architecture**
+- Makes all validation scripts executable
+- Runs four validation checks in sequence:
+
+#### Check for Kernel Leaks
+- Runs `.team/scripts/check-kernel-leaks.sh`
+- Detects platform-specific operations (GitHub API calls, labels) outside the kernel layer
+- Ensures procedures and duties use semantic operations only
+- Fails PR if leaks are detected
+
+#### Check for Dependency Leaks
+- Runs `.team/scripts/check-dependency-leaks.sh`
+- Detects content duplication across the dependency graph
+- Ensures single source of truth is maintained
+- Fails PR if leaks are detected
+
+#### Validate Graph Integrity
+- Runs `.team/scripts/validate-graph.sh`
+- Validates `.team/model-graph.yaml` structure
+- Checks for cycles, orphaned nodes, missing files
+- Ensures all dependencies are valid
+- Fails PR if graph is invalid
+
+#### Check for Graph Drift
+- Runs `.team/scripts/check-graph-drift.sh`
+- Detects drift between graph and actual file structure
+- Identifies missing files referenced in graph (errors)
+- Identifies undocumented files not in graph (warnings)
+- Fails PR only on errors, warnings don't block merge
+
+**Features:**
+- All check results are displayed in the GitHub Actions summary
+- Detailed logs for each validation are shown
+- Summary table at the end shows status of all checks
+- Provides safety net if reviewer or agent forgets to run validations
+- Prevents merging PRs with architecture violations
+
+**Required Status Checks:**
+To make this workflow block PR merging, add "validate-prompt-architecture" as a required status check in repository settings:
+1. Go to Settings → Branches → Branch protection rules
+2. Select rule for main/develop branch
+3. Enable "Require status checks to pass before merging"
+4. Search for and add "validate-prompt-architecture"
+
 ## Benchmark Results Storage
 
 Benchmark results are stored in multiple locations:

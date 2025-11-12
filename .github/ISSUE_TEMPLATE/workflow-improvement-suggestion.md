@@ -68,7 +68,7 @@ Check all that apply:
 **Workflow**: Follow `.team/prompts/PROCESS_MODELING_WORKFLOW.md` for complete process.
 
 **Quick Reference:**
-- Read [Document Hygiene Guide](../.team/DOCUMENT_HYGIENE.md) before creating/updating documentation
+- Read [Document Hygiene Guide](../../docs/DOCUMENT_HYGIENE.md) before creating/updating documentation
 - Create test scenarios in `/research/workflow-modeling/scenarios/[workflow-name]/`
 - Execute tabletop simulations to validate changes
 - Complete self-improvement evaluation before PR review

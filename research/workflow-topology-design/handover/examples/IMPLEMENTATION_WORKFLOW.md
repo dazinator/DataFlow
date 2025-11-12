@@ -95,7 +95,7 @@ Before implementing, ask yourself:
 - [ ] Should baseline benchmarks be migrated or archived?
 - [ ] Are there bulk migration patterns that need tooling?
 - [ ] Is phased vs atomic implementation specified?
-- [ ] For NuGet security fixes, does handover specify version selection? (See [Dependency Update Guide](../../.team/NUGET_DEPENDENCY_UPDATES.md))
+- [ ] For NuGet security fixes, does handover specify version selection? (See [Dependency Update Guide](../../docs/guides/NUGET_DEPENDENCY_UPDATES.md))
 - [ ] If sample code requiring external services (databases, OTLP, etc.), are they documented?
 
 ### What to Do When Issues Found
@@ -569,7 +569,7 @@ public static class TestActorFactory
 
 **For NuGet package updates** (security fixes, version updates, dependency conflicts):
 
-📖 **See [Dependency Update Guide](../../.team/NUGET_DEPENDENCY_UPDATES.md)** for comprehensive guidance on:
+📖 **See [Dependency Update Guide](../../docs/guides/NUGET_DEPENDENCY_UPDATES.md)** for comprehensive guidance on:
 - Dependency update patterns and package families
 - Version selection (security fixes, .NET compatibility)
 - Handling package conflicts and downgrade warnings
@@ -579,7 +579,7 @@ public static class TestActorFactory
 **Quick reference for common tasks:**
 - Check for outdated packages: `dotnet list package --outdated`
 - Check for vulnerabilities: `dotnet list package --vulnerable`
-- See `.team/NUGET_DEPENDENCY_UPDATES.md` for detailed patterns
+- See `docs/guides/NUGET_DEPENDENCY_UPDATES.md` for detailed patterns
 
 ### Documentation Requirements
 
@@ -653,7 +653,7 @@ Where should I put this documentation?
 - Handle edge cases from handover
 - **Do not** fix unrelated failures
 
-**For NuGet package dependency updates**: See [Dependency Update Guide](../../.team/NUGET_DEPENDENCY_UPDATES.md) section on "Validation and Testing" for specific guidance on:
+**For NuGet package dependency updates**: See [Dependency Update Guide](../../docs/guides/NUGET_DEPENDENCY_UPDATES.md) section on "Validation and Testing" for specific guidance on:
 - When build verification is sufficient vs full test suite
 - Vulnerability scanning with `dotnet list package --vulnerable`
 - Handling pre-existing test failures

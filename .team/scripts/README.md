@@ -196,6 +196,40 @@ This directory contains scripts for:
 
 ---
 
+#### check-graph-drift.sh
+
+**Purpose**: Detect drift between graph and actual documents
+
+**Usage**:
+```bash
+./.team/scripts/check-graph-drift.sh
+```
+
+**What it detects**:
+- Graph nodes referencing missing files
+- Duty files not documented in graph
+- Procedure files not documented in graph
+- Kernel files not documented in graph
+
+**How it works**:
+1. Parses `.team/model-graph.yaml` to extract all node paths
+2. Verifies each referenced file exists
+3. Scans `.team/duties/`, `.team/procedures/`, `.team/kernel/` for undocumented files
+4. Reports errors (missing files) and warnings (undocumented files)
+
+**Output**:
+- Missing file errors (graph references non-existent files)
+- Undocumented file warnings (files exist but aren't in graph)
+- Summary with error and warning counts
+
+**Exit Codes**:
+- `0`: No drift detected or warnings only
+- `1`: Errors detected (missing files)
+
+**Use Case**: Ensure graph stays synchronized with actual file structure
+
+---
+
 ## Workflows
 
 ### Before Committing Changes
@@ -204,6 +238,9 @@ This directory contains scripts for:
 ```bash
 # Validate graph integrity
 ./.team/scripts/validate-graph.sh
+
+# Check for graph drift
+./.team/scripts/check-graph-drift.sh
 
 # Check for kernel leaks (if modifying procedures/duties)
 ./.team/scripts/check-kernel-leaks.sh
@@ -263,6 +300,7 @@ diff .team/model-graph.yaml /tmp/inferred.yaml
 ```bash
 # Run all validations
 ./.team/scripts/validate-graph.sh && \
+./.team/scripts/check-graph-drift.sh && \
 ./.team/scripts/check-kernel-leaks.sh && \
 ./.team/scripts/check-dependency-leaks.sh
 
@@ -349,4 +387,5 @@ vim .team/procedures/new-procedure.md
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.1 | 2025-11-12 | Added check-graph-drift.sh for detecting drift between graph and files |
 | 1.0 | 2025-11-12 | Initial script documentation - all 6 scripts |

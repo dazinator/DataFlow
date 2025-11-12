@@ -112,14 +112,17 @@ check_file_for_leaks() {
         IFS='|' read -ra patterns <<< "${domain_patterns[$domain]}"
         
         for pattern in "${patterns[@]}"; do
-            if grep -qE "$pattern" "$file" 2>/dev/null; then
+            # Find matches, but exclude anti-pattern examples (lines with "# Wrong" or in anti-pattern code blocks)
+            matches=$(grep -nE "$pattern" "$file" 2>/dev/null | grep -vE "(# Wrong|❌)" || true)
+            
+            if [[ -n "$matches" ]]; then
                 if [[ "$found_leaks" == false ]]; then
                     echo -e "${RED}✗${NC} Kernel leak detected in: $rel_path"
                     found_leaks=true
                 fi
                 
-                # Show context
-                line_num=$(grep -nE "$pattern" "$file" | head -1 | cut -d: -f1)
+                # Show first match context
+                line_num=$(echo "$matches" | head -1 | cut -d: -f1)
                 echo -e "  ${YELLOW}Line $line_num:${NC} $domain pattern '$pattern' found"
             fi
         done
@@ -146,13 +149,13 @@ for check_item in "${CHECK_DIRS[@]}"; do
             ((files_with_leaks++))
         fi
     elif [[ -d "$check_path" ]]; then
-        # Directory
+        # Directory (exclude tests subdirectories)
         while IFS= read -r -d '' file; do
             ((total_files++))
             if ! check_file_for_leaks "$file"; then
                 ((files_with_leaks++))
             fi
-        done < <(find "$check_path" -name "*.md" -type f -print0 2>/dev/null)
+        done < <(find "$check_path" -name "*.md" -type f -not -path "*/tests/*" -print0 2>/dev/null)
     fi
 done
 

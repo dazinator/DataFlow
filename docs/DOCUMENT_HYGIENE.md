@@ -32,12 +32,12 @@ workflows/WORKFLOW_GUIDE.md
 
 **Example - After (well-factored)**:
 ```
-workflows/
-├── RESEARCH_WORKFLOW.md         # Single purpose: research process
-├── IMPLEMENTATION_WORKFLOW.md   # Single purpose: implementation process
-├── TECH_DEBT_WORKFLOW.md        # Single purpose: tech debt discovery
-├── CODE_REVIEW_GUIDE.md         # Single purpose: review standards
-└── README.md                    # Index to all workflows
+duties/
+├── RESEARCH_DUTY.md              # Single purpose: research process
+├── IMPLEMENTATION_DUTY.md        # Single purpose: implementation process
+├── TECH_DEBT_DUTY.md             # Single purpose: tech debt discovery
+├── TRIAGE_DUTY.md                # Single purpose: work item assessment
+└── README.md                     # Index to all duties
 ```
 
 ### 2. DRY (Don't Repeat Yourself)
@@ -46,14 +46,14 @@ Avoid duplicating information across documents. Instead, reference the canonical
 
 **Bad**:
 ```markdown
-<!-- In RESEARCH_WORKFLOW.md -->
+<!-- In RESEARCH_DUTY.md -->
 Research folder structure:
 /research/[topic]/
 ├── README.md
 ├── research-plan.md
 └── notes/
 
-<!-- In TECH_DEBT_WORKFLOW.md -->
+<!-- In TECH_DEBT_DUTY.md -->
 Tech debt folder structure:
 /research/tech-debt-[date]/
 ├── README.md
@@ -63,10 +63,10 @@ Tech debt folder structure:
 
 **Good**:
 ```markdown
-<!-- In RESEARCH_WORKFLOW.md -->
+<!-- In RESEARCH_DUTY.md -->
 See [Research Folder Structure](/research/FOLDER_STRUCTURE.md) for canonical layout.
 
-<!-- In TECH_DEBT_WORKFLOW.md -->
+<!-- In TECH_DEBT_DUTY.md -->
 Follow standard research folder structure (see `/research/FOLDER_STRUCTURE.md`).
 ```
 
@@ -146,11 +146,11 @@ Add to document frontmatter:
 
 ## Refactoring Exercise Example
 
-### Scenario: Workflow Documentation Growing Too Large
+### Scenario: Duty Documentation Growing Too Large
 
 **Initial State**:
-`RESEARCH_WORKFLOW.md` is 800 lines and covers:
-- Research workflow (primary purpose)
+`RESEARCH_DUTY.md` is 800 lines and covers:
+- Research duty process (primary purpose)
 - Research folder structure
 - Implementation issue template format
 - Code reversion procedures
@@ -158,18 +158,18 @@ Add to document frontmatter:
 
 **Problem Indicators**:
 - Document is hard to navigate
-- Folder structure info needed by multiple workflows
+- Folder structure info needed by multiple duties
 - Template format is referenced from other places
-- Code reversion is shared across workflows
+- Code reversion is shared across duties
 
 **Refactoring Steps**:
 
 1. **Identify concerns**:
-   - Core workflow process (keep in RESEARCH_WORKFLOW.md)
+   - Core duty process (keep in RESEARCH_DUTY.md)
    - Folder structure (extract to FOLDER_STRUCTURE.md)
    - Issue templates (extract to IMPLEMENTATION_ISSUE_TEMPLATE.md)
    - Reversion process (could stay or extract if shared)
-   - Self-improvement (already in workflow-improvements.md)
+   - Self-improvement (already in procedures/self-improvement.md)
 
 2. **Extract standalone documents**:
    ```bash
@@ -195,7 +195,7 @@ Add to document frontmatter:
    ```markdown
    # Research Documentation
    
-   - [Research Workflow](RESEARCH_WORKFLOW.md) - Main process
+   - [Research Duty](RESEARCH_DUTY.md) - Main process
    - [Folder Structure](FOLDER_STRUCTURE.md) - Canonical layout
    - [Issue Templates](IMPLEMENTATION_ISSUE_TEMPLATE.md) - Handover format
    ```
@@ -374,11 +374,11 @@ Key points:
 ### Well-Factored Documentation
 
 ```
-.team/prompts/
-├── RESEARCH_WORKFLOW.md          # Single purpose: research process
-├── IMPLEMENTATION_WORKFLOW.md    # Single purpose: implementation  
-├── TECH_DEBT_WORKFLOW.md         # Single purpose: tech debt discovery
-└── PROCESS_MODELING_WORKFLOW.md  # Single purpose: process modeling
+.team/duties/
+├── RESEARCH_DUTY.md              # Single purpose: research process
+├── IMPLEMENTATION_DUTY.md        # Single purpose: implementation  
+├── TECH_DEBT_DUTY.md             # Single purpose: tech debt discovery
+└── PROCESS_MODELING_DUTY.md      # Single purpose: process modeling
 
 research/
 ├── FOLDER_STRUCTURE.md           # Canonical: folder layout
@@ -387,16 +387,16 @@ research/
 ```
 
 **Why this works**:
-- Each workflow document has single clear purpose
+- Each duty document has single clear purpose
 - Shared concerns (folder structure, templates) extracted
 - Easy to find what you need
 - Updates to shared concerns happen in one place
 
 ### Using Diagrams Effectively
 
-See `RESEARCH_WORKFLOW.md` for examples of:
+See `RESEARCH_DUTY.md` for examples of:
 - Flowchart showing 6-phase process
-- Decision tree for when to use workflow
+- Decision tree for when to use duty
 - Folder structure visualization
 
 See `TECH_DEBT_WORKFLOW.md` for examples of:
@@ -424,6 +424,6 @@ See `TECH_DEBT_WORKFLOW.md` for examples of:
 ---
 
 **Related Documentation**:
-- [Research Workflow](workflows/RESEARCH_WORKFLOW.md) - References this for doc standards
-- [Implementation Workflow](workflows/IMPLEMENTATION_WORKFLOW.md) - References this for doc standards
-- [Workflow Improvements](workflow-improvements.md) - Tracks documentation improvement suggestions
+- [Research Duty](duties/RESEARCH_DUTY.md) - References this for doc standards
+- [Implementation Duty](duties/IMPLEMENTATION_DUTY.md) - References this for doc standards
+- [Self-Improvement Procedure](procedures/self-improvement.md) - Tracks documentation improvement suggestions

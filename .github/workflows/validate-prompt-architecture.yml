@@ -1,0 +1,120 @@
+name: Prompt Architecture Validation
+
+on:
+  pull_request:
+    paths:
+      - '.team/**'
+      - '.github/copilot-instructions.md'
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - '.team/**'
+      - '.github/copilot-instructions.md'
+
+jobs:
+  validate-prompt-architecture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Make scripts executable
+      run: |
+        chmod +x .team/scripts/check-kernel-leaks.sh
+        chmod +x .team/scripts/check-dependency-leaks.sh
+        chmod +x .team/scripts/validate-graph.sh
+        chmod +x .team/scripts/check-graph-drift.sh
+    
+    - name: Check for kernel leaks
+      id: kernel-leaks
+      run: |
+        echo "## Kernel Leak Detection" >> $GITHUB_STEP_SUMMARY
+        if .team/scripts/check-kernel-leaks.sh > kernel-leaks.log 2>&1; then
+          echo "✓ No kernel leaks detected" >> $GITHUB_STEP_SUMMARY
+          echo "status=pass" >> $GITHUB_OUTPUT
+        else
+          echo "✗ Kernel leaks detected" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat kernel-leaks.log >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "status=fail" >> $GITHUB_OUTPUT
+          exit 1
+        fi
+    
+    - name: Check for dependency leaks
+      id: dependency-leaks
+      run: |
+        echo "## Dependency Leak Detection" >> $GITHUB_STEP_SUMMARY
+        if .team/scripts/check-dependency-leaks.sh > dependency-leaks.log 2>&1; then
+          echo "✓ No dependency leaks detected" >> $GITHUB_STEP_SUMMARY
+          echo "status=pass" >> $GITHUB_OUTPUT
+        else
+          echo "✗ Dependency leaks detected" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat dependency-leaks.log >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "status=fail" >> $GITHUB_OUTPUT
+          exit 1
+        fi
+    
+    - name: Validate graph integrity
+      id: graph-validation
+      run: |
+        echo "## Graph Validation" >> $GITHUB_STEP_SUMMARY
+        if .team/scripts/validate-graph.sh > graph-validation.log 2>&1; then
+          echo "✓ Graph is valid" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat graph-validation.log >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "status=pass" >> $GITHUB_OUTPUT
+        else
+          echo "✗ Graph validation failed" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat graph-validation.log >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "status=fail" >> $GITHUB_OUTPUT
+          exit 1
+        fi
+    
+    - name: Check for graph drift
+      id: graph-drift
+      run: |
+        echo "## Graph Drift Detection" >> $GITHUB_STEP_SUMMARY
+        if .team/scripts/check-graph-drift.sh > graph-drift.log 2>&1; then
+          echo "✓ No graph drift detected" >> $GITHUB_STEP_SUMMARY
+          echo "status=pass" >> $GITHUB_OUTPUT
+        else
+          # Check exit code - 0 is pass, anything else check the log
+          exit_code=$?
+          if grep -q "warning(s) - graph may be incomplete" graph-drift.log; then
+            echo "⚠️ Graph drift warnings detected" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat graph-drift.log >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "status=warning" >> $GITHUB_OUTPUT
+            # Don't fail on warnings, just show them
+          else
+            echo "✗ Graph drift errors detected" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat graph-drift.log >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "status=fail" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+        fi
+    
+    - name: Summary
+      if: always()
+      run: |
+        echo "## Validation Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+        echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Kernel Leaks | ${{ steps.kernel-leaks.outputs.status || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Dependency Leaks | ${{ steps.dependency-leaks.outputs.status || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Graph Validation | ${{ steps.graph-validation.outputs.status || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Graph Drift | ${{ steps.graph-drift.outputs.status || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY

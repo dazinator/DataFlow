@@ -506,8 +506,8 @@ curl -s "https://api.nuget.org/v3-flatcontainer/{package}/{version}/{package}.nu
 ## Related Documentation
 
 - [NuGet Dependency Updates Guide](/.team/NUGET_DEPENDENCY_UPDATES.md) - Updating packages for security
-- [Implementation Workflow](/.team/prompts/IMPLEMENTATION_WORKFLOW.md) - General implementation guidance
-- [Research Workflow](/.team/prompts/RESEARCH_WORKFLOW.md) - Exploring new dependencies
+- [Implementation Duty](/.team/duties/IMPLEMENTATION_DUTY.md) - General implementation guidance
+- [Research Duty](/.team/duties/RESEARCH_DUTY.md) - Exploring new dependencies
 
 ---
 

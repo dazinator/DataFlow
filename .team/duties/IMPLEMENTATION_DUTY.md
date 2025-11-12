@@ -15,7 +15,7 @@
 
 - **[Semantic Language](../../docs/design/prompt-engineering/semantic-language.md)** - Semantic operations used below
 - **[Kernel Layer](../kernel/README.md)** - Platform abstraction layer
-- **[Getting Started Guide](../../.team/GETTING_STARTED.md)** - DataFlow coding standards and patterns
+- **[Getting Started Guide](../../../docs/guides/GETTING_STARTED.md)** - DataFlow coding standards and patterns
 - **[Multi-Phase Work Items](../procedures/multi-phase-work-items.md)** - Parent-child work item management
 - **[Handover Procedure](../procedures/handover.md)** - Transitioning work items between duties
 - **[Work Item Creation Procedure](../procedures/work-item-creation.md)** - Creating new work items
@@ -213,7 +213,7 @@ Add plan as work item comment for tracking.
 ### Step 5: Implement Code Changes
 
 **Follow DataFlow Coding Standards**:
-- See [Getting Started Guide](../../.team/GETTING_STARTED.md) for:
+- See [Getting Started Guide](../../../docs/guides/GETTING_STARTED.md) for:
   - C# coding style
   - Async/await patterns
   - Performance considerations
@@ -299,7 +299,7 @@ public class MyFeatureTests
 - Analysis documents in `/docs/analysis/`
 - ADRs in `/docs/adr/`
 
-**See**: [Documentation Artifacts](../../.team/DOCUMENTATION_ARTIFACTS.md)
+**See**: [Documentation Artifacts](../../../docs/DOCUMENTATION_ARTIFACTS.md)
 
 ---
 
@@ -621,12 +621,12 @@ flowchart TD
 - [Self-Improvement Procedure](../procedures/self-improvement.md)
 
 **Coding Standards**:
-- [Getting Started Guide](../../.team/GETTING_STARTED.md)
-- [Central Package Management](../../.team/CENTRAL_PACKAGE_MANAGEMENT.md)
-- [NuGet Dependency Updates](../../.team/NUGET_DEPENDENCY_UPDATES.md)
+- [Getting Started Guide](../../../docs/guides/GETTING_STARTED.md)
+- [Central Package Management](../../docs/guides/CENTRAL_PACKAGE_MANAGEMENT.md)
+- [NuGet Dependency Updates](../../docs/guides/NUGET_DEPENDENCY_UPDATES.md)
 
 **Documentation Standards**:
-- [Documentation Artifacts](../../.team/DOCUMENTATION_ARTIFACTS.md)
+- [Documentation Artifacts](../../../docs/DOCUMENTATION_ARTIFACTS.md)
 - [Documentation Standards](/.github/copilot-instructions.md#documentation-standards)
 
 **Design References**:

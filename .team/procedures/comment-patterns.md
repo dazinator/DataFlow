@@ -523,7 +523,7 @@ add_issue_comment(
 
 ## Testing
 
-**Test Scenarios**: `/research/workflow-modeling/scenarios/procedures/comment-patterns/`
+**Test Scenarios**: `.team/procedures/tests/comment-patterns/`
 
 **Key Scenarios**:
 1. Standard comment types (assignment, handover, completion)

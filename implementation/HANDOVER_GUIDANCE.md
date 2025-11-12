@@ -329,6 +329,7 @@ a phased approach essential for:
 ---
 
 **Related Documentation**:
-- [Implementation Workflow](/.team/prompts/IMPLEMENTATION_WORKFLOW.md)
-- [Research Workflow](/.team/prompts/RESEARCH_WORKFLOW.md)
+- [Implementation Duty](/.team/duties/IMPLEMENTATION_DUTY.md)
+- [Research Duty](/.team/duties/RESEARCH_DUTY.md)
+- [Multi-Phase Work Items](/.team/procedures/multi-phase-work-items.md)
 - [Implementation Issue Template](/research/IMPLEMENTATION_ISSUE_TEMPLATE.md)

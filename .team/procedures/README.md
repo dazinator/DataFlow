@@ -166,7 +166,7 @@ Follow [Work Item Creation Procedure](../../procedures/work-item-creation.md) wi
 
 **Test Methodology**: Scenario-based tabletop testing
 
-**Test Location**: `/research/workflow-modeling/scenarios/procedures/`
+**Test Location**: `.team/procedures/tests/`
 
 **See**: [Testing Framework](../../docs/design/prompt-engineering/testing-framework.md#node-type-2-global-procedures)
 

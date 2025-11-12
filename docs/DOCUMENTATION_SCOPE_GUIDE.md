@@ -94,7 +94,7 @@ These concepts are needed by ALL workflows and belong in copilot-instructions.md
 | Workflow File Ownership | Global | copilot-instructions.md | Top | All workflows respect boundaries |
 | Multi-Phase Issue Convention | Global | copilot-instructions.md | Top | All workflows may create sub-issues |
 | Comment Prefix Convention | Global | copilot-instructions.md | Top | All workflows use prefixes |
-| Document Hygiene | Global | `.team/DOCUMENT_HYGIENE.md` | Middle | All workflows create/update documentation |
+| Document Hygiene | Global | `docs/DOCUMENT_HYGIENE.md` | Middle | All workflows create/update documentation |
 | Building and Testing | Global | copilot-instructions.md | Bottom | All workflows build/test |
 | License Info | Global | copilot-instructions.md | Bottom | Legal requirement, always visible |
 
@@ -106,9 +106,9 @@ These concepts are used by multiple workflows and belong in shared .team/ docume
 
 | Concept | Scope | Current Location | Used By | Target Location |
 |---------|-------|-----------------|---------|----------------|
-| Getting Started Guide | Shared | `.team/GETTING_STARTED.md` (NEW) | Implementation, Research | `.team/GETTING_STARTED.md` ✅ |
-| Central Package Management | Shared | `.team/CENTRAL_PACKAGE_MANAGEMENT.md` | Implementation, Research | `.team/CENTRAL_PACKAGE_MANAGEMENT.md` ✅ |
-| NuGet Dependency Updates | Shared | `.team/NUGET_DEPENDENCY_UPDATES.md` | Implementation, Research | `.team/NUGET_DEPENDENCY_UPDATES.md` ✅ |
+| Getting Started Guide | Shared | `docs/guides/GETTING_STARTED.md` (NEW) | Implementation, Research | `docs/guides/GETTING_STARTED.md` ✅ |
+| Central Package Management | Shared | `docs/guides/CENTRAL_PACKAGE_MANAGEMENT.md` | Implementation, Research | `docs/guides/CENTRAL_PACKAGE_MANAGEMENT.md` ✅ |
+| NuGet Dependency Updates | Shared | `docs/guides/NUGET_DEPENDENCY_UPDATES.md` | Implementation, Research | `docs/guides/NUGET_DEPENDENCY_UPDATES.md` ✅ |
 
 **Note on Getting Started Guide**: Contains C# coding standards, async/await patterns, testing standards, common patterns, and anti-patterns. Referenced from Implementation and Research workflows' Required Reading sections.
 
@@ -280,7 +280,7 @@ When creating new .team/ documents or updating scopes:
 - Duplicated some content with NUGET_DEPENDENCY_UPDATES.md
 
 **After**:
-- Complete guide in `.team/CENTRAL_PACKAGE_MANAGEMENT.md`
+- Complete guide in `docs/guides/CENTRAL_PACKAGE_MANAGEMENT.md`
 - Cross-references with NUGET_DEPENDENCY_UPDATES.md
 - copilot-instructions.md has brief reference
 - Implementation/Research workflows reference in "Required Reading"
@@ -309,6 +309,6 @@ When creating new .team/ documents or updating scopes:
 
 ## Related Documentation
 
-- [Document Hygiene Guide](/.team/DOCUMENT_HYGIENE.md) - Principles for maintainable docs
-- [Process Modeling Workflow](/.team/prompts/PROCESS_MODELING_WORKFLOW.md) - How to update workflows
+- [Document Hygiene Guide](/docs/DOCUMENT_HYGIENE.md) - Principles for maintainable docs
+- [Process Modeling Duty](/.team/duties/PROCESS_MODELING_DUTY.md) - How to update workflows and processes
 - [Workflow Topology Guide](/.github/docs/WORKFLOW_TOPOLOGY_GUIDE.md) - Workflow system overview

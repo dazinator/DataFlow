@@ -1,7 +1,7 @@
 # Prompt System Dependency Graph
-# Version: 1.3 (Phase 4 - Orchestration Update)
+# Version: 1.4 (Phase 5 - Cleanup & Validation)
 # Created: 2025-11-12
-# Updated: 2025-11-12 (Phase 4: Orchestration updated to use layered architecture)
+# Updated: 2025-11-12 (Phase 5: Workflow files archived, dependencies updated)
 # Maintained by: Process Modeling Workflow
 #
 # This file documents the dependency graph of the prompt/workflow system.
@@ -9,9 +9,10 @@
 #
 # Node Types:
 #   - orchestration: Entry point (copilot-instructions.md)
-#   - workflow: Current workflow files (will become "duty" in migration)
-#   - procedure: Global procedures layer (platform-agnostic, duty-independent) - Phase 2
-#   - kernel: Kernel layer (platform abstraction) - Phase 1
+#   - workflow: ARCHIVED - Old workflow files (replaced by duties)
+#   - duty: New duty-based system (active)
+#   - procedure: Global procedures layer (platform-agnostic, duty-independent)
+#   - kernel: Kernel layer (platform abstraction)
 #   - supporting-doc: Supporting documentation referenced by workflows
 #   - system-doc: System-level documentation
 #
@@ -47,6 +48,13 @@
 #   - Duty assignment and dispatch logic implemented
 #   - All references updated from "workflow" to "duty"
 #   - Graph updated with orchestration layer dependencies
+#
+# Phase 5 Complete:
+#   - Old workflow files archived to .github/archive/workflows/
+#   - All references to workflow files updated
+#   - Backward compatibility removed
+#   - Full regression testing completed
+#   - System validated and ready for production
 
 nodes:
   # Orchestration Layer
@@ -55,57 +63,82 @@ nodes:
     path: .github/copilot-instructions.md
     description: Main entry point for Copilot agents
     
-  # Current Workflow Files (Pre-Migration)
+  # ARCHIVED: Old Workflow Files (Pre-Migration) - Replaced by Duties
+  # These files are now in .github/archive/workflows/ for historical reference
   - id: workflow-triage
     type: workflow
-    path: .team/prompts/TRIAGE_WORKFLOW.md
-    description: Assess and route new issues
+    path: .github/archive/workflows/TRIAGE_WORKFLOW.md
+    description: "[ARCHIVED] Assess and route new issues - replaced by duty-triage"
+    archived: true
+    replaced_by: duty-triage
     
   - id: workflow-research
     type: workflow
-    path: .team/prompts/RESEARCH_WORKFLOW.md
-    description: Validate approaches and create specifications
+    path: .github/archive/workflows/RESEARCH_WORKFLOW.md
+    description: "[ARCHIVED] Validate approaches and create specifications - replaced by duty-research"
+    archived: true
+    replaced_by: duty-research
     
   - id: workflow-implementation
     type: workflow
-    path: .team/prompts/IMPLEMENTATION_WORKFLOW.md
-    description: Implement validated designs
+    path: .github/archive/workflows/IMPLEMENTATION_WORKFLOW.md
+    description: "[ARCHIVED] Implement validated designs - replaced by duty-implementation"
+    archived: true
+    replaced_by: duty-implementation
     
   - id: workflow-tech-debt
     type: workflow
-    path: .team/prompts/TECH_DEBT_WORKFLOW.md
-    description: Discover and address technical debt
+    path: .github/archive/workflows/TECH_DEBT_WORKFLOW.md
+    description: "[ARCHIVED] Discover and address technical debt - replaced by duty-tech-debt"
+    archived: true
+    replaced_by: duty-tech-debt
     
   - id: workflow-product-prioritization
     type: workflow
-    path: .team/prompts/PRODUCT_PRIORITIZATION_WORKFLOW.md
-    description: Prioritize backlog items
+    path: .github/archive/workflows/PRODUCT_PRIORITIZATION_WORKFLOW.md
+    description: "[ARCHIVED] Prioritize backlog items - replaced by duty-product-prioritization"
+    archived: true
+    replaced_by: duty-product-prioritization
     
   - id: workflow-process-modeling
     type: workflow
-    path: .team/prompts/PROCESS_MODELING_WORKFLOW.md
-    description: Improve workflows and processes
+    path: .github/archive/workflows/PROCESS_MODELING_WORKFLOW.md
+    description: "[ARCHIVED] Improve workflows and processes - replaced by duty-process-modeling"
+    archived: true
+    replaced_by: duty-process-modeling
     
   # Supporting Documentation
   - id: doc-document-hygiene
     type: supporting-doc
-    path: .team/DOCUMENT_HYGIENE.md
+    path: docs/DOCUMENT_HYGIENE.md
     description: Core documentation principles
     
-  - id: doc-documentation-artifacts
+  # Developer Guides (moved to /docs/guides)
+  - id: doc-central-package-management
     type: supporting-doc
-    path: .team/DOCUMENTATION_ARTIFACTS.md
-    description: Global documentation structure
+    path: docs/guides/CENTRAL_PACKAGE_MANAGEMENT.md
+    description: NuGet package management guide
     
-  - id: doc-multi-phase-issues
+  - id: doc-nuget-dependency-updates
     type: supporting-doc
-    path: .team/MULTI_PHASE_ISSUES.md
-    description: Multi-phase issue management procedures
+    path: docs/guides/NUGET_DEPENDENCY_UPDATES.md
+    description: Dependency update best practices
     
   - id: doc-getting-started
     type: supporting-doc
-    path: .team/GETTING_STARTED.md
+    path: docs/guides/GETTING_STARTED.md
     description: DataFlow coding standards and patterns
+    
+  # Documentation System Guides (moved to /docs)
+  - id: doc-documentation-artifacts
+    type: supporting-doc
+    path: docs/DOCUMENTATION_ARTIFACTS.md
+    description: Global documentation structure
+    
+  - id: doc-documentation-scope-guide
+    type: supporting-doc
+    path: docs/DOCUMENTATION_SCOPE_GUIDE.md
+    description: Documentation organization framework
     
   # System Documentation
   - id: doc-workflow-topology
@@ -213,7 +246,7 @@ nodes:
     
   - id: procedure-tests
     type: procedure
-    path: research/workflow-modeling/scenarios/procedures/README.md
+    path: .team/procedures/tests/README.md
     description: Procedure test scenarios overview
   
   # Duty Layer (Phase 3) - Migrated from workflow files
@@ -229,7 +262,7 @@ nodes:
   
   - id: duty-triage-tests
     type: duty
-    path: research/workflow-modeling/scenarios/duties/triage/README.md
+    path: .team/duties/tests/triage/README.md
     description: Triage duty test scenarios
   
   - id: duty-research
@@ -239,7 +272,7 @@ nodes:
   
   - id: duty-research-tests
     type: duty
-    path: research/workflow-modeling/scenarios/duties/research/README.md
+    path: .team/duties/tests/research/README.md
     description: Research duty test scenarios
   
   - id: duty-implementation
@@ -249,7 +282,7 @@ nodes:
   
   - id: duty-implementation-tests
     type: duty
-    path: research/workflow-modeling/scenarios/duties/implementation/README.md
+    path: .team/duties/tests/implementation/README.md
     description: Implementation duty test scenarios
   
   - id: duty-tech-debt
@@ -259,7 +292,7 @@ nodes:
   
   - id: duty-tech-debt-tests
     type: duty
-    path: research/workflow-modeling/scenarios/duties/tech-debt/README.md
+    path: .team/duties/tests/tech-debt/README.md
     description: Tech debt duty test scenarios
   
   - id: duty-product-prioritization
@@ -269,7 +302,7 @@ nodes:
   
   - id: duty-product-prioritization-tests
     type: duty
-    path: research/workflow-modeling/scenarios/duties/product-prioritization/README.md
+    path: .team/duties/tests/product-prioritization/README.md
     description: Product prioritization duty test scenarios
   
   - id: duty-unassigned
@@ -279,7 +312,7 @@ nodes:
   
   - id: duty-unassigned-tests
     type: duty
-    path: research/workflow-modeling/scenarios/duties/unassigned/README.md
+    path: .team/duties/tests/unassigned/README.md
     description: Unassigned duty test scenarios
   
   - id: duty-process-modeling
@@ -289,7 +322,7 @@ nodes:
   
   - id: duty-process-modeling-tests
     type: duty
-    path: research/workflow-modeling/scenarios/duties/process-modeling/README.md
+    path: .team/duties/tests/process-modeling/README.md
     description: Process modeling duty test scenarios (existing)
 
 edges:
@@ -374,7 +407,7 @@ edges:
     reason: Implementation follows DataFlow coding standards
     
   - from: workflow-implementation
-    to: doc-multi-phase-issues
+    to: procedure-multi-phase
     type: required
     reason: Implementation often involves multi-phase work
     
@@ -743,6 +776,16 @@ edges:
     type: required
     reason: Follows DataFlow coding standards and patterns
     
+  - from: duty-implementation
+    to: doc-central-package-management
+    type: optional
+    reason: May need package management guidance
+    
+  - from: duty-implementation
+    to: doc-nuget-dependency-updates
+    type: optional
+    reason: May update NuGet dependencies
+    
   - from: duty-implementation-tests
     to: duty-implementation
     type: required
@@ -753,6 +796,17 @@ edges:
     type: required
     reason: Tests follow duty testing methodology
   
+  # Phase 3: Duty Layer - Research Duty Documentation References
+  - from: duty-research
+    to: doc-documentation-artifacts
+    type: optional
+    reason: Creates analysis and design documents
+    
+  - from: doc-documentation-artifacts
+    to: doc-documentation-scope-guide
+    type: optional
+    reason: References scope guide for documentation decisions
+    
   # Phase 3: Duty Layer - Tech Debt Duty Dependencies
   - from: duty-tech-debt
     to: design-semantic-language

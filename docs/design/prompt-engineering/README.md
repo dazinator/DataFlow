@@ -141,7 +141,7 @@ Without formal design principles and platform abstraction:
 
 ### Process Constraints
 
-- **Document Hygiene**: Follow principles in `.team/DOCUMENT_HYGIENE.md`
+- **Document Hygiene**: Follow principles in `docs/DOCUMENT_HYGIENE.md`
 - **Version control**: All changes tracked via Git
 - **PR review**: Human review required before merge
 - **Feedback loop**: Self-improvement evaluation required after each change
@@ -1046,7 +1046,7 @@ All workflow documentation files are impacted by these design principles:
 
 ### Supporting Documentation
 
-- ✅ `.team/DOCUMENT_HYGIENE.md` - Documentation standards
+- ✅ `docs/DOCUMENT_HYGIENE.md` - Documentation standards
 - ✅ `.team/DOCUMENTATION_ARTIFACTS.md` - Artifact system
 - ✅ `.team/MULTI_PHASE_ISSUES.md` - Multi-phase guidance
 - ✅ `.github/docs/WORKFLOW_FEEDBACK_TRACKER.md` - Feedback system
@@ -1215,7 +1215,7 @@ def create_work_item(type, title, description, duty, labels=[]):
    - Rewrite feedback submission using semantic operations
 
 5. **Migrate Documentation Standards**
-   - Move `.team/DOCUMENT_HYGIENE.md` → `.team/procedures/documentation-standards.md`
+   - Move `docs/DOCUMENT_HYGIENE.md` → `.team/procedures/documentation-standards.md`
    - Ensure no platform-specific references
 
 **Example - Duty Assignment Rewrite**:
@@ -1930,7 +1930,7 @@ How will we know this design is successful?
 
 ### Foundation Documents
 
-- [Document Hygiene Guide](../../.team/DOCUMENT_HYGIENE.md) - Core documentation principles
+- [Document Hygiene Guide](../../docs/DOCUMENT_HYGIENE.md) - Core documentation principles
 - [Documentation Artifacts System](../../.team/DOCUMENTATION_ARTIFACTS.md) - Global doc structure
 - [Design Documentation](../README.md) - Design document conventions
 

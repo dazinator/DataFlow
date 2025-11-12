@@ -39,7 +39,7 @@ Implemented standardized multi-phase issue management procedures across all work
 2. **Parent context reading** - Agents understand overall plan and which phase they're implementing
 3. **Parent progress updates** - Agents update parent description as work progresses
 4. **Automatic parent closure** - Last sub-issue automatically closes parent via PR description
-5. **Centralized procedures** - Single source of truth in `.team/MULTI_PHASE_ISSUES.md`
+5. **Centralized procedures** - Single source of truth in `.team/procedures/multi-phase-work-items.md`
 
 ## Test Results
 
@@ -74,7 +74,7 @@ All 6 scenarios PASS:
 
 ## Files Modified
 
-- `.team/MULTI_PHASE_ISSUES.md` - Created centralized multi-phase procedures (406 lines)
+- `.team/procedures/multi-phase-work-items.md` - Created centralized multi-phase procedures (406 lines)
   - When to use multi-phase issues
   - How to create parent and sub-issues
   - Step-by-step procedures for working on sub-issues

@@ -497,7 +497,7 @@ sub_issue_write(
 
 ## Testing
 
-**Test Scenarios**: `/research/workflow-modeling/scenarios/procedures/multi-phase-work-items/`
+**Test Scenarios**: `.team/procedures/tests/multi-phase-work-items/`
 
 **Key Scenarios**:
 1. Creating multi-phase structure (happy path)

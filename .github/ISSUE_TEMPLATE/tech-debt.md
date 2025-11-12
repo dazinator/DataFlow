@@ -16,7 +16,7 @@ assignees: ''
 
 Before starting work on this tech debt discovery:
 - [ ] I have read `/.team/workflows/TECH_DEBT_WORKFLOW.md`
-- [ ] I have read `/.team/DOCUMENT_HYGIENE.md` for documentation standards
+- [ ] I have read `/docs/DOCUMENT_HYGIENE.md` for documentation standards
 - [ ] I will create `/research/tech-debt-[date]/` folder structure
 - [ ] I will **review existing backlog** (`/research/backlog/`) before new exploration
 - [ ] I understand exploratory code in `/poc/` or `/src/` will be REVERTED after reviewer approval

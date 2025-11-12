@@ -14,8 +14,8 @@ This guide provides best practices for updating NuGet package dependencies, espe
 **Related Guide**: For adding new packages or understanding the centralized package management system, see [Central Package Management Guide](/.team/CENTRAL_PACKAGE_MANAGEMENT.md).
 
 **Note**: This guide covers **NuGet package dependencies** only. For guidance on external runtime dependencies (databases, message queues, OTLP endpoints, etc.) required by sample applications, see:
-- Implementation Workflow: `.team/prompts/IMPLEMENTATION_WORKFLOW.md` (Step 0, Step 7)
-- Research Workflow: `.team/prompts/RESEARCH_WORKFLOW.md` (Phase 5)
+- Implementation Duty: `.team/duties/IMPLEMENTATION_DUTY.md` (Step 0, Step 7)
+- Research Duty: `.team/duties/RESEARCH_DUTY.md` (Phase 5)
 - GitHub issue format for backlog items (issues with `workflow:product-backlog` label)
 
 ---
@@ -332,11 +332,11 @@ curl -s "https://api.nuget.org/v3-flatcontainer/<package-name>/index.json" | gre
 
 ## Related Documentation
 
-- **Implementation Workflow**: `.team/prompts/IMPLEMENTATION_WORKFLOW.md`
+- **Implementation Duty**: `.team/duties/IMPLEMENTATION_DUTY.md`
   - Step 0: Handover review checklist for dependency updates
   - Step 6: Quick reference to this guide for NuGet updates
   - Step 7: Testing and validation guidance
-- **Research Workflow**: `.team/prompts/RESEARCH_WORKFLOW.md`
+- **Research Duty**: `.team/duties/RESEARCH_DUTY.md`
   - Phase 5: Documenting external dependencies in handovers
 - **GitHub Issues**: Backlog items use `workflow:product-backlog` label for dependencies documentation
 - **Copilot Instructions**: `.github/copilot-instructions.md`

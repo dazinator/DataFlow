@@ -56,7 +56,7 @@ The product team maintains prioritization in `/product/prioritization.md`, which
 4. Select top items and move to `workflow:implementation` queue
 5. Update `/product/prioritization.md` with results
 
-See `.team/prompts/PRODUCT_PRIORITIZATION_WORKFLOW.md` for complete workflow documentation.
+See `.team/duties/PRODUCT_PRIORITIZATION_DUTY.md` for complete duty documentation.
 
 ### Prioritization File Format
 
@@ -145,7 +145,7 @@ When completing research work:
    - Reference the backlog GitHub issue from your research folder
 4. **Notify product team** (via comment on backlog issue)
 
-See `.team/prompts/RESEARCH_WORKFLOW.md` for integration details.
+See `.team/duties/RESEARCH_DUTY.md` for integration details.
 
 ### For Tech Debt Team
 
@@ -166,7 +166,7 @@ When conducting tech debt analysis:
    - Add comment about re-validation
    - Update priority recommendation if changed
 
-See `.team/prompts/TECH_DEBT_WORKFLOW.md` for integration details.
+See `.team/duties/TECH_DEBT_DUTY.md` for integration details.
 
 ### For Implementation Team
 
@@ -183,7 +183,7 @@ When starting implementation work:
 1. Close the backlog GitHub issue (or it will auto-close when PR with "Fixes #XXX" merges)
 2. Item is automatically removed from backlog queries (closed issues are filtered out)
 
-See `.team/prompts/IMPLEMENTATION_WORKFLOW.md` for integration details.
+See `.team/duties/IMPLEMENTATION_DUTY.md` for integration details.
 
 ## Searching the Backlog
 

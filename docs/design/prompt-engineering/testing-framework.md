@@ -262,7 +262,7 @@ Revert if:
 - ❌ Low regression risk
 
 **Test Location**: 
-- Active testing: `/research/workflow-modeling/scenarios/procedures/`
+- Active testing: `.team/procedures/tests/`
 - Archived: `/research/workflow-modeling/regression-tests/procedures/`
 
 **Change Impact Analysis**:

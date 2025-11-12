@@ -202,7 +202,7 @@ When research is complete:
 
 **Test Methodology**: End-to-end scenario testing (tabletop simulation)
 
-**Test Location**: `/research/workflow-modeling/scenarios/duties/`
+**Test Location**: `.team/duties/tests/`
 
 **See**: [Testing Framework](../../docs/design/prompt-engineering/testing-framework.md#node-type-3-duty-procedures)
 

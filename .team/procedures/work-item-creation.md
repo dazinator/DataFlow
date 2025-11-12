@@ -525,7 +525,7 @@ issue_write(
 
 ## Testing
 
-**Test Scenarios**: `/research/workflow-modeling/scenarios/procedures/work-item-creation/`
+**Test Scenarios**: `.team/procedures/tests/work-item-creation/`
 
 **Key Scenarios**:
 1. Creating research work item (happy path)

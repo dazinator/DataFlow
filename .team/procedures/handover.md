@@ -603,7 +603,7 @@ issue_write(
 
 ## Testing
 
-**Test Scenarios**: `/research/workflow-modeling/scenarios/procedures/handover/`
+**Test Scenarios**: `.team/procedures/tests/handover/`
 
 **Key Scenarios**:
 1. Research → Implementation (single-phase)

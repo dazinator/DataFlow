@@ -260,7 +260,7 @@ The current triage workflow effectively routes issues to appropriate workflow qu
 
 - Current triage workflow: `.team/prompts/TRIAGE_WORKFLOW.md` (502 lines)
 - Workflow topology: `.github/docs/WORKFLOW_TOPOLOGY_GUIDE.md`
-- Document hygiene: `.team/DOCUMENT_HYGIENE.md`
+- Document hygiene: `docs/DOCUMENT_HYGIENE.md`
 
 ### Expected Outcome
 

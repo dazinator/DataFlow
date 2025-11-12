@@ -290,7 +290,7 @@ issue_write(
 
 ## Testing
 
-**Test Scenarios**: `/research/workflow-modeling/scenarios/procedures/duty-assignment/`
+**Test Scenarios**: `.team/procedures/tests/duty-assignment/`
 
 **Key Scenarios**:
 1. Clear duty assignment (happy path)

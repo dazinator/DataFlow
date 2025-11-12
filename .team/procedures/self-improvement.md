@@ -385,7 +385,7 @@ add_issue_comment(
 
 ## Testing
 
-**Test Scenarios**: `/research/workflow-modeling/scenarios/procedures/self-improvement/`
+**Test Scenarios**: `.team/procedures/tests/self-improvement/`
 
 **Key Scenarios**:
 1. Successful work with feedback (happy path)

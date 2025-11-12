@@ -271,7 +271,7 @@ Create `/research/[topic]/README.md`:
 
 **⚠️ Important**: Research also creates formal documentation that is NOT reverted:
 
-Use [Documentation Artifacts System](../../.team/DOCUMENTATION_ARTIFACTS.md):
+Use [Documentation Artifacts System](../../../docs/DOCUMENTATION_ARTIFACTS.md):
 
 **Analysis Documents** (`/docs/analysis/[topic]/`):
 - Formal investigations
@@ -673,7 +673,7 @@ flowchart TD
 - [Multi-Phase Work Items](../procedures/multi-phase-work-items.md)
 
 **Documentation Standards**:
-- [Documentation Artifacts](../../.team/DOCUMENTATION_ARTIFACTS.md)
+- [Documentation Artifacts](../../../docs/DOCUMENTATION_ARTIFACTS.md)
 - [Documentation Standards](/.github/copilot-instructions.md#documentation-standards)
 - [Research Folder Structure](/research/FOLDER_STRUCTURE.md)
 
