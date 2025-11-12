@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - '.team/**'
+      - '!.team/**/tests/**'
       - '.github/copilot-instructions.md'
   push:
     branches:
@@ -11,6 +12,7 @@ on:
       - develop
     paths:
       - '.team/**'
+      - '!.team/**/tests/**'
       - '.github/copilot-instructions.md'
 
 jobs:
