@@ -121,6 +121,58 @@ To make this workflow block PR merging, add "validate-prompt-architecture" as a 
 3. Enable "Require status checks to pass before merging"
 4. Search for and add "validate-prompt-architecture"
 
+### 4. Auto-Label New Issues (`.github/workflows/auto-label-triage.yml`)
+
+**Trigger:** Automatically runs when new issues are opened
+
+**Purpose:** Automatically apply the `workflow:triage` label to new issues and post a helpful comment
+
+**Job: auto-label**
+- Adds `workflow:triage` label to newly opened issues
+- Posts a comment explaining the triage process with quick self-assessment questions
+- Provides links to triage decision tree and examples
+
+**Features:**
+- Ensures all new issues are automatically added to the triage queue
+- Helps issue authors understand the workflow routing process
+- Provides self-service guidance for understanding which workflow might apply
+
+### 5. Scheduled Bulk Triage (`.github/workflows/scheduled-bulk-triage.yml`)
+
+**Trigger:** 
+- Automatically runs daily at 2:00 AM UTC (scheduled via cron)
+- Can be manually triggered via workflow_dispatch for testing
+
+**Purpose:** Automate bulk triage requests by posting comments to a persistent tracker issue
+
+**Job: trigger-bulk-triage**
+- Finds or creates a persistent "[Triage] Bulk Triage Tracker" issue
+- Posts a comment to the tracker issue mentioning @copilot
+- Includes current triage queue size in the comment
+- References `.team/duties/TRIAGE_DUTY.md` for the process
+- Uses `.github/scripts/trigger-bulk-triage.js` for the logic
+- Reuses content from `.github/ISSUE_TEMPLATE/triage.md`
+
+**Features:**
+- Uses a single persistent tracker issue (like the feedback tracker)
+- Posts daily triage requests as comments to trigger @copilot
+- Calculates and reports current triage queue size
+- No duplicate issues created - reuses the same tracker
+- Script extracted to separate file for maintainability
+- Leverages existing issue template content
+
+**Setup Required:**
+- ⚠️ **One-time setup**: The "[Triage] Bulk Triage Tracker" issue must be manually assigned to @copilot once
+- After assignment, daily comments will automatically trigger @copilot to perform triage
+- The tracker issue persists and is reused for all future triage requests
+
+**Customization:**
+- Adjust schedule by modifying the cron expression in the workflow
+- Default: `'0 2 * * *'` = 2:00 AM UTC daily
+- Examples:
+  - `'0 9 * * 1-5'` = 9:00 AM UTC, Monday-Friday only
+  - `'0 */6 * * *'` = Every 6 hours
+
 ## Benchmark Results Storage
 
 Benchmark results are stored in multiple locations:

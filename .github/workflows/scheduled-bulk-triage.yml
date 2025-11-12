@@ -1,0 +1,26 @@
+---
+name: Scheduled Bulk Triage
+
+'on':
+  schedule:
+    # Run daily at 2:00 AM UTC (adjust timezone as needed)
+    - cron: '0 2 * * *'
+  workflow_dispatch:  # Allow manual triggering for testing
+
+permissions:
+  issues: write
+
+jobs:
+  trigger-bulk-triage:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Trigger Bulk Triage
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const script = require('./.github/scripts/trigger-bulk-triage.js');
+            await script({github, context, core});
