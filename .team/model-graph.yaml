@@ -1,0 +1,302 @@
+# Prompt System Dependency Graph
+# Version: 1.0 (Baseline - Pre-Migration)
+# Created: 2025-11-12
+# Maintained by: Process Modeling Workflow
+#
+# This file documents the dependency graph of the prompt/workflow system.
+# It serves as the baseline for the layered architecture migration.
+#
+# Node Types:
+#   - orchestration: Entry point (copilot-instructions.md)
+#   - workflow: Current workflow files (will become "duty" in migration)
+#   - supporting-doc: Supporting documentation referenced by workflows
+#   - system-doc: System-level documentation
+#
+# Edge Types:
+#   - required: Must be loaded before proceeding
+#   - optional: Useful to reference, may not be needed
+#   - cross-reference: Informational link
+#
+# Note: This is the CURRENT state. The design documents describe the TARGET state
+# after migration (kernel, procedures, duties layers).
+
+nodes:
+  # Orchestration Layer
+  - id: orchestration
+    type: orchestration
+    path: .github/copilot-instructions.md
+    description: Main entry point for Copilot agents
+    
+  # Current Workflow Files (Pre-Migration)
+  - id: workflow-triage
+    type: workflow
+    path: .team/prompts/TRIAGE_WORKFLOW.md
+    description: Assess and route new issues
+    
+  - id: workflow-research
+    type: workflow
+    path: .team/prompts/RESEARCH_WORKFLOW.md
+    description: Validate approaches and create specifications
+    
+  - id: workflow-implementation
+    type: workflow
+    path: .team/prompts/IMPLEMENTATION_WORKFLOW.md
+    description: Implement validated designs
+    
+  - id: workflow-tech-debt
+    type: workflow
+    path: .team/prompts/TECH_DEBT_WORKFLOW.md
+    description: Discover and address technical debt
+    
+  - id: workflow-product-prioritization
+    type: workflow
+    path: .team/prompts/PRODUCT_PRIORITIZATION_WORKFLOW.md
+    description: Prioritize backlog items
+    
+  - id: workflow-process-modeling
+    type: workflow
+    path: .team/prompts/PROCESS_MODELING_WORKFLOW.md
+    description: Improve workflows and processes
+    
+  # Supporting Documentation
+  - id: doc-document-hygiene
+    type: supporting-doc
+    path: .team/DOCUMENT_HYGIENE.md
+    description: Core documentation principles
+    
+  - id: doc-documentation-artifacts
+    type: supporting-doc
+    path: .team/DOCUMENTATION_ARTIFACTS.md
+    description: Global documentation structure
+    
+  - id: doc-multi-phase-issues
+    type: supporting-doc
+    path: .team/MULTI_PHASE_ISSUES.md
+    description: Multi-phase issue management procedures
+    
+  - id: doc-getting-started
+    type: supporting-doc
+    path: .team/GETTING_STARTED.md
+    description: DataFlow coding standards and patterns
+    
+  # System Documentation
+  - id: doc-workflow-topology
+    type: system-doc
+    path: .github/docs/WORKFLOW_TOPOLOGY_GUIDE.md
+    description: Workflow label system and topology
+    
+  - id: doc-workflow-feedback-tracker
+    type: system-doc
+    path: .github/docs/WORKFLOW_FEEDBACK_TRACKER.md
+    description: Self-improvement feedback system
+    
+  # Design Documents (New - Phase 0)
+  - id: design-main
+    type: system-doc
+    path: docs/design/prompt-engineering/README.md
+    description: Complete prompt engineering architecture design
+    
+  - id: design-concepts
+    type: system-doc
+    path: docs/design/prompt-engineering/concepts.md
+    description: Layered model concepts and terminology
+    
+  - id: design-semantic-language
+    type: system-doc
+    path: docs/design/prompt-engineering/semantic-language.md
+    description: Semantic operations specification
+    
+  - id: design-testing-framework
+    type: system-doc
+    path: docs/design/prompt-engineering/testing-framework.md
+    description: Testing methodology with leak detection
+
+edges:
+  # Orchestration references all workflows
+  - from: orchestration
+    to: workflow-triage
+    type: cross-reference
+    reason: Quick navigation to triage workflow
+    
+  - from: orchestration
+    to: workflow-research
+    type: cross-reference
+    reason: Quick navigation to research workflow
+    
+  - from: orchestration
+    to: workflow-implementation
+    type: cross-reference
+    reason: Quick navigation to implementation workflow
+    
+  - from: orchestration
+    to: workflow-tech-debt
+    type: cross-reference
+    reason: Quick navigation to tech debt workflow
+    
+  - from: orchestration
+    to: workflow-product-prioritization
+    type: cross-reference
+    reason: Quick navigation to product prioritization workflow
+    
+  - from: orchestration
+    to: workflow-process-modeling
+    type: cross-reference
+    reason: Quick navigation to process modeling workflow
+    
+  # Orchestration references system documentation
+  - from: orchestration
+    to: doc-workflow-topology
+    type: required
+    reason: Required for workflow label system understanding
+    
+  - from: orchestration
+    to: doc-document-hygiene
+    type: required
+    reason: Documentation standards for all agents
+    
+  - from: orchestration
+    to: doc-documentation-artifacts
+    type: required
+    reason: Global documentation structure
+    
+  - from: orchestration
+    to: doc-multi-phase-issues
+    type: required
+    reason: Multi-phase issue handling
+    
+  - from: orchestration
+    to: doc-getting-started
+    type: required
+    reason: DataFlow coding standards (for implementation workflows)
+    
+  - from: orchestration
+    to: doc-workflow-feedback-tracker
+    type: required
+    reason: Self-improvement feedback system
+    
+  # Research Workflow Dependencies
+  - from: workflow-research
+    to: doc-document-hygiene
+    type: required
+    reason: Research produces documentation
+    
+  - from: workflow-research
+    to: doc-documentation-artifacts
+    type: required
+    reason: Research creates analysis/design documents
+    
+  - from: workflow-research
+    to: doc-getting-started
+    type: required
+    reason: Research validates technical approaches using DataFlow patterns
+    
+  - from: workflow-research
+    to: workflow-implementation
+    type: optional
+    reason: Handover pattern reference
+    
+  # Implementation Workflow Dependencies
+  - from: workflow-implementation
+    to: doc-document-hygiene
+    type: required
+    reason: Implementation updates documentation
+    
+  - from: workflow-implementation
+    to: doc-documentation-artifacts
+    type: required
+    reason: Implementation may create design docs
+    
+  - from: workflow-implementation
+    to: doc-getting-started
+    type: required
+    reason: Implementation follows DataFlow coding standards
+    
+  - from: workflow-implementation
+    to: doc-multi-phase-issues
+    type: required
+    reason: Implementation often involves multi-phase work
+    
+  # Triage Workflow Dependencies
+  - from: workflow-triage
+    to: doc-workflow-topology
+    type: required
+    reason: Triage assigns workflow labels
+    
+  - from: workflow-triage
+    to: workflow-research
+    type: optional
+    reason: Handover pattern reference
+    
+  - from: workflow-triage
+    to: workflow-implementation
+    type: optional
+    reason: Handover pattern reference
+    
+  - from: workflow-triage
+    to: workflow-product-prioritization
+    type: optional
+    reason: Handover pattern reference
+    
+  # Product Prioritization Workflow Dependencies
+  - from: workflow-product-prioritization
+    to: doc-workflow-topology
+    type: required
+    reason: Uses workflow labels for backlog queries
+    
+  # Process Modeling Workflow Dependencies
+  - from: workflow-process-modeling
+    to: doc-document-hygiene
+    type: required
+    reason: Process modeling creates/updates documentation
+    
+  - from: workflow-process-modeling
+    to: doc-workflow-topology
+    type: required
+    reason: Process modeling maintains workflow system
+    
+  - from: workflow-process-modeling
+    to: doc-workflow-feedback-tracker
+    type: required
+    reason: Process modeling processes feedback
+    
+  # Phase 0: Process Modeling references design documents
+  - from: workflow-process-modeling
+    to: design-main
+    type: required
+    reason: Complete architecture design for making changes (Phase 0)
+    
+  - from: workflow-process-modeling
+    to: design-concepts
+    type: required
+    reason: Understanding layered model when making changes (Phase 0)
+    
+  - from: workflow-process-modeling
+    to: design-semantic-language
+    type: required
+    reason: Semantic operations specification (Phase 0)
+    
+  - from: workflow-process-modeling
+    to: design-testing-framework
+    type: required
+    reason: Change procedures and leak detection (Phase 0)
+    
+  # Tech Debt Workflow Dependencies
+  - from: workflow-tech-debt
+    to: doc-document-hygiene
+    type: required
+    reason: Tech debt creates documentation
+    
+  - from: workflow-tech-debt
+    to: workflow-research
+    type: optional
+    reason: Handover pattern reference
+
+# Migration Notes:
+# This graph represents the CURRENT state (Phase 0).
+# After migration (Phases 1-5), the structure will be:
+#   - Kernel layer (new)
+#   - Global Procedures layer (extracted from workflows)
+#   - Duty layer (migrated from workflow files)
+#   - Orchestration (updated)
+# 
+# The design documents (design-*) describe the TARGET architecture.

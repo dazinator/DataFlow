@@ -47,6 +47,40 @@ See [Scenario Lifecycle](#scenario-lifecycle) section for detailed guidance on w
 
 ---
 
+## ⚠️ REQUIRED CONTEXT: Prompt Engineering Design
+
+**IMPORTANT**: Read the following design documents before making changes to workflow files:
+
+The Process Modeling workflow is responsible for maintaining the prompt/workflow system architecture. To make informed changes, you must understand the **layered, platform-agnostic architecture** defined in these design documents:
+
+- **[Main Design](../../../docs/design/prompt-engineering/README.md)** - Complete architecture with migration strategy, design principles, and 4-layer model (Orchestration → Procedures → Duties → Kernel)
+- **[Core Concepts](../../../docs/design/prompt-engineering/concepts.md)** - Layered model explanation, terminology (duties vs workflows), and the OS analogy
+- **[Semantic Language](../../../docs/design/prompt-engineering/semantic-language.md)** - Semantic operations specification for platform abstraction
+- **[Testing Framework](../../../docs/design/prompt-engineering/testing-framework.md)** - Node-specific change procedures, kernel & dependency leak detection, graph management
+
+**Why These Matter:**
+
+1. **Layered Architecture**: The system is organized into 4 layers (Kernel, Global Procedures, Duties, Orchestration) with specific responsibilities
+2. **Platform Portability**: Procedures use semantic operations (not platform-specific calls like GitHub MCP tools directly)
+3. **Change Procedures**: Each node type (kernel, procedure, duty, orchestration) has specific testing requirements
+4. **Leak Detection**: Two types of leaks to check for:
+   - **Kernel leaks**: Platform-specific operations appearing outside kernel layer
+   - **Dependency leaks**: Content duplicated from dependencies instead of referenced
+5. **Graph Representation**: System dependencies documented in `.team/model-graph.yaml`
+
+**When to Reference:**
+
+- **Before making workflow changes**: Review [Change Procedures](#change-procedures-by-node-type) section
+- **During testing**: Use [Testing Framework](../../../docs/design/prompt-engineering/testing-framework.md) for test scenarios
+- **For leak detection**: Follow [Leak Detection](#leak-detection-procedures) steps below
+- **When updating graph**: See [Graph Maintenance](#graph-maintenance) guidance
+
+**Current State**: 
+
+We are in **Phase 0** of the layered architecture migration. The current workflow files will eventually become "duties", but for now they remain as workflows. The design documents describe the target architecture we're working towards.
+
+---
+
 ## Workflow Queue
 
 **Query issues designated to this workflow:**
@@ -2021,6 +2055,297 @@ Process improvements successfully implemented and tested.
 
 See: \`.team/prompts/PROCESS_MODELING_WORKFLOW.md\`"
 ```
+
+---
+
+## Change Procedures by Node Type
+
+**Reference**: [Testing Framework - Change Procedures](../../../docs/design/prompt-engineering/testing-framework.md#change-procedures-by-node-type)
+
+When making changes to the prompt/workflow system, follow node-specific procedures based on what you're changing. The system is organized into layers with different testing requirements.
+
+### Current Node Types (Phase 0 - Pre-Migration)
+
+During Phase 0, we have:
+- **Orchestration**: `.github/copilot-instructions.md` (entry point)
+- **Workflow Files**: `.team/prompts/*_WORKFLOW.md` (will become "duties" in migration)
+- **Supporting Docs**: `.team/*.md` (will become "procedures" in migration)
+- **System Docs**: `.github/docs/*.md`
+
+### Workflow File Change Procedure
+
+**When changing any `.team/prompts/*_WORKFLOW.md` file:**
+
+#### Before Making Changes
+1. ✅ Read the [Testing Framework](../../../docs/design/prompt-engineering/testing-framework.md#duty-change-procedure)
+2. ✅ Review current workflow role and responsibilities
+3. ✅ Check what supporting docs it references
+4. ✅ Understand handover points to other workflows
+5. ✅ Review existing test scenarios (if any)
+
+#### During Changes
+1. ✅ Make workflow changes
+2. ✅ Create test scenarios in `/research/workflow-modeling/scenarios/[workflow-name]/`
+3. ✅ Document expected behavior clearly
+4. ✅ Ensure cross-references to supporting docs are correct
+
+#### After Changes
+1. ✅ Run tabletop simulations (see [Tabletop Simulation Testing Process](#tabletop-simulation-testing-process))
+2. ✅ **Run kernel leak detection** (see [Kernel Leak Detection](#kernel-leak-detection))
+3. ✅ **Run dependency leak detection** (see [Dependency Leak Detection](#dependency-leak-detection))
+4. ✅ Test handovers to other workflows
+5. ✅ Run regression tests if available
+6. ✅ Archive valuable scenarios or revert temporary ones
+7. ✅ **Update graph representation** if dependencies changed (see [Graph Maintenance](#graph-maintenance))
+
+### Supporting Documentation Change Procedure
+
+**When changing any `.team/*.md` file (e.g., DOCUMENT_HYGIENE.md, MULTI_PHASE_ISSUES.md):**
+
+#### Before Making Changes
+1. ✅ Understand current content
+2. ✅ Identify which workflows use this document
+3. ✅ Check for existing cross-references
+
+#### During Changes
+1. ✅ Make changes to supporting doc
+2. ✅ Ensure no platform-specific operations leak in
+3. ✅ Create test scenarios (3-5 typical use cases)
+
+#### After Changes
+1. ✅ Run tabletop simulations
+2. ✅ **Run kernel leak detection** (see [Kernel Leak Detection](#kernel-leak-detection))
+3. ✅ **Run dependency leak detection** (see [Dependency Leak Detection](#dependency-leak-detection))
+4. ✅ Test impacted workflows if breaking change
+5. ✅ Run regression tests if available
+6. ✅ **Update graph representation** if new dependencies created (see [Graph Maintenance](#graph-maintenance))
+
+### Orchestration Change Procedure
+
+**When changing `.github/copilot-instructions.md`:**
+
+#### Before Making Changes
+1. ✅ Understand current dispatch logic
+2. ✅ Review workflow references and navigation
+3. ✅ Plan integration test scenarios
+
+#### During Changes
+1. ✅ Update orchestration logic
+2. ✅ Ensure workflow references correct
+3. ✅ Maintain navigation section
+4. ✅ Create integration test scenarios
+
+#### After Changes
+1. ✅ Run full integration tests
+2. ✅ Test each workflow dispatch path
+3. ✅ **Run kernel leak detection** (see [Kernel Leak Detection](#kernel-leak-detection))
+4. ✅ **Run dependency leak detection** (see [Dependency Leak Detection](#dependency-leak-detection))
+5. ✅ Verify end-to-end flows
+6. ✅ Run all regression tests
+7. ✅ **Update graph representation** (see [Graph Maintenance](#graph-maintenance))
+
+---
+
+## Leak Detection Procedures
+
+**Reference**: [Testing Framework - Leak Detection](../../../docs/design/prompt-engineering/testing-framework.md#kernel-leak-detection)
+
+Two types of leaks must be checked after ANY change to workflow files, supporting docs, or orchestration:
+
+### Kernel Leak Detection
+
+**What it detects**: Platform-specific operations appearing outside the kernel layer (currently, any GitHub-specific MCP tool calls outside appropriate areas)
+
+**When to run**: After changes to any non-kernel files (workflow files, supporting docs, orchestration)
+
+**Procedure**:
+
+1. **Identify Changed Files**
+   ```bash
+   # List all modified files outside .team/kernel/ (currently, kernel doesn't exist)
+   git diff --name-only HEAD
+   ```
+
+2. **Search for Platform-Specific Terms**
+   
+   Check for GitHub-specific patterns in changed files:
+   - `issue_write(` - Direct GitHub MCP usage
+   - `issue_read(` - Direct GitHub MCP usage
+   - `list_issues(` - Direct GitHub MCP usage
+   - `add_issue_comment(` - Direct GitHub MCP usage
+   - `GitHub Issues` - Platform-specific terminology
+   - `workflow:` (when used as label format, not as concept reference)
+
+3. **Categorize Findings**
+   
+   For each finding:
+   - ✅ **False Positive**: In code examples showing MCP tool usage
+   - ⚠️ **Legitimate Usage**: In workflow procedures (currently acceptable in Phase 0)
+   - ⚠️ **Documentation Reference**: Explaining what platform does
+   - ❌ **Future Concern**: Direct MCP usage (note for migration phases)
+
+4. **Document Check Results**
+   
+   Add to commit message:
+   ```
+   ✅ Kernel Leak Check: PASS (Phase 0)
+   - Reviewed [N] workflow files
+   - Found [N] MCP tool usages (expected in Phase 0)
+   - No inappropriate platform coupling detected
+   ```
+
+**Note on Phase 0**: During Phase 0, GitHub MCP tools are used directly in workflows. This is expected. Kernel leak detection serves to document current state and prepare for migration phases where semantic operations will replace direct MCP usage.
+
+### Dependency Leak Detection
+
+**What it detects**: Content duplicated from dependencies instead of being referenced
+
+**When to run**: After changes to any file that has dependencies (check `.team/model-graph.yaml`)
+
+**Procedure**:
+
+1. **Identify Dependencies from Graph**
+   ```bash
+   # Check model-graph.yaml for dependencies of changed file
+   # Look for edges where "from" matches your file
+   cat .team/model-graph.yaml | grep "path: .team/prompts/RESEARCH_WORKFLOW.md" -A 5
+   ```
+
+2. **Check for Content Duplication**
+   
+   For each dependency, verify:
+   - **Section Headers**: Are dependency section headers duplicated?
+   - **Step-by-step Procedures**: Are procedure steps copied instead of referenced?
+   - **Code Examples**: Are examples duplicated instead of linked?
+   - **Definitions**: Are terms re-defined instead of referenced?
+
+3. **Verify References Instead of Duplication**
+   
+   Look for proper reference patterns:
+   - `See [Document Name](../path/to/doc.md) for...`
+   - `Follow the [Procedure Name](../path/to/procedure.md)...`
+   - `_Supplemental: [Document](../path.md) provides...`
+   - `## Required Context` section with `**⚠️ IMPORTANT**: Read...`
+
+4. **Refactor if Leaks Found**
+   
+   Replace duplication with references:
+   ```markdown
+   <!-- Before (Leak) -->
+   ## Multi-Phase Work Items
+   
+   To create multi-phase work:
+   1. Create parent with create_work_item()
+   2. Create children with create_child_work_item()
+   
+   <!-- After (Reference) -->
+   ## Multi-Phase Work Items
+   
+   See [Multi-Phase Issue Procedures](../../.team/MULTI_PHASE_ISSUES.md) for complete guidance.
+   ```
+
+5. **Document Check Results**
+   
+   Add to commit message:
+   ```
+   ✅ Dependency Leak Check: PASS
+   - Checked dependencies: [list]
+   - All content properly referenced
+   - No duplication detected
+   ```
+   
+   Or if leaks found and fixed:
+   ```
+   ✅ Dependency Leak Check: FIXED
+   - Found [N] content duplications
+   - Refactored to use references
+   - Dependencies: [list]
+   ```
+
+---
+
+## Graph Maintenance
+
+**Reference**: `.team/model-graph.yaml`
+
+The graph representation documents the dependency structure of the prompt/workflow system.
+
+### When to Update Graph
+
+Update `.team/model-graph.yaml` when:
+- Adding new workflow files
+- Adding new supporting documentation
+- Creating new cross-references between files
+- Removing files or references
+- Changing dependency relationships
+
+### Graph Update Procedure
+
+1. **Open Graph File**
+   ```bash
+   # Review current graph structure
+   cat .team/model-graph.yaml
+   ```
+
+2. **Identify Changes Needed**
+   
+   Based on your file changes:
+   - New files → Add nodes
+   - New cross-references → Add edges
+   - Removed references → Remove edges
+   - Changed dependencies → Update edges
+
+3. **Add Nodes** (if new file created)
+   ```yaml
+   nodes:
+     - id: workflow-new-duty
+       type: workflow
+       path: .team/prompts/NEW_DUTY_WORKFLOW.md
+       description: Brief description of what this workflow does
+   ```
+
+4. **Add Edges** (if new dependency created)
+   ```yaml
+   edges:
+     - from: workflow-new-duty
+       to: doc-document-hygiene
+       type: required
+       reason: New duty creates documentation
+   ```
+
+5. **Update Edge Types**
+   
+   Choose appropriate type:
+   - `required`: Must be loaded before proceeding (e.g., workflow depends on supporting doc procedures)
+   - `optional`: Useful to reference, may not be needed (e.g., handover pattern reference)
+   - `cross-reference`: Informational link (e.g., orchestration's navigation links)
+
+6. **Validate Graph Structure**
+   
+   Check for:
+   - No duplicate node IDs
+   - All edge references point to existing nodes
+   - No circular dependencies (A → B → C → A)
+   - All files referenced in edges exist
+
+7. **Document in Commit**
+   ```
+   Updated model-graph.yaml:
+   - Added node: [node-id]
+   - Added edge: [from] → [to] (reason)
+   - Reason: [why this dependency exists]
+   ```
+
+### Graph Validation Checklist
+
+Before committing graph changes:
+
+- [ ] All node IDs are unique
+- [ ] All node paths exist
+- [ ] All edge "from" and "to" reference valid node IDs
+- [ ] No circular dependencies
+- [ ] Edge types are appropriate (required/optional/cross-reference)
+- [ ] Edge reasons clearly explain the dependency
 
 ---
 

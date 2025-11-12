@@ -2,7 +2,53 @@
 
 ## Current Work
 
-**Status**: No active work
+**Issue**: #364 - Phase 0: Process Modeling Alignment - Design Integration  
+**Parent Issue**: #363  
+**Started**: 2025-11-12  
+**Status**: ✅ **COMPLETE**
+
+### Objective
+
+Update Process Modeling workflow to reference the prompt engineering design (from #361) and ensure it can apply design principles when making changes during subsequent implementation phases.
+
+### Deliverables Completed
+
+1. ✅ Updated `.team/prompts/PROCESS_MODELING_WORKFLOW.md` with:
+   - Required Context section linking to 4 design documents
+   - Change procedures for all node types (kernel, procedures, duties, orchestration)
+   - Kernel leak detection step
+   - Graph-wide dependency leak detection step
+   - Graph maintenance guidance
+
+2. ✅ Initial `.team/model-graph.yaml` documenting current workflow structure (19 nodes, 31 edges)
+
+3. ✅ Test scenarios in `/research/workflow-modeling/scenarios/duties/process-modeling/` (4 scenarios, all PASS)
+
+4. ✅ Validation report confirming design understanding
+
+### Test Results
+
+**All scenarios PASSED (4/4)** ✅
+
+1. Scenario 001 - Following Change Procedures: PASS
+2. Scenario 002 - Kernel Leak Detection: PASS
+3. Scenario 003 - Dependency Leak Detection: PASS
+4. Scenario 004 - Graph Maintenance: PASS
+
+### Success Criteria Met
+
+- [x] Process Modeling references all 4 design documents via Required Context
+- [x] Change procedures integrated for all node types
+- [x] Kernel leak detection check included with Phase 0 context
+- [x] Graph-wide dependency leak detection included
+- [x] Graph representation created and documented
+- [x] Self-test scenarios all pass (4/4)
+- [x] Self-improvement evaluation completed (#360)
+- [x] Ready to execute Phase 1 following design principles
+
+### Completion
+
+Phase 0 successfully completed. Process Modeling workflow is now equipped to apply design principles during all subsequent migration phases.
 
 ---
 
