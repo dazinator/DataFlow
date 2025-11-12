@@ -49,7 +49,7 @@ flowchart TB
 
 ## Semantic Operations
 
-The kernel provides **12 semantic operations** that abstract work item management:
+The kernel provides **13 semantic operations** that abstract work item management:
 
 ### Work Item CRUD Operations
 
@@ -63,17 +63,18 @@ The kernel provides **12 semantic operations** that abstract work item managemen
 5. **`get_work_item_duty`** - Extract duty designation from work item
 6. **`assign_work_item_to_duty`** - Change duty assignment (handover)
 7. **`query_work_items_by_duty`** - Find all work items for a specific duty
+8. **`query_unlabeled_work_items`** - Find all work items without workflow labels (need initial triage)
 
 ### Multi-Phase Operations
 
-8. **`create_child_work_item`** - Create a sub-work item linked to parent
-9. **`get_parent_work_item`** - Get parent work item ID if exists
-10. **`is_multi_phase`** - Check if work item is part of multi-phase plan
-11. **`list_child_work_items`** - Get all children of a work item
+9. **`create_child_work_item`** - Create a sub-work item linked to parent
+10. **`get_parent_work_item`** - Get parent work item ID if exists
+11. **`is_multi_phase`** - Check if work item is part of multi-phase plan
+12. **`list_child_work_items`** - Get all children of a work item
 
 ### Feedback Operations
 
-12. **`submit_feedback`** - Submit self-improvement feedback
+13. **`submit_feedback`** - Submit self-improvement feedback
 
 **Complete Specification**: See [Semantic Language Reference](../../docs/design/prompt-engineering/semantic-language.md)
 

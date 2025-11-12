@@ -120,3 +120,18 @@ jobs:
         echo "| Dependency Leaks | ${{ steps.dependency-leaks.outputs.status || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
         echo "| Graph Validation | ${{ steps.graph-validation.outputs.status || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
         echo "| Graph Drift | ${{ steps.graph-drift.outputs.status || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+    
+    - name: Generate graph visualization
+      if: always()
+      run: |
+        echo "## Graph Visualization" >> $GITHUB_STEP_SUMMARY
+        .team/scripts/visualize-graph.sh
+        echo "✓ Graph visualization generated as artifact" >> $GITHUB_STEP_SUMMARY
+    
+    - name: Upload graph visualization
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: graph-visualization
+        path: graph-visualization.md
+        retention-days: 30

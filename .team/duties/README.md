@@ -157,11 +157,11 @@ work_item_id = create_work_item(
 ❌ **Incorrect**:
 ```python
 # Platform-specific GitHub code
-issue_write(
+issue_write(  # ❌ Don't use platform-specific operations
     method="create",
-    owner="uniun-technology",
-    repo="lib-dataflow",
-    labels=["workflow:research"]
+    owner="uniun-technology",  # ❌ Platform-specific parameter
+    repo="lib-dataflow",  # ❌ Platform-specific parameter
+    labels=["workflow:research"]  # ❌ Don't use platform-specific labels
 )
 ```
 

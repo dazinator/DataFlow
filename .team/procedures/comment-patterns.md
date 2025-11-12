@@ -491,7 +491,7 @@ add_work_item_comment(
 
 ```python
 # Wrong - GitHub-specific API
-add_issue_comment(
+add_issue_comment(  # ❌ Don't use platform-specific operations
     issue_number=123,
     body="Comment text"
 )

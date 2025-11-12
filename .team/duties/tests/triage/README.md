@@ -71,6 +71,48 @@ Test scenarios for the Triage Duty to validate:
 
 ---
 
+### Scenario 005: Bulk Triage with Unlabeled Items
+**File**: `scenario-005-bulk-triage-unlabeled-items.md`  
+**Complexity**: Medium  
+**Focus**: Validating that unlabeled work items are included in bulk triage results
+
+**Key Operations**:
+- `query_work_items_by_duty()` (triage labeled)
+- `query_unlabeled_work_items()` (unlabeled items)
+- Deduplication and filtering logic
+
+**Added**: 2025-11-12 (Issue #391)
+
+---
+
+### Scenario 006: Mixed Labeled and Unlabeled Items
+**File**: `scenario-006-mixed-labeled-unlabeled.md`  
+**Complexity**: Medium  
+**Focus**: Realistic scenario with mix of labeled and unlabeled work items
+
+**Key Operations**:
+- `query_work_items_by_duty()` (triage labeled)
+- `query_unlabeled_work_items()` (unlabeled items)
+- Filtering out items in other duties
+
+**Added**: 2025-11-12 (Issue #391)
+
+---
+
+### Scenario 007: Edge Case - Only Unlabeled Items
+**File**: `scenario-007-edge-only-unlabeled.md`  
+**Complexity**: Low  
+**Focus**: Edge case where triage queue is empty but unlabeled items exist
+
+**Key Operations**:
+- `query_work_items_by_duty()` (returns empty)
+- `query_unlabeled_work_items()` (returns items)
+
+**Critical Finding**: Old procedure would return empty list, missing all items  
+**Added**: 2025-11-12 (Issue #391)
+
+---
+
 ## Running Tests
 
 ### Tabletop Simulation Process

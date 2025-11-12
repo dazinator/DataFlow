@@ -1,7 +1,6 @@
----
 name: Scheduled Bulk Triage
 
-'on':
+on:
   schedule:
     # Run daily at 2:00 AM UTC (adjust timezone as needed)
     - cron: '0 2 * * *'

@@ -23,6 +23,7 @@
 
 **Semantic Operations Used**:
 - `query_work_items_by_duty(duty)` - Find work items assigned to this duty
+- `query_unlabeled_work_items(status)` - Find work items without workflow labels (need initial triage)
 - `get_work_item_details(work_item_id)` - Retrieve work item information
 - `get_work_item_duty(work_item_id)` - Get current duty assignment
 - `assign_work_item_to_duty(work_item_id, duty)` - Change duty (handover)
@@ -84,7 +85,10 @@ The triage duty supports two modes:
 4. Handover to designated duty using [Handover Procedure](../procedures/handover.md)
 
 **Bulk Triage Mode**:
-1. Query all work items in triage queue using `query_work_items_by_duty("triage")`
+1. Query all work items needing triage:
+   - `query_work_items_by_duty("triage")` for explicitly assigned items
+   - `query_unlabeled_work_items()` for items without workflow labels
+   - Combine and deduplicate the results
 2. For each work item: read, assess, and handover (see [Decision Tree](#decision-tree))
 3. Update bulk triage work item with summary
 4. Close bulk triage work item when done
@@ -607,17 +611,41 @@ When assigned to bulk triage work item:
 ### Step 1: Query Triage Queue
 
 ```python
-# Get all work items in triage duty
+# Get work items explicitly assigned to triage duty
 triage_items = query_work_items_by_duty(duty="triage")
+
+# Also get work items with NO workflow labels (need initial triage)
+unlabeled_items = query_unlabeled_work_items(status="open")
+
+# Combine both sets
+all_items_to_triage = triage_items + unlabeled_items
 
 # Filter out the bulk triage work item itself
 current_work_item_id = get_current_work_item_id()  # From context
-work_items = [item for item in triage_items 
+work_items = [item for item in all_items_to_triage 
               if item['id'] != current_work_item_id]
 
+# Remove duplicates (shouldn't happen, but be safe)
+seen_ids = set()
+unique_work_items = []
+for item in work_items:
+    if item['id'] not in seen_ids:
+        seen_ids.add(item['id'])
+        unique_work_items.append(item)
+
 # Sort by creation date (oldest first)
-work_items.sort(key=lambda x: x['created_at'])
+unique_work_items.sort(key=lambda x: x['created_at'])
+
+work_items = unique_work_items
 ```
+
+**Why This Matters**:
+- `query_work_items_by_duty("triage")` finds items explicitly labeled for triage
+- `query_unlabeled_work_items()` finds newly created items without any workflow labels
+- Together, these ensure **complete coverage** - no work items are missed
+- The combination handles both:
+  1. Items intentionally routed to triage
+  2. New items needing initial assessment
 
 ---
 

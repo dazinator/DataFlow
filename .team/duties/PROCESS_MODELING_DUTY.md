@@ -202,7 +202,12 @@ Update workflow, duty, procedure, or kernel documentation files following design
 
 ### Step 5: Create Test Scenarios
 
-Create 3-5 end-to-end test scenarios in `/research/workflow-modeling/scenarios/[duty-name]/`:
+Create 3-5 end-to-end test scenarios in `.team/[duties|procedures|kernel]/tests/[name]/`:
+
+**Location Examples**:
+- Duty tests: `.team/duties/tests/triage/scenario-NNN-*.md`
+- Procedure tests: `.team/procedures/tests/scenario-NNN-*.md`
+- Kernel tests: `.team/kernel/tests/scenario-NNN-*.md`
 
 **Scenario Types**:
 - **baseline**: Testing current workflow state without improvements
@@ -296,7 +301,7 @@ nodes:
   
   - id: duty-[name]-tests
     type: duty
-    path: research/workflow-modeling/scenarios/duties/[name]/README.md
+    path: .team/duties/tests/[name]/README.md
     description: [Name] duty test scenarios
 
 edges:
@@ -346,17 +351,12 @@ edges:
 - Edge case documentation (unusual but important case)
 - Training value (good example for learning)
 
-**How to Archive**:
-```bash
-# Move valuable scenarios to regression-tests
-mv research/workflow-modeling/scenarios/[duty-name]/scenario-NNN-*.md \
-   research/workflow-modeling/regression-tests/[duty-name]/
-```
+**Note**: Most scenarios should remain in `.team/[duties|procedures|kernel]/tests/` for regression testing and continuous validation. Archiving is now rarely needed since tests live with the code they test.
 
 **Why Selective**:
-- Keeps repository clean
-- Avoids maintenance burden
-- Most workflow changes are validated once and don't need re-testing
+- Test scenarios now live with code in `.team/` structure
+- Regression tests are valuable for continuous validation
+- Only archive outdated or superseded scenarios
 
 ### Step 10: Update History and Archive Plan
 

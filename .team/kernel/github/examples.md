@@ -73,6 +73,44 @@ Found 3 open research items:
 
 ---
 
+## Example 2.5: Query Unlabeled Work Items (For Bulk Triage)
+
+**Scenario**: Find all work items without workflow labels that need initial triage
+
+```python
+# Semantic operation
+unlabeled_items = query_unlabeled_work_items(status="open")
+
+print(f"Found {len(unlabeled_items)} work items needing initial triage:")
+for item in unlabeled_items:
+    print(f"  #{item['id']}: {item['title']}")
+    print(f"    Duty: {item['duty']}")  # Will be None
+```
+
+**Output**:
+```
+Found 2 work items needing initial triage:
+  #377: Add validation for pipeline configuration
+    Duty: None
+  #380: Update documentation for custom blocks
+    Duty: None
+```
+
+**GitHub Implementation**: 
+```python
+# Gets all issues, filters out those with workflow:* labels
+all_issues = list_issues(state="OPEN")
+# Filter client-side to exclude issues with workflow:* labels
+unlabeled = [issue for issue in all_issues 
+             if not any(label.startswith('workflow:') for label in issue.labels)]
+```
+
+**Use Case**: 
+- Bulk triage operations combine `query_work_items_by_duty("triage")` and `query_unlabeled_work_items()` 
+- Ensures all work items are processed, including newly created issues without labels
+
+---
+
 ## Example 3: Handover to Implementation
 
 **Scenario**: Research complete, hand over to implementation duty

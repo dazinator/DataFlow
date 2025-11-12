@@ -570,9 +570,9 @@ assign_work_item_to_duty(
 
 ```python
 # Wrong - using GitHub-specific API
-issue_write(
+issue_write(  # ❌ Don't use platform-specific operations
     method="create",
-    labels=["workflow:implementation", "from-research"]
+    labels=["workflow:implementation", "from-research"]  # ❌ Don't use platform-specific labels
 )
 ```
 

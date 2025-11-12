@@ -251,6 +251,51 @@ for item in research_items:
 
 ---
 
+#### query_unlabeled_work_items
+
+**Purpose**: Get all work items without any workflow duty labels (need initial triage)
+
+**Signature**:
+```python
+query_unlabeled_work_items(
+    status: str = "open",       # Filter by status (optional)
+    limit: int = 100            # Maximum results (optional)
+) -> list[dict]  # List of work item summaries
+```
+
+**Platform Implementations**:
+- **GitHub**: Maps to `list_issues()` filtering for issues WITHOUT any `workflow:*` labels
+- **Azure DevOps**: Query work items WITHOUT any `duty:*` tags
+
+**Returned Format**:
+```python
+[
+    {
+        "id": str,
+        "title": str,
+        "status": str,
+        "duty": None,  # Always None for unlabeled items
+        "created_at": str
+    },
+    ...
+]
+```
+
+**Example Usage**:
+```python
+# Get all open work items without workflow labels
+unlabeled_items = query_unlabeled_work_items(status="open")
+
+for item in unlabeled_items:
+    print(f"Unlabeled: {item['title']} (#{item['id']})")
+```
+
+**Use Case**: Bulk triage operations need to find both:
+1. Work items explicitly assigned to triage (`workflow:triage` label)
+2. New work items without any workflow labels yet (need initial triage)
+
+---
+
 ### Multi-Phase Operations
 
 #### create_child_work_item

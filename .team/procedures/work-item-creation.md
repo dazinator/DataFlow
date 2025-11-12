@@ -489,12 +489,12 @@ Implement feature X
 
 ```python
 # Wrong - using GitHub-specific API
-issue_write(
+issue_write(  # ❌ Don't use platform-specific operations
     method="create",
-    owner="uniun-technology",
-    repo="lib-dataflow",
+    owner="uniun-technology",  # ❌ Platform-specific parameter
+    repo="lib-dataflow",  # ❌ Platform-specific parameter
     title="...",
-    labels=["workflow:research"]
+    labels=["workflow:research"]  # ❌ Don't use platform-specific labels
 )
 ```
 

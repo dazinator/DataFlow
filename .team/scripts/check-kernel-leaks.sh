@@ -25,8 +25,8 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 DOMAINS_FILE="$REPO_ROOT/.team/kernel/domains.yaml"
 
 # Directories to check (exclude kernel layer)
+# Note: .team/prompts was archived in Phase 5, replaced by .team/duties
 CHECK_DIRS=(
-    ".team/prompts"
     ".team/procedures"
     ".team/duties"
     ".github/copilot-instructions.md"
@@ -139,6 +139,9 @@ check_file_for_leaks() {
 total_files=0
 files_with_leaks=0
 
+# Temporarily disable set -e for file processing loop to avoid early exit
+set +e
+
 for check_item in "${CHECK_DIRS[@]}"; do
     check_path="$REPO_ROOT/$check_item"
     
@@ -150,14 +153,23 @@ for check_item in "${CHECK_DIRS[@]}"; do
         fi
     elif [[ -d "$check_path" ]]; then
         # Directory (exclude tests subdirectories)
-        while IFS= read -r -d '' file; do
-            ((total_files++))
-            if ! check_file_for_leaks "$file"; then
-                ((files_with_leaks++))
-            fi
-        done < <(find "$check_path" -name "*.md" -type f -not -path "*/tests/*" -print0 2>/dev/null)
+        # Store file list in a temp variable
+        file_list=$(find "$check_path" -name "*.md" -type f -not -path "*/tests/*" 2>/dev/null || true)
+        if [[ -n "$file_list" ]]; then
+            while IFS= read -r file; do
+                if [[ -n "$file" ]]; then
+                    ((total_files++))
+                    if ! check_file_for_leaks "$file"; then
+                        ((files_with_leaks++))
+                    fi
+                fi
+            done <<< "$file_list"
+        fi
     fi
 done
+
+# Re-enable set -e
+set -e
 
 echo ""
 echo -e "${BLUE}=== Scan Summary ===${NC}"

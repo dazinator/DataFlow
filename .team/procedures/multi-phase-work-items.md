@@ -465,7 +465,7 @@ update_work_item(parent_id, status="closed")  # WRONG
 
 ```python
 # Wrong - using GitHub-specific sub-issue API
-sub_issue_write(
+sub_issue_write(  # ❌ Don't use platform-specific operations
     method="add",
     issue_number=parent_number,
     sub_issue_id=child_id

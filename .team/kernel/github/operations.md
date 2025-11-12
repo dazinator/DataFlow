@@ -350,9 +350,108 @@ def query_work_items_by_duty(duty, status="open", limit=100):
 
 ---
 
+### 8. query_unlabeled_work_items
+
+**Semantic Signature**:
+```python
+query_unlabeled_work_items(
+    status: str = "open",
+    limit: int = 100
+) -> list[dict]
+```
+
+**GitHub Implementation**:
+```python
+def query_unlabeled_work_items(status="open", limit=100):
+    """
+    Maps to GitHub list_issues() filtering for issues WITHOUT workflow:* labels
+    
+    This finds work items that need initial triage - they haven't been
+    assigned to any duty yet.
+    """
+    # Map semantic status to GitHub state
+    github_state = "OPEN" if status == "open" else "CLOSED"
+    
+    # Get all issues without filtering by label first
+    all_issues = list_issues(
+        owner="uniun-technology",
+        repo="lib-dataflow",
+        state=github_state,
+        perPage=min(limit, 100)
+    )
+    
+    # Filter out issues that have any workflow:* label
+    unlabeled_items = []
+    for issue in all_issues:
+        has_workflow_label = False
+        for label in issue.labels:
+            if label['name'].startswith('workflow:'):
+                has_workflow_label = True
+                break
+        
+        # Only include issues without workflow labels
+        if not has_workflow_label:
+            unlabeled_items.append({
+                "id": str(issue.number),
+                "title": issue.title,
+                "status": "open" if issue.state == "open" else "closed",
+                "duty": None,  # No duty assigned
+                "created_at": issue.created_at
+            })
+    
+    return unlabeled_items
+```
+
+**Notes**:
+- Returns issues WITHOUT any `workflow:*` labels
+- These are items needing initial triage
+- Returns `duty: None` to indicate no duty assigned
+- Complements `query_work_items_by_duty` for complete triage coverage
+
+**Alternative Implementation (More Efficient)**:
+
+For large repositories, use search API with negative label filter:
+```python
+def query_unlabeled_work_items_efficient(status="open", limit=100):
+    """
+    More efficient implementation using GitHub search API
+    """
+    # Build search query for issues without workflow labels
+    # Note: GitHub search doesn't support "NOT label:x", so we filter client-side
+    # or use repo-specific label enumeration
+    
+    results = search_issues(
+        owner="uniun-technology",
+        repo="lib-dataflow",
+        query=f"is:issue is:{status} repo:uniun-technology/lib-dataflow",
+        perPage=min(limit, 100)
+    )
+    
+    # Filter out any with workflow:* labels
+    unlabeled_items = []
+    for issue in results['items']:
+        has_workflow_label = any(
+            label['name'].startswith('workflow:') 
+            for label in issue.labels
+        )
+        
+        if not has_workflow_label:
+            unlabeled_items.append({
+                "id": str(issue.number),
+                "title": issue.title,
+                "status": "open" if issue.state == "open" else "closed",
+                "duty": None,
+                "created_at": issue.created_at
+            })
+    
+    return unlabeled_items
+```
+
+---
+
 ## Multi-Phase Operations
 
-### 8. create_child_work_item
+### 9. create_child_work_item
 
 **Semantic Signature**:
 ```python
@@ -411,7 +510,7 @@ def create_child_work_item(parent_id, type, title, description, duty, labels=[])
 
 ---
 
-### 9. get_parent_work_item
+### 10. get_parent_work_item
 
 **Semantic Signature**:
 ```python
@@ -449,7 +548,7 @@ def get_parent_work_item(work_item_id):
 
 ---
 
-### 10. is_multi_phase
+### 11. is_multi_phase
 
 **Semantic Signature**:
 ```python
@@ -491,7 +590,7 @@ def is_multi_phase(work_item_id):
 
 ---
 
-### 11. list_child_work_items
+### 12. list_child_work_items
 
 **Semantic Signature**:
 ```python
@@ -543,7 +642,7 @@ def list_child_work_items(parent_id):
 
 ## Feedback Operations
 
-### 12. submit_feedback
+### 13. submit_feedback
 
 **Semantic Signature**:
 ```python

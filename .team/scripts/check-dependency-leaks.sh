@@ -109,6 +109,9 @@ echo "Checking for content duplication..."
 duplicate_count=0
 checked_pairs=0
 
+# Temporarily disable set -e for file processing loop to avoid early exit
+set +e
+
 for edge in "${edges[@]}"; do
     IFS='|' read -r from_id to_id <<< "$edge"
     
@@ -144,6 +147,9 @@ for edge in "${edges[@]}"; do
         ((duplicate_count++))
     fi
 done
+
+# Re-enable set -e
+set -e
 
 echo ""
 echo -e "${BLUE}=== Scan Summary ===${NC}"

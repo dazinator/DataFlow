@@ -21,12 +21,6 @@ domains:
       - search_issues
       - sub_issue_write
       - github-mcp-server
-      - workflow:research
-      - workflow:implementation
-      - workflow:triage
-      - workflow:tech-debt
-      - workflow:product
-      - workflow:process
       - owner="uniun-technology"
       - repo="lib-dataflow"
       - labels=\["workflow:
@@ -42,8 +36,6 @@ domains:
     leak_patterns:
       - /wit/workitems
       - azure-devops
-      - duty:research
-      - duty:implementation
       - organization=
       - project=
       - tags=\["duty:

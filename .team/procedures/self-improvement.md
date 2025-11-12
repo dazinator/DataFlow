@@ -338,7 +338,7 @@ submit_feedback(
 
 ```python
 # Wrong - using GitHub-specific API
-add_issue_comment(
+add_issue_comment(  # ❌ Don't use platform-specific operations
     issue_number=TRACKER_NUMBER,
     body="Feedback: [...]"
 )

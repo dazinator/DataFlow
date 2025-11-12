@@ -260,9 +260,9 @@ duty = get_work_item_duty(work_item_id)
 
 ```python
 # Wrong - using GitHub-specific MCP tool directly
-issue_write(
+issue_write(  # ❌ Don't use platform-specific operations
     method="update",
-    labels=["workflow:research"]
+    labels=["workflow:research"]  # ❌ Don't use platform-specific labels
 )
 ```
 

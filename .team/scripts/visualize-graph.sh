@@ -43,12 +43,16 @@ echo "Parsing graph..."
 while IFS= read -r line; do
     if [[ "$line" =~ ^[[:space:]]*-[[:space:]]*id:[[:space:]]*(.+)$ ]]; then
         current_id="${BASH_REMATCH[1]}"
-        nodes["$current_id"]=1
+        # Initialize with ID as fallback label
+        nodes["$current_id"]="$current_id"
     elif [[ "$line" =~ ^[[:space:]]*type:[[:space:]]*(.+)$ ]] && [[ -n "${current_id:-}" ]]; then
         node_type="${BASH_REMATCH[1]}"
         node_types["$current_id"]="$node_type"
-    elif [[ "$line" =~ ^[[:space:]]*description:[[:space:]]*\"(.+)\"$ ]] && [[ -n "${current_id:-}" ]]; then
+    elif [[ "$line" =~ ^[[:space:]]*description:[[:space:]]*(.+)$ ]] && [[ -n "${current_id:-}" ]]; then
         description="${BASH_REMATCH[1]}"
+        # Remove quotes if present
+        description="${description#\"}"
+        description="${description%\"}"
         # Store first 50 chars of description
         nodes["$current_id"]="${description:0:50}"
     fi
