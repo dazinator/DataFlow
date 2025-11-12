@@ -8,6 +8,7 @@ name: Scheduled Bulk Triage
   workflow_dispatch:  # Allow manual triggering for testing
 
 permissions:
+  contents: read
   issues: write
 
 jobs:
@@ -17,6 +18,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Trigger Bulk Triage
         uses: actions/github-script@v7
