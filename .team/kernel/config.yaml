@@ -1,0 +1,23 @@
+# Kernel Platform Configuration
+# Version: 1.0
+# Created: 2025-11-12
+#
+# This file configures the active work tracker platform and platform-specific settings.
+
+# Active platform (current: GitHub Issues, future: Azure DevOps)
+platform: github  # Options: "github", "azuredevops"
+
+# GitHub Issues Configuration
+github:
+  owner: uniun-technology
+  repo: lib-dataflow
+  duty_label_prefix: "workflow:"
+  feedback_tracker_title: "[Workflow Feedback] Tracker"
+
+# Azure DevOps Configuration (future - not yet implemented)
+# Will use Azure DevOps MCP Server: https://github.com/microsoft/azure-devops-mcp
+azuredevops:
+  organization: uniun-technology
+  project: lib-dataflow
+  duty_tag_prefix: "duty:"
+  feedback_work_item_type: "Feedback"

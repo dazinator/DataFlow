@@ -1,0 +1,56 @@
+# Kernel Domain Registry
+# Version: 1.0
+# Created: 2025-11-12
+#
+# This file registers all available kernel drivers (work tracker platforms).
+# Each driver provides platform-specific implementations of semantic operations.
+
+domains:
+  - name: github
+    path: .team/kernel/github/
+    description: GitHub Issues work tracker driver
+    status: implemented
+    version: "1.0"
+    platform_api: GitHub REST API v3 + MCP Tools
+    # Leak detection patterns - terms that should ONLY appear in this kernel's files
+    leak_patterns:
+      - issue_write
+      - issue_read
+      - add_issue_comment
+      - list_issues
+      - search_issues
+      - sub_issue_write
+      - github-mcp-server
+      - workflow:research
+      - workflow:implementation
+      - workflow:triage
+      - workflow:tech-debt
+      - workflow:product
+      - workflow:process
+      - owner="uniun-technology"
+      - repo="lib-dataflow"
+      - labels=\["workflow:
+    
+  - name: azuredevops
+    path: .team/kernel/azuredevops/
+    description: Azure DevOps Boards work tracker driver
+    status: planned
+    version: "0.0"
+    platform_api: Azure DevOps MCP Server
+    mcp_server_url: https://github.com/microsoft/azure-devops-mcp
+    # Leak detection patterns - terms that should ONLY appear in this kernel's files (future)
+    leak_patterns:
+      - /wit/workitems
+      - azure-devops
+      - duty:research
+      - duty:implementation
+      - organization=
+      - project=
+      - tags=\["duty:
+    notes: |
+      Planned for future implementation.
+      Will use Azure DevOps MCP Server for platform integration.
+      Will provide same semantic operations as GitHub driver.
+
+# Note: The "active" platform is configured in config.yaml
+# This registry catalogs available/planned drivers and their leak detection patterns.

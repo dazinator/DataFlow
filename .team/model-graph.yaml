@@ -1,6 +1,7 @@
 # Prompt System Dependency Graph
-# Version: 1.0 (Baseline - Pre-Migration)
+# Version: 1.1 (Phase 1 - Kernel Layer Added)
 # Created: 2025-11-12
+# Updated: 2025-11-12 (Added kernel layer nodes and edges)
 # Maintained by: Process Modeling Workflow
 #
 # This file documents the dependency graph of the prompt/workflow system.
@@ -9,6 +10,7 @@
 # Node Types:
 #   - orchestration: Entry point (copilot-instructions.md)
 #   - workflow: Current workflow files (will become "duty" in migration)
+#   - kernel: Kernel layer (platform abstraction) - Phase 1
 #   - supporting-doc: Supporting documentation referenced by workflows
 #   - system-doc: System-level documentation
 #
@@ -17,8 +19,12 @@
 #   - optional: Useful to reference, may not be needed
 #   - cross-reference: Informational link
 #
-# Note: This is the CURRENT state. The design documents describe the TARGET state
-# after migration (kernel, procedures, duties layers).
+# Phase 1 Complete:
+#   - Kernel layer structure created
+#   - GitHub driver implemented with 12 semantic operations
+#   - Graph tooling scripts created
+#   - Leak detection implemented
+#   - Kernel test suite established
 
 nodes:
   # Orchestration Layer
@@ -110,6 +116,42 @@ nodes:
     type: system-doc
     path: docs/design/prompt-engineering/testing-framework.md
     description: Testing methodology with leak detection
+    
+  # Kernel Layer (Phase 1)
+  - id: kernel-main
+    type: kernel
+    path: .team/kernel/README.md
+    description: Kernel layer overview and semantic operations
+    
+  - id: kernel-config
+    type: kernel
+    path: .team/kernel/config.yaml
+    description: Platform configuration (GitHub/Azure DevOps)
+    
+  - id: kernel-domains
+    type: kernel
+    path: .team/kernel/domains.yaml
+    description: Kernel domain registry
+    
+  - id: kernel-github-driver
+    type: kernel
+    path: .team/kernel/github/README.md
+    description: GitHub Issues driver implementation
+    
+  - id: kernel-github-operations
+    type: kernel
+    path: .team/kernel/github/operations.md
+    description: GitHub semantic operation mappings
+    
+  - id: kernel-github-examples
+    type: kernel
+    path: .team/kernel/github/examples.md
+    description: GitHub driver usage examples
+    
+  - id: kernel-tests
+    type: kernel
+    path: .team/kernel/tests/README.md
+    description: Kernel test suite overview
 
 edges:
   # Orchestration references all workflows
@@ -290,6 +332,57 @@ edges:
     to: workflow-research
     type: optional
     reason: Handover pattern reference
+    
+  # Phase 1: Kernel Layer (New - Foundation)
+  - from: kernel-main
+    to: design-semantic-language
+    type: required
+    reason: Kernel implements semantic operations from design
+    
+  - from: kernel-main
+    to: design-concepts
+    type: required
+    reason: Kernel follows layered architecture concepts
+    
+  - from: kernel-github-driver
+    to: kernel-main
+    type: required
+    reason: GitHub driver is part of kernel layer
+    
+  - from: kernel-github-operations
+    to: kernel-github-driver
+    type: required
+    reason: Operations document belongs to GitHub driver
+    
+  - from: kernel-github-examples
+    to: kernel-github-operations
+    type: required
+    reason: Examples illustrate operations mappings
+    
+  - from: kernel-github-operations
+    to: design-semantic-language
+    type: required
+    reason: Operations implement semantic language specification
+    
+  - from: kernel-config
+    to: kernel-main
+    type: required
+    reason: Configuration defines active platform for kernel
+    
+  - from: kernel-domains
+    to: kernel-main
+    type: required
+    reason: Domain registry catalogs available kernel drivers
+    
+  - from: kernel-tests
+    to: kernel-main
+    type: required
+    reason: Tests validate kernel implementations
+    
+  - from: kernel-tests
+    to: design-testing-framework
+    type: required
+    reason: Tests follow kernel testing methodology from design
 
 # Migration Notes:
 # This graph represents the CURRENT state (Phase 0).
