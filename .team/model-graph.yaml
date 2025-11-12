@@ -243,6 +243,36 @@ nodes:
     type: duty
     path: research/workflow-modeling/scenarios/duties/tech-debt/README.md
     description: Tech debt duty test scenarios
+  
+  - id: duty-product-prioritization
+    type: duty
+    path: .team/duties/PRODUCT_PRIORITIZATION_DUTY.md
+    description: Prioritize backlog work items based on policy criteria
+  
+  - id: duty-product-prioritization-tests
+    type: duty
+    path: research/workflow-modeling/scenarios/duties/product-prioritization/README.md
+    description: Product prioritization duty test scenarios
+  
+  - id: duty-unassigned
+    type: duty
+    path: .team/duties/UNASSIGNED_DUTY.md
+    description: Handle work items where duty cannot be inferred automatically
+  
+  - id: duty-unassigned-tests
+    type: duty
+    path: research/workflow-modeling/scenarios/duties/unassigned/README.md
+    description: Unassigned duty test scenarios
+  
+  - id: duty-process-modeling
+    type: duty
+    path: .team/duties/PROCESS_MODELING_DUTY.md
+    description: Improve workflows, procedures, and processes through systematic testing
+  
+  - id: duty-process-modeling-tests
+    type: duty
+    path: research/workflow-modeling/scenarios/duties/process-modeling/README.md
+    description: Process modeling duty test scenarios (existing)
 
 edges:
   # Orchestration references all workflows
@@ -756,6 +786,179 @@ edges:
     reason: Tests validate tech debt duty procedure
     
   - from: duty-tech-debt-tests
+    to: design-testing-framework
+    type: required
+    reason: Tests follow duty testing methodology
+  
+  # Phase 3: Duty Layer - Product Prioritization Duty Dependencies
+  - from: duty-product-prioritization
+    to: design-semantic-language
+    type: required
+    reason: Duty uses semantic operations exclusively
+    
+  - from: duty-product-prioritization
+    to: kernel-main
+    type: required
+    reason: Semantic operations implemented by kernel
+    
+  - from: duty-product-prioritization
+    to: procedure-duty-assignment
+    type: required
+    reason: Uses duty assignment logic for routing work items
+    
+  - from: duty-product-prioritization
+    to: procedure-handover
+    type: required
+    reason: Hands over work items to implementation duty
+    
+  - from: duty-product-prioritization
+    to: procedure-work-item-creation
+    type: required
+    reason: Creates prioritization work items
+    
+  - from: duty-product-prioritization
+    to: procedure-comment-patterns
+    type: required
+    reason: Uses standard comment formats
+    
+  - from: duty-product-prioritization
+    to: procedure-multi-phase
+    type: required
+    reason: Handles multi-phase prioritization plans
+    
+  - from: duty-product-prioritization
+    to: doc-documentation-artifacts
+    type: required
+    reason: Creates product-backlog analysis documents
+    
+  - from: duty-product-prioritization-tests
+    to: duty-product-prioritization
+    type: required
+    reason: Tests validate product prioritization duty procedure
+    
+  - from: duty-product-prioritization-tests
+    to: design-testing-framework
+    type: required
+    reason: Tests follow duty testing methodology
+  
+  # Phase 3: Duty Layer - Unassigned Duty Dependencies
+  - from: duty-unassigned
+    to: design-semantic-language
+    type: required
+    reason: Duty uses semantic operations exclusively
+    
+  - from: duty-unassigned
+    to: kernel-main
+    type: required
+    reason: Semantic operations implemented by kernel
+    
+  - from: duty-unassigned
+    to: procedure-duty-assignment
+    type: required
+    reason: Uses duty assignment logic for inference
+    
+  - from: duty-unassigned
+    to: procedure-handover
+    type: required
+    reason: Hands over work items to appropriate duties
+    
+  - from: duty-unassigned
+    to: procedure-work-item-creation
+    type: required
+    reason: May suggest work item improvements
+    
+  - from: duty-unassigned
+    to: procedure-comment-patterns
+    type: required
+    reason: Uses standard comment formats
+    
+  - from: duty-unassigned-tests
+    to: duty-unassigned
+    type: required
+    reason: Tests validate unassigned duty procedure
+    
+  - from: duty-unassigned-tests
+    to: design-testing-framework
+    type: required
+    reason: Tests follow duty testing methodology
+  
+  # Phase 3: Duty Layer - Process Modeling Duty Dependencies
+  - from: duty-process-modeling
+    to: design-main
+    type: required
+    reason: Complete architecture design for making process changes
+    
+  - from: duty-process-modeling
+    to: design-concepts
+    type: required
+    reason: Understanding layered model when making changes
+    
+  - from: duty-process-modeling
+    to: design-semantic-language
+    type: required
+    reason: Semantic operations specification
+    
+  - from: duty-process-modeling
+    to: design-testing-framework
+    type: required
+    reason: Change procedures and leak detection methodology
+    
+  - from: duty-process-modeling
+    to: kernel-main
+    type: required
+    reason: Semantic operations implemented by kernel
+    
+  - from: duty-process-modeling
+    to: procedures-main
+    type: required
+    reason: References all global procedures
+    
+  - from: duty-process-modeling
+    to: procedure-duty-assignment
+    type: required
+    reason: Uses duty assignment logic
+    
+  - from: duty-process-modeling
+    to: procedure-work-item-creation
+    type: required
+    reason: Creates process modeling work items
+    
+  - from: duty-process-modeling
+    to: procedure-comment-patterns
+    type: required
+    reason: Uses standard comment formats
+    
+  - from: duty-process-modeling
+    to: procedure-handover
+    type: required
+    reason: May hand over to other duties
+    
+  - from: duty-process-modeling
+    to: procedure-multi-phase
+    type: required
+    reason: Handles multi-phase process modeling plans
+    
+  - from: duty-process-modeling
+    to: procedure-self-improvement
+    type: required
+    reason: Submits feedback after completion
+    
+  - from: duty-process-modeling
+    to: doc-document-hygiene
+    type: required
+    reason: Process modeling creates and updates documentation
+    
+  - from: duty-process-modeling
+    to: doc-documentation-artifacts
+    type: required
+    reason: Uses global documentation structure
+    
+  - from: duty-process-modeling-tests
+    to: duty-process-modeling
+    type: required
+    reason: Tests validate process modeling duty procedure
+    
+  - from: duty-process-modeling-tests
     to: design-testing-framework
     type: required
     reason: Tests follow duty testing methodology
