@@ -213,6 +213,36 @@ nodes:
     type: duty
     path: research/workflow-modeling/scenarios/duties/triage/README.md
     description: Triage duty test scenarios
+  
+  - id: duty-research
+    type: duty
+    path: .team/duties/RESEARCH_DUTY.md
+    description: Validate technical approaches and create implementation-ready specifications
+  
+  - id: duty-research-tests
+    type: duty
+    path: research/workflow-modeling/scenarios/duties/research/README.md
+    description: Research duty test scenarios
+  
+  - id: duty-implementation
+    type: duty
+    path: .team/duties/IMPLEMENTATION_DUTY.md
+    description: Implement validated designs and solutions
+  
+  - id: duty-implementation-tests
+    type: duty
+    path: research/workflow-modeling/scenarios/duties/implementation/README.md
+    description: Implementation duty test scenarios
+  
+  - id: duty-tech-debt
+    type: duty
+    path: .team/duties/TECH_DEBT_DUTY.md
+    description: Discover and document technical debt for prioritization
+  
+  - id: duty-tech-debt-tests
+    type: duty
+    path: research/workflow-modeling/scenarios/duties/tech-debt/README.md
+    description: Tech debt duty test scenarios
 
 edges:
   # Orchestration references all workflows
@@ -593,6 +623,139 @@ edges:
     reason: Tests validate triage duty procedure
     
   - from: duty-triage-tests
+    to: design-testing-framework
+    type: required
+    reason: Tests follow duty testing methodology
+  
+  # Phase 3: Duty Layer - Research Duty Dependencies
+  - from: duty-research
+    to: design-semantic-language
+    type: required
+    reason: Duty uses semantic operations exclusively
+    
+  - from: duty-research
+    to: kernel-main
+    type: required
+    reason: Semantic operations implemented by kernel
+    
+  - from: duty-research
+    to: procedure-handover
+    type: required
+    reason: Hands over work items to other duties (mainly implementation)
+    
+  - from: duty-research
+    to: procedure-work-item-creation
+    type: required
+    reason: Creates implementation handover work items
+    
+  - from: duty-research
+    to: procedure-comment-patterns
+    type: required
+    reason: Uses standard comment formats
+    
+  - from: duty-research
+    to: procedure-self-improvement
+    type: required
+    reason: Submits feedback after research completion
+    
+  - from: duty-research
+    to: procedure-multi-phase
+    type: optional
+    reason: May handle multi-phase research plans
+    
+  - from: duty-research-tests
+    to: duty-research
+    type: required
+    reason: Tests validate research duty procedure
+    
+  - from: duty-research-tests
+    to: design-testing-framework
+    type: required
+    reason: Tests follow duty testing methodology
+  
+  # Phase 3: Duty Layer - Implementation Duty Dependencies
+  - from: duty-implementation
+    to: design-semantic-language
+    type: required
+    reason: Duty uses semantic operations exclusively
+    
+  - from: duty-implementation
+    to: kernel-main
+    type: required
+    reason: Semantic operations implemented by kernel
+    
+  - from: duty-implementation
+    to: procedure-multi-phase
+    type: required
+    reason: Handles multi-phase implementation plans
+    
+  - from: duty-implementation
+    to: procedure-handover
+    type: required
+    reason: May hand over to research or tech debt duties
+    
+  - from: duty-implementation
+    to: procedure-work-item-creation
+    type: optional
+    reason: May create follow-up work items
+    
+  - from: duty-implementation
+    to: procedure-comment-patterns
+    type: required
+    reason: Uses standard comment formats
+    
+  - from: duty-implementation
+    to: procedure-self-improvement
+    type: required
+    reason: Submits feedback after implementation completion
+    
+  - from: duty-implementation
+    to: doc-getting-started
+    type: required
+    reason: Follows DataFlow coding standards and patterns
+    
+  - from: duty-implementation-tests
+    to: duty-implementation
+    type: required
+    reason: Tests validate implementation duty procedure
+    
+  - from: duty-implementation-tests
+    to: design-testing-framework
+    type: required
+    reason: Tests follow duty testing methodology
+  
+  # Phase 3: Duty Layer - Tech Debt Duty Dependencies
+  - from: duty-tech-debt
+    to: design-semantic-language
+    type: required
+    reason: Duty uses semantic operations exclusively
+    
+  - from: duty-tech-debt
+    to: kernel-main
+    type: required
+    reason: Semantic operations implemented by kernel
+    
+  - from: duty-tech-debt
+    to: procedure-handover
+    type: required
+    reason: Hands over to product prioritization duty
+    
+  - from: duty-tech-debt
+    to: procedure-work-item-creation
+    type: required
+    reason: Creates product backlog items for findings
+    
+  - from: duty-tech-debt
+    to: procedure-comment-patterns
+    type: required
+    reason: Uses standard comment formats
+    
+  - from: duty-tech-debt-tests
+    to: duty-tech-debt
+    type: required
+    reason: Tests validate tech debt duty procedure
+    
+  - from: duty-tech-debt-tests
     to: design-testing-framework
     type: required
     reason: Tests follow duty testing methodology
