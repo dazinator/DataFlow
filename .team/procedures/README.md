@@ -46,9 +46,12 @@ flowchart TB
         KERNEL[Kernel Layer 3<br/>Semantic Operations]
     end
     
-    ORCH -.->|uses| DUTY
-    ORCH -.->|uses| MULTI
-    ORCH -.->|uses| IMPROVE
+    ORCH -.->|imports layer| DUTY
+    ORCH -.->|imports layer| MULTI
+    ORCH -.->|imports layer| IMPROVE
+    ORCH -.->|imports layer| CREATE
+    ORCH -.->|imports layer| HANDOVER
+    ORCH -.->|imports layer| COMMENT
     
     DUTIES -.->|uses| DUTY
     DUTIES -.->|uses| MULTI
@@ -67,6 +70,8 @@ flowchart TB
     style KERNEL fill:#ffe1e1,stroke:#333,stroke-width:2px
     style ORCH fill:#e1f5ff,stroke:#333,stroke-width:2px
 ```
+
+**Note**: Orchestration imports the entire procedures layer (all procedures available), while individual duties selectively use specific procedures as needed.
 
 ---
 

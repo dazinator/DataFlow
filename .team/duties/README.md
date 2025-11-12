@@ -48,13 +48,13 @@ flowchart TB
         KERNEL[Kernel Layer 3]
     end
     
-    ORCH -->|dispatches to| TRIAGE
-    ORCH -->|dispatches to| RESEARCH
-    ORCH -->|dispatches to| IMPL
-    ORCH -->|dispatches to| DEBT
-    ORCH -->|dispatches to| PRODUCT
-    ORCH -->|dispatches to| PROCESS
-    ORCH -->|dispatches to| UNASSIGNED
+    ORCH -->|imports layer & dispatches| TRIAGE
+    ORCH -->|imports layer & dispatches| RESEARCH
+    ORCH -->|imports layer & dispatches| IMPL
+    ORCH -->|imports layer & dispatches| DEBT
+    ORCH -->|imports layer & dispatches| PRODUCT
+    ORCH -->|imports layer & dispatches| PROCESS
+    ORCH -->|imports layer & dispatches| UNASSIGNED
     
     TRIAGE -.->|uses| PROCS
     RESEARCH -.->|uses| PROCS
@@ -70,6 +70,8 @@ flowchart TB
     style PROCS fill:#f0f0f0,stroke:#333,stroke-width:2px
     style KERNEL fill:#ffe1e1,stroke:#333,stroke-width:2px
 ```
+
+**Note**: Orchestration imports the entire duties layer (all duties available for dispatch), then dispatches to the appropriate duty based on work item assignment.
 
 ---
 

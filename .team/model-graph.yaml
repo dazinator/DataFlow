@@ -1,7 +1,7 @@
 # Prompt System Dependency Graph
-# Version: 1.2 (Phase 2 - Global Procedures Added)
+# Version: 1.3 (Phase 4 - Orchestration Update)
 # Created: 2025-11-12
-# Updated: 2025-11-12 (Added global procedures layer nodes and edges)
+# Updated: 2025-11-12 (Phase 4: Orchestration updated to use layered architecture)
 # Maintained by: Process Modeling Workflow
 #
 # This file documents the dependency graph of the prompt/workflow system.
@@ -34,6 +34,19 @@
 #   - All procedures use semantic operations only (zero platform-specific code)
 #   - Test scenario structure created
 #   - Graph updated with procedure nodes and dependencies
+#
+# Phase 3 Complete:
+#   - All 7 duties migrated from legacy workflow files
+#   - Duties use semantic operations exclusively
+#   - Duty test scenarios created
+#   - Graph updated with duty nodes and dependencies
+#
+# Phase 4 Complete:
+#   - Orchestration updated to layered architecture
+#   - Required Context section added (imports kernel, procedures)
+#   - Duty assignment and dispatch logic implemented
+#   - All references updated from "workflow" to "duty"
+#   - Graph updated with orchestration layer dependencies
 
 nodes:
   # Orchestration Layer
@@ -204,6 +217,11 @@ nodes:
     description: Procedure test scenarios overview
   
   # Duty Layer (Phase 3) - Migrated from workflow files
+  - id: duties-main
+    type: duty
+    path: .team/duties/README.md
+    description: Duties layer overview and architecture
+  
   - id: duty-triage
     type: duty
     path: .team/duties/TRIAGE_DUTY.md
@@ -275,68 +293,49 @@ nodes:
     description: Process modeling duty test scenarios (existing)
 
 edges:
-  # Orchestration references all workflows
+  # Phase 4: Orchestration Layer Dependencies (Simplified - Option B)
+  # Orchestration is the implicit entry point and imports entire layers, not individual nodes.
+  # This simplified approach models layer-level dependencies for maintainability while
+  # preserving change impact analysis capabilities.
+  
+  # Layer-level dependencies
   - from: orchestration
-    to: workflow-triage
-    type: cross-reference
-    reason: Quick navigation to triage workflow
+    to: kernel-main
+    type: required
+    reason: Orchestration imports kernel layer (semantic operations)
+  
+  - from: orchestration
+    to: procedures-main
+    type: required
+    reason: Orchestration imports global procedures layer
+  
+  - from: orchestration
+    to: duties-main
+    type: required
+    reason: Orchestration dispatches to duties layer
+  
+  # Design document dependencies (architectural guidance)
+  - from: orchestration
+    to: design-concepts
+    type: required
+    reason: Orchestration follows Layer 0 definition from design
     
   - from: orchestration
-    to: workflow-research
-    type: cross-reference
-    reason: Quick navigation to research workflow
-    
-  - from: orchestration
-    to: workflow-implementation
-    type: cross-reference
-    reason: Quick navigation to implementation workflow
-    
-  - from: orchestration
-    to: workflow-tech-debt
-    type: cross-reference
-    reason: Quick navigation to tech debt workflow
-    
-  - from: orchestration
-    to: workflow-product-prioritization
-    type: cross-reference
-    reason: Quick navigation to product prioritization workflow
-    
-  - from: orchestration
-    to: workflow-process-modeling
-    type: cross-reference
-    reason: Quick navigation to process modeling workflow
-    
-  # Orchestration references system documentation
+    to: design-testing-framework
+    type: required
+    reason: Orchestration references testing framework for change procedures
+  
+  # Supporting documentation dependencies (repository-specific)
   - from: orchestration
     to: doc-workflow-topology
     type: required
-    reason: Required for workflow label system understanding
-    
-  - from: orchestration
-    to: doc-document-hygiene
-    type: required
-    reason: Documentation standards for all agents
-    
-  - from: orchestration
-    to: doc-documentation-artifacts
-    type: required
-    reason: Global documentation structure
-    
-  - from: orchestration
-    to: doc-multi-phase-issues
-    type: required
-    reason: Multi-phase issue handling
+    reason: Required for duty label system understanding
     
   - from: orchestration
     to: doc-getting-started
     type: required
-    reason: DataFlow coding standards (for implementation workflows)
-    
-  - from: orchestration
-    to: doc-workflow-feedback-tracker
-    type: required
-    reason: Self-improvement feedback system
-    
+    reason: DataFlow coding standards (for implementation duties)
+  
   # Research Workflow Dependencies
   - from: workflow-research
     to: doc-document-hygiene
@@ -967,10 +966,11 @@ edges:
 # Phase 0: Complete - Design documents created
 # Phase 1: Complete - Kernel layer implemented
 # Phase 2: Complete - Global procedures layer implemented
+# Phase 3: Complete - Duty layer migration (workflow files → duties)
+# Phase 4: Complete - Orchestration update (use procedures and duties)
 # 
 # Remaining phases:
-# Phase 3: Duty layer migration (workflow files → duties)
-# Phase 4: Orchestration update (use procedures and duties)
 # Phase 5: Legacy workflow cleanup
 # 
 # The design documents (design-*) describe the TARGET architecture.
+# Phase 4 brings orchestration layer into alignment with layered architecture.

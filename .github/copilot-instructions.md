@@ -1,17 +1,46 @@
 # GitHub Copilot Instructions for DataFlow
 
-## Critical Infrastructure
+**Version**: 2.0 (Phase 4 - Layered Architecture)  
+**Last Updated**: 2025-11-12
 
-**⚠️ Read First - Workflow Feedback Tracker:**
+---
 
-The **[Workflow Feedback Tracker](/.github/docs/WORKFLOW_FEEDBACK_TRACKER.md)** is a required parent issue that consolidates all workflow improvement suggestions. 
+## Required Context
 
-- **Title**: `[Workflow Feedback] Tracker` (exact - do not change)
-- **Purpose**: Central hub for continuous workflow improvement
-- **Usage**: All workflows create feedback issues under this parent after completing work
-- **Resilience**: If deleted, recreate with exact same title - workflows find it automatically
+**⚠️ CRITICAL - READ FIRST**: This orchestration layer (Layer 0) imports and coordinates all other layers. Before proceeding, you must understand:
 
-See [Workflow Feedback Tracker Guide](/.github/docs/WORKFLOW_FEEDBACK_TRACKER.md) for complete details.
+### Layer 3: Kernel (Platform Abstraction)
+
+**📖 [Kernel Layer](../.team/kernel/README.md)** - Platform-specific operations abstracted into semantic operations
+
+**What It Provides**:
+- 12 semantic operations for work item management
+- Platform drivers (GitHub, Azure DevOps planned)
+- Abstracts away platform-specific details
+
+**When You Use It**: Never directly - always through semantic operations referenced in procedures and duties
+
+### Layer 1: Global Procedures (Platform-Agnostic)
+
+**📖 [Global Procedures](../.team/procedures/README.md)** - Reusable, platform-agnostic procedures
+
+**What It Provides**:
+- Duty assignment logic
+- Multi-phase work item handling
+- Self-improvement feedback
+- Work item creation patterns
+- Handover procedures
+- Comment patterns
+
+**When You Use It**: Referenced by duties and orchestration for common operations
+
+### Layer 0: Orchestration (This Document)
+
+**Purpose**: Entry point that:
+1. Loads required context (kernel, procedures)
+2. Determines which duty should handle the work
+3. Dispatches to the appropriate duty
+4. Provides repository-specific guidance
 
 ---
 
@@ -19,62 +48,85 @@ See [Workflow Feedback Tracker Guide](/.github/docs/WORKFLOW_FEEDBACK_TRACKER.md
 
 **Start here based on your task:**
 
-**For New Issues (All Workflows):**
+### For New Work Items (All Duties)
 
-**⚠️ CRITICAL - CHECK THE WORKFLOW LABEL FIRST:**
-- **ALWAYS check the issue's workflow label BEFORE doing any other analysis**
-- The workflow label (`workflow:triage`, `workflow:research`, `workflow:implementation`, etc.) **takes precedence over issue content**
-- **DO NOT** assume workflow type from issue description - the label is the authoritative source
+**⚠️ CRITICAL - CHECK THE DUTY LABEL FIRST:**
+- **ALWAYS check the work item's duty label BEFORE doing any other analysis**
+- The duty label (`workflow:triage`, `workflow:research`, `workflow:implementation`, etc.) **takes precedence over work item content**
+- **DO NOT** assume duty type from work item description - the label is the authoritative source
 - **DO NOT** proceed without checking the label - this is your primary directive
-- Query your workflow queue to find assigned issues
+- Query your duty queue to find assigned work items
 - See [Workflow Topology Guide](/.github/docs/WORKFLOW_TOPOLOGY_GUIDE.md) for querying and handover patterns
 
 **Comment Prefix Convention:**
-- Prefix ALL comments and responses with `[Copilot-Workflow: <workflow-name>]` to verify you've checked the label
-- Example: `[Copilot-Workflow: Research] I've analyzed the approach...`
+- Prefix ALL comments and responses with `[Copilot-Duty: <duty-name>]` to verify you've checked the label
+- Example: `[Copilot-Duty: Research] I've analyzed the approach...`
 - This serves as confirmation that you followed the label-first directive
 
-**By Workflow Type:**
+### By Duty Type
 
-1. **Triage Task** (assess and route new issues)
-   → See `.team/prompts/TRIAGE_WORKFLOW.md`
+**📖 Use the [Duty Assignment Procedure](../.team/procedures/duty-assignment.md) to determine the correct duty, then dispatch:**
 
-2. **Research Task** (validate approaches, create specifications)
-   → See `.team/prompts/RESEARCH_WORKFLOW.md`
+1. **Triage Duty** (assess and route new work items)
+   → See [Triage Duty](../.team/duties/TRIAGE_DUTY.md)
 
-3. **Implementation Task** (implement validated designs)
-   → See `.team/prompts/IMPLEMENTATION_WORKFLOW.md`
+2. **Research Duty** (validate approaches, create specifications)
+   → See [Research Duty](../.team/duties/RESEARCH_DUTY.md)
 
-4. **Tech Debt Task** (discover and address technical debt)
-   → See `.team/prompts/TECH_DEBT_WORKFLOW.md`
+3. **Implementation Duty** (implement validated designs)
+   → See [Implementation Duty](../.team/duties/IMPLEMENTATION_DUTY.md)
 
-5. **Product Prioritization** (prioritize backlog items)
-   → See `.team/prompts/PRODUCT_PRIORITIZATION_WORKFLOW.md`
+4. **Tech Debt Duty** (discover and address technical debt)
+   → See [Tech Debt Duty](../.team/duties/TECH_DEBT_DUTY.md)
 
-6. **Process Modeling Task** (improve workflows and processes)
-   → See `.team/prompts/PROCESS_MODELING_WORKFLOW.md`
+5. **Product Prioritization Duty** (prioritize backlog items)
+   → See [Product Prioritization Duty](../.team/duties/PRODUCT_PRIORITIZATION_DUTY.md)
 
-7. **POC Work** (evolving architecture exploration)
-   → See section below, then follow appropriate workflow
+6. **Process Modeling Duty** (improve workflows and processes)
+   → See [Process Modeling Duty](../.team/duties/PROCESS_MODELING_DUTY.md)
 
-8. **Continuing Existing Work**
-   → Check `/implementation/plan.md` first
+7. **Unassigned Duty** (handle work items where duty cannot be inferred)
+   → See [Unassigned Duty](../.team/duties/UNASSIGNED_DUTY.md)
 
-**⚠️ ALWAYS complete self-improvement evaluation before PR review** (see below)
+**⚠️ ALWAYS complete self-improvement evaluation before PR review** (see [Self-Improvement Loop](#self-improvement-loop) below)
 
-**Multi-Phase Issues:**
-- **ALWAYS check if your issue is part of a multi-phase plan** at workflow start
-- See [Multi-Phase Issue Procedures](/.team/MULTI_PHASE_ISSUES.md) for complete guidance
-- Update parent issue as work progresses
-- Close parent automatically when completing last sub-issue
+**⚠️ ALWAYS check if your work item is part of a multi-phase plan** - See [Multi-Phase Work Item Procedures](../.team/procedures/multi-phase-work-items.md)
 
 ---
 
-## ⚠️ CRITICAL: Workflow Labels and File Ownership
+## Duty Assignment and Dispatch
 
-### Supported Workflow Labels
+### Step 1: Determine Duty Assignment
 
-**⚠️ REQUIRED READING**: Before labeling any issues, you MUST read the authoritative label schema:
+**Use the [Duty Assignment Procedure](../.team/procedures/duty-assignment.md)** to determine which duty should handle the current work item.
+
+### Step 2: Dispatch to Appropriate Duty
+
+Once duty is determined, **load and follow the corresponding duty procedure**:
+
+| Duty | File Path | Purpose |
+|------|-----------|---------|
+| `triage` | [Triage Duty](../.team/duties/TRIAGE_DUTY.md) | Assess and route work items |
+| `research` | [Research Duty](../.team/duties/RESEARCH_DUTY.md) | Validate approaches, create specs |
+| `implementation` | [Implementation Duty](../.team/duties/IMPLEMENTATION_DUTY.md) | Implement validated designs |
+| `tech-debt` | [Tech Debt Duty](../.team/duties/TECH_DEBT_DUTY.md) | Discover and document technical debt |
+| `product-backlog` | [Product Prioritization Duty](../.team/duties/PRODUCT_PRIORITIZATION_DUTY.md) | Prioritize backlog items |
+| `process-modeling` | [Process Modeling Duty](../.team/duties/PROCESS_MODELING_DUTY.md) | Improve workflows and processes |
+| `None` or unrecognized | [Unassigned Duty](../.team/duties/UNASSIGNED_DUTY.md) | Handle edge cases |
+
+**Each duty provides**:
+- Complete step-by-step procedures
+- Semantic operations to use
+- Handover patterns to other duties
+- Common scenarios and examples
+
+---
+
+## ⚠️ CRITICAL: Duty Labels and File Ownership
+
+### Supported Duty Labels
+
+**⚠️ REQUIRED READING**: Before labeling any work items, you MUST read the authoritative label schema:
 
 **📖 [Workflow Topology Guide - Label Schema](/.github/docs/WORKFLOW_TOPOLOGY_GUIDE.md#label-schema)**
 
@@ -82,65 +134,43 @@ See [Workflow Feedback Tracker Guide](/.github/docs/WORKFLOW_FEEDBACK_TRACKER.md
 
 1. **ONLY use labels from the Label Schema** - do not invent new ones
 2. **Use exact format**: `workflow:<name>` with a colon (`:`) separator
-3. **One workflow label per issue** - issues have exactly ONE workflow label at a time
+3. **One duty label per work item** - work items have exactly ONE duty label at a time
 
 **❌ Common Mistakes to Avoid:**
 - `workflow-implementation` ❌ (incorrect - use `workflow:implementation`)
 - `implementation-workflow` ❌ (incorrect - use `workflow:implementation`)
 - `workflow_implementation` ❌ (incorrect - use `workflow:implementation`)
-- Inventing new workflow labels not in the schema ❌
+- Inventing new duty labels not in the schema ❌
 
-**The Label Schema is the single source of truth** - always reference it before creating or updating issue labels.
+**The Label Schema is the single source of truth** - always reference it before creating or updating work item labels.
 
-### Workflow File Ownership
+### Duty File Ownership
 
-**⚠️ CRITICAL - Process Modeling Owns Workflow Files:**
+**⚠️ CRITICAL - Process Modeling Owns Duty Files:**
 
-The following files are **EXCLUSIVELY OWNED** by the Process Modeling workflow:
+The following files are **EXCLUSIVELY OWNED** by the Process Modeling duty:
 
-- `.team/prompts/*_WORKFLOW.md` (all workflow documentation files)
+- `.team/duties/*_DUTY.md` (all duty documentation files)
+- `.team/procedures/*.md` (all global procedure files)
+- `.team/kernel/**/*.md` (all kernel layer files)
 - `.github/copilot-instructions.md` (this file)
 - `.github/ISSUE_TEMPLATE/*.md` (issue templates)
 - `.github/docs/WORKFLOW_TOPOLOGY_GUIDE.md` (workflow system docs)
 
-**If you're in ANY other workflow and encounter tasks involving these files:**
+**If you're in ANY other duty and encounter tasks involving these files:**
 
 1. ✅ **STOP** - Do not update these files yourself
-2. ✅ **Create or update a Process Modeling issue** for the changes needed
-3. ✅ **Hand over** to process modeling workflow
-4. ✅ **Document** what workflow changes are needed and why
+2. ✅ **Create or update a Process Modeling work item** for the changes needed
+3. ✅ **Hand over** to process modeling duty
+4. ✅ **Document** what changes are needed and why
 
-**Example Handover:**
-```python
-# Create process modeling issue for workflow changes
-issue_write(
-    method="create",
-    owner="uniun-technology",
-    repo="lib-dataflow",
-    title="[Process Modeling] Update [Workflow Name] for [reason]",
-    labels=["workflow:process-modeling"],
-    body="""## Workflow Changes Needed
-
-**Discovered During**: [Implementation/Research/etc.] issue #XXX
-
-**Files to Update**:
-- `.team/prompts/[NAME]_WORKFLOW.md`
-- [other workflow files]
-
-**Changes Needed**:
-[Describe what needs to be updated and why]
-
-**Context**:
-[Explain the situation that revealed the need for these changes]
-"""
-)
-```
+**See**: [Handover Procedure](../.team/procedures/handover.md) for complete handover guidance.
 
 **Why This Matters:**
-- Workflow files are tested through tabletop simulation
-- Changes need validation across all workflow scenarios
+- Duty files are tested through tabletop simulation
+- Changes need validation across all duty scenarios
 - Process modeling ensures consistency and quality
-- Prevents workflow documentation from becoming fragmented or contradictory
+- Prevents duty documentation from becoming fragmented or contradictory
 
 ---
 
@@ -148,131 +178,11 @@ issue_write(
 
 **⚠️ CRITICAL**: Before marking ANY PR ready for review, you MUST complete the self-improvement evaluation.
 
-### Required Steps Before PR Review
-
-1. **Evaluate Workflow Effectiveness**: Reflect on the workflow you followed
-   - Which workflow did you use? (Research, Implementation, POC, etc.)
-   - Did the workflow guidance help or hinder progress?
-   - Were there missing instructions that would have been helpful?
-
-2. **Document What Worked Well**: Identify positive aspects
-   - What workflow steps were clear and effective?
-   - What guidance helped you avoid mistakes?
-   - What tools or processes worked smoothly?
-
-3. **Document What Didn't Work Well**: Identify pain points
-   - What was unclear or confusing?
-   - What steps were missing or incomplete?
-   - What caused delays or required iteration?
-
-4. **Propose Specific Improvements**: Be actionable and concrete
-   - How could workflow documentation be improved?
-   - What new guidance should be added?
-   - Should issue templates be updated?
-
-5. **Create Feedback Comment**:
-   - See [Workflow Feedback Tracker Guide](/.github/docs/WORKFLOW_FEEDBACK_TRACKER.md) for complete details
-   - Find the feedback tracker: Search for `[Workflow Feedback] Tracker` issue
-   - Add feedback comment with evaluation
-   - **IMPORTANT**: Fill in all required fields (Date, Issue/PR, Workflow) - feedback missing context may be deprioritized
-
-**Creating Feedback Comment:**
-```python
-from datetime import datetime
-
-# Find tracker (create if not found)
-results = search_issues(
-    owner="uniun-technology",
-    repo="lib-dataflow",
-    query='"[Workflow Feedback] Tracker" in:title state:open'
-)
-
-if not results or len(results) == 0:
-    # Create new tracker if none exists
-    tracker = issue_write(
-        method="create",
-        owner="uniun-technology",
-        repo="lib-dataflow",
-        title="[Workflow Feedback] Tracker",
-        labels=["workflow:process-modeling"],
-        body="""# Workflow Feedback Tracker
-
-This issue tracks feedback and improvement suggestions for all workflows.
-
-**⚠️ IMPORTANT**: Feedback is submitted as **comments on this issue**, not as sub-issues.
-
-## How to Submit Feedback
-
-When completing work on an issue:
-
-1. **Find this tracker issue**: Search for `[Workflow Feedback] Tracker`
-2. **Add a comment** with your feedback using the template below
-
-### Feedback Comment Template
-
-\```markdown
-## Workflow Feedback Entry
-
-**Date**: YYYY-MM-DD
-**Issue/PR**: #XXX or branch-name
-**Workflow**: [Workflow Name]
-
-### What Worked Well
-[List specific positives]
-
-### What Didn't Work Well
-[List specific issues]
-
-### Suggested Improvement
-[Specific, actionable improvements]
-\```
-
-## For Process Modeling Workflow
-
-When assigned to address feedback:
-
-1. Read through recent feedback comments on this issue
-2. Group related feedback
-3. Address improvements using standard Process Modeling workflow
-4. Mark feedback as addressed by adding a reply comment
-"""
-    )
-    tracker_number = tracker.number
-else:
-    tracker_number = results[0].number
-
-# Add feedback comment
-# ⚠️ IMPORTANT: Fill in actual values for Date, Issue/PR, and Workflow
-# Feedback with placeholder values may be deprioritized
-add_issue_comment(
-    owner="uniun-technology",
-    repo="lib-dataflow",
-    issue_number=tracker_number,
-    body=f"""## Workflow Feedback Entry
-
-**Date**: {datetime.now().strftime("%Y-%m-%d")}
-**Issue/PR**: #{CURRENT_ISSUE_NUMBER}  # Replace with actual issue number
-**Workflow**: [Workflow Name]  # Replace with actual workflow (Research, Implementation, etc.)
-
-### What Worked Well
-[List specific positives - what helped you succeed]
-
-### What Didn't Work Well
-[List specific issues - what caused delays or confusion]
-
-### Suggested Improvement
-[Specific, actionable improvements - be concrete]
-"""
-)
-```
-
-**See**: [Workflow Feedback Tracker Guide](/.github/docs/WORKFLOW_FEEDBACK_TRACKER.md) for complete documentation on how the feedback system works.
-
-**Note on Processing**: Feedback comments are processed when a human reviewer assigns @copilot to the tracker issue and requests addressing pending feedback. Ensure your feedback is actionable and well-documented.
+**📖 See**: [Self-Improvement Procedure](../.team/procedures/self-improvement.md) for complete details.
 
 ### Why This Matters
 
-This self-improvement loop ensures our workflows continuously evolve based on real experiences. Every agent's feedback helps improve the process for future work.
+This self-improvement loop ensures our duties continuously evolve based on real experiences. Every agent's feedback helps improve the process for future work.
 
 ---
 
@@ -299,85 +209,42 @@ This self-improvement loop ensures our workflows continuously evolve based on re
 
 ### Repository Structure
 
-```
-.github/
-├── workflows/                       # GitHub Actions workflows
-├── scripts/                         # Migration and utility scripts
-├── copilot-instructions.md          # This file (navigation hub)
-└── archive/                         # Archived files
+**Key Directories**:
+- `.github/` - GitHub configuration and this orchestration file
+- `.team/` - Layered architecture (kernel, procedures, duties)
+- `/research/` - Research findings and handovers
+- `/implementation/` - In-flight implementation tracking
+- `/poc/` - POC code (evolving architecture)
+- `/src/` - Production code
 
-.team/
-├── workflows/                       # Workflow documentation
-│   ├── TRIAGE_WORKFLOW.md          # Issue assessment and routing
-│   ├── RESEARCH_WORKFLOW.md        # Research process
-│   ├── IMPLEMENTATION_WORKFLOW.md  # Implementation process
-│   ├── TECH_DEBT_WORKFLOW.md       # Tech debt discovery
-│   ├── PRODUCT_PRIORITIZATION_WORKFLOW.md  # Backlog prioritization
-│   └── PROCESS_MODELING_WORKFLOW.md        # Process improvements
-└── scripts/
-    └── workflow/                    # Workflow helper scripts
-        ├── query-workflow-queue.sh  # Query issues by workflow
-        ├── handover-issue.sh        # Transition between workflows
-        ├── workflow-dashboard.sh    # View workflow state
-        └── migrate-labels.sh        # One-time label migration
-
-/research/                           # Research findings and handovers
-├── FOLDER_STRUCTURE.md             # Research folder conventions
-└── [topic]/                        # Per-topic research folders
-
-/implementation/                     # In-flight implementation tracking
-├── README.md                       # Implementation folder guide
-├── plan.md                         # Current implementation plan (if any)
-└── archive/                        # Completed implementation plans
-
-**Note**: Product backlog items are now tracked as GitHub issues with the `workflow:product-backlog` label. See [Workflow Topology Guide](/.github/docs/WORKFLOW_TOPOLOGY_GUIDE.md) for querying backlog issues.
-
-/poc/                               # POC code (evolving architecture)
-/src/                               # Production code
-```
-
----
-
-## Coding Standards (Shared - For Implementation & Research)
-
-**Implementation and Research workflows** require knowledge of DataFlow coding standards.
-
-**📖 See** [Getting Started Guide](/.team/GETTING_STARTED.md) for:
-- **C# Style** - File-scoped namespaces, var usage, expression-bodied members
-- **Async/Await Patterns** - IAsyncEnumerable, ValueTask, CancellationToken handling
-- **Testing Standards** - Test categories, patterns, naming conventions
-- **Package Management** - Central package management overview
-- **Common Patterns** - Block dependencies, data flow definitions
-- **Performance Considerations** - Concurrency, backpressure, memory
-- **Anti-patterns** - What NOT to do
+**For detailed structure**: See duty-specific documentation (each duty references relevant directories)
 
 ---
 
 ## Research vs Implementation
 
-**How to identify which workflow to follow:**
+**How to identify which duty to follow:**
 
 | Indicator | Research | Implementation |
-| Indicator | Research | Implementation |
 |-----------|----------|----------------|
-| Issue label | `research` OR `workflow:research` | `implementation` OR `workflow:implementation` |
-| Issue contains | "⚠️ This is a research issue" | "⚠️ This is an implementation issue" |
+| Work item label | `research` OR `workflow:research` | `implementation` OR `workflow:implementation` |
+| Work item contains | "⚠️ This is a research work item" | "⚠️ This is an implementation work item" |
 | Purpose | Validate approach, create specs | Implement validated design |
 | Code fate | REVERTED after approval | MERGED into codebase |
-| Primary output | Documentation + handover issue | Working code |
-| Workflow doc | `.team/prompts/RESEARCH_WORKFLOW.md` | `.team/prompts/IMPLEMENTATION_WORKFLOW.md` |
+| Primary output | Documentation + handover work item | Working code |
+| Duty doc | [Research Duty](../.team/duties/RESEARCH_DUTY.md) | [Implementation Duty](../.team/duties/IMPLEMENTATION_DUTY.md) |
 
 **When in doubt:** Ask "Is this validating an approach (research) or implementing a validated design (implementation)?"
 
 ---
 
-## Workflow Topology System
+## Duty Topology System
 
-DataFlow uses a **GitHub label-based workflow topology system** to track which workflow an issue belongs to and provide formal handover mechanisms.
+DataFlow uses a **GitHub label-based duty topology system** to track which duty a work item belongs to and provide formal handover mechanisms.
 
-### Workflow Labels
+### Duty Labels
 
-All open issues have exactly ONE workflow label:
+All open work items have exactly ONE duty label:
 
 - `workflow:triage` - Awaiting assessment and routing
 - `workflow:research` - Research and validation
@@ -386,120 +253,20 @@ All open issues have exactly ONE workflow label:
 - `workflow:product-backlog` - Prioritization needed
 - `workflow:process-modeling` - Process improvements
 
-### Querying Your Workflow Queue
+### Querying Your Duty Queue
 
-**Always start by querying your workflow queue to find assigned issues.**
+**Always start by querying your duty queue to find assigned work items.**
 
-**For Copilot Agents** (primary approach - use MCP tools):
+### Querying Your Duty Queue and Handovers
 
-See [Workflow Topology Guide](/.github/docs/WORKFLOW_TOPOLOGY_GUIDE.md) for comprehensive MCP tool documentation and examples.
-
-Quick reference:
-```python
-# Query your workflow queue using MCP tools
-list_issues(
-    owner="uniun-technology",
-    repo="lib-dataflow",
-    labels=["workflow:research"],  # or workflow:implementation, etc.
-    state="OPEN"
-)
-```
-
-**For Manual/CI Use** (alternative - bash scripts):
-
-```bash
-# Using helper script
-./.github/scripts/workflow/query-workflow-queue.sh <workflow-name>
-
-# Direct GitHub CLI
-gh issue list --label "workflow:<workflow-name>" --state open --json number,title,url
-```
-
-### Handing Over Issues
-
-When transitioning an issue to a different workflow:
-
-**For Copilot Agents** (primary approach - use MCP tools):
-
-See [Workflow Topology Guide](/.github/docs/WORKFLOW_TOPOLOGY_GUIDE.md) for comprehensive handover examples.
-
-Quick reference:
-```python
-# Update workflow label
-issue_write(
-    method="update",
-    owner="uniun-technology",
-    repo="lib-dataflow",
-    issue_number=123,
-    labels=["workflow:implementation"]  # New workflow label
-)
-
-# Add handover comment
-add_issue_comment(
-    owner="uniun-technology",
-    repo="lib-dataflow",
-    issue_number=123,
-    body="🔄 Handover: research → implementation\n\nResearch complete. See /research/[topic]/ for details."
-)
-```
-
-**For Manual Use** (alternative - GitHub CLI):
-
-```bash
-gh issue edit 123 --remove-label "workflow:research" --add-label "workflow:implementation"
-gh issue comment 123 --body "Handover: research → implementation"
-```
-
-### Workflow State Dashboard
-
-**For Manual Use:**
-
-View the state of all workflows:
-
-```bash
-./.github/scripts/workflow/workflow-dashboard.sh
-```
-
-**For Copilot Agents:**
-
-Query each workflow individually using `list_issues` MCP tool with different workflow labels.
-
-**See**: [Workflow Topology Guide](/.github/docs/WORKFLOW_TOPOLOGY_GUIDE.md) for complete documentation on:
-- GitHub MCP tools for Copilot agents
-- Label schema
+**📖 See**: [Workflow Topology Guide](/.github/docs/WORKFLOW_TOPOLOGY_GUIDE.md) for complete documentation on:
+- Duty label schema
 - Handover patterns
-- Querying workflow queues
+- Querying duty queues
 - Common transitions
 - Troubleshooting
 
----
-
-## POC Work Guidelines
-
-The `/poc` folder contains evolving architectural explorations. Work in POC follows either:
-- **Research workflow** if validating new approaches (code will be reverted)
-- **Implementation workflow** if implementing validated designs (code will be merged)
-
-### POC-Specific Requirements
-
-When implementing in POC:
-
-**Documentation Structure** (`/poc/docs/`):
-- `/poc/docs/plans/` - Action plans and proposals
-- `/poc/docs/design/` - Architecture and design docs
-- `/poc/docs/guides/` - Implementation patterns
-- `/poc/docs/adr/` - Architecture Decision Records
-- `/poc/docs/POC_GLOSSARY.md` - Terminology (keep updated)
-
-**Key Guidelines:**
-1. Read `/poc/README.md` and `/poc/docs/POC_GLOSSARY.md` first
-2. Create plan in `/poc/docs/plans/` for each POC implementation
-3. Use ADRs in `/poc/docs/adr/` for significant decisions
-4. Update glossary with new terminology
-5. Use POC test projects (`DataFlow.POC.Tests`)
-6. Document benchmarks in `/research/` if conducting performance analysis
-
-See `/poc/README.md` for complete POC architecture details.
+**📖 See**: [Handover Procedure](../.team/procedures/handover.md) for handover guidance.
 
 ---
 
@@ -527,7 +294,7 @@ public class MyProducer : IProducer<int>
 {
     private readonly ILogger<MyProducer> _logger;
     
-    public MyProducer(ILogger<MyProducer> logger) => _logger = logger;
+    public MyProducer(ILogger<MyProduducer> logger) => _logger = logger;
     
     public async IAsyncEnumerable<int> ProduceAsync(
         [EnumeratorCancellation] CancellationToken cancellationToken)
@@ -544,43 +311,11 @@ public class MyProducer : IProducer<int>
 
 ---
 
-## Documentation Standards
+## Graph Management
 
-**📖 Read First**: 
-- [Document Hygiene Guide](/.team/DOCUMENT_HYGIENE.md) - Essential principles for maintainable documentation
-- [Documentation Artifacts System](/.team/DOCUMENTATION_ARTIFACTS.md) - How to create analysis, design, and ADR documentation
+**📖 See**: [Testing Framework - Graph Management](../docs/design/prompt-engineering/testing-framework.md#graph-management) for graph update procedures.
 
-### Supporting Documentation for GitHub Issues
-
-When working on issues that require supporting documentation (analysis, design, or architectural decisions), use the **global documentation artifacts system** described in [Documentation Artifacts](/.team/DOCUMENTATION_ARTIFACTS.md).
-
-**Quick Reference**:
-- **Analysis documents** (investigations, benchmarks) → `/docs/analysis/<topic>/`
-- **Design documents** (solution proposals) → `/docs/design/<topic>/`
-- **ADRs** (architectural decisions):
-  - POC-specific → `/docs/adr/poc/YYYY-MM-DD-title.md`
-  - Production → `/docs/adr/YYYY-MM-DD-title.md`
-
-**Issue Templates**: Use "Analysis Document", "Design Document", or "ADR" templates from `.github/ISSUE_TEMPLATE/`
-
-**For complete guidance**: See [Documentation Artifacts System](/.team/DOCUMENTATION_ARTIFACTS.md)
-
-### Diagram Preferences
-
-**ALWAYS prefer Mermaid diagrams** where visualization helps understanding:
-- ✅ Use mermaid flowcharts for process flows and decision trees
-- ✅ Use mermaid sequence diagrams for interaction flows
-- ✅ Use mermaid graphs for architecture and data flow
-- ❌ Avoid ASCII art diagrams (hard to maintain, less clear)
-
-**Example:**
-````markdown
-```mermaid
-flowchart LR
-    A[Source] --> B[Transform]
-    B --> C[Sink]
-```
-````
+**Update Process**: See Process Modeling Duty for graph update procedures.
 
 ---
 
@@ -593,6 +328,8 @@ flowchart LR
 - Don't modify working code without tests that validate the changes
 - Don't use `Task.Result` or `.Wait()` - always use `await`
 - Don't create new block types without discussing the design first
+- Don't use platform-specific operations (GitHub MCP tools) - use semantic operations instead
+- Don't duplicate procedure logic in duties - reference the procedure instead
 
 ---
 
@@ -656,8 +393,8 @@ When suggesting code changes, ensure AGPL-3.0 compatibility.
 
 ## Getting Help
 
-**Workflow Questions:**
-- All workflows: See "By Workflow Type" section at the top of this document
+**Duty Questions:**
+- All duties: See "By Duty Type" section at the top of this document
 - Implementation tracking: `/implementation/README.md`
 
 **Code Questions:**
@@ -665,6 +402,18 @@ When suggesting code changes, ensure AGPL-3.0 compatibility.
 - Production code: `/src/` (consult specific README files)
 
 **Process Improvements:**
-- See [Workflow Feedback Tracker Guide](/.github/docs/WORKFLOW_FEEDBACK_TRACKER.md) for complete details
-- Create feedback issue under `[Workflow Feedback] Tracker` parent issue
+- See [Self-Improvement Procedure](../.team/procedures/self-improvement.md) for complete details
+- Use `submit_feedback` semantic operation
 - Self-improvement evaluation required before PR review
+
+---
+
+## Design References
+
+This orchestration layer implements the design documented in:
+
+- **[Main Design](../docs/design/prompt-engineering/README.md)** - Complete prompt engineering architecture
+- **[Core Concepts](../docs/design/prompt-engineering/concepts.md)** - Layer 0 (Orchestration) definition
+- **[Semantic Language](../docs/design/prompt-engineering/semantic-language.md)** - Semantic operations reference
+- **[Testing Framework](../docs/design/prompt-engineering/testing-framework.md)** - Testing methodology and change procedures
+
