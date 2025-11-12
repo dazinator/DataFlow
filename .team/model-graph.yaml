@@ -202,6 +202,17 @@ nodes:
     type: procedure
     path: research/workflow-modeling/scenarios/procedures/README.md
     description: Procedure test scenarios overview
+  
+  # Duty Layer (Phase 3) - Migrated from workflow files
+  - id: duty-triage
+    type: duty
+    path: .team/duties/TRIAGE_DUTY.md
+    description: Assess and route work items to appropriate duties
+  
+  - id: duty-triage-tests
+    type: duty
+    path: research/workflow-modeling/scenarios/duties/triage/README.md
+    description: Triage duty test scenarios
 
 edges:
   # Orchestration references all workflows
@@ -539,6 +550,52 @@ edges:
     to: design-testing-framework
     type: required
     reason: Tests follow global procedure testing methodology
+  
+  # Phase 3: Duty Layer - Triage Duty Dependencies
+  - from: duty-triage
+    to: design-semantic-language
+    type: required
+    reason: Duty uses semantic operations exclusively
+    
+  - from: duty-triage
+    to: kernel-main
+    type: required
+    reason: Semantic operations implemented by kernel
+    
+  - from: duty-triage
+    to: procedure-duty-assignment
+    type: required
+    reason: Uses duty assignment logic for routing work items
+    
+  - from: duty-triage
+    to: procedure-handover
+    type: required
+    reason: Hands over work items to other duties
+    
+  - from: duty-triage
+    to: procedure-work-item-creation
+    type: required
+    reason: May create new work items during triage
+    
+  - from: duty-triage
+    to: procedure-comment-patterns
+    type: required
+    reason: Uses standard comment formats
+    
+  - from: duty-triage
+    to: procedure-multi-phase
+    type: required
+    reason: Handles multi-phase work item triage
+    
+  - from: duty-triage-tests
+    to: duty-triage
+    type: required
+    reason: Tests validate triage duty procedure
+    
+  - from: duty-triage-tests
+    to: design-testing-framework
+    type: required
+    reason: Tests follow duty testing methodology
 
 # Migration Notes:
 # Phase 0: Complete - Design documents created
