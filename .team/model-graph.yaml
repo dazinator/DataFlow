@@ -1,7 +1,7 @@
 # Prompt System Dependency Graph
-# Version: 1.1 (Phase 1 - Kernel Layer Added)
+# Version: 1.2 (Phase 2 - Global Procedures Added)
 # Created: 2025-11-12
-# Updated: 2025-11-12 (Added kernel layer nodes and edges)
+# Updated: 2025-11-12 (Added global procedures layer nodes and edges)
 # Maintained by: Process Modeling Workflow
 #
 # This file documents the dependency graph of the prompt/workflow system.
@@ -10,6 +10,7 @@
 # Node Types:
 #   - orchestration: Entry point (copilot-instructions.md)
 #   - workflow: Current workflow files (will become "duty" in migration)
+#   - procedure: Global procedures layer (platform-agnostic, duty-independent) - Phase 2
 #   - kernel: Kernel layer (platform abstraction) - Phase 1
 #   - supporting-doc: Supporting documentation referenced by workflows
 #   - system-doc: System-level documentation
@@ -25,6 +26,14 @@
 #   - Graph tooling scripts created
 #   - Leak detection implemented
 #   - Kernel test suite established
+#
+# Phase 2 Complete:
+#   - Global procedures layer created
+#   - 6 core procedures implemented (duty-assignment, multi-phase, self-improvement, 
+#     work-item-creation, handover, comment-patterns)
+#   - All procedures use semantic operations only (zero platform-specific code)
+#   - Test scenario structure created
+#   - Graph updated with procedure nodes and dependencies
 
 nodes:
   # Orchestration Layer
@@ -152,6 +161,47 @@ nodes:
     type: kernel
     path: .team/kernel/tests/README.md
     description: Kernel test suite overview
+  
+  # Global Procedures Layer (Phase 2)
+  - id: procedures-main
+    type: procedure
+    path: .team/procedures/README.md
+    description: Global procedures layer overview
+    
+  - id: procedure-duty-assignment
+    type: procedure
+    path: .team/procedures/duty-assignment.md
+    description: Platform-agnostic duty assignment procedure
+    
+  - id: procedure-multi-phase
+    type: procedure
+    path: .team/procedures/multi-phase-work-items.md
+    description: Multi-phase work item management procedure
+    
+  - id: procedure-self-improvement
+    type: procedure
+    path: .team/procedures/self-improvement.md
+    description: Self-improvement feedback submission procedure
+    
+  - id: procedure-work-item-creation
+    type: procedure
+    path: .team/procedures/work-item-creation.md
+    description: Work item creation patterns procedure
+    
+  - id: procedure-handover
+    type: procedure
+    path: .team/procedures/handover.md
+    description: Duty handover procedure
+    
+  - id: procedure-comment-patterns
+    type: procedure
+    path: .team/procedures/comment-patterns.md
+    description: Standard comment formats procedure
+    
+  - id: procedure-tests
+    type: procedure
+    path: research/workflow-modeling/scenarios/procedures/README.md
+    description: Procedure test scenarios overview
 
 edges:
   # Orchestration references all workflows
@@ -383,13 +433,121 @@ edges:
     to: design-testing-framework
     type: required
     reason: Tests follow kernel testing methodology from design
+  
+  # Phase 2: Global Procedures Layer (New - Platform-Agnostic Procedures)
+  - from: procedures-main
+    to: design-concepts
+    type: required
+    reason: Procedures follow Layer 1 definition from design
+    
+  - from: procedures-main
+    to: design-semantic-language
+    type: required
+    reason: Procedures use semantic operations exclusively
+    
+  - from: procedure-duty-assignment
+    to: procedures-main
+    type: required
+    reason: Part of global procedures layer
+    
+  - from: procedure-duty-assignment
+    to: kernel-main
+    type: required
+    reason: Uses semantic operations for duty management
+    
+  - from: procedure-multi-phase
+    to: procedures-main
+    type: required
+    reason: Part of global procedures layer
+    
+  - from: procedure-multi-phase
+    to: kernel-main
+    type: required
+    reason: Uses semantic operations for parent-child work items
+    
+  - from: procedure-self-improvement
+    to: procedures-main
+    type: required
+    reason: Part of global procedures layer
+    
+  - from: procedure-self-improvement
+    to: kernel-main
+    type: required
+    reason: Uses semantic operation for feedback submission
+    
+  - from: procedure-work-item-creation
+    to: procedures-main
+    type: required
+    reason: Part of global procedures layer
+    
+  - from: procedure-work-item-creation
+    to: kernel-main
+    type: required
+    reason: Uses semantic operations for creating work items
+    
+  - from: procedure-work-item-creation
+    to: procedure-duty-assignment
+    type: optional
+    reason: References duty assignment for correct duty selection
+    
+  - from: procedure-work-item-creation
+    to: procedure-multi-phase
+    type: optional
+    reason: References multi-phase for complex work structures
+    
+  - from: procedure-handover
+    to: procedures-main
+    type: required
+    reason: Part of global procedures layer
+    
+  - from: procedure-handover
+    to: kernel-main
+    type: required
+    reason: Uses semantic operations for duty transitions
+    
+  - from: procedure-handover
+    to: procedure-work-item-creation
+    type: optional
+    reason: Creates handover work items
+    
+  - from: procedure-handover
+    to: procedure-duty-assignment
+    type: optional
+    reason: Assigns duty to handover work items
+    
+  - from: procedure-comment-patterns
+    to: procedures-main
+    type: required
+    reason: Part of global procedures layer
+    
+  - from: procedure-comment-patterns
+    to: kernel-main
+    type: required
+    reason: Uses semantic operation for adding comments
+    
+  - from: procedure-comment-patterns
+    to: procedure-duty-assignment
+    type: optional
+    reason: References duty names for comment prefixes
+    
+  - from: procedure-tests
+    to: procedures-main
+    type: required
+    reason: Tests validate all global procedures
+    
+  - from: procedure-tests
+    to: design-testing-framework
+    type: required
+    reason: Tests follow global procedure testing methodology
 
 # Migration Notes:
-# This graph represents the CURRENT state (Phase 0).
-# After migration (Phases 1-5), the structure will be:
-#   - Kernel layer (new)
-#   - Global Procedures layer (extracted from workflows)
-#   - Duty layer (migrated from workflow files)
-#   - Orchestration (updated)
+# Phase 0: Complete - Design documents created
+# Phase 1: Complete - Kernel layer implemented
+# Phase 2: Complete - Global procedures layer implemented
+# 
+# Remaining phases:
+# Phase 3: Duty layer migration (workflow files → duties)
+# Phase 4: Orchestration update (use procedures and duties)
+# Phase 5: Legacy workflow cleanup
 # 
 # The design documents (design-*) describe the TARGET architecture.
