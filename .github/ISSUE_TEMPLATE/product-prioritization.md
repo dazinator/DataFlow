@@ -6,15 +6,19 @@ labels: ['workflow:product-backlog']
 assignees: ''
 ---
 
+## ⚠️ IMPORTANT: Product Prioritization Workflow
+
+**This is a PRODUCT PRIORITIZATION issue for managing the product backlog.**
+
+@copilot **MUST** follow the Product Prioritization duty in `.team/duties/PRODUCT_PRIORITIZATION_DUTY.md`.
+
+---
+
 ## Prioritization Request
 
 Request automated prioritization and selection of items from the product backlog.
 
 **⚠️ IMPORTANT**: The **primary backlog source** is **GitHub issues** with the `workflow:product-backlog` label.
-
-**@copilot**: Execute the Product Prioritization Workflow (see `.team/prompts/PRODUCT_PRIORITIZATION_WORKFLOW.md` for details).
-
-**Configuration**: See `.team/prompts/PRODUCT_PRIORITIZATION_WORKFLOW_PARAMS.md` for limits and parameters.
 
 ---
 
@@ -35,19 +39,13 @@ Any special considerations or constraints for this prioritization cycle:
 
 ---
 
-## Expected Deliverables
+## For @copilot
 
-When prioritization is complete, the following should be delivered:
+**Duty**: Follow `.team/duties/PRODUCT_PRIORITIZATION_DUTY.md` for complete process.
 
-- [ ] Prioritization analysis posted for review
-- [ ] Human confirmation received
-- [ ] Implementation queue capacity checked
-- [ ] Top-priority items moved to `workflow:implementation` queue
-- [ ] `/product/prioritization.md` updated with:
-  - Selection summary
-  - Selected items (moved to implementation)
-  - Remaining backlog items by priority
-  - Queue status
-- [ ] Summary comment posted to this issue with results
-
-**Note**: Housekeeping (duplicates, completed items, stale items) is handled by Bulk Triage workflow (`.team/prompts/TRIAGE_WORKFLOW.md` Step 6).
+**Quick Reference:**
+- Query backlog items with `workflow:product-backlog` label
+- Apply prioritization policy (security, tech debt, priority overrides, standard criteria)
+- Present prioritization for human review
+- After approval: Select top items and move to implementation queue
+- Complete self-improvement evaluation before PR review
