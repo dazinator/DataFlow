@@ -41,7 +41,7 @@ public class InputChannelBlockTests
     }
 
     [Fact]
-    public async Task Complete_DoesNotThrow_WhenCalledBeforeCoreExecuteAsync()
+    public void Complete_DoesNotThrow_WhenCalledBeforeCoreExecuteAsync()
     {
         // Arrange
         var sp = _services.BuildServiceProvider();

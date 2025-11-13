@@ -353,11 +353,14 @@ internal class OrderTrackingBlock : Uniun.DataFlow.Blocks.BlockBase, Uniun.DataF
         _initOrder.Add(Name);
     }
 
+    // Async iterator without await - empty enumerable for testing
+#pragma warning disable CS1998
     public async IAsyncEnumerable<int> GetAsyncEnumerable(Uniun.DataFlow.Blocks.ITargetBlock<int> target, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
     {
         // Return empty enumerable
         yield break;
     }
+#pragma warning restore CS1998
 
     protected override Task CoreExecuteAsync(IDataFlowContext context)
     {
@@ -383,10 +386,13 @@ internal class OrderTrackingProducerBlock : Uniun.DataFlow.Blocks.BlockBase, Uni
         _initOrder.Add(Name);
     }
 
+    // Async iterator without await - empty enumerable for testing
+#pragma warning disable CS1998
     public async IAsyncEnumerable<int> GetAsyncEnumerable(Uniun.DataFlow.Blocks.ITargetBlock<int> target, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
     {
         yield break;
     }
+#pragma warning restore CS1998
 
     protected override Task CoreExecuteAsync(IDataFlowContext context)
     {

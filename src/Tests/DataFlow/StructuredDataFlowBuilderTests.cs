@@ -48,7 +48,7 @@ public class StructuredDataFlowBuilderTests
     }
 
     [Fact]
-    public async Task Should_CreateBlockInstances_WhenBuildIsCalled()
+    public void Should_CreateBlockInstances_WhenBuildIsCalled()
     {
         // Arrange
         var builder = new StructuredDataFlowBuilder(_serviceProvider, "TestFlow");
@@ -171,7 +171,7 @@ public class StructuredDataFlowBuilderTests
     }
 
     [Fact]
-    public async Task Should_ValidateGraph_BeforeBuild()
+    public void Should_ValidateGraph_BeforeBuild()
     {
         // Arrange
         var builder = new StructuredDataFlowBuilder(_serviceProvider, "TestFlow");
@@ -266,7 +266,7 @@ public class StructuredDataFlowBuilderTests
     }
 
     [Fact]
-    public async Task Should_ThrowException_WhenMultipleSourcesConnectToSingleTarget()
+    public void Should_ThrowException_WhenMultipleSourcesConnectToSingleTarget()
     {
         // Arrange
         var builder = new StructuredDataFlowBuilder(_serviceProvider, "MultiSourceFlow");

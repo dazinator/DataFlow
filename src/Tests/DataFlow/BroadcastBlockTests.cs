@@ -274,10 +274,10 @@ public class BroadcastBlockTests
             channelFactory,
             new ProducerBlockOptions<int>
             {
-                ProducersFactory = async (context, ct) => new[]
+                ProducersFactory = (context, ct) => Task.FromResult<IEnumerable<IStreamProducer<int>>>(new[]
                 {
                     new TestProducer<int>(items)
-                }
+                })
             });
 
         // BroadcastBlock with per-target clone configuration

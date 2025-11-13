@@ -318,7 +318,7 @@ public class StructuredRoutingBlockTests
     }
 
     [Fact]
-    public async Task DynamicRouting_ThrowsException_When_TemplateNotFound()
+    public void DynamicRouting_ThrowsException_When_TemplateNotFound()
     {
         // Arrange
         var items = new[] { new RoutingTestItem { Category = "A", Value = "Item1" } };
@@ -831,7 +831,7 @@ public class StructuredRoutingBlockTests
     }
 
     [Fact]
-    public async Task RouteContext_HasAccessTo_ParentGraph()
+    public void RouteContext_HasAccessTo_ParentGraph()
     {
         // Arrange
         var sp = _services.BuildServiceProvider();

@@ -13,6 +13,8 @@ public class ByteArrayProducer : IStreamProducer<byte[]>
         _itemCount = itemCount;
         _sizeInBytes = sizeInBytes;
     }
+    // Async iterator without await - synchronous enumeration wrapped in async enumerable interface
+#pragma warning disable CS1998
     public async IAsyncEnumerable<byte[]> ProduceAsync(IDataFlowContext context,
         [EnumeratorCancellation] CancellationToken cancellation)
     {
@@ -23,6 +25,7 @@ public class ByteArrayProducer : IStreamProducer<byte[]>
             yield return i;
         }
     }
+#pragma warning restore CS1998
 
     private static IEnumerable<byte[]> GenerateByteArrayStream(int itemCount, int blobSizeBytes)
     {

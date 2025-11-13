@@ -338,7 +338,7 @@ public class StructuredRoutingBlock<T> : BlockBase, ITargetBlock<T>
         }
     }
 
-    private async Task CompleteAllRoutesAsync()
+    private Task CompleteAllRoutesAsync()
     {
         _logger.LogDebug("Completing all routes - signaling no more data");
 
@@ -356,6 +356,7 @@ public class StructuredRoutingBlock<T> : BlockBase, ITargetBlock<T>
         }
 
         _logger.LogInformation("All routes completed - {routeCount} routes", _routeInstances.Count);
+        return Task.CompletedTask;
     }
 
     private async Task WaitForAllRoutesAsync()

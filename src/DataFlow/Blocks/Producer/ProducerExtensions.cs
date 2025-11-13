@@ -28,10 +28,10 @@ public static class ProducerExtensions
         return AddProducer<TOutput>(builder, name, (options) =>
         {
 
-            options.ProducersFactory = async (context, ct) => new[]
+            options.ProducersFactory = (context, ct) => Task.FromResult<IEnumerable<IStreamProducer<TOutput>>>(new[]
             {
                 ActivatorUtilities.CreateInstance<TProducer>(context.ServiceProvider)
-            };
+            });
             configureOptions?.Invoke(options);
         });
     }
@@ -56,10 +56,10 @@ public static class ProducerExtensions
     {
         return AddProducer<TOutput>(builder, name, (options) =>
         {
-            options.ProducersFactory = async (context, ct) =>
+            options.ProducersFactory = (context, ct) =>
             {
                 var producer = ActivatorUtilities.CreateInstance<TProducer>(context.ServiceProvider, args);
-                return new[] { producer };
+                return Task.FromResult<IEnumerable<IStreamProducer<TOutput>>>(new[] { producer });
             };
             configureOptions?.Invoke(options);
         });
@@ -108,10 +108,10 @@ public static class ProducerExtensions
     {
         return AddProducer<TOutput>(builder, name, (options) =>
         {
-            options.ProducersFactory = async (context, ct) => new[]
+            options.ProducersFactory = (context, ct) => Task.FromResult<IEnumerable<IStreamProducer<TOutput>>>(new[]
             {
                  factory(context)
-            };
+            });
             configureOptions?.Invoke(options);
         });
     }

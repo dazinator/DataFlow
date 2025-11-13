@@ -136,7 +136,7 @@ public class MonitoredChannelTests : DataFlowTestBase
     /// <returns></returns>
     [Exploratory]
     [Fact]
-    public async Task Debug_ObservableGauge_Registration()
+    public void Debug_ObservableGauge_Registration()
     {
         var services = CreateServiceProvider();
         var meterFactory = services.GetRequiredService<IMeterFactory>();

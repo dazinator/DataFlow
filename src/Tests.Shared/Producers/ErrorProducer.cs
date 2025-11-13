@@ -22,6 +22,8 @@ public class ErrorProducer<T> : IStreamProducer<T>
         _errorMessage = errorMessage ?? "Simulated error in producer";
     }
 
+    // Async iterator without await - synchronous enumeration wrapped in async enumerable interface
+#pragma warning disable CS1998
     public async IAsyncEnumerable<T> ProduceAsync(IDataFlowContext context,
         [EnumeratorCancellation] CancellationToken cancellation)
     {
@@ -37,4 +39,5 @@ public class ErrorProducer<T> : IStreamProducer<T>
             }
         }
     }
+#pragma warning restore CS1998
 }

@@ -32,7 +32,7 @@ public static class StructuredDataFlowBuilderExtensions
             {
                 var producerOptions = new ProducerBlockOptions<T>
                 {
-                    ProducersFactory = async (context, ct) => new[] { producerFactory(sp) }
+                    ProducersFactory = (context, ct) => Task.FromResult<IEnumerable<IStreamProducer<T>>>(new[] { producerFactory(sp) })
                 };
                 if (options != null)
                 {

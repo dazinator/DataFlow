@@ -46,6 +46,8 @@ internal class ExampleFlowConfig : IDataFlowConfiguration
 
     internal class LargeDataProducer : IStreamProducer<int>
     {
+        // Async iterator without await - synchronous enumeration wrapped in async enumerable interface
+#pragma warning disable CS1998
         public async IAsyncEnumerable<int> ProduceAsync(IDataFlowContext context,
             [EnumeratorCancellation] CancellationToken cancellation)
         {
@@ -55,6 +57,7 @@ internal class ExampleFlowConfig : IDataFlowConfiguration
                 yield return i;
             }
         }
+#pragma warning restore CS1998
 
     }
 
