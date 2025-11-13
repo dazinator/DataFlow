@@ -44,7 +44,7 @@ public class ComplexEtlBenchmark
         }
     }
 
-    private ServiceProvider _serviceProvider;
+    private ServiceProvider? _serviceProvider;
 
     [Params(10000)] // Number of records to process
     public int RecordCount { get; set; }

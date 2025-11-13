@@ -12,7 +12,7 @@ using Uniun.DataFlow.Metrics;
 
 public class TransformBlockOptions<TIn, TOut> : BlockOptions
 {
-    public Func<IServiceProvider, IStreamTransformer<TIn, TOut>> TransformerFactory { get; set; }
+    public Func<IServiceProvider, IStreamTransformer<TIn, TOut>>? TransformerFactory { get; set; }
 }
 public class TransformBlock<TIn, TOut> : BlockBase, IPropagatorBlock<TIn, TOut>
 {

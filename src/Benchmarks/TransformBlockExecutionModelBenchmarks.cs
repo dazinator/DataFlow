@@ -33,8 +33,8 @@ using Uniun.DataFlow.Blocks.Transform;
 [ThreadingDiagnoser]
 public class TransformBlockExecutionModelBenchmarks
 {
-    private ServiceProvider _sp;
-    private ILogger<TransformBlockExecutionModelBenchmarks> _logger;
+    private ServiceProvider? _sp;
+    private ILogger<TransformBlockExecutionModelBenchmarks>? _logger;
 
     [Params(100, 1000, 10000)]
     public int ItemCount;

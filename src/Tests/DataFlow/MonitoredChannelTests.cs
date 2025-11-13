@@ -170,9 +170,9 @@ public class TestDataFlowContext : IDataFlowContext
     //public IDictionary<string, string> Dimensions => _dimensionsInternal;
 
     public Guid InvocationId { get; set; }
-    public string Name { get; set; }
-    public DataFlowMetricsTagsContext FlowMetricsContext { get; set; }
-    public ConcurrentDictionary<string, object> Items { get; }
+    public string? Name { get; set; }
+    public DataFlowMetricsTagsContext? FlowMetricsContext { get; set; }
+    public ConcurrentDictionary<string, object> Items { get; } = new();
     //public void AddDimension(string key, string value)
     //{
     //    _dimensionsInternal[key] = value;
@@ -259,8 +259,8 @@ public class TestMetricCollector
 
     public class Measurement
     {
-        public object Value { get; set; }
-        public KeyValuePair<string, object>[] Tags { get; set; }
+        public required object Value { get; set; }
+        public required KeyValuePair<string, object>[] Tags { get; set; }
     }
 
     public void Dispose()

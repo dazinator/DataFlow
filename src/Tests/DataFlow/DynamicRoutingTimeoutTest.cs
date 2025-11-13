@@ -263,8 +263,8 @@ public class DynamicRoutingTimeoutTest
     public class TimeoutTestItem
     {
         public int Id { get; set; }
-        public string RouteKey { get; set; }
-        public string Data { get; set; }
+        public required string RouteKey { get; set; }
+        public required string Data { get; set; }
         public DateTime ProducedAt { get; set; }
     }
 

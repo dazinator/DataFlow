@@ -14,11 +14,11 @@ using Uniun.DataFlow.Builder;
 [MemoryDiagnoser]
 public class RateLimitBlockMemoryBenchmarks
 {
-    private ServiceProvider _sp;
-    private ILogger<RateLimitBlockMemoryBenchmarks> _logger;
-    private ByteArrayProducer _producer;
+    private ServiceProvider? _sp;
+    private ILogger<RateLimitBlockMemoryBenchmarks>? _logger;
+    private ByteArrayProducer? _producer;
 
-    private MemoryCsvSampler _memorySampler;
+    private MemoryCsvSampler? _memorySampler;
 
     [Params(100)]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE1006:Naming Styles", Justification = "<Pending>")]

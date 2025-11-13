@@ -14,7 +14,7 @@ using Uniun.DataFlow.Actor;
 public class ProcessorBlock<T> : BlockBase, ITargetBlock<T>
 {
     private readonly Func<IServiceProvider, IStreamProcessor<T>> _processorFactory;
-    private ISourceBlock<T> _source;
+    private ISourceBlock<T>? _source;
 
     public ProcessorBlock(
         string name,
@@ -53,7 +53,9 @@ public class ProcessorBlock<T> : BlockBase, ITargetBlock<T>
     {
         // Will use scoped ServiceProvider if UseSeperateScopes=true
         var processor = _processorFactory(context.ServiceProvider);
-        var input = _source.GetAsyncEnumerable(this, context.CancellationToken);
+        // Safe to use null-forgiving operator: EnsureSource() is called in CoreExecuteAsync() before this method,
+        // guaranteeing _source is non-null at this point
+        var input = _source!.GetAsyncEnumerable(this, context.CancellationToken);
         if (Options.EnableFlowRateMetrics)
         {
             input = input.DecorateWithCallbackAfterEachItem(

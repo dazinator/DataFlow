@@ -8,7 +8,7 @@ using Uniun.DataFlow.Metrics;
 /// </summary>
 public class DataFlowMetricsTagsContext : IMetricsTagsContext
 {
-    private KeyValuePair<string, object?>[] _flowInstanceCompletionTags = null;
+    private KeyValuePair<string, object?>[]? _flowInstanceCompletionTags;
 
     public DataFlowMetricsTagsContext(string flowName, Guid invocationId, IDataFlowMetrics metrics)
     {
@@ -37,12 +37,12 @@ public class DataFlowMetricsTagsContext : IMetricsTagsContext
     /// <summary>
     /// Flow-level tabs that are applicable for metrics that aggregate across all instances / executions of a flow name (i.e not labelled to specific instance / invoication)
     /// </summary>
-    public KeyValuePair<string, object?>[] FlowLevelCompletionTags { get; private set; } = null;
+    public KeyValuePair<string, object?>[]? FlowLevelCompletionTags { get; private set; }
 
     /// <summary>
     /// Flow-instance tabs level tags that are applicable for completion of this specific execution / invocation of the flow (by invoicationId).
     /// </summary>
-    public KeyValuePair<string, object?>[] FlowInstanceCompletionTags { get => _flowInstanceCompletionTags; }
+    public KeyValuePair<string, object?>[]? FlowInstanceCompletionTags { get => _flowInstanceCompletionTags; }
 
     public IDataFlowMetrics Metrics { get; }
 

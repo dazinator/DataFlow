@@ -100,7 +100,7 @@ public class FlowRateMetricsCollector : IDisposable
 
     public class FlowRateStatistics
     {
-        public string BlockName { get; set; }
+        public required string BlockName { get; set; }
         public long TotalStreamOperations { get; set; }
         public long UnreportedOperations { get; set; }
         public TimeSpan ElapsedTime { get; set; }

@@ -129,9 +129,10 @@ public class DataFlowMetrics : IDataFlowMetrics
 
     public void BlockCompleted(BlockMetricsTagsContext metricsContext, double durationTotalMs)
     {
-        // Record with the combined tags
-        _blockProcessingDuration.Record(durationTotalMs, metricsContext.FlowLevelCompletionTags);
-        _blockExecutionCount.Add(1, metricsContext.FlowLevelCompletionTags);
+        // Record with the combined tags - use FlowWideTags if completion tags aren't set
+        var tags = metricsContext.FlowLevelCompletionTags ?? metricsContext.FlowWideTags;
+        _blockProcessingDuration.Record(durationTotalMs, tags);
+        _blockExecutionCount.Add(1, tags);
 
         // for the active flow up down counter we want to maintain a single series so we don't use the completion tags here as they aren't availble when incrementing the counter.
         _activeBlockCount.Add(-1, metricsContext.FlowWideTags);

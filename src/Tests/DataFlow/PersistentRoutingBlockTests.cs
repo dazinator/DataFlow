@@ -707,8 +707,8 @@ public class StressTestProducer : IStreamProducer<TestItem>
 public class TestItem
 {
     public int Id { get; set; }
-    public string RouteKey { get; set; }
-    public string Data { get; set; }
+    public required string RouteKey { get; set; }
+    public required string Data { get; set; }
 }
 
 public class TestItemProcessor : IStreamProcessor<TestItem>

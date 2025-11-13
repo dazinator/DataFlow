@@ -16,7 +16,7 @@ public class DataFlowBuilder : IDataFlowBuilder
 
     public IServiceProvider ServiceProvider => State.ServiceProvider;
 
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     public IDataFlow Build()
     {

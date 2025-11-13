@@ -203,7 +203,7 @@ public class DataFlowTracingTests : IDisposable
         }
 
         public string Name { get; }
-        public BlockMetricsTagsContext MetricsContext { get; set; }
+        public BlockMetricsTagsContext? MetricsContext { get; set; }
 
         public Task ExecuteAsync(IDataFlowContext context)
         {
@@ -232,7 +232,7 @@ public class DataFlowTracingTests : IDisposable
 
     public class TestChannelMonitoringLease() : IChannelMonitoringLease
     {
-        public IMonitoredChannel Channel { get; set; }
+        public required IMonitoredChannel Channel { get; set; }
 
         public void Dispose()
         {
@@ -246,13 +246,13 @@ public class DataFlowTracingTests : IDisposable
 
         public Guid InvocationId { get; set; }
         public CancellationToken CancellationToken { get; set; }
-        public IServiceProvider ServiceProvider { get; set; }
-        public string Name { get; set; }
+        public IServiceProvider? ServiceProvider { get; set; }
+        public string? Name { get; set; }
 
         public IDictionary<string, string> Dimensions => _dimensions;
 
-        public DataFlowMetricsTagsContext FlowMetricsContext { get; set; }
-        public ConcurrentDictionary<string, object> Items { get; }
+        public DataFlowMetricsTagsContext? FlowMetricsContext { get; set; }
+        public ConcurrentDictionary<string, object> Items { get; } = new();
     }
 
     private class TestFlowConfiguration : IDataFlowConfiguration

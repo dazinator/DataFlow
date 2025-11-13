@@ -6,5 +6,5 @@ using Uniun.DataFlow;
 
 public class ProducerBlockOptions<TOutput> : BlockOptions
 {
-    public Func<IDataFlowContext, CancellationToken, Task<IEnumerable<IStreamProducer<TOutput>>>> ProducersFactory { get; set; }
+    public Func<IDataFlowContext, CancellationToken, Task<IEnumerable<IStreamProducer<TOutput>>>>? ProducersFactory { get; set; }
 }

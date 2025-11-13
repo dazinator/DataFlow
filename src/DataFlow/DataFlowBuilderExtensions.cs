@@ -16,7 +16,7 @@ public static class DataFlowBuilderExtensions
 
     public static IBlock GetBlock<T>(this IDataFlowBuilder builder, string name)
     {
-        IBlock block = null;
+        IBlock? block = null;
 
         if (builder.Blocks.TryGetValue(name, out var val))
         {
@@ -34,7 +34,7 @@ public static class DataFlowBuilderExtensions
     public static TBlock GetBlockType<TBlock>(this IDataFlowBuilder builder, string name)
         where TBlock : class, IBlock
     {
-        TBlock block = null;
+        TBlock? block = null;
 
         if (builder.Blocks.TryGetValue(name, out var val))
         {

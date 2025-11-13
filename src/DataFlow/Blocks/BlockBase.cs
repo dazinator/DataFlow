@@ -18,10 +18,10 @@ public abstract class BlockBase : IBlock, IDataFlowInitializable
     public BlockOptions Options { get; }
     public string Name { get; }
 
-    public BlockMetricsTagsContext MetricsContext { get; set; }
+    public BlockMetricsTagsContext? MetricsContext { get; set; }
 
     public ILogger Logger { get; }
-    public FlowRateMetricsCollector FlowRateMetricsCollector { get; private set; }
+    public FlowRateMetricsCollector? FlowRateMetricsCollector { get; private set; }
 
     /// <summary>
     /// Records a number of operations performed by the block which helps calculate its flow rate (i.e processing speed) metric.

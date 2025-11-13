@@ -26,11 +26,11 @@ public class DataFlowContext : IDataFlowContext
     }
 
     public Guid InvocationId { get; set; }
-    public string Name { get; set; }
-    public IServiceProvider ServiceProvider { get; set; }
+    public string? Name { get; set; }
+    public IServiceProvider? ServiceProvider { get; set; }
     public CancellationToken CancellationToken { get; set; }
 
-    public DataFlowMetricsTagsContext FlowMetricsContext { get; set; }
+    public DataFlowMetricsTagsContext? FlowMetricsContext { get; set; }
     /// <summary>
     /// Items that can be used to pass additional data between blocks in the flow. Stuff stored here could be accessed concurrently by multiple blocks, so use with care.
     /// </summary>

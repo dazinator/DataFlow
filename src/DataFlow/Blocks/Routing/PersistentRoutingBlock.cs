@@ -220,7 +220,10 @@ public class PersistentRoutingBlock<T> : BlockBase, ITargetBlock<T>
 
         _logger.LogDebug("Waiting for all routes to finish execution - {routeCount} routes", _routes.Count);
 
-        var executionTasks = _routes.Values.Select(route => route.ExecutionTask).ToArray();
+        var executionTasks = _routes.Values
+            .Select(route => route.ExecutionTask)
+            .OfType<Task>()
+            .ToArray();
 
         try
         {

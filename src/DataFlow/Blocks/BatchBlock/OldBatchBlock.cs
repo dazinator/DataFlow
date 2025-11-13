@@ -36,7 +36,7 @@ public class OldBatchBlock<T> : BlockBase, IPropagatorBlock<T, T[]>
             throw new ArgumentException("Max batch size must be greater than 0", nameof(options.MaxBatchSize));
         }
         _channelFactory = channelFactory;
-        _outputChannel = _channelFactory.CreateMonitoredChannel<T[]>(name, options?.Capacity);
+        _outputChannel = _channelFactory.CreateMonitoredChannel<T[]>(name, options.Capacity);
         _batchProcessor = new BatchProcessor<T>(options.MaxBatchSize, options.WindowPeriod, _outputChannel.Writer, this.RecordOperation);
     }
 

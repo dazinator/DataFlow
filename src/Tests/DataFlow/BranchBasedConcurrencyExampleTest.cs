@@ -194,14 +194,14 @@ public class BranchBasedConcurrencyTests
     {
         public int Id { get; set; }
         public decimal Amount { get; set; }
-        public string CustomerId { get; set; }
+        public required string CustomerId { get; set; }
     }
 
     private class ValidatedInvoice
     {
         public int Id { get; set; }
         public decimal Amount { get; set; }
-        public string CustomerId { get; set; }
+        public required string CustomerId { get; set; }
         public bool IsValid { get; set; }
     }
 
@@ -209,9 +209,9 @@ public class BranchBasedConcurrencyTests
     {
         public int Id { get; set; }
         public decimal Amount { get; set; }
-        public string CustomerId { get; set; }
+        public required string CustomerId { get; set; }
         public bool IsValid { get; set; }
-        public string CustomerName { get; set; }
+        public required string CustomerName { get; set; }
         public decimal TaxAmount { get; set; }
     }
 

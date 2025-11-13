@@ -22,8 +22,8 @@ using Uniun.DataFlow.Blocks.Transform;
 [MemoryDiagnoser]
 public class TransformBlockMemoryBenchmarks
 {
-    private ServiceProvider _sp;
-    private ILogger<TransformBlockMemoryBenchmarks> _logger;
+    private ServiceProvider? _sp;
+    private ILogger<TransformBlockMemoryBenchmarks>? _logger;
 
     [Params(100000)]
     public int ItemCount;

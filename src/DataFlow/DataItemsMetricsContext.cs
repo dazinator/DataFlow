@@ -8,11 +8,11 @@ public class DataItemMetricsContext : IMetricsTagsContext
 {
     private readonly IMetricsTagsContext _parentContext;
     private readonly IDataFlowMetrics _metrics;
-    private KeyValuePair<string, object?>[] _completionTags = null;
+    private KeyValuePair<string, object?>[]? _completionTags;
 
 
     public KeyValuePair<string, object?>[] FlowWideTags { get; }
-    public KeyValuePair<string, object?>[] FlowLevelCompletionTags { get => _completionTags; }
+    public KeyValuePair<string, object?>[]? FlowLevelCompletionTags { get => _completionTags; }
 
     public string Name { get; }
 

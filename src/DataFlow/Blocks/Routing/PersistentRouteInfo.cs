@@ -21,7 +21,7 @@ public class PersistentRouteInfo<T> : IAsyncDisposable
 
     public RoutingContext<T> Context { get; }
     public InputChannelBlock<T> ChannelBlock { get; }
-    public Task ExecutionTask { get; private set; }
+    public Task? ExecutionTask { get; private set; }
 
     public PersistentRouteInfo(
         ILogger logger,

@@ -10,7 +10,7 @@ public class BlockMetricsTagsContext : IMetricsTagsContext
     private readonly IDataFlowMetrics _metrics;
 
     public KeyValuePair<string, object?>[] FlowWideTags { get; }
-    public KeyValuePair<string, object?>[] FlowLevelCompletionTags { get; private set; } = null;
+    public KeyValuePair<string, object?>[]? FlowLevelCompletionTags { get; private set; }
     public string Name { get; }
 
     internal BlockMetricsTagsContext(string blockName, IMetricsTagsContext parentContext, IDataFlowMetrics metrics)

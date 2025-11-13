@@ -18,7 +18,7 @@ public class RouteInfo<T> : IAsyncDisposable
     public IDataFlow DataFlow { get; }
     public RoutingContext<T> Context { get; }
     public InputChannelBlock<T> ChannelBlock { get; }
-    internal RouteExecution RouteExecuting { get; private set; }
+    internal RouteExecution? RouteExecuting { get; private set; }
 
     public RouteInfo(ILogger logger, RoutingContext<T> context, InputChannelBlock<T> channelBlock, AsyncServiceScope routeScope)
     {

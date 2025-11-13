@@ -35,7 +35,7 @@ public class BatchBlockBenchmark
         }
     }
 
-    private ServiceProvider _serviceProvider;
+    private ServiceProvider? _serviceProvider;
 
     [Params(1000, 5000)] // Number of items to process
     public int ItemCount { get; set; }

@@ -321,8 +321,8 @@ public class RoutingBlockScopeRaceConditionTest
     public class TestItem
     {
         public int Id { get; set; }
-        public string RouteKey { get; set; }
-        public string Data { get; set; }
+        public required string RouteKey { get; set; }
+        public required string Data { get; set; }
     }
 
     /// <summary>
@@ -339,7 +339,7 @@ public class RoutingBlockScopeRaceConditionTest
     /// </summary>
     public class ScopedTestService : IScopedTestService, IDisposable
     {
-        private TestMetrics _metrics;
+        private TestMetrics? _metrics;
         private bool _disposed = false;
         private readonly string _instanceId = Guid.NewGuid().ToString()[..8];
 
