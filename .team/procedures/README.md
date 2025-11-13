@@ -80,15 +80,16 @@ flowchart TB
 ### Core Work Item Management
 
 1. **[Duty Assignment](duty-assignment.md)** - How to infer and assign duty from work item
-2. **[Multi-Phase Work Items](multi-phase-work-items.md)** - Managing parent-child work item relationships
-3. **[Work Item Successor](work-item-successor.md)** - Creating successor work items during implementation
-4. **[Work Item Creation](work-item-creation.md)** - Common patterns for creating work items
-5. **[Handover](handover.md)** - Transitioning work items between duties
+2. **[Issue Refinement](issue-refinement.md)** - Detecting and refining multi-phase plans into sub-issues
+3. **[Multi-Phase Work Items](multi-phase-work-items.md)** - Managing parent-child work item relationships
+4. **[Work Item Successor](work-item-successor.md)** - Creating successor work items during implementation
+5. **[Work Item Creation](work-item-creation.md)** - Common patterns for creating work items
+6. **[Handover](handover.md)** - Transitioning work items between duties
 
 ### Communication & Feedback
 
-6. **[Comment Patterns](comment-patterns.md)** - Standard comment formats and conventions
-7. **[Self-Improvement](self-improvement.md)** - Submitting workflow feedback
+7. **[Comment Patterns](comment-patterns.md)** - Standard comment formats and conventions
+8. **[Self-Improvement](self-improvement.md)** - Submitting workflow feedback
 
 ---
 

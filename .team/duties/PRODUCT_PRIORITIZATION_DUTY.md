@@ -15,6 +15,7 @@
 
 - **[Semantic Language](../../docs/design/prompt-engineering/semantic-language.md)** - Semantic operations used below
 - **[Kernel Layer](../kernel/README.md)** - Platform abstraction layer
+- **[Issue Refinement Procedure](../procedures/issue-refinement.md)** - Detecting and refining multi-phase plans
 - **[Duty Assignment Procedure](../procedures/duty-assignment.md)** - Determining duty from work items
 - **[Work Item Creation Procedure](../procedures/work-item-creation.md)** - Creating new work items
 - **[Comment Patterns Procedure](../procedures/comment-patterns.md)** - Standard comment formats
@@ -29,6 +30,7 @@
 - `add_work_item_comment(work_item_id, text)` - Add comment
 - `update_work_item(work_item_id, fields)` - Update work item fields
 - `get_parent_work_item(work_item_id)` - Get parent if exists
+- `list_child_work_items(work_item_id)` - Get all children of a work item
 - `is_multi_phase(work_item_id)` - Check if part of multi-phase plan
 
 ---
@@ -128,12 +130,13 @@ For remaining slots (after security, tech debt, and overrides):
 **Standard Prioritization Flow**:
 1. Query product backlog queue and check for multi-phase plan
 2. Collect all backlog work items
-3. Apply prioritization criteria and assign priorities
-4. Present prioritization for human review
-5. After approval: Check implementation queue capacity
-6. Select top items and move to implementation duty
-7. Update prioritization analysis document
-8. Report completion
+3. **Refine multi-phase plans into sub-issues (housekeeping)**
+4. Apply prioritization criteria and assign priorities
+5. Present prioritization for human review
+6. After approval: Check implementation queue capacity
+7. Select top items and move to implementation duty
+8. Update prioritization analysis document
+9. Report completion
 
 ---
 
@@ -188,6 +191,92 @@ For each item, extract:
 - Title
 - Category (labels/tags)
 - Body content (for priority override, CVE info)
+
+### Step 2.5: Refine Backlog Issues (Housekeeping)
+
+**Before prioritizing**, check backlog items for multi-phase plans that need refinement.
+
+Follow [Issue Refinement Procedure](../procedures/issue-refinement.md):
+
+```python
+# Refine multi-phase plans in backlog
+refined_count = 0
+refinement_pending = []
+
+for item in all_backlog_items:
+    # Check if item needs refinement
+    refinement_result = check_issue_refinement(item['id'])
+    
+    if refinement_result['refined']:
+        # Item was refined into sub-issues
+        refined_count += 1
+        
+        # Sub-issues are automatically assigned to product-backlog duty
+        # They will be included in next query
+        
+    elif refinement_result.get('needs_approval'):
+        # Refinement plan presented, waiting for approval
+        refinement_pending.append(item['id'])
+
+# If any refinements pending, pause prioritization
+if refinement_pending:
+    add_work_item_comment(
+        work_item_id=current_work_item_id,
+        text=f"""[Copilot-Duty: Product Prioritization] ⏸️ **Refinement Approval Needed**
+
+I've identified {len(refinement_pending)} backlog items as multi-phase plans:
+
+{list_pending_refinements}
+
+Pausing prioritization until refinement is approved or rejected.
+
+Reply with `@copilot proceed with all refinements` or handle each individually.
+"""
+    )
+    return
+
+# If any items were refined, re-query backlog to include new sub-issues
+if refined_count > 0:
+    add_work_item_comment(
+        work_item_id=current_work_item_id,
+        text=f"""[Copilot-Duty: Product Prioritization] 🔄 **Backlog Housekeeping Complete**
+
+Refined {refined_count} multi-phase plans into sub-issues.
+
+Re-querying backlog to include newly created sub-issues...
+"""
+    )
+    
+    # Re-query to get updated backlog with sub-issues
+    all_backlog_items = []
+    page = 1
+    
+    while page <= MAX_PAGES:
+        batch = query_work_items_by_duty(
+            duty="product-backlog",
+            state="open",
+            page=page,
+            per_page=SELECTION_BATCH_SIZE
+        )
+        
+        if not batch:
+            break
+        
+        all_backlog_items.extend(batch)
+        page += 1
+    
+    print(f"Updated backlog: {len(all_backlog_items)} items (including {refined_count} refinements)")
+```
+
+**Why This Matters**:
+- Ensures backlog items are properly structured before prioritization
+- Sub-issues from multi-phase plans can be individually prioritized
+- Prevents selecting parent issues that need refinement first
+- Selection process can focus on logical phase boundaries
+
+**Selection Sensitivity**: When selecting from prioritized items, prefer next logical phase sub-issues over standalone items of equal priority.
+
+---
 
 ### Step 3: Apply Prioritization Criteria
 
@@ -297,8 +386,65 @@ print(f"Available slots: {available_slots}")
 Select the top-priority items (up to `available_slots`) and move them to implementation duty:
 
 ```python
+# Helper function to extract phase number from title
+def extract_phase_number(title):
+    """
+    Extract phase number from title in format "[Phase N] Title"
+    Returns None if no phase number found
+    """
+    import re
+    match = re.search(r'\[Phase (\d+)\]', title)
+    return int(match.group(1)) if match else None
+
 # Select top items based on available capacity
-items_to_select = prioritized_items[:available_slots]
+# Note: Prefer next logical phase sub-issues when equal priority
+items_to_select = []
+selected_parents = set()  # Track parent issues to avoid selecting multiple phases
+
+for item in prioritized_items:
+    if len(items_to_select) >= available_slots:
+        break
+    
+    # Check if this is a sub-issue
+    parent_id = get_parent_work_item(item['work_item_id'])
+    
+    if parent_id:
+        # This is a sub-issue - check if we already selected another phase
+        if parent_id in selected_parents:
+            continue  # Skip - already selected another phase from this parent
+        
+        # Check if this is the next logical phase
+        siblings = list_child_work_items(parent_id)
+        
+        # Extract phase number from title (format: "[Phase N] Title")
+        # If phase number cannot be extracted, use creation order as fallback
+        current_phase_num = extract_phase_number(item['title'])
+        
+        if current_phase_num is not None:
+            # Use explicit phase numbers for ordering
+            prior_phases_complete = all(
+                s['status'] == 'closed'
+                for s in siblings
+                if extract_phase_number(s['title']) is not None 
+                and extract_phase_number(s['title']) < current_phase_num
+            )
+        else:
+            # Fallback: use creation order (work item number) if no explicit phase number
+            prior_phases_complete = all(
+                s['status'] == 'closed' 
+                for s in siblings 
+                if s['number'] < item['number']
+            )
+        
+        if not prior_phases_complete:
+            continue  # Skip - prior phases not complete yet
+        
+        # This is the next logical phase - select it
+        items_to_select.append(item)
+        selected_parents.add(parent_id)
+    else:
+        # Standalone item - select it
+        items_to_select.append(item)
 
 print(f"Selecting {len(items_to_select)} items for implementation queue")
 

@@ -1,7 +1,7 @@
 # Prompt System Dependency Graph
-# Version: 1.6 (Issue #377 - Work Item Successor Procedure)
+# Version: 1.7 (Issue Refinement Procedure)
 # Created: 2025-11-12
-# Updated: 2025-11-13 (Issue #377: Added work-item-successor procedure)
+# Updated: 2025-11-13 (Added issue-refinement procedure for multi-phase detection)
 # Maintained by: Process Modeling Workflow
 #
 # This file documents the dependency graph of the prompt/workflow system.
@@ -60,6 +60,11 @@
 #   - Issue #391: Added query_unlabeled_work_items semantic operation (13th operation)
 #   - Updated Triage Duty bulk triage procedure to handle unlabeled work items
 #   - Kernel now has 13 semantic operations (was 12)
+#   - Issue (Refinement): Added issue-refinement procedure for detecting and refining multi-phase plans
+#   - Updated Implementation Duty with pre-flight check (Step 2.5) using issue refinement
+#   - Updated Product Prioritization Duty with housekeeping step (Step 2.5) using issue refinement
+#   - Added 4 test scenarios for issue refinement procedure
+#   - Global procedures now has 8 procedures (was 7)
 
 nodes:
   # Orchestration Layer
@@ -253,6 +258,11 @@ nodes:
     type: procedure
     path: .team/procedures/comment-patterns.md
     description: Standard comment formats procedure
+    
+  - id: procedure-issue-refinement
+    type: procedure
+    path: .team/procedures/issue-refinement.md
+    description: Issue refinement and multi-phase detection procedure
     
   - id: procedure-tests
     type: procedure
@@ -673,6 +683,31 @@ edges:
     type: optional
     reason: References duty names for comment prefixes
     
+  - from: procedure-issue-refinement
+    to: procedures-main
+    type: required
+    reason: Part of global procedures layer
+    
+  - from: procedure-issue-refinement
+    to: kernel-main
+    type: required
+    reason: Uses semantic operations for work item management
+    
+  - from: procedure-issue-refinement
+    to: procedure-multi-phase
+    type: required
+    reason: Creates multi-phase structures when refining issues
+    
+  - from: procedure-issue-refinement
+    to: procedure-work-item-creation
+    type: required
+    reason: Uses work item creation patterns for sub-issues
+    
+  - from: procedure-issue-refinement
+    to: procedure-comment-patterns
+    type: optional
+    reason: Uses standard comment formats for refinement communication
+    
   - from: procedure-tests
     to: procedures-main
     type: required
@@ -822,6 +857,11 @@ edges:
     reason: Submits feedback after implementation completion
     
   - from: duty-implementation
+    to: procedure-issue-refinement
+    type: required
+    reason: Uses issue refinement check during pre-flight
+    
+  - from: duty-implementation
     to: doc-getting-started
     type: required
     reason: Follows DataFlow coding standards and patterns
@@ -928,6 +968,11 @@ edges:
     to: procedure-multi-phase
     type: required
     reason: Handles multi-phase prioritization plans
+    
+  - from: duty-product-prioritization
+    to: procedure-issue-refinement
+    type: required
+    reason: Uses issue refinement for backlog housekeeping
     
   - from: duty-product-prioritization
     to: doc-documentation-artifacts

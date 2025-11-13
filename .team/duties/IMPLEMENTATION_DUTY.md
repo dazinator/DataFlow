@@ -16,6 +16,7 @@
 - **[Semantic Language](../../docs/design/prompt-engineering/semantic-language.md)** - Semantic operations used below
 - **[Kernel Layer](../kernel/README.md)** - Platform abstraction layer
 - **[Getting Started Guide](../../../docs/guides/GETTING_STARTED.md)** - DataFlow coding standards and patterns
+- **[Issue Refinement Procedure](../procedures/issue-refinement.md)** - Detecting and refining multi-phase plans
 - **[Multi-Phase Work Items](../procedures/multi-phase-work-items.md)** - Parent-child work item management
 - **[Handover Procedure](../procedures/handover.md)** - Transitioning work items between duties
 - **[Work Item Creation Procedure](../procedures/work-item-creation.md)** - Creating new work items
@@ -81,14 +82,16 @@
 
 **Standard Implementation Flow**:
 1. Query implementation queue and check for multi-phase plan
-2. Review requirements and design references
-3. Create implementation plan (if multi-phase)
-4. Implement code changes
-5. Write tests
-6. Update documentation
-7. Run linters, build, and tests
-8. Submit self-improvement feedback
-9. Create PR and mark ready for review
+2. Check if work item is part of multi-phase structure (parent/child)
+3. **Check if work item needs refinement (pre-flight)**
+4. Review requirements and design references
+5. Create implementation plan (if multi-phase)
+6. Implement code changes
+7. Write tests
+8. Update documentation
+9. Run linters, build, and tests
+10. Submit self-improvement feedback
+11. Create PR and mark ready for review
 
 ---
 
@@ -138,6 +141,78 @@ if is_multi_phase(work_item_id):
 2. ✅ Create sub-work-items for each phase
 3. ✅ Document dependencies between phases
 4. ✅ Track progress in parent description
+
+---
+
+### Step 2.5: Issue Refinement Check (Pre-Flight)
+
+**⚠️ CRITICAL**: Before proceeding with implementation, check if the work item is "ready" to implement.
+
+Follow [Issue Refinement Procedure](../procedures/issue-refinement.md) to check if this work item represents a multi-phase plan that needs to be broken down:
+
+```python
+# Import issue refinement check
+from procedures.issue_refinement import check_issue_refinement
+
+# Check if issue needs refinement
+refinement_result = check_issue_refinement(work_item_id)
+
+if refinement_result['refined']:
+    # Issue was refined into sub-issues
+    first_phase_id = refinement_result['first_phase_id']
+    first_phase_number = get_work_item_details(first_phase_id)['number']
+    
+    # Add comment explaining situation
+    add_work_item_comment(
+        work_item_id=work_item_id,
+        text=f"""[Copilot-Duty: Implementation] 🔄 **Issue Refined into Sub-Issues**
+
+This work item represents a multi-phase plan and has been split into logical sub-issues.
+
+**First Phase**: #{first_phase_number}
+
+**Next Steps**:
+- This PR should be closed (work on parent not appropriate)
+- Create new PR for Phase 1 sub-issue (#{first_phase_number})
+- Each phase will have its own PR
+
+See [Issue Refinement Procedure](../.team/procedures/issue-refinement.md) for details.
+"""
+    )
+    
+    # STOP implementation on parent
+    # Suggest closing this PR and working on first sub-issue instead
+    return
+    
+elif refinement_result.get('needs_approval'):
+    # Presented refinement plan to reviewer, waiting for approval
+    add_work_item_comment(
+        work_item_id=work_item_id,
+        text="[Copilot-Duty: Implementation] ⏸️ **Awaiting Refinement Approval**\n\n"
+             "I've identified this as a multi-phase plan and presented a refinement proposal.\n"
+             "Pausing implementation until refinement is approved or rejected.\n\n"
+             "Reply with `@copilot proceed with refinement` or `@copilot skip refinement`."
+    )
+    
+    # Pause implementation until refinement approved/rejected
+    return
+    
+else:
+    # No refinement needed, proceed with implementation
+    add_work_item_comment(
+        work_item_id=work_item_id,
+        text="[Copilot-Duty: Implementation] ✅ **Pre-Flight Check Passed**\n\n"
+             "Issue is ready for implementation (single-phase work item)."
+    )
+```
+
+**Why This Matters**:
+- Multi-phase plans need to be broken down before implementation
+- Each phase should have its own PR
+- Prevents starting work on the wrong scope
+- Ensures implementation work is properly sized
+
+**See**: [Issue Refinement Procedure](../procedures/issue-refinement.md) for complete details.
 
 ---
 
