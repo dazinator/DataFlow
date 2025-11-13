@@ -1,7 +1,7 @@
 # Prompt System Dependency Graph
-# Version: 1.5 (Issue #391 - Unlabeled Work Items Support)
+# Version: 1.6 (Issue #377 - Work Item Successor Procedure)
 # Created: 2025-11-12
-# Updated: 2025-11-12 (Issue #391: Added query_unlabeled_work_items semantic operation)
+# Updated: 2025-11-13 (Issue #377: Added work-item-successor procedure)
 # Maintained by: Process Modeling Workflow
 #
 # This file documents the dependency graph of the prompt/workflow system.
@@ -228,6 +228,11 @@ nodes:
     type: procedure
     path: .team/procedures/multi-phase-work-items.md
     description: Multi-phase work item management procedure
+    
+  - id: procedure-work-item-successor
+    type: procedure
+    path: .team/procedures/work-item-successor.md
+    description: Work item successor pattern procedure
     
   - id: procedure-self-improvement
     type: procedure
@@ -573,6 +578,36 @@ edges:
     type: required
     reason: Uses semantic operations for parent-child work items
     
+  - from: procedure-work-item-successor
+    to: procedures-main
+    type: required
+    reason: Part of global procedures layer
+    
+  - from: procedure-work-item-successor
+    to: kernel-main
+    type: required
+    reason: Uses semantic operations for successor work items
+    
+  - from: procedure-work-item-successor
+    to: procedure-multi-phase
+    type: optional
+    reason: Compares with multi-phase pattern for decision guidance
+    
+  - from: procedure-work-item-successor
+    to: procedure-work-item-creation
+    type: optional
+    reason: References work item creation patterns
+    
+  - from: procedure-work-item-successor
+    to: procedure-handover
+    type: optional
+    reason: References handover for duty transitions
+    
+  - from: procedure-work-item-successor
+    to: procedure-comment-patterns
+    type: optional
+    reason: References comment patterns for successor communication
+    
   - from: procedure-self-improvement
     to: procedures-main
     type: required
@@ -730,6 +765,11 @@ edges:
     type: optional
     reason: May handle multi-phase research plans
     
+  - from: duty-research
+    to: procedure-work-item-successor
+    type: optional
+    reason: May use successor pattern for scope splitting during research
+    
   - from: duty-research-tests
     to: duty-research
     type: required
@@ -755,6 +795,11 @@ edges:
     to: procedure-multi-phase
     type: required
     reason: Handles multi-phase implementation plans
+    
+  - from: duty-implementation
+    to: procedure-work-item-successor
+    type: required
+    reason: Uses successor pattern for scope splitting during implementation
     
   - from: duty-implementation
     to: procedure-handover
