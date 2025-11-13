@@ -98,7 +98,41 @@ ${templateBody}
     issue => issue.title !== trackerTitle
   ).length;
 
-  // Add comment to trigger @copilot
+  // Find PR associated with the tracker issue
+  const prs = await github.rest.pulls.list({
+    owner: context.repo.owner,
+    repo: context.repo.repo,
+    state: 'open',
+    per_page: 100
+  });
+
+  // Look for PR that references this issue or is created for this issue
+  let associatedPR = null;
+  for (const pr of prs.data) {
+    // Check if PR body or title references the tracker issue
+    const prBody = pr.body || '';
+    const prTitle = pr.title || '';
+    const issueRefs = [
+      `#${trackerIssue.number}`,
+      `issues/${trackerIssue.number}`,
+      trackerTitle
+    ];
+    
+    if (issueRefs.some(ref => prBody.includes(ref) || prTitle.includes(ref))) {
+      associatedPR = pr;
+      break;
+    }
+  }
+
+  // If no PR exists, exit gracefully
+  if (!associatedPR) {
+    console.log(`No PR found for tracker issue #${trackerIssue.number}`);
+    console.log('Skipping comment - Copilot trigger requires a PR');
+    console.log(`Queue size: ${queueSize} issue(s)`);
+    return;
+  }
+
+  // Add comment to PR to trigger @copilot
   const comment = `## Bulk Triage Request - ${today}
 
 @copilot Please perform bulk triage following \`.team/duties/TRIAGE_DUTY.md\` in **BULK MODE**.
@@ -110,10 +144,10 @@ ${templateBody}
   await github.rest.issues.createComment({
     owner: context.repo.owner,
     repo: context.repo.repo,
-    issue_number: trackerIssue.number,
+    issue_number: associatedPR.number,
     body: comment
   });
 
-  console.log(`Posted triage request to issue #${trackerIssue.number}`);
+  console.log(`Posted triage request to PR #${associatedPR.number} (for issue #${trackerIssue.number})`);
   console.log(`Queue size: ${queueSize} issue(s)`);
 };

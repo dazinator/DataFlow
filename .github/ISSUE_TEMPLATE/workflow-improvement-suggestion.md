@@ -10,7 +10,7 @@ assignees: ''
 
 **This is a PROCESS MODELING issue for suggesting a workflow improvement.**
 
-@copilot **MUST** follow the Process Modeling workflow in `/.team/prompts/PROCESS_MODELING_WORKFLOW.md`.
+@copilot **MUST** follow the Process Modeling duty in `.team/duties/PROCESS_MODELING_DUTY.md`.
 
 ---
 
@@ -65,12 +65,10 @@ Check all that apply:
 
 ## For @copilot
 
-**Workflow**: Follow `.team/prompts/PROCESS_MODELING_WORKFLOW.md` for complete process.
+**Duty**: Follow `.team/duties/PROCESS_MODELING_DUTY.md` for complete process.
 
 **Quick Reference:**
-- Read [Document Hygiene Guide](../../docs/DOCUMENT_HYGIENE.md) before creating/updating documentation
-- Create test scenarios in `/research/workflow-modeling/scenarios/[workflow-name]/`
+- Read `docs/DOCUMENT_HYGIENE.md` before creating/updating documentation
+- Create test scenarios in `.team/duties/tests/`, `.team/procedures/tests/`, or `.team/kernel/tests/`
 - Execute tabletop simulations to validate changes
 - Complete self-improvement evaluation before PR review
-
-**Documentation Convention:** Workflow documentation follows the naming pattern `[Name]_WORKFLOW.md` in the `.team/prompts/` folder.

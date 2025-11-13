@@ -2,68 +2,10 @@
 
 ## Current Work
 
-**Issue**: #391 - Update Triage Duty to handle unlabeled work items  
-**Started**: 2025-11-12  
-**Status**: ✅ **COMPLETE**
+**Status**: ✅ No active work
 
-### Objective
-
-Update the Triage Duty bulk triage procedure to handle work items without workflow labels (unlabeled items needing initial triage).
-
-### Problem
-
-The current bulk triage procedure only queries items with `workflow:triage` label, missing newly created issues without any workflow labels. This was discovered when issue #377 was missed during bulk triage in #388.
-
-### Solution Implemented
-
-1. ✅ Added `query_unlabeled_work_items` semantic operation to kernel layer (13th operation)
-2. ✅ Updated Triage Duty bulk triage procedure to query both labeled and unlabeled items
-3. ✅ Added deduplication and filtering logic
-4. ✅ Updated semantic language specification
-5. ✅ Implemented GitHub driver mapping with two variants (basic and efficient)
-6. ✅ Added usage examples
-
-### Test Results
-
-**All scenarios PASSED (3/3)** ✅ - 100% pass rate
-
-1. Scenario 001 - Bulk triage with unlabeled items: PASS
-2. Scenario 002 - Mixed labeled/unlabeled items: PASS
-3. Scenario 003 - Edge case - only unlabeled items: PASS
-
-**Critical Finding**: Scenario 003 proves the old procedure would have missed ALL items when the triage queue contains only unlabeled work items.
-
-### Leak Detection
-
-- ✅ Kernel leak detection: PASSED (zero leaks)
-- ✅ Dependency leak detection: PASSED (zero leaks)
-
-### Deliverables Completed
-
-1. ✅ Semantic language specification updated
-2. ✅ Kernel README updated (12 → 13 operations)
-3. ✅ GitHub driver operations.md updated with new operation
-4. ✅ GitHub driver examples.md updated with usage example
-5. ✅ Triage Duty TRIAGE_DUTY.md updated (semantic ops list + bulk procedure)
-6. ✅ Test scenarios created (3 scenarios in `.team/duties/tests/triage/`)
-7. ✅ Graph updated (version 1.5, post-phase 5 update)
-8. ✅ History updated
-
-### Success Criteria Met
-
-- [x] New semantic operation added to kernel
-- [x] GitHub driver implementation complete
-- [x] Triage Duty procedure updated
-- [x] All test scenarios pass (100% pass rate)
-- [x] Zero kernel leaks
-- [x] Zero dependency leaks
-- [x] Graph updated
-- [x] History updated
-- [ ] Self-improvement evaluation completed
-
-### Completion
-
-Issue #391 successfully completed. Triage Duty now finds all work items needing triage, including unlabeled items.
+**Last Completed**: 2025-11-13 - Scheduled Triage PR Comment Fix
+**See Archive**: `archive/2025-11-13-scheduled-triage-pr-comment.md`
 
 ---
 
@@ -79,12 +21,13 @@ When a new workflow improvement issue is assigned:
 
 ## Recent Completion
 
-**Last Completed**: 2025-11-11 - Parameter Extraction and Template Simplification
-**See Archive**: `/research/workflow-modeling/archive/2025-11-11-parameter-extraction-template-simplification.md`
+**Last Completed**: 2025-11-13 - Scheduled Triage PR Comment Fix
+**See Archive**: `/research/workflow-modeling/archive/2025-11-13-scheduled-triage-pr-comment.md`
 
 ## Archive
 
 Previous work can be found in `/research/workflow-modeling/archive/`:
+- `2025-11-13-scheduled-triage-pr-comment.md` - Scheduled Triage PR Comment Fix
 - `2025-11-11-parameter-extraction-template-simplification.md` - Parameter Extraction and Template Simplification
 - `2025-11-10-bulk-process-template-update.md` - Process Modeling Archived Plan - Bulk Process Modeling Template Update
 - `2025-11-10-bulk-triage-improvements.md` - Process Modeling Archived Plan - Bulk Triage Workflow Improvements
