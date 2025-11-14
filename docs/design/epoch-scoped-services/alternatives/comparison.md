@@ -13,13 +13,14 @@ This document provides an in-depth comparison of different approaches to providi
 
 ## Summary Table
 
-| Approach | Explicitness | Testability | Concurrency | DI Integration | Complexity | Verdict |
-|----------|--------------|-------------|-------------|----------------|------------|---------|
-| **Manual Tracking** | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐ | ❌ | 😰😰😰 | ❌ Too much duplication |
-| **AsyncLocal Context** | ⭐ | ⭐⭐ | ⭐ | ⭐⭐ | 😰😰 | ❌ Hidden dependencies |
-| **Epoch Object with DI** | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ | 😰 | ✅ **Recommended** |
-| **Block-Level Scopes** | ⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ | 😰 | ❌ Wrong granularity |
-| **Hybrid Approach** | ⭐⭐ | ⭐⭐ | ⭐⭐ | ⭐⭐ | 😰😰😰 | ❌ Too complex |
+| Approach | Explicitness | Testability | Concurrency | DI Integration | Fan-In Support | Complexity | Verdict |
+|----------|--------------|-------------|-------------|----------------|----------------|------------|---------|
+| **Manual Tracking** | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐ | ❌ | ⭐ | 😰😰😰 | ❌ Too much duplication |
+| **AsyncLocal Context** | ⭐ | ⭐⭐ | ⭐ | ⭐⭐ | ⭐⭐ | 😰😰 | ❌ Hidden dependencies |
+| **Epoch Object with DI** | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ | 😰 | ✅ **Recommended** |
+| **Block-Level Scopes** | ⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ | ❌ | 😰 | ❌ Wrong granularity |
+| **Hybrid Approach** | ⭐⭐ | ⭐⭐ | ⭐⭐ | ⭐⭐ | ⭐⭐ | 😰😰😰 | ❌ Too complex |
+| **Stream-Coupled Scopes** | ⭐⭐ | ⭐⭐ | ⭐⭐ | ⭐⭐⭐ | ❌ | 😰😰 | ❌ Fails fan-in |
 
 Legend:
 - ⭐⭐⭐ = Excellent
@@ -609,6 +610,153 @@ public class OrderProcessingBlock
 
 ---
 
+## Approach 6: Stream-Coupled DI Scopes
+
+### Description
+
+Couple DI scope directly to `IEpochStream` and propagate scope through pipeline with streams.
+
+### Code Example
+
+```csharp
+// Enhanced IEpochStream with scope
+public interface IEpochStream<out T> : IAsyncDisposable
+{
+    EpochVector Vector { get; }
+    IAsyncEnumerable<T> Items { get; }
+    IServiceProvider ServiceProvider { get; } // NEW
+    T GetService<T>() where T : notnull;       // NEW
+}
+
+// Source creates stream with scope
+public class SourceBlock
+{
+    private readonly IServiceProvider _rootProvider;
+    
+    public async IAsyncEnumerable<IEpochStream<T>> ProduceAsync()
+    {
+        var scope = _rootProvider.CreateScope(); // Eager creation
+        var stream = new EpochStream<T>(
+            vector: new EpochVector(...),
+            items: ProduceItems(),
+            scope: scope); // Scope is part of stream
+        
+        yield return stream;
+    }
+}
+
+// Block propagates scope
+public class TransformBlock
+{
+    public async IAsyncEnumerable<IEpochStream<TOut>> ProcessAsync(
+        IAsyncEnumerable<IEpochStream<TIn>> input)
+    {
+        await foreach (var inputStream in input)
+        {
+            // Access services directly from stream
+            var service = inputStream.GetService<MyService>();
+            
+            // Create output stream, PROPAGATING scope
+            yield return new EpochStream<TOut>(
+                vector: inputStream.Vector,
+                items: TransformItems(inputStream.Items, service),
+                scope: inputStream._scope); // PROPAGATE (same instance)
+        }
+    }
+}
+```
+
+### Pros
+
+✅ **Direct Coupling**
+- Scope travels with stream (no indirection)
+- Service resolution directly on stream
+- Clear that scope belongs to this epoch stream
+
+✅ **Eager Creation**
+- Scope created at source (point of origin)
+- No lazy lookup or dictionary access
+- Scope exists from stream creation
+
+✅ **Simpler for Linear Pipelines**
+- Natural propagation pattern
+- No centralized manager needed
+- Explicit in block code
+
+✅ **Simpler Block API**
+- `stream.GetService<T>()` instead of `context.CurrentEpoch.GetService<T>()`
+- No IBlockContext needed
+- More direct
+
+### Cons
+
+❌ **No Clean Fan-In Solution** (Critical)
+- When two epoch streams merge, their scopes must also merge
+- Options: pick one scope (loses services), create new (breaks continuity), merge providers (not supported)
+- No satisfactory solution without reverting to centralized management
+
+❌ **Unclear Subsume Semantics**
+- Scope is embedded in stream, tied to specific vector
+- No clear way to extend scope lifetime to cover subsumed vector
+- No notification mechanism for subsume operations
+
+❌ **Breaks Service Sharing at Fan-In**
+- Different scopes before merge point
+- Cannot guarantee same service instances after merge
+- Violates core requirement: "same epoch = same services"
+
+❌ **Reference Counting Still Needed**
+- With scope propagation, multiple streams share same scope
+- Must track when all streams are disposed before disposing scope
+- Complexity moved, not eliminated
+
+❌ **Disposal Complexity**
+- Who owns the scope for disposal?
+- Last consumer? Shared ownership? Tracking wrapper?
+- Not simpler than reference counting
+
+### Fan-In Problem Example
+
+**Scenario**:
+```
+Source A: {vector={A=1}, scope=scopeA}
+Source B: {vector={B=1}, scope=scopeB}
+BufferNode: Merges to {vector={A=1,B=1}, scope=???}
+```
+
+**Problem**: Two different epochs (different scopes) become one unified epoch. Which scope?
+
+**Options Evaluated**:
+1. Pick scopeA - loses scopeB services ❌
+2. Pick scopeB - loses scopeA services ❌
+3. Create new scope - loses both, fresh services ❌
+4. Merge providers - not supported by DI, arbitrary resolution order ❌
+5. Reintroduce manager - defeats purpose ❌
+
+**Current Approach Solution**: EpochManager uses `NotifyEpochSubsumed()` - one scope "wins" and covers merged vector space. Clean, explicit, working.
+
+**Stream-Coupled Approach**: No clean solution.
+
+### Evaluation
+
+**Feasibility**: ❌ Not viable as general solution  
+**Complexity**: 6/10 (appears simple but hides complexity at fan-in)  
+**Developer Experience**: 7/10 (good for linear, fails for complex)  
+**Maintainability**: 4/10 (breaks down at fan-in)
+
+**Verdict**: ❌ **Rejected** - Fan-in is critical requirement
+
+**Detailed Analysis**: See `/research/epoch-scope-propagation/` for complete evaluation including:
+- Detailed architecture analysis
+- Comparison matrix across 10 dimensions
+- Fan-in problem deep dive
+- Use case testing
+
+**Research Date**: 2025-11-14  
+**Related Issue**: Design question from #415 implementation
+
+---
+
 ## Conclusion
 
 **Recommended Approach**: **Epoch Object with DI Scope**
@@ -619,10 +767,19 @@ public class OrderProcessingBlock
 3. **DI Integration**: Leverages standard patterns
 4. **Developer Experience**: Simple API, framework handles complexity
 5. **Testability**: Easy to test with mock epochs
+6. **Fan-In Support**: Handles all topologies correctly (critical requirement)
+7. **Subsume Semantics**: Explicit support via NotifyEpochSubsumed
+
+**Rejected Alternatives**:
+- **Manual Tracking**: Too much duplication, no service sharing
+- **AsyncLocal Context**: Hidden dependencies, concurrency concerns
+- **Block-Level Scopes**: Wrong granularity, doesn't solve core problem
+- **Hybrid Approach**: Inconsistent, confusing, high complexity
+- **Stream-Coupled Scopes**: Fails fan-in requirement (critical)
 
 **Next Steps**:
 1. Implement core `IEpoch` and `EpochManager` infrastructure
 2. Integrate with block execution context
-3. Validate with comprehensive testing
+3. Validate with comprehensive testing (including 6 fan-in scenarios)
 4. Document patterns and best practices
 5. Migrate existing examples to demonstrate benefits
