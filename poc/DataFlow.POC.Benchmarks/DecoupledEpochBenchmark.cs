@@ -24,7 +24,11 @@ public class DecoupledEpochBenchmark
     {
         var services = new ServiceCollection();
         services.AddTransient<BenchmarkPlainSource>();
-        services.AddTransient<BenchmarkSourceCentricSource>();
+        services.AddSingleton<IEpochCoordinator>(sp => 
+            new EpochCoordinator(sp.GetRequiredService<IServiceScopeFactory>()));
+        services.AddTransient(sp => new BenchmarkSourceCentricSource(
+            sp.GetRequiredService<IEpochCoordinator>(),
+            "source"));
         _serviceProvider = services.BuildServiceProvider();
     }
 
@@ -175,18 +179,29 @@ public class DecoupledEpochBenchmark
     // Source-centric source for current approach
     private class BenchmarkSourceCentricSource : SourceActorBase<int>
     {
+        public BenchmarkSourceCentricSource(IEpochCoordinator coordinator, string sourceId)
+            : base(coordinator, sourceId)
+        {
+        }
+
         public override async IAsyncEnumerable<IEpochStream<int>> ProduceEpochsAsync(
             [EnumeratorCancellation] IActorExecutionContext context)
         {
             // Mimic count-based segmentation
             for (int epochIndex = 0; epochIndex * ItemsPerEpoch < TotalItems; epochIndex++)
             {
+                if (epochIndex > 0)
+                {
+                    SignalReadyForNext(epochIndex, epochIndex + 1);
+                }
+                
                 var startIdx = epochIndex * ItemsPerEpoch;
                 var endIdx = Math.Min(startIdx + ItemsPerEpoch, TotalItems);
                 
-                yield return CreateEpochStream(
-                    CreateEpoch("source", epochIndex + 1),
-                    ProduceEpochItems(startIdx, endIdx));
+                yield return await CreateEpochStreamAsync(
+                    epochIndex + 1,
+                    ProduceEpochItems(startIdx, endIdx),
+                    context.CancellationToken);
             }
         }
 

@@ -11,7 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 /// </summary>
 public sealed class EpochCoordinator : IEpochCoordinator
 {
-    private readonly IServiceProvider _rootServiceProvider;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly object _lock = new();
     
     // Track sources and their readiness state
@@ -28,9 +28,9 @@ public sealed class EpochCoordinator : IEpochCoordinator
 
     private bool _disposed;
 
-    public EpochCoordinator(IServiceProvider rootServiceProvider)
+    public EpochCoordinator(IServiceScopeFactory scopeFactory)
     {
-        _rootServiceProvider = rootServiceProvider ?? throw new ArgumentNullException(nameof(rootServiceProvider));
+        _scopeFactory = scopeFactory ?? throw new ArgumentNullException(nameof(scopeFactory));
     }
 
     public ValueTask<IEpoch> GetOrCreateEpochAsync(
@@ -187,7 +187,7 @@ public sealed class EpochCoordinator : IEpochCoordinator
     private IEpoch CreateNewActiveEpoch(EpochVector vector, string sourceId)
     {
         // Create DI scope for this epoch
-        var scope = _rootServiceProvider.CreateScope();
+        var scope = _scopeFactory.CreateScope();
         var epoch = new Epoch(vector, scope);
         
         _activeEpoch = new ActiveEpoch
@@ -228,7 +228,7 @@ public sealed class EpochCoordinator : IEpochCoordinator
             return existing;
         }
 
-        var scope = _rootServiceProvider.CreateScope();
+        var scope = _scopeFactory.CreateScope();
         var epoch = new Epoch(vector, scope);
         _allEpochs[vector] = epoch;
         

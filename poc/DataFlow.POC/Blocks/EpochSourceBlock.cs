@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 /// Source block that hosts a source actor producing epoch streams.
 /// This block manages the lifecycle and DI scope of the source actor,
 /// allowing it to produce data with epoch boundaries without restarting.
+/// All source actors now use IEpochCoordinator internally for epoch management.
 /// </summary>
 /// <typeparam name="T">The type of items produced</typeparam>
 /// <typeparam name="TActor">The source actor type</typeparam>
@@ -33,6 +34,7 @@ public sealed class EpochSourceBlock<T, TActor> : BlockBase<object, IEpochStream
         var actor = scope.ServiceProvider.GetRequiredService<TActor>();
         
         // Stream epoch streams from the actor
+        // Actors now handle coordination internally via IEpochCoordinator
         await foreach (var epochStream in actor.ProduceEpochsAsync(_context).WithCancellation(context.CancellationToken))
         {
             yield return epochStream;

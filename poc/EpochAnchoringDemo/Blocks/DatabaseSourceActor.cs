@@ -51,6 +51,7 @@ public sealed class DatabaseSourceActor : SourceActorBase<DataRecord>
     /// <summary>
     /// Creates a new DatabaseSourceActor.
     /// </summary>
+    /// <param name="coordinator">Epoch coordinator for multi-source coordination</param>
     /// <param name="dbOptions">Database context options</param>
     /// <param name="epochSize">Number of records per epoch</param>
     /// <param name="sourceId">Unique identifier for this source</param>
@@ -61,11 +62,13 @@ public sealed class DatabaseSourceActor : SourceActorBase<DataRecord>
     /// </param>
     /// <param name="logger">Optional logger</param>
     public DatabaseSourceActor(
+        IEpochCoordinator coordinator,
         DbContextOptions<DemoDbContext> dbOptions,
         int epochSize,
         string sourceId = "database-source",
         int initialLastProcessedId = 0,
         ILogger<DatabaseSourceActor>? logger = null)
+        : base(coordinator, sourceId)
     {
         _dbOptions = dbOptions ?? throw new ArgumentNullException(nameof(dbOptions));
         _epochSize = epochSize > 0 ? epochSize : throw new ArgumentOutOfRangeException(nameof(epochSize));
@@ -101,14 +104,19 @@ public sealed class DatabaseSourceActor : SourceActorBase<DataRecord>
             
             while (hasMore)
             {
-                // Framework-level epoch for alignment tracking
-                var epoch = CreateEpoch(_sourceId, currentSequence);
+                if (currentSequence > 1)
+                {
+                    SignalReadyForNext(currentSequence - 1, currentSequence);
+                }
                 
-                _logger?.LogDebug("Yielding epoch {Epoch} starting from Id > {LastId}", epoch, _lastProcessedId);
+                _logger?.LogDebug("Yielding epoch {Sequence} starting from Id > {LastId}", currentSequence, _lastProcessedId);
                 
                 int epochStartId = _lastProcessedId;
                 
-                yield return CreateEpochStream(epoch, StreamEpochItems());
+                yield return await CreateEpochStreamAsync(
+                    currentSequence,
+                    StreamEpochItems(),
+                    context.CancellationToken);
 
                 async IAsyncEnumerable<DataRecord> StreamEpochItems(
                     [EnumeratorCancellation] CancellationToken ct = default)

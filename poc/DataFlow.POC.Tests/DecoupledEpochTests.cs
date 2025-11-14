@@ -240,7 +240,11 @@ public class DecoupledEpochTests
         
         // Arrange - Source-centric approach
         var services1 = new ServiceCollection();
-        services1.AddTransient<SourceCentricNumberProducer>();
+        services1.AddSingleton<IEpochCoordinator>(sp => 
+            new EpochCoordinator(sp.GetRequiredService<IServiceScopeFactory>()));
+        services1.AddTransient(sp => new SourceCentricNumberProducer(
+            sp.GetRequiredService<IEpochCoordinator>(),
+            "test-source"));
         var provider1 = services1.BuildServiceProvider();
 
         var sourceCentricBlock = new EpochSourceBlock<int, SourceCentricNumberProducer>(
@@ -310,6 +314,10 @@ public class DecoupledEpochTests
         {
             decoupledEpochs[i].items.ShouldBe(sourceCentricEpochs[i].items);
         }
+        
+        // Cleanup
+        await provider1.DisposeAsync();
+        await provider2.DisposeAsync();
     }
 
     // Test helper classes
@@ -352,6 +360,11 @@ public class DecoupledEpochTests
 
     private class SourceCentricNumberProducer : SourceActorBase<int>
     {
+        public SourceCentricNumberProducer(IEpochCoordinator coordinator, string sourceId)
+            : base(coordinator, sourceId)
+        {
+        }
+
         public override async IAsyncEnumerable<IEpochStream<int>> ProduceEpochsAsync(
             [EnumeratorCancellation] IActorExecutionContext context)
         {
@@ -360,10 +373,16 @@ public class DecoupledEpochTests
             
             for (int epochIndex = 0; epochIndex * 3 < data.Count; epochIndex++)
             {
+                if (epochIndex > 0)
+                {
+                    SignalReadyForNext(epochIndex, epochIndex + 1);
+                }
+                
                 var epochData = data.Skip(epochIndex * 3).Take(3).ToList();
-                yield return CreateEpochStream(
-                    CreateEpoch("test-source", epochIndex + 1),
-                    epochData.ToAsyncEnumerable());
+                yield return await CreateEpochStreamAsync(
+                    epochIndex + 1,
+                    epochData.ToAsyncEnumerable(),
+                    context.CancellationToken);
             }
         }
     }

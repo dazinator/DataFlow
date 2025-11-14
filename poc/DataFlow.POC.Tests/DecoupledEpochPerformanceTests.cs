@@ -155,7 +155,11 @@ public class DecoupledEpochPerformanceTests
     private async Task<int> RunSourceCentric()
     {
         var services = new ServiceCollection();
-        services.AddTransient<PerfSourceCentricSource>();
+        services.AddSingleton<IEpochCoordinator>(sp => 
+            new EpochCoordinator(sp.GetRequiredService<IServiceScopeFactory>()));
+        services.AddTransient(sp => new PerfSourceCentricSource(
+            sp.GetRequiredService<IEpochCoordinator>(),
+            "source"));
         var provider = services.BuildServiceProvider();
 
         var sourceBlock = new EpochSourceBlock<int, PerfSourceCentricSource>(
@@ -172,6 +176,8 @@ public class DecoupledEpochPerformanceTests
                 count++;
             }
         }
+        
+        await provider.DisposeAsync();
 
         return count;
     }
@@ -250,17 +256,28 @@ public class DecoupledEpochPerformanceTests
 
     private class PerfSourceCentricSource : SourceActorBase<int>
     {
+        public PerfSourceCentricSource(IEpochCoordinator coordinator, string sourceId)
+            : base(coordinator, sourceId)
+        {
+        }
+
         public override async IAsyncEnumerable<IEpochStream<int>> ProduceEpochsAsync(
             [EnumeratorCancellation] IActorExecutionContext context)
         {
             for (int epochIndex = 0; epochIndex * ItemsPerEpoch < TotalItems; epochIndex++)
             {
+                if (epochIndex > 0)
+                {
+                    SignalReadyForNext(epochIndex, epochIndex + 1);
+                }
+                
                 var startIdx = epochIndex * ItemsPerEpoch;
                 var endIdx = Math.Min(startIdx + ItemsPerEpoch, TotalItems);
                 
-                yield return CreateEpochStream(
-                    CreateEpoch("source", epochIndex + 1),
-                    ProduceEpochItems(startIdx, endIdx));
+                yield return await CreateEpochStreamAsync(
+                    epochIndex + 1,
+                    ProduceEpochItems(startIdx, endIdx),
+                    context.CancellationToken);
             }
         }
 

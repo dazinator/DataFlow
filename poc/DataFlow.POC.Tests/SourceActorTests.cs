@@ -17,7 +17,11 @@ public class SourceActorTests
     {
         // Arrange
         var services = new ServiceCollection();
-        services.AddTransient<TestSourceActor>();
+        services.AddSingleton<IEpochCoordinator>(sp => 
+            new EpochCoordinator(sp.GetRequiredService<IServiceScopeFactory>()));
+        services.AddTransient(sp => new TestSourceActor(
+            sp.GetRequiredService<IEpochCoordinator>(),
+            "test-source"));
         var provider = services.BuildServiceProvider();
 
         var block = new EpochSourceBlock<int, TestSourceActor>(
@@ -56,6 +60,9 @@ public class SourceActorTests
         
         epochs[2].epoch.GetSequence("test-source").ShouldBe(3);
         epochs[2].items.ShouldBe(new[] { 10, 11, 12, 13, 14 });
+        
+        // Cleanup
+        await provider.DisposeAsync();
     }
 
     [Fact]
@@ -63,7 +70,11 @@ public class SourceActorTests
     {
         // Arrange
         var services = new ServiceCollection();
-        services.AddTransient<LongRunningSourceActor>();
+        services.AddSingleton<IEpochCoordinator>(sp => 
+            new EpochCoordinator(sp.GetRequiredService<IServiceScopeFactory>()));
+        services.AddTransient(sp => new LongRunningSourceActor(
+            sp.GetRequiredService<IEpochCoordinator>(),
+            "test-source"));
         var provider = services.BuildServiceProvider();
 
         var block = new EpochSourceBlock<int, LongRunningSourceActor>(
@@ -104,6 +115,9 @@ public class SourceActorTests
         // Assert
         cancelled.ShouldBeTrue();
         itemsProduced.ShouldBeGreaterThanOrEqualTo(5);
+        
+        // Cleanup
+        await provider.DisposeAsync();
     }
 
     [Fact]
@@ -114,7 +128,11 @@ public class SourceActorTests
 
         // Arrange
         var services = new ServiceCollection();
-        services.AddTransient<ContinuousSourceActor>();
+        services.AddSingleton<IEpochCoordinator>(sp => 
+            new EpochCoordinator(sp.GetRequiredService<IServiceScopeFactory>()));
+        services.AddTransient(sp => new ContinuousSourceActor(
+            sp.GetRequiredService<IEpochCoordinator>(),
+            "continuous-source"));
         var provider = services.BuildServiceProvider();
 
         var block = new EpochSourceBlock<int, ContinuousSourceActor>(
@@ -142,6 +160,9 @@ public class SourceActorTests
         // Assert
         allItems.Count.ShouldBe(30);
         allItems.ShouldBe(Enumerable.Range(0, 30));
+        
+        // Cleanup
+        await provider.DisposeAsync();
     }
 
     [Fact]
@@ -151,7 +172,11 @@ public class SourceActorTests
 
         // Arrange
         var services = new ServiceCollection();
-        services.AddTransient<DelayedSourceActor>();
+        services.AddSingleton<IEpochCoordinator>(sp => 
+            new EpochCoordinator(sp.GetRequiredService<IServiceScopeFactory>()));
+        services.AddTransient(sp => new DelayedSourceActor(
+            sp.GetRequiredService<IEpochCoordinator>(),
+            "delayed-source"));
         var provider = services.BuildServiceProvider();
 
         var block = new EpochSourceBlock<int, DelayedSourceActor>(
@@ -186,21 +211,35 @@ public class SourceActorTests
         
         // Epochs should start streaming immediately, not wait for all items
         // to be collected (the old list-based approach would have collected everything)
+        
+        // Cleanup
+        await provider.DisposeAsync();
     }
 
     // Test helper classes
 
     private class TestSourceActor : SourceActorBase<int>
     {
+        public TestSourceActor(IEpochCoordinator coordinator, string sourceId)
+            : base(coordinator, sourceId)
+        {
+        }
+
         public override async IAsyncEnumerable<IEpochStream<int>> ProduceEpochsAsync(
             IActorExecutionContext context)
         {
             // Produce 3 epochs of 5 items each
             for (int epoch = 1; epoch <= 3; epoch++)
             {
-                yield return CreateEpochStream(
-                    CreateEpoch("test-source", epoch),
-                    ProduceEpochItems(epoch, context.CancellationToken));
+                if (epoch > 1)
+                {
+                    SignalReadyForNext(epoch - 1, epoch);
+                }
+                
+                yield return await CreateEpochStreamAsync(
+                    epoch,
+                    ProduceEpochItems(epoch, context.CancellationToken),
+                    context.CancellationToken);
             }
         }
 
@@ -219,12 +258,18 @@ public class SourceActorTests
 
     private class LongRunningSourceActor : SourceActorBase<int>
     {
+        public LongRunningSourceActor(IEpochCoordinator coordinator, string sourceId)
+            : base(coordinator, sourceId)
+        {
+        }
+
         public override async IAsyncEnumerable<IEpochStream<int>> ProduceEpochsAsync(
             IActorExecutionContext context)
         {
-            yield return CreateEpochStream(
-                CreateEpoch("test-source", 1),
-                ProduceInfiniteItems(context.CancellationToken));
+            yield return await CreateEpochStreamAsync(
+                1,
+                ProduceInfiniteItems(context.CancellationToken),
+                context.CancellationToken);
         }
 
         private static async IAsyncEnumerable<int> ProduceInfiniteItems(
@@ -242,13 +287,19 @@ public class SourceActorTests
 
     private class ContinuousSourceActor : SourceActorBase<int>
     {
+        public ContinuousSourceActor(IEpochCoordinator coordinator, string sourceId)
+            : base(coordinator, sourceId)
+        {
+        }
+
         public override async IAsyncEnumerable<IEpochStream<int>> ProduceEpochsAsync(
             IActorExecutionContext context)
         {
             // Produces one epoch with all items - compatible with downstream segmentation
-            yield return CreateEpochStream(
-                CreateEpoch("continuous-source", 1),
-                ProduceAllItems(context.CancellationToken));
+            yield return await CreateEpochStreamAsync(
+                1,
+                ProduceAllItems(context.CancellationToken),
+                context.CancellationToken);
         }
 
         private static async IAsyncEnumerable<int> ProduceAllItems(
@@ -264,16 +315,25 @@ public class SourceActorTests
 
     private class DelayedSourceActor : SourceActorBase<int>
     {
+        public DelayedSourceActor(IEpochCoordinator coordinator, string sourceId)
+            : base(coordinator, sourceId)
+        {
+        }
+
         public override async IAsyncEnumerable<IEpochStream<int>> ProduceEpochsAsync(
             IActorExecutionContext context)
         {
-            yield return CreateEpochStream(
-                CreateEpoch("delayed-source", 1),
-                ProduceDelayedItems(5, context.CancellationToken));
+            yield return await CreateEpochStreamAsync(
+                1,
+                ProduceDelayedItems(5, context.CancellationToken),
+                context.CancellationToken);
 
-            yield return CreateEpochStream(
-                CreateEpoch("delayed-source", 2),
-                ProduceDelayedItems(5, context.CancellationToken));
+            SignalReadyForNext(1, 2);
+            
+            yield return await CreateEpochStreamAsync(
+                2,
+                ProduceDelayedItems(5, context.CancellationToken),
+                context.CancellationToken);
         }
 
         private static async IAsyncEnumerable<int> ProduceDelayedItems(

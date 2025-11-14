@@ -19,7 +19,7 @@ public class EpochCoordinatorTests : IAsyncDisposable
         services.AddScoped<TestService>();
         _serviceProvider = services.BuildServiceProvider();
         
-        _coordinator = new EpochCoordinator(_serviceProvider);
+        _coordinator = new EpochCoordinator(_serviceProvider.GetRequiredService<IServiceScopeFactory>());
     }
 
     public async ValueTask DisposeAsync()
