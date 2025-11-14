@@ -114,18 +114,6 @@ public sealed class EpochBatchBlock<T> : BlockBase<IEpochStream<T>, IEpochStream
 
     private static IEpochStream<T[]> CreateEpochStream(EpochVector epoch, IAsyncEnumerable<T[]> items)
     {
-        return new EpochStreamWrapper(epoch, items);
-    }
-
-    private sealed class EpochStreamWrapper : IEpochStream<T[]>
-    {
-        public EpochVector Epoch { get; }
-        public IAsyncEnumerable<T[]> Items { get; }
-
-        public EpochStreamWrapper(EpochVector epoch, IAsyncEnumerable<T[]> items)
-        {
-            Epoch = epoch ?? throw new ArgumentNullException(nameof(epoch));
-            Items = items ?? throw new ArgumentNullException(nameof(items));
-        }
+        return new EpochStream<T[]>(epoch, items);
     }
 }

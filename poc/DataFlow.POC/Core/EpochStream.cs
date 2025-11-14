@@ -7,7 +7,7 @@ using System.Runtime.CompilerServices;
 /// Each epoch stream carries its own epoch vector metadata and completes naturally
 /// when all data for that epoch has been consumed.
 /// </summary>
-public interface IEpochStream<out T>
+public interface IEpochStream<out T> : IAsyncDisposable
 {
     /// <summary>
     /// The epoch vector identifying this stream's position in the dataflow.
@@ -19,6 +19,13 @@ public interface IEpochStream<out T>
     /// The stream completes when all epoch data has been yielded.
     /// </summary>
     IAsyncEnumerable<T> Items { get; }
+
+    /// <summary>
+    /// The epoch object with DI scope for this stream.
+    /// When using epoch coordinator, multiple streams from different sources may share the SAME epoch object.
+    /// Null for streams not created via epoch coordinator.
+    /// </summary>
+    IEpoch? EpochScope { get; }
 }
 
 /// <summary>
@@ -28,11 +35,26 @@ internal sealed class EpochStream<T> : IEpochStream<T>
 {
     public EpochVector Epoch { get; }
     public IAsyncEnumerable<T> Items { get; }
+    public IEpoch? EpochScope { get; }
 
     public EpochStream(EpochVector epoch, IAsyncEnumerable<T> items)
     {
         Epoch = epoch ?? throw new ArgumentNullException(nameof(epoch));
         Items = items ?? throw new ArgumentNullException(nameof(items));
+        EpochScope = null;
+    }
+
+    public EpochStream(IEpoch epochScope, IAsyncEnumerable<T> items)
+    {
+        EpochScope = epochScope ?? throw new ArgumentNullException(nameof(epochScope));
+        Epoch = epochScope.Vector;
+        Items = items ?? throw new ArgumentNullException(nameof(items));
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        // Don't dispose epoch scope here - coordinator manages epoch disposal
+        return ValueTask.CompletedTask;
     }
 }
 
