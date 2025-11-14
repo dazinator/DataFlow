@@ -33,7 +33,7 @@ public sealed class EpochCoordinator : IEpochCoordinator
         _scopeFactory = scopeFactory ?? throw new ArgumentNullException(nameof(scopeFactory));
     }
 
-    public ValueTask<IEpoch> GetOrCreateEpochAsync(
+    public async ValueTask<IEpoch> GetOrCreateEpochAsync(
         string sourceId,
         EpochVector vector,
         CancellationToken cancellationToken = default)
@@ -41,6 +41,8 @@ public sealed class EpochCoordinator : IEpochCoordinator
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(sourceId);
         ArgumentNullException.ThrowIfNull(vector);
+
+        TaskCompletionSource<IEpoch>? tcsToAwait = null;
 
         lock (_lock)
         {
@@ -59,19 +61,47 @@ public sealed class EpochCoordinator : IEpochCoordinator
 
             if (isSingleSource)
             {
-                return ValueTask.FromResult(GetOrCreateEpochUnsafe(vector, sourceId));
+                return GetOrCreateEpochUnsafe(vector, sourceId);
             }
 
             // MULTI-SOURCE PATH: Check if we need coordination
-            return ValueTask.FromResult(GetOrCreateEpochWithCoordination(sourceId, vector, cancellationToken));
+            var result = GetOrCreateEpochWithCoordination(sourceId, vector, out tcsToAwait);
+            if (result != null)
+            {
+                return result;
+            }
         }
+
+        // Need to wait outside the lock for other sources to be ready
+        if (tcsToAwait != null)
+        {
+            using var registration = cancellationToken.Register(() =>
+            {
+                lock (_lock)
+                {
+                    if (_waitingForReadiness.TryGetValue(sourceId, out var tcs))
+                    {
+                        _waitingForReadiness.Remove(sourceId);
+                        tcs.TrySetCanceled(cancellationToken);
+                    }
+                }
+            });
+
+            return await tcsToAwait.Task.ConfigureAwait(false);
+        }
+
+        // This should be unreachable if GetOrCreateEpochWithCoordination is working correctly
+        throw new InvalidOperationException(
+            $"Unexpected state in GetOrCreateEpochAsync: sourceId={sourceId}, vector={vector}, " +
+            $"result was null but tcsToAwait was also null. This indicates a logic error in GetOrCreateEpochWithCoordination.");
     }
 
-    private IEpoch GetOrCreateEpochWithCoordination(
+    private IEpoch? GetOrCreateEpochWithCoordination(
         string sourceId,
         EpochVector vector,
-        CancellationToken cancellationToken)
+        out TaskCompletionSource<IEpoch>? tcsToAwait)
     {
+        tcsToAwait = null;
         var sourceState = _sources[sourceId];
         
         // Case 1: No active epoch - check if we have an existing epoch from fast path, or create new one
@@ -145,12 +175,15 @@ public sealed class EpochCoordinator : IEpochCoordinator
         else
         {
             // This source must wait for others to signal readiness
-            // In real implementation, this would be async wait
-            // For prototype, we throw to indicate blocking needed
-            throw new InvalidOperationException(
-                $"Source {sourceId} attempting to advance to {vector} but other sources not ready. " +
-                $"Current active epoch: {_activeEpoch.Vector}. " +
-                $"Call SignalReadyForNext() and wait for coordination.");
+            // Create a TaskCompletionSource for this source
+            var tcs = new TaskCompletionSource<IEpoch>(TaskCreationOptions.RunContinuationsAsynchronously);
+            _waitingForReadiness[sourceId] = tcs;
+            
+            // Store the vector this source wants to advance to (but don't mark as "ready")
+            sourceState.WaitingForVector = vector;
+            
+            tcsToAwait = tcs;
+            return null; // Indicates we need to await
         }
     }
 
@@ -214,6 +247,7 @@ public sealed class EpochCoordinator : IEpochCoordinator
             foreach (var source in _sources.Values)
             {
                 source.NextVector = null;
+                source.WaitingForVector = null;
             }
             
             _activeEpoch = null;
@@ -251,10 +285,80 @@ public sealed class EpochCoordinator : IEpochCoordinator
                 throw new InvalidOperationException($"Unknown source: {sourceId}");
             }
 
+            // Mark this source as ready for the next epoch
             sourceState.NextVector = nextVector;
 
-            // If all sources now ready, we could signal waiting sources
-            // (In full implementation, would use TaskCompletionSource)
+            // If all sources now ready, signal any waiting sources
+            if (AllSourcesReadyForNext())
+            {
+                // Create merged vector from all sources' next vectors (or waiting vectors)
+                EpochVector? mergedVector = null;
+                foreach (var source in _sources.Values)
+                {
+                    // Use NextVector if set (explicitly signaled), otherwise use WaitingForVector
+                    // Note: This fallback ensures that sources which are still waiting (i.e., have not signaled readiness)
+                    // still contribute their desired vector to the merge via WaitingForVector.
+                    var vectorToMerge = source.NextVector ?? source.WaitingForVector;
+                    if (vectorToMerge != null)
+                    {
+                        mergedVector = mergedVector == null 
+                            ? vectorToMerge 
+                            : mergedVector.Merge(vectorToMerge);
+                    }
+                }
+
+                // This should never be null if AllSourcesReadyForNext() returned true, as at least one source
+                // must have NextVector set. If this occurs, it indicates a logic error.
+                if (mergedVector == null)
+                {
+                    throw new InvalidOperationException(
+                        "All sources ready but no vectors found. This indicates a logic error in AllSourcesReadyForNext.");
+                }
+
+                // Complete the active epoch (this clears NextVector fields)
+                CompleteActiveEpoch();
+                
+                // Create ONE new epoch for all sources
+                IEpoch? newEpoch = null;
+                
+                // Get all waiting sources
+                var waitingSources = _waitingForReadiness.ToList();
+                _waitingForReadiness.Clear();
+                
+                // Process each waiting source
+                foreach (var (waitingSourceId, tcs) in waitingSources)
+                {
+                    if (_sources.TryGetValue(waitingSourceId, out var waitingSource))
+                    {
+                        try
+                        {
+                            if (newEpoch == null)
+                            {
+                                // First waiting source creates the epoch
+                                newEpoch = CreateNewActiveEpoch(mergedVector, waitingSourceId);
+                            }
+                            else
+                            {
+                                // Subsequent sources join the same epoch
+                                _activeEpoch!.ParticipatingSourceIds.Add(waitingSourceId);
+                                waitingSource.CurrentVector = mergedVector;
+                            }
+                            // Clear the waiting vector
+                            waitingSource.WaitingForVector = null;
+                            tcs.TrySetResult(newEpoch);
+                        }
+                        catch (Exception ex)
+                        {
+                            tcs.TrySetException(ex);
+                        }
+                    }
+                    else
+                    {
+                        tcs.TrySetException(new InvalidOperationException(
+                            $"Waiting source {waitingSourceId} not found"));
+                    }
+                }
+            }
         }
     }
 
@@ -278,6 +382,16 @@ public sealed class EpochCoordinator : IEpochCoordinator
 
         _disposed = true;
 
+        // Cancel any pending waiters
+        lock (_lock)
+        {
+            foreach (var tcs in _waitingForReadiness.Values)
+            {
+                tcs.TrySetException(new ObjectDisposedException(nameof(EpochCoordinator)));
+            }
+            _waitingForReadiness.Clear();
+        }
+
         foreach (var epoch in _allEpochs.Values)
         {
             await epoch.DisposeAsync();
@@ -293,7 +407,8 @@ internal class SourceReadiness
 {
     public string SourceId { get; init; } = string.Empty;
     public EpochVector CurrentVector { get; set; } = EpochVector.None;
-    public EpochVector? NextVector { get; set; }
+    public EpochVector? NextVector { get; set; } // Explicitly signaled via SignalReadyForNext
+    public EpochVector? WaitingForVector { get; set; } // Set when source is waiting for this vector
     public bool IsReadyForNext => NextVector != null;
 }
 

@@ -105,7 +105,7 @@ public class EpochCoordinatorTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task MultiSource_BoundedGrowth_BlocksWithoutReadiness()
+    public async Task MultiSource_BoundedGrowth_WaitsWithoutReadiness()
     {
         // Arrange
         var sourceA = "sourceA";
@@ -123,13 +123,20 @@ public class EpochCoordinatorTests : IAsyncDisposable
         // Act - Source A tries to advance to epoch 2 without Source B ready
         var vectorA2 = EpochVector.FromSingleSource(sourceA, 2);
         
-        // Assert - Should throw because Source B not ready
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-        {
-            await _coordinator.GetOrCreateEpochAsync(sourceA, vectorA2);
-        });
+        // Assert - Should wait (not complete immediately) because Source B not ready
+        var getEpochTask = _coordinator.GetOrCreateEpochAsync(sourceA, vectorA2).AsTask();
         
-        Assert.Contains("not ready", ex.Message);
+        await Task.Delay(100); // Give it time to potentially complete
+        Assert.False(getEpochTask.IsCompleted, "Source A should be waiting for Source B");
+        
+        // Now have Source B signal readiness and advance - this should unblock Source A
+        var vectorB2 = EpochVector.FromSingleSource(sourceB, 2);
+        _coordinator.SignalReadyForNext(sourceB, vectorB1, vectorB2);
+        _coordinator.SignalReadyForNext(sourceA, vectorA1, vectorA2);
+        
+        // Now Source A should complete
+        var epoch2A = await getEpochTask;
+        Assert.NotNull(epoch2A);
     }
 
     [Fact]
