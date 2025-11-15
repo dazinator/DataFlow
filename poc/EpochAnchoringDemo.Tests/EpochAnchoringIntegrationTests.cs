@@ -4,6 +4,7 @@ using DataFlow.POC.Core;
 using EpochAnchoringDemo.Core;
 using EpochAnchoringDemo.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 
 /// <summary>
@@ -18,6 +19,8 @@ public class EpochAnchoringIntegrationTests : IDisposable
 {
     private readonly string _testDbPath;
     private readonly DbContextOptions<DemoDbContext> _dbOptions;
+    private readonly IServiceScopeFactory _scopeFactory;
+    private readonly ServiceProvider _serviceProvider;
 
     public EpochAnchoringIntegrationTests()
     {
@@ -32,10 +35,20 @@ public class EpochAnchoringIntegrationTests : IDisposable
         // Initialize the database
         using var context = new DemoDbContext(_dbOptions);
         context.Database.EnsureCreated();
+
+        // Setup DI for epoch coordinator
+        var services = new ServiceCollection();
+        services.AddDbContext<DemoDbContext>(options =>
+            options.UseSqlite($"Data Source={_testDbPath}"));
+        _serviceProvider = services.BuildServiceProvider();
+        _scopeFactory = _serviceProvider.GetRequiredService<IServiceScopeFactory>();
     }
 
     public void Dispose()
     {
+        // Dispose service provider
+        _serviceProvider?.Dispose();
+        
         // Clean up database file
         try
         {
@@ -73,7 +86,9 @@ public class EpochAnchoringIntegrationTests : IDisposable
             await context.SaveChangesAsync();
         }
 
+        await using var coordinator = new EpochCoordinator(_scopeFactory);
         var actor = new Blocks.DatabaseSourceActor(
+            coordinator,
             _dbOptions,
             epochSize,
             sourceId);
@@ -137,7 +152,9 @@ public class EpochAnchoringIntegrationTests : IDisposable
         // First run - process first 300 records (3 epochs)
         int anchorAfterThreeEpochs;
         {
+            await using var coordinator = new EpochCoordinator(_scopeFactory);
             var actor = new Blocks.DatabaseSourceActor(
+                coordinator,
                 _dbOptions,
                 epochSize,
                 sourceId);
@@ -167,7 +184,9 @@ public class EpochAnchoringIntegrationTests : IDisposable
         // Second run - resume from saved anchor
         // In production, this anchor would come from a loaded checkpoint
         {
+            await using var coordinator = new EpochCoordinator(_scopeFactory);
             var actor = new Blocks.DatabaseSourceActor(
+                coordinator,
                 _dbOptions,
                 epochSize,
                 sourceId,
@@ -262,13 +281,14 @@ public class EpochAnchoringIntegrationTests : IDisposable
         var writeBlock = new Blocks.WriteContextBlock();
 
         // Act
-        // Create a simple epoch stream
+        await using var coordinator = new EpochCoordinator(_scopeFactory);
         var epoch = EpochVector.FromSingleSource("test", 1);
+        var epochScope = await coordinator.GetOrCreateEpochAsync("test", epoch);
         
         using var dbContext = new DemoDbContext(_dbOptions);
         var records = await dbContext.DataRecords.Take(totalRecords).ToListAsync();
         
-        var epochStream = new EpochStreamImpl<DataRecord>(epoch, ToAsyncEnumerable(records));
+        var epochStream = new EpochStreamImpl<DataRecord>(epochScope, ToAsyncEnumerable(records));
 
         var processedCount = 0;
         await foreach (var outputStream in writeBlock.ProcessAsync(ToAsyncEnumerable(new[] { epochStream })))
@@ -313,7 +333,9 @@ public class EpochAnchoringIntegrationTests : IDisposable
             await context.SaveChangesAsync();
         }
 
+        await using var coordinator = new EpochCoordinator(_scopeFactory);
         var actor = new Blocks.DatabaseSourceActor(
+            coordinator,
             _dbOptions,
             epochSize,
             sourceId);
@@ -367,7 +389,9 @@ public class EpochAnchoringIntegrationTests : IDisposable
         // First run - process partially (3 epochs = 300 records)
         int savedAnchor;
         {
+            await using var coordinator = new EpochCoordinator(_scopeFactory);
             var actor = new Blocks.DatabaseSourceActor(
+                coordinator,
                 _dbOptions,
                 epochSize,
                 sourceId);
@@ -405,7 +429,9 @@ public class EpochAnchoringIntegrationTests : IDisposable
         // Second run - resume from checkpoint
         // In production, savedAnchor would come from a loaded checkpoint
         {
+            await using var coordinator = new EpochCoordinator(_scopeFactory);
             var actor = new Blocks.DatabaseSourceActor(
+                coordinator,
                 _dbOptions,
                 epochSize,
                 sourceId,
@@ -448,15 +474,16 @@ public class EpochAnchoringIntegrationTests : IDisposable
 
     private class EpochStreamImpl<T> : IEpochStream<T>
     {
-        public EpochStreamImpl(EpochVector epoch, IAsyncEnumerable<T> items)
+        public EpochStreamImpl(IEpoch epochScope, IAsyncEnumerable<T> items)
         {
-            Epoch = epoch;
+            EpochScope = epochScope ?? throw new ArgumentNullException(nameof(epochScope));
+            Epoch = epochScope.Vector;
             Items = items;
         }
 
         public EpochVector Epoch { get; }
         public IAsyncEnumerable<T> Items { get; }
-        public IEpoch? EpochScope => null;
+        public IEpoch EpochScope { get; }
         
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
