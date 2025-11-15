@@ -10,20 +10,20 @@ assignees: ''
 
 **This is a TECH DEBT DISCOVERY issue, a specialized research workflow.**
 
-@copilot **MUST** follow the Tech Debt Discovery workflow in `/.team/workflows/TECH_DEBT_WORKFLOW.md`.
+@copilot **MUST** follow the Tech Debt duty in `.team/duties/TECH_DEBT_DUTY.md`.
 
 ### Checklist for @copilot
 
 Before starting work on this tech debt discovery:
-- [ ] I have read `/.team/workflows/TECH_DEBT_WORKFLOW.md`
-- [ ] I have read `/docs/DOCUMENT_HYGIENE.md` for documentation standards
+- [ ] I have read `.team/duties/TECH_DEBT_DUTY.md`
+- [ ] I have read `docs/DOCUMENT_HYGIENE.md` for documentation standards
 - [ ] I will create `/research/tech-debt-[date]/` folder structure
 - [ ] I will **review existing backlog** (`/research/backlog/`) before new exploration
 - [ ] I understand exploratory code in `/poc/` or `/src/` will be REVERTED after reviewer approval
 - [ ] I will create findings report for reviewer selection
 - [ ] I will create handover issues for **selected** findings
 - [ ] I will move **non-selected** findings to `/research/backlog/` with date-based naming
-- [ ] **Before PR review: I will complete self-improvement evaluation in `.github/workflow-improvements.md`**
+- [ ] **Before PR review: I will complete self-improvement evaluation**
 
 ### Key Points for @copilot:
 - **Review backlog first**: Check `/research/backlog/` for existing items to prioritize
@@ -69,7 +69,7 @@ Select areas to explore (check all that apply):
 - [ ] Handover issues created for reviewer-selected findings
 - [ ] Non-selected findings moved to `/research/backlog/YYYY-MM-DD-[name].md`
 - [ ] Exploratory code changes reverted (after reviewer approval)
-- [ ] **Self-improvement evaluation completed in `.github/workflow-improvements.md`**
+- [ ] **Self-improvement evaluation completed**
 
 ## Success Criteria
 

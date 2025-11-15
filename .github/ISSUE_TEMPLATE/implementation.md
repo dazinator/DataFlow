@@ -27,7 +27,7 @@ assignees: ''
 **@copilot**: 
 - If backlog issue number specified: Read the GitHub issue first
 - If "Next from prioritization": Query issues with `workflow:product-backlog` label, select highest priority, PAUSE for confirmation
-- See Step 2 in `.team/prompts/IMPLEMENTATION_WORKFLOW.md` for complete guidance
+- See `.team/duties/IMPLEMENTATION_DUTY.md` for complete guidance
 
 ### Product Backlog System
 
@@ -54,12 +54,11 @@ The backlog item or context below should clearly indicate which codebase this im
 
 ## For @copilot
 
-**Workflow**: Follow `.team/prompts/IMPLEMENTATION_WORKFLOW.md` for complete implementation process.
+**Duty**: Follow `.team/duties/IMPLEMENTATION_DUTY.md` for complete implementation process.
 
 **Quick Reference:**
 - Label `workflow:implementation` ensures correct workflow routing
-- Check `/implementation/plan.md` for ongoing work before starting
-- See [Getting Started Guide](../../docs/guides/GETTING_STARTED.md) for coding standards
+- See `.github/copilot-instructions.md` for workflow system
 - Complete self-improvement evaluation before PR review
 
 ---

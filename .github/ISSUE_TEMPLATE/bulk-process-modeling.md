@@ -32,4 +32,4 @@ The old system created many sub-issues which became overwhelming. The new commen
 ### See
 
 - [Workflow Feedback Tracker Guide](/.github/docs/WORKFLOW_FEEDBACK_TRACKER.md)
-- [Process Modeling Workflow](/.team/prompts/PROCESS_MODELING_WORKFLOW.md)
+- [Process Modeling Duty](/.team/duties/PROCESS_MODELING_DUTY.md)

@@ -10,12 +10,7 @@ assignees: ''
 
 **This is a RESEARCH issue, not a direct implementation issue.**
 
-@copilot **MUST** follow the Research-to-Implementation workflow in `/.team/prompts/RESEARCH_WORKFLOW.md`.
-
-**Workflow Routing:**
-- Label: `workflow:research` ensures correct workflow routing
-- See: `.github/copilot-instructions.md` for workflow system
-- **Before PR review**: Complete self-improvement evaluation
+@copilot **MUST** follow the Research duty in `.team/duties/RESEARCH_DUTY.md`.
 
 ---
 
@@ -56,10 +51,9 @@ assignees: ''
 
 ## For @copilot
 
-**Workflow**: Follow `/.team/prompts/RESEARCH_WORKFLOW.md` for complete research process.
+**Duty**: Follow `.team/duties/RESEARCH_DUTY.md` for complete research process.
 
-**Key Points:**
-- Create `/research/[topic-name]/` folder structure
-- Exploratory code in `/poc/` or `/src/` will be REVERTED after reviewer approval
-- Outcome: Documentation + implementation-ready issue for engineering team
-- See [Research Folder Structure](/research/FOLDER_STRUCTURE.md) for conventions
+**Quick Reference:**
+- Label `workflow:research` ensures correct workflow routing
+- See `.github/copilot-instructions.md` for workflow system
+- Complete self-improvement evaluation before PR review
