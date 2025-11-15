@@ -259,7 +259,7 @@ public class EpochAnchoringIntegrationTests : IDisposable
             await context.SaveChangesAsync();
         }
 
-        var writeBlock = new Blocks.WriteContextBlock(_dbOptions);
+        var writeBlock = new Blocks.WriteContextBlock();
 
         // Act
         // Create a simple epoch stream
@@ -318,7 +318,7 @@ public class EpochAnchoringIntegrationTests : IDisposable
             epochSize,
             sourceId);
 
-        var writeBlock = new Blocks.WriteContextBlock(_dbOptions);
+        var writeBlock = new Blocks.WriteContextBlock();
         var context2 = new TestActorContext();
 
         // Act
@@ -372,7 +372,7 @@ public class EpochAnchoringIntegrationTests : IDisposable
                 epochSize,
                 sourceId);
 
-            var writeBlock = new Blocks.WriteContextBlock(_dbOptions);
+            var writeBlock = new Blocks.WriteContextBlock();
             var context = new TestActorContext();
 
             var epochCount = 0;
@@ -411,7 +411,7 @@ public class EpochAnchoringIntegrationTests : IDisposable
                 sourceId,
                 initialLastProcessedId: savedAnchor); // Resume from checkpoint
 
-            var writeBlock = new Blocks.WriteContextBlock(_dbOptions);
+            var writeBlock = new Blocks.WriteContextBlock();
             var context = new TestActorContext();
 
             var resumeProcessedCount = 0;
@@ -456,6 +456,9 @@ public class EpochAnchoringIntegrationTests : IDisposable
 
         public EpochVector Epoch { get; }
         public IAsyncEnumerable<T> Items { get; }
+        public IEpoch? EpochScope => null;
+        
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 
     private class TestActorContext : IActorExecutionContext

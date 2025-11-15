@@ -8,27 +8,34 @@ using Microsoft.Extensions.Logging;
 using System.Runtime.CompilerServices;
 
 /// <summary>
-/// Block that processes items within epoch boundaries using epoch-scoped DbContext instances.
-/// Each epoch stream provides its own DI scope, allowing blocks to share the same DbContext
-/// instance within an epoch while maintaining transactional boundaries.
+/// Block that processes items within epoch boundaries using scoped DbContext instances.
+/// Each epoch gets its own DbContext and transaction, ensuring transactional boundaries
+/// align with epoch completion.
 /// 
-/// This demonstrates the simplified pattern enabled by source-level epoch coordination:
-/// - DbContext resolved from epoch scope (shared across blocks in same epoch)
-/// - No manual DbContext creation needed
-/// - Natural transaction boundaries aligned with epoch boundaries
-/// - ~50% code reduction compared to manual DbContext management
+/// NOTE: This is sample/reference code demonstrating per-epoch DbContext scoping.
+/// In a full DataFlow integration, this would be a proper block that can be composed
+/// with routing, allowing selective processing where only routed items participate in
+/// the epoch completion transaction. This composability aligns with DataFlow concepts
+/// but requires future work to simplify block development with epoch-tied lifetimes.
+/// 
+/// TODO: Await simplified block/actor development patterns with epoch-scoped lifetimes
+/// to make this easier to implement as a proper composable block.
 /// </summary>
 public sealed class WriteContextBlock
 {
+    private readonly DbContextOptions<DemoDbContext> _dbOptions;
     private readonly ILogger<WriteContextBlock>? _logger;
 
-    public WriteContextBlock(ILogger<WriteContextBlock>? logger = null)
+    public WriteContextBlock(
+        DbContextOptions<DemoDbContext> dbOptions,
+        ILogger<WriteContextBlock>? logger = null)
     {
+        _dbOptions = dbOptions ?? throw new ArgumentNullException(nameof(dbOptions));
         _logger = logger;
     }
 
     /// <summary>
-    /// Processes epoch streams, tracking and saving changes per epoch using epoch-scoped DbContext.
+    /// Processes epoch streams, tracking and saving changes per epoch.
     /// </summary>
     public async IAsyncEnumerable<IEpochStream<DataRecord>> ProcessAsync(
         IAsyncEnumerable<IEpochStream<DataRecord>> input,
@@ -36,33 +43,29 @@ public sealed class WriteContextBlock
     {
         await foreach (var epochStream in input.WithCancellation(cancellationToken))
         {
-            // Get DbContext from epoch scope (shared with other blocks in same epoch)
-            var dbContext = epochStream.EpochScope?.GetService<DemoDbContext>()
-                ?? throw new InvalidOperationException("EpochScope is required for WriteContextBlock");
-
-            yield return new EpochStreamWrapper(
-                epochStream.EpochScope,
-                ProcessEpochItems(epochStream.Epoch, epochStream.Items, dbContext, cancellationToken));
+            yield return CreateEpochStream(
+                epochStream.Epoch,
+                ProcessEpochItems(epochStream.Epoch, epochStream.Items, cancellationToken));
         }
     }
 
     private async IAsyncEnumerable<DataRecord> ProcessEpochItems(
         EpochVector epoch,
         IAsyncEnumerable<DataRecord> items,
-        DemoDbContext dbContext,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         _logger?.LogDebug("Starting WriteContextBlock for epoch {Epoch}", epoch);
 
-        // Transaction managed by epoch coordinator (or create one if needed)
+        await using var dbContext = new DemoDbContext(_dbOptions);
         await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
 
         var processedCount = 0;
         var processedItems = new List<DataRecord>();
 
-        // Process items and track changes
+        // First, collect items and track changes
         await foreach (var item in items.WithCancellation(cancellationToken))
         {
+            // Track the entity as processed
             var trackedRecord = await dbContext.DataRecords.FindAsync(new object[] { item.Id }, cancellationToken);
             
             if (trackedRecord != null)
@@ -74,7 +77,7 @@ public sealed class WriteContextBlock
             processedItems.Add(item);
         }
 
-        // Commit transaction at epoch boundary
+        // Commit the transaction after all items in the epoch are processed
         try
         {
             await dbContext.SaveChangesAsync(cancellationToken);
@@ -92,26 +95,28 @@ public sealed class WriteContextBlock
             throw;
         }
 
-        // Yield processed items
+        // Now yield the processed items
         foreach (var item in processedItems)
         {
             yield return item;
         }
     }
 
+    private static IEpochStream<DataRecord> CreateEpochStream(EpochVector epoch, IAsyncEnumerable<DataRecord> items)
+    {
+        // Use a helper class that implements IEpochStream
+        return new EpochStreamWrapper(epoch, items);
+    }
+
     private sealed class EpochStreamWrapper : IEpochStream<DataRecord>
     {
         public EpochVector Epoch { get; }
         public IAsyncEnumerable<DataRecord> Items { get; }
-        public IEpoch? EpochScope { get; }
 
-        public EpochStreamWrapper(IEpoch epochScope, IAsyncEnumerable<DataRecord> items)
+        public EpochStreamWrapper(EpochVector epoch, IAsyncEnumerable<DataRecord> items)
         {
-            EpochScope = epochScope ?? throw new ArgumentNullException(nameof(epochScope));
-            Epoch = epochScope.Vector;
-            Items = items ?? throw new ArgumentNullException(nameof(items));
+            Epoch = epoch;
+            Items = items;
         }
-
-        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 }

@@ -363,6 +363,9 @@ public class EpochTrackingBlockBenchmark
 
         public EpochVector Epoch { get; }
         public IAsyncEnumerable<int> Items { get; }
+        public IEpoch? EpochScope => null;
+        
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 }
 

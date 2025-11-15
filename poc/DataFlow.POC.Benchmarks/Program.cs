@@ -34,12 +34,14 @@ else if (args.Length > 0 && args[0] == "sidechannel-micro")
 else if (args.Length > 0 && args[0] == "control-signal-strategies")
 {
     // Run comprehensive control signal strategy comparison benchmarks
-    BenchmarkRunner.Run<DataFlow.POC.Benchmarks.ControlSignalStrategyComparison>();
+    //BenchmarkRunner.Run<DataFlow.POC.Benchmarks.ControlSignalStrategyComparison>(); // Disabled - needs refactoring
+    Console.WriteLine("ControlSignalStrategyComparison is currently disabled - needs refactoring");
 }
 else if (args.Length > 0 && args[0] == "control-signal-routing")
 {
     // Run microbenchmarks for control signal routing overhead
-    BenchmarkRunner.Run<DataFlow.POC.Benchmarks.ControlSignalRoutingMicrobenchmark>();
+    //BenchmarkRunner.Run<DataFlow.POC.Benchmarks.ControlSignalRoutingMicrobenchmark>(); // Disabled - needs refactoring
+    Console.WriteLine("ControlSignalRoutingMicrobenchmark is currently disabled - needs refactoring");
 }
 else if (args.Length > 0 && args[0] == "direct-simple")
 {
@@ -93,7 +95,8 @@ else if (args.Length > 0 && args[0] == "actor-memory")
 else if (args.Length > 0 && args[0] == "epoch-alignment")
 {
     // Run Phase 3 epoch alignment benchmarks
-    BenchmarkRunner.Run<DataFlow.POC.Benchmarks.EpochAlignmentBenchmark>();
+    //BenchmarkRunner.Run<DataFlow.POC.Benchmarks.EpochAlignmentBenchmark>(); // Disabled - needs refactoring
+    Console.WriteLine("EpochAlignmentBenchmark is currently disabled - needs refactoring");
 }
 else if (args.Length > 0 && args[0] == "phase4" || args.Length > 0 && args[0] == "epoch-synthetic")
 {
@@ -147,6 +150,16 @@ else if (args.Length > 0 && args[0] == "tracking-block")
 {
     // Run epoch tracking block benchmarks
     DataFlow.POC.Benchmarks.RunTrackingBlockBenchmarks.Run();
+}
+else if (args.Length > 0 && args[0] == "source-coordination")
+{
+    // Run source coordination performance benchmarks (Phase 5)
+    BenchmarkRunner.Run<DataFlow.POC.Benchmarks.SourceCoordinationBenchmark>();
+}
+else if (args.Length > 0 && args[0] == "epoch-coordinator-contention")
+{
+    // Run epoch coordinator lock contention and memory benchmarks (Phase 5)
+    BenchmarkRunner.Run<DataFlow.POC.Benchmarks.EpochCoordinatorContentionBenchmark>();
 }
 else if (args.Length > 0 && args[0] == "plain-blocks-baseline")
 {
