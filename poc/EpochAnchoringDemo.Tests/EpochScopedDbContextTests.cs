@@ -109,11 +109,11 @@ public class EpochScopedDbContextTests
         var dbContext = epoch.GetService<DemoDbContext>();
         var record1 = new DataRecord
         {
-            Id = Guid.NewGuid(),
             Name = "Test Record",
             Processed = false
         };
         dbContext.DataRecords.Add(record1);
+        await dbContext.SaveChangesAsync(); // Save to generate Id
         
         // Block 2 can see the changes (same DbContext instance)
         var trackedRecord = await dbContext.DataRecords.FindAsync(record1.Id);
@@ -157,7 +157,6 @@ public class EpochScopedDbContextTests
                 {
                     var record = new DataRecord
                     {
-                        Id = Guid.NewGuid(),
                         Name = $"Epoch {epochNumber} Record {j}",
                         Processed = false
                     };
