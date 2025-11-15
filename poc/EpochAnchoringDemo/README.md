@@ -11,6 +11,24 @@ This project is part of **Phase 5** of the DataFlow POC series, building on Phas
 - ✅ Sources now manage anchors internally
 - ✅ Future: Core library checkpoint system will handle persistence
 
+## ⚠️ Transaction Limitations
+
+**Important**: This demo demonstrates **sequential transactional access** within epochs. Concurrent transactional operations within a single epoch are **not supported** due to fundamental constraints:
+
+- **DbContext is not thread-safe** - Cannot be used concurrently from multiple threads
+- **Multiple connections require MSDTC** - Not supported on Azure SQL (only Azure SQL Managed Instance)
+- **Current pattern**: Multiple blocks can share the same DbContext instance when executing **sequentially**
+
+**What works**:
+- ✅ Sequential access to shared DbContext within an epoch
+- ✅ Concurrent execution of different epochs (each with its own DbContext)
+- ✅ Change tracking across sequential blocks in same epoch
+
+**What doesn't work**:
+- ❌ Concurrent transactional operations within a single epoch
+
+See [ADR: Epoch Transaction De-Scope](../../docs/adr/poc/2025-11-15-epoch-transaction-descope.md) and [Research Documentation](../../research/epoch-transaction-coordination/README.md) for details.
+
 ## Terminology
 
 - **Anchor**: Source-specific resume point (e.g., `lastProcessedId`) - managed internally by source
@@ -26,13 +44,15 @@ cd /path/to/lib-dataflow
 dotnet test poc/EpochAnchoringDemo.Tests/EpochAnchoringDemo.Tests.csproj
 ```
 
-All 6 integration tests should pass, demonstrating:
+All 11 integration tests should pass, demonstrating:
 - Domain anchor management (lastProcessedId)
 - Resume from saved anchor
 - Per-epoch transactional writes
 - Epoch lifecycle event handling
 - End-to-end pipeline with interruption and resume
 - No duplicate processing
+- Epoch-scoped DbContext sharing (sequential access)
+- Epoch isolation (different epochs get different DbContext instances)
 
 ### Basic Usage
 
