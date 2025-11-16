@@ -378,7 +378,8 @@ var pipeline = new DataFlowGraphBuilder()
 
 ## Related Guides
 
-- [Creating Tracking Blocks](../guides/creating-tracking-blocks.md) - Implementing EntityTrackingBlock with merge handling
+- [Using Epochs](../guides/using-epochs.md) - Formalized epoch system overview
+- [EF Core with Epochs](../guides/ef-core-epochs.md) - Entity Framework Core transaction patterns
 
 ## References
 

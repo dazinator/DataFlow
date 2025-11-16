@@ -253,7 +253,8 @@ The POC also includes an epoch-based coordination system for managing transactio
 📁 **[/guides](./guides/)** - How-to guides and patterns
 - [Testing Guide](./guides/testing-guide.md) - ⭐ Comprehensive testing guide with helpers and patterns
 - [Business Logic Decoupling](./guides/business-logic-decoupling.md) - Pattern for separating logic from actors
-- [Creating Tracking Blocks](./guides/creating-tracking-blocks.md) - EntityTrackingBlock pattern for per-epoch transactions
+- [Using Epochs](./guides/using-epochs.md) - Formalized epoch system overview
+- [EF Core with Epochs](./guides/ef-core-epochs.md) - Entity Framework Core transaction patterns with epochs
 
 ### 📖 API Reference
 **Detailed technical specifications:**

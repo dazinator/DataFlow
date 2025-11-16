@@ -32,8 +32,10 @@ The following structure now exists:
 ├── merge-handling.md
 └── transaction-boundaries.md
 
-/docs/guides/            # 1 file - practical implementation guide
-└── creating-tracking-blocks.md
+/docs/guides/            # Practical implementation guides
+├── using-epochs.md                  # Formalized epoch system overview
+├── ef-core-epochs.md                # EF Core transaction patterns
+└── business-logic-decoupling.md     # Separating logic from actors
 
 /docs/plans/            # 11 files - historical phase progression
 ├── PHASE2_*.md (3 files)
@@ -68,7 +70,7 @@ The following structure now exists:
 - `ENVELOPE_FRAMEWORK.md` - Envelope and control signal framework
 - `CONTROL_SIGNAL_INVESTIGATION_SUMMARY.md` - Control signal architecture investigation
 - `CONTROL_SIGNAL_PROPAGATION_EXPLORATION.md` - Control signal propagation exploration
-- `EPOCH_CONTROL_PLANE_DESIGN.md` - Out-of-band epoch control plane design
+- ~~`EPOCH_CONTROL_PLANE_DESIGN.md`~~ - **Superseded by ADR** (see `/docs/adr/poc/2025-11-16-formalized-epoch-system.md`)
 - `SIDE_CHANNEL_IMPLEMENTATION_SUMMARY.md` - Side-channel architecture implementation
 - `SIDE_CHANNEL_PERFORMANCE_ANALYSIS.md` - Performance analysis of side-channel
 
@@ -149,7 +151,7 @@ These documents contain stable design and architecture concepts.
 | Source | Target | Rationale |
 |--------|--------|-----------|
 | `ENVELOPE_FRAMEWORK.md` | `/docs/design/envelope-framework.md` | Core design - envelope and control signal system |
-| `EPOCH_CONTROL_PLANE_DESIGN.md` | `/docs/design/epoch-control-plane.md` | Core design - out-of-band control plane architecture |
+| ~~`EPOCH_CONTROL_PLANE_DESIGN.md`~~ | **ADR created instead** | Superseded by formalized epoch system (ADR: `2025-11-16-formalized-epoch-system.md`) |
 | `ARCHITECTURE.md` | `/docs/design/edge-first-architecture.md` | Core architecture design with diagrams |
 | `EpochAnchoringDemo/UNDERSTANDING_ANCHORS_VS_CHECKPOINTS.md` | `/docs/design/anchors-checkpoints-distinction.md` | Important conceptual clarification |
 

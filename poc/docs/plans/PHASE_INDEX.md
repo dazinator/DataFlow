@@ -1,5 +1,7 @@
 # Phase Index
 
+> **⚠️ HISTORICAL DOCUMENTATION**: This index documents the POC development phases (Phase 2-6). The patterns described here have evolved into the **formalized epoch system**. See [ADR: Formalized Epoch System](../../../docs/adr/poc/2025-11-16-formalized-epoch-system.md) for the current architecture.
+
 > **Note on Terminology:** The "phases" indexed here (Phase 2-6) refer to **POC development milestones** on the path to production readiness. These document the technical evolution of the epoch-based coordination system and are distinct from any documentation reorganization phases.
 
 ## Overview

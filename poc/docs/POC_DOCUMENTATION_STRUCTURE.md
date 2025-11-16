@@ -79,12 +79,6 @@ This document describes the current POC documentation structure. The structure o
 - Code-heavy with complete examples
 - Updated as patterns evolve
 
-**Current Files**:
-```
-/docs/guides
-└── creating-tracking-blocks.md       # EntityTrackingBlock pattern
-```
-
 **Content Scope**:
 - Implementation patterns
 - Integration guides (e.g., EF Core)
