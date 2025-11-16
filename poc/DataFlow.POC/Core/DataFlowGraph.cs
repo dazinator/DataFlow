@@ -26,6 +26,8 @@ public class DataFlowGraph
     private readonly Dictionary<IBlock, List<Edge>> _incomingEdges = new();
     private readonly Dictionary<BufferNode, List<IBlock>> _bufferProducers = new();
     private readonly Dictionary<BufferNode, List<IBlock>> _bufferConsumers = new();
+    private EpochSourceNode? _epochSource;
+    private readonly List<EpochProcessorNode> _epochProcessors = new();
 
     public DataFlowGraph(string name, ILogger<DataFlowGraph> logger)
     {
@@ -124,6 +126,30 @@ public class DataFlowGraph
     }
 
     /// <summary>
+    /// Sets the epoch source node for the graph.
+    /// </summary>
+    internal void SetEpochSource(EpochSourceNode source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        if (_epochSource != null)
+        {
+            throw new InvalidOperationException("Epoch source has already been set");
+        }
+        _epochSource = source;
+        _logger.LogDebug("Set epoch source node");
+    }
+    
+    /// <summary>
+    /// Adds an epoch processor node to the graph.
+    /// </summary>
+    internal void AddEpochProcessor(EpochProcessorNode processor)
+    {
+        ArgumentNullException.ThrowIfNull(processor);
+        _epochProcessors.Add(processor);
+        _logger.LogDebug("Added epoch processor node");
+    }
+
+    /// <summary>
     /// Add an edge connecting two blocks.
     /// </summary>
     public void AddEdge(Edge edge)
@@ -175,8 +201,25 @@ public class DataFlowGraph
         // Build execution pipeline (adapters, routers, channels)
         var pipeline = BuildExecutionPipeline();
 
-        // Execute all blocks via the pipeline
-        await pipeline.ExecuteBlocksAsync(_blocks, _outgoingEdges, _incomingEdges, context, _logger);
+        // Collect all tasks to wait for
+        var allTasks = new List<Task>();
+        
+        // Add block execution tasks
+        var blockExecutionTask = pipeline.ExecuteBlocksAsync(_blocks, _outgoingEdges, _incomingEdges, context, _logger);
+        allTasks.Add(blockExecutionTask);
+        
+        // Add epoch processor completion tasks if epochs are configured
+        if (_epochProcessors.Count > 0)
+        {
+            _logger.LogDebug("Including {ProcessorCount} epoch processor(s) in graph execution", _epochProcessors.Count);
+            foreach (var processor in _epochProcessors)
+            {
+                allTasks.Add(processor.CompletionTask);
+            }
+        }
+
+        // Wait for all tasks to complete
+        await Task.WhenAll(allTasks);
 
         _logger.LogInformation("Completed execution of dataflow: {FlowName}", Name);
     }

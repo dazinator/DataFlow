@@ -16,6 +16,8 @@ public class DataFlowGraphBuilder
     private readonly List<Edge> _edges = new();
     private readonly List<(IBlock source, BufferNode target)> _blockToBufferConnections = new();
     private readonly List<(BufferNode source, IBlock target)> _bufferToBlockConnections = new();
+    private EpochSourceNode? _epochSource;
+    private readonly List<EpochProcessorNode> _epochProcessors = new();
 
     public DataFlowGraphBuilder(string name, ILogger<DataFlowGraph>? logger = null)
     {
@@ -236,6 +238,28 @@ public class DataFlowGraphBuilder
     }
 
     /// <summary>
+    /// Sets the epoch source node for the graph (internal use by ConfigureEpochs).
+    /// </summary>
+    internal void SetEpochSource(EpochSourceNode source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        if (_epochSource != null)
+        {
+            throw new InvalidOperationException("Epoch source has already been configured");
+        }
+        _epochSource = source;
+    }
+    
+    /// <summary>
+    /// Adds an epoch processor node to the graph (internal use by ConfigureEpochs).
+    /// </summary>
+    internal void AddEpochProcessor(EpochProcessorNode processor)
+    {
+        ArgumentNullException.ThrowIfNull(processor);
+        _epochProcessors.Add(processor);
+    }
+    
+    /// <summary>
     /// Build the dataflow graph.
     /// </summary>
     public DataFlowGraph Build()
@@ -266,6 +290,16 @@ public class DataFlowGraphBuilder
         foreach (var (source, target) in _bufferToBlockConnections)
         {
             graph.AddBufferToBlockConnection(source, target);
+        }
+        
+        // Add epoch nodes if configured
+        if (_epochSource != null)
+        {
+            graph.SetEpochSource(_epochSource);
+            foreach (var processor in _epochProcessors)
+            {
+                graph.AddEpochProcessor(processor);
+            }
         }
 
         return graph;
