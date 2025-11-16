@@ -12,6 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 public sealed class EpochCoordinator : IEpochCoordinator
 {
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly int _operationsQueueCapacity;
     private readonly object _lock = new();
     
     // Track sources and their readiness state
@@ -28,9 +29,17 @@ public sealed class EpochCoordinator : IEpochCoordinator
 
     private bool _disposed;
 
-    public EpochCoordinator(IServiceScopeFactory scopeFactory)
+    public EpochCoordinator(IServiceScopeFactory scopeFactory, int operationsQueueCapacity = 100)
     {
         _scopeFactory = scopeFactory ?? throw new ArgumentNullException(nameof(scopeFactory));
+        
+        if (operationsQueueCapacity <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(operationsQueueCapacity), 
+                "Operations queue capacity must be greater than 0");
+        }
+        
+        _operationsQueueCapacity = operationsQueueCapacity;
     }
 
     public async ValueTask<IEpoch> GetOrCreateEpochAsync(
@@ -221,7 +230,7 @@ public sealed class EpochCoordinator : IEpochCoordinator
     {
         // Create DI scope for this epoch
         var scope = _scopeFactory.CreateScope();
-        var epoch = new Epoch(vector, scope);
+        var epoch = new Epoch(vector, scope, _operationsQueueCapacity);
         
         _activeEpoch = new ActiveEpoch
         {
@@ -263,7 +272,7 @@ public sealed class EpochCoordinator : IEpochCoordinator
         }
 
         var scope = _scopeFactory.CreateScope();
-        var epoch = new Epoch(vector, scope);
+        var epoch = new Epoch(vector, scope, _operationsQueueCapacity);
         _allEpochs[vector] = epoch;
         
         _sources[sourceId].CurrentVector = vector;

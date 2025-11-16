@@ -1,23 +1,42 @@
 namespace DataFlow.POC.Core;
 
+using System.Threading.Channels;
 using Microsoft.Extensions.DependencyInjection;
 
 /// <summary>
-/// Implementation of an epoch with its own DI scope.
-/// Manages the lifecycle of the DI scope and provides service resolution.
+/// Implementation of <see cref="IEpoch"/> with fully serial operations queue.
+/// All operations, regardless of service type, are executed serially through a single channel.
 /// </summary>
 internal sealed class Epoch : IEpoch
 {
     private readonly IServiceScope _scope;
+    private readonly Channel<IEpochOperation> _operationsChannel;
     private bool _disposed;
 
     public EpochVector Vector { get; private set; }
     public IServiceProvider ServiceProvider => _scope.ServiceProvider;
+    public ChannelReader<IEpochOperation> OperationsReader => _operationsChannel.Reader;
 
-    public Epoch(EpochVector vector, IServiceScope scope)
+    public Epoch(EpochVector vector, IServiceScope scope, int operationsQueueCapacity = 100)
     {
         Vector = vector ?? throw new ArgumentNullException(nameof(vector));
         _scope = scope ?? throw new ArgumentNullException(nameof(scope));
+
+        if (operationsQueueCapacity <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(operationsQueueCapacity), 
+                "Operations queue capacity must be greater than 0");
+        }
+
+        // Bounded channel for ALL operations (fully serial)
+        // Use WaitToWrite mode to block when full
+        _operationsChannel = Channel.CreateBounded<IEpochOperation>(new BoundedChannelOptions(operationsQueueCapacity)
+        {
+            SingleReader = true,  // EpochProcessorNode is the single reader
+            SingleWriter = false, // Multiple blocks can queue operations
+            AllowSynchronousContinuations = false,
+            FullMode = BoundedChannelFullMode.Wait // Block when full
+        });
     }
 
     /// <summary>
@@ -36,15 +55,67 @@ internal sealed class Epoch : IEpoch
         return ServiceProvider.GetRequiredService<T>();
     }
 
-    public ValueTask DisposeAsync()
+    public async Task QueueSerializedOperationAsync<TService>(
+        Func<TService, Task> operation,
+        CancellationToken cancellationToken = default)
+        where TService : notnull
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ArgumentNullException.ThrowIfNull(operation);
+
+        // Create operation wrapper that encapsulates type resolution
+        var epochOperation = new EpochOperation<TService>(operation, cancellationToken);
+
+        // Queue to the single operations channel (bounded with Wait mode)
+        // This will block if the channel is full
+        await _operationsChannel.Writer.WriteAsync(epochOperation, cancellationToken).ConfigureAwait(false);
+    }
+
+    public void CompleteOperations()
+    {
+        // Signal that no more operations will be queued
+        // Called externally when graph block alignment signals all blocks are done
+        _operationsChannel.Writer.TryComplete();
+    }
+
+    public Task WhenAllOperationsCompletedAsync()
+    {
+        // Return the channel's completion task
+        // This completes when the channel is closed AND all operations have been read
+        return _operationsChannel.Reader.Completion;
+    }
+
+    public async ValueTask DisposeAsync()
     {
         if (_disposed)
         {
-            return ValueTask.CompletedTask;
+            return;
         }
 
         _disposed = true;
+
+        // Ensure operations channel is completed
+        _operationsChannel.Writer.TryComplete();
+
+        // Wait for all operations to complete (with timeout to prevent hanging)
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var completionTask = WhenAllOperationsCompletedAsync();
+            var timeoutTask = Task.Delay(Timeout.Infinite, cts.Token);
+            
+            var completedTask = await Task.WhenAny(completionTask, timeoutTask).ConfigureAwait(false);
+            if (completedTask == completionTask)
+            {
+                await completionTask.ConfigureAwait(false);
+            }
+        }
+        catch
+        {
+            // Swallow exception: timeout or error during disposal is a documented safeguard and not critical
+        }
+
+        // Dispose the DI scope
         _scope.Dispose();
-        return ValueTask.CompletedTask;
     }
 }
