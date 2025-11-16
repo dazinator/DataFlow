@@ -161,6 +161,18 @@ else if (args.Length > 0 && args[0] == "epoch-coordinator-contention")
     // Run epoch coordinator lock contention and memory benchmarks (Phase 5)
     BenchmarkRunner.Run<DataFlow.POC.Benchmarks.EpochCoordinatorContentionBenchmark>();
 }
+else if (args.Length > 0 && args[0] == "epoch-nodes")
+{
+    // Run epoch node architecture benchmarks (Phase 3)
+    // Validates EpochSourceNode and EpochProcessorNode performance
+    BenchmarkRunner.Run<DataFlow.POC.Benchmarks.EpochNodeBenchmarks>();
+}
+else if (args.Length > 0 && args[0] == "epoch-realistic")
+{
+    // Run realistic workload benchmarks with EF Core
+    // Validates GC behavior (Gen1/Gen2 traffic) under production-like conditions
+    BenchmarkRunner.Run<DataFlow.POC.Benchmarks.EpochRealisticWorkloadBenchmark>();
+}
 else if (args.Length > 0 && args[0] == "plain-blocks-baseline")
 {
     // ARCHIVED: Plain blocks baseline benchmarks have been moved to research/flow-composability-unification/archived-benchmarks/
