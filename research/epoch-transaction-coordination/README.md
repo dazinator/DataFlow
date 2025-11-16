@@ -1,20 +1,60 @@
-# Epoch-Scoped Transaction Coordination - De-Scope Decision
+# Epoch-Scoped Transaction Coordination - Channel-Based Implementation
 
-**Status**: De-scoped for v2  
+**Status**: ✅ Implemented (Channel-Based Pattern)  
 **Date**: 2025-11-15  
-**Decision**: Defer epoch-scoped concurrent transaction coordination to future releases
+**Decision**: Concurrent epoch transactions enabled via channel-backed serialized execution
 
 ---
 
 ## Summary
 
-Investigation into epoch-scoped transaction coordination revealed fundamental technical constraints with the Microsoft stack (SQL Server, ADO.NET, EF Core) that make **concurrent** transactional operations across multiple blocks within a single epoch **not viable** for production use with Azure SQL.
+Investigation into epoch-scoped transaction coordination has been completed and **a channel-backed serialized execution pattern has been implemented**. This enables multiple concurrent blocks to participate in epoch-scoped transactions through serialized access to shared services like DbContext.
 
-**Key Finding**: While epoch-scoped services (including DbContext) are fully functional for **sequential** access patterns, enabling **concurrent** transactional access would require MSDTC (Microsoft Distributed Transaction Coordinator), which is **not supported on Azure SQL** (only on Azure SQL Managed Instance).
+**Key Achievement**: While **truly concurrent** transactional operations across multiple blocks remain constrained by Microsoft stack limitations (see below), we now provide a **practical solution** that allows multiple blocks to **queue transactional operations** that execute serially via a channel-backed pattern.
 
 ---
 
-## Technical Constraints
+## Implementation Overview
+
+### Channel-Backed Serialized Execution
+
+**New API**: `IEpoch.ExecuteSerializedAsync<TService, TResult>()`
+
+Multiple concurrent blocks can now safely participate in epoch transactions by submitting operations to a channel. A single reader task processes these operations sequentially, ensuring thread safety while maintaining the simplicity of the epoch-scoped service model.
+
+**Pattern**:
+```
+[Block 1] --write--> |                    |
+[Block 2] --write--> | Channel (unbounded)| --read--> [Reader Task] --execute--> Service
+[Block 3] --write--> |                    |
+                           ↓
+                   TaskCompletionSource
+                           ↓
+                      await result
+```
+
+**Usage Example**:
+```csharp
+// Block 1: Add order
+await epoch.ExecuteSerializedAsync<OrderDbContext>(async db =>
+{
+    db.Orders.Add(new Order { CustomerId = customerId });
+    await db.SaveChangesAsync();
+});
+
+// Block 2: Add line items (concurrent with block 1)
+await epoch.ExecuteSerializedAsync<OrderDbContext>(async db =>
+{
+    db.OrderLines.Add(new OrderLine { OrderId = orderId, ... });
+    await db.SaveChangesAsync();
+});
+```
+
+**See**: [Serialized DbContext Access Design](design/serialized-dbcontext-access.md) for complete implementation details.
+
+---
+
+## Technical Constraints (Microsoft Stack)
 
 ### 1. Multiple Connections → MSDTC Promotion
 
@@ -85,11 +125,40 @@ This is **deterministic behavior** in `System.Transactions`, even if no SQL stat
 
 ---
 
-## Current Working Solution
+## What We Built
 
-### Sequential Access Pattern
+### ✅ Working Solution: Channel-Backed Serialized Execution
 
-The **current implementation** provides epoch-scoped DbContext instances that work correctly for **sequential** access patterns:
+The **implemented solution** provides epoch-scoped transactional coordination through:
+
+**1. Core Infrastructure** (`/poc/DataFlow.POC/Core/`)
+- ✅ `SerializedServiceExecutor<TService>` - Channel-backed execution
+- ✅ `IEpoch.ExecuteSerializedAsync()` - Public API
+- ✅ Multi-writer, single-reader pattern
+- ✅ Proper lifecycle management (tied to epoch disposal)
+
+**2. Features**
+- ✅ Multiple blocks queue operations via channel
+- ✅ Single reader task processes serially (thread-safe)
+- ✅ TaskCompletionSource for async/await semantics
+- ✅ Error propagation and cancellation support
+- ✅ Order preservation (FIFO)
+- ✅ Per-service-type executor instances
+
+**3. Test Coverage** (25 tests, all passing)
+- ✅ 11 existing epoch tests (backward compatible)
+- ✅ 10 serialized execution tests
+- ✅ 4 integration tests (real-world scenarios)
+
+**Files**:
+- Implementation: `/poc/DataFlow.POC/Core/SerializedServiceExecutor.cs`
+- Tests: `/poc/EpochAnchoringDemo.Tests/SerializedExecutionTests.cs`
+- Integration: `/poc/EpochAnchoringDemo.Tests/EpochTransactionIntegrationTests.cs`
+- Design: `/research/epoch-transaction-coordination/design/serialized-dbcontext-access.md`
+
+### Sequential Access Pattern (Already Supported)
+
+The **existing implementation** provides epoch-scoped DbContext instances that work correctly for **sequential** access patterns:
 
 ```csharp
 // Multiple blocks in the same epoch can share the same DbContext
@@ -112,17 +181,6 @@ var record = await sameContext.DataRecords.FindAsync(1);
 - ✅ Different epochs get different DbContext instances
 - ✅ No race conditions in concurrent **epoch** execution (different epochs)
 - ✅ Changes visible across blocks within same epoch
-
-### Limitations
-
-1. **No concurrent transactional operations within a single epoch**
-   - Blocks must execute sequentially if they need to share a transaction
-   - Concurrent operations require separate transactions
-
-2. **Workaround for concurrent scenarios**
-   - Use message queuing/channel pattern
-   - Serialize transactional operations through a single writer
-   - Each concurrent block queues work to be executed serially
 
 ---
 
@@ -171,15 +229,21 @@ If epoch-scoped concurrent transactions become a requirement:
 
 ## Decision Rationale
 
-**Why De-scope for v2**:
+**Why Implement Channel-Based Pattern**:
 
-1. **Target deployment** is Azure SQL (not Managed Instance)
-2. **Current sequential pattern** meets immediate needs
-3. **Industry patterns** suggest moving away from distributed transactions
-4. **Complexity vs. value** trade-off favors deferring this work
-5. **Alternative patterns** (logical transactions, idempotent writes) are more scalable
+1. ✅ **Practical Solution**: Enables concurrent blocks to participate in epoch transactions
+2. ✅ **Thread-Safe**: Channel pattern ensures safe serialization
+3. ✅ **Idiomatic**: Aligns with DataFlow patterns (channels are core to the library)
+4. ✅ **Minimal API Surface**: Single method `ExecuteSerializedAsync()`
+5. ✅ **Backward Compatible**: Existing epoch functionality unchanged
+6. ✅ **Well-Tested**: Comprehensive test coverage validates behavior
 
-**v2 Focus**: Prioritize other features that provide more immediate value without the technical constraints.
+**Trade-offs Accepted**:
+- ❌ Operations execute serially (not truly concurrent) - necessary for thread safety
+- ❌ Adds latency for high-volume transactional workloads
+- ✅ But: Simple API, thread-safe, and works with Azure SQL
+
+**v2 Focus**: This implementation provides immediate value without complex workarounds or infrastructure changes.
 
 ---
 
