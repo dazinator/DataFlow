@@ -2,6 +2,7 @@ namespace DataFlow.POC.Tests;
 
 using DataFlow.POC.Blocks;
 using DataFlow.POC.Builder;
+using DataFlow.POC.Checkpointing;
 using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
 using System.Linq;
@@ -38,7 +39,7 @@ public class EpochGraphIntegrationTests : IAsyncDisposable
     }
 
     [Fact]
-    public void ConfigureEpochs_RequiresCoordinator()
+    public void ConfigureEpochs_RequiresCoordinatorFactory()
     {
         // Arrange
         var builder = new DataFlowGraphBuilder("test");
@@ -50,7 +51,7 @@ public class EpochGraphIntegrationTests : IAsyncDisposable
                 config.AddProcessor("proc1");
             }));
         
-        Assert.Contains("coordinator", ex.Message);
+        Assert.Contains("coordinatorFactory", ex.Message);
     }
 
     [Fact]
@@ -65,7 +66,7 @@ public class EpochGraphIntegrationTests : IAsyncDisposable
             {
                 config.SetPolicy(EpochPolicy.ByCount(10));
                 // No processor added
-            }, _coordinator));
+            }, _ => _coordinator));
         
         Assert.Contains("processor", ex.Message);
     }
@@ -79,7 +80,7 @@ public class EpochGraphIntegrationTests : IAsyncDisposable
         {
             config.SetPolicy(EpochPolicy.ByCount(100));
             config.AddProcessor("processor1");
-        }, _coordinator);
+        }, _ => _coordinator);
         
         var graph = builder.Build();
         
@@ -99,7 +100,7 @@ public class EpochGraphIntegrationTests : IAsyncDisposable
             config.AddProcessor("processor1");
             config.AddProcessor("processor2");
             config.AddProcessor("processor3");
-        }, _coordinator);
+        }, _ => _coordinator);
         
         var graph = builder.Build();
         
@@ -164,7 +165,7 @@ public class EpochGraphIntegrationTests : IAsyncDisposable
                 executionLog.Add("commit");
                 await Task.Yield();
             });
-        }, _coordinator);
+        }, _ => _coordinator);
 
         var graph = builder.Build();
 
@@ -213,7 +214,7 @@ public class EpochGraphIntegrationTests : IAsyncDisposable
                 capturedError = ex;
                 await Task.Yield();
             });
-        }, _coordinator);
+        }, _ => _coordinator);
 
         var graph = builder.Build();
 
@@ -263,7 +264,7 @@ public class EpochGraphIntegrationTests : IAsyncDisposable
                 processedEpochs.Add(seq);
                 await Task.Yield();
             });
-        }, _coordinator);
+        }, _ => _coordinator);
 
         var graph = builder.Build();
 
@@ -384,6 +385,7 @@ public class EpochGraphIntegrationTests : IAsyncDisposable
         public CancellationToken CancellationToken => _cts.Token;
         public IServiceProvider ServiceProvider => throw new NotImplementedException();
         public Guid InvocationId { get; } = Guid.NewGuid();
+        public ICheckpoint? RecoveryCheckpoint { get; } = null;
         
         public void Cancel() => _cts.Cancel();
     }

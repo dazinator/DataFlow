@@ -1,5 +1,7 @@
 namespace DataFlow.POC.Core;
 
+using DataFlow.POC.Checkpointing;
+
 /// <summary>
 /// Defines lifecycle hooks that can be executed at different stages of epoch processing.
 /// These hooks allow custom logic to be executed before processing epoch operations (OnBeginEpoch),
@@ -7,6 +9,13 @@ namespace DataFlow.POC.Core;
 /// </summary>
 public sealed class EpochHooks
 {
+    /// <summary>
+    /// Hook called at dataflow startup to load a recovery checkpoint.
+    /// Return the checkpoint to restore from, or null to start fresh.
+    /// This checkpoint will be available in the execution context for all blocks.
+    /// </summary>
+    public Func<CancellationToken, Task<ICheckpoint?>>? OnLoadRecoveryCheckpoint { get; set; }
+
     /// <summary>
     /// Hook called before processing epoch operations.
     /// Typically used to begin transactions or prepare resources.

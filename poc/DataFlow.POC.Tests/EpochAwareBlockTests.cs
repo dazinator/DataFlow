@@ -1,6 +1,7 @@
 namespace DataFlow.POC.Tests;
 
 using DataFlow.POC.Blocks;
+using DataFlow.POC.Checkpointing;
 using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
@@ -602,4 +603,5 @@ internal class TestExecutionContext : IExecutionContext
     public CancellationToken CancellationToken { get; } = CancellationToken.None;
     public IServiceProvider ServiceProvider { get; } = new ServiceCollection().BuildServiceProvider();
     public Guid InvocationId { get; } = Guid.NewGuid();
+    public ICheckpoint? RecoveryCheckpoint { get; } = null;
 }

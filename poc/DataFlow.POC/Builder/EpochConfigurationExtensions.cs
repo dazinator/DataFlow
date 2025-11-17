@@ -1,6 +1,7 @@
 namespace DataFlow.POC.Builder;
 
 using DataFlow.POC.Core;
+using DataFlow.POC.Checkpointing;
 
 /// <summary>
 /// Extension methods for configuring epoch management in a dataflow graph.
@@ -14,12 +15,12 @@ public static class EpochConfigurationExtensions
     /// </summary>
     /// <param name="builder">The dataflow graph builder.</param>
     /// <param name="configure">Configuration action.</param>
-    /// <param name="coordinator">The epoch coordinator to use. If not provided, must be injected separately.</param>
+    /// <param name="coordinatorFactory">Factory to create the epoch coordinator. The factory receives the configuration's checkpoint strategy.</param>
     /// <returns>The builder for chaining.</returns>
     public static DataFlowGraphBuilder ConfigureEpochs(
         this DataFlowGraphBuilder builder,
         Action<EpochConfiguration> configure,
-        IEpochCoordinator? coordinator = null)
+        Func<ICheckpointStrategy?, IEpochCoordinator>? coordinatorFactory = null)
     {
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentNullException.ThrowIfNull(configure);
@@ -30,14 +31,15 @@ public static class EpochConfigurationExtensions
         // Validate configuration
         config.Validate();
         
-        // Coordinator must be provided (for now we require explicit coordinator)
-        // In a real implementation, this might be retrieved from DI
-        if (coordinator == null)
+        // Create coordinator using factory or throw if not provided
+        if (coordinatorFactory == null)
         {
             throw new ArgumentNullException(
-                nameof(coordinator),
-                "Epoch coordinator must be provided. Pass an IEpochCoordinator instance or configure DI.");
+                nameof(coordinatorFactory),
+                "Epoch coordinator factory must be provided. Pass a factory function that creates an IEpochCoordinator.");
         }
+        
+        var coordinator = coordinatorFactory(config.CheckpointStrategy);
         
         // Create epoch source node
         var sourceNode = new EpochSourceNode(coordinator);

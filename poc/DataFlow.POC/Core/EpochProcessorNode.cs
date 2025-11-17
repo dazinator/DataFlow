@@ -1,6 +1,7 @@
 namespace DataFlow.POC.Core;
 
 using System.Threading.Channels;
+using DataFlow.POC.Checkpointing;
 
 /// <summary>
 /// Node that processes epochs by draining their operation queues and executing lifecycle hooks.
@@ -107,13 +108,18 @@ public sealed class EpochProcessorNode : IAsyncDisposable
     private async Task DrainCurrentlyQueuedOperationsAsync(IEpoch epoch, CancellationToken cancellationToken)
     {
         Exception? firstException = null;
+
+        // Epoch implements IEpochOperationContext, so we can use it directly
+        // This avoids allocating a new context object per epoch
+        var context = epoch as IEpochOperationContext 
+            ?? throw new InvalidOperationException("Epoch implementation must implement IEpochOperationContext to provide checkpoint access. This is a framework invariant violation.");
         
         // Process currently queued operations (use TryRead to avoid waiting for channel completion)
         while (epoch.OperationsReader.TryRead(out var operation))
         {
             try
             {
-                await operation.ExecuteAsync(epoch.ServiceProvider, cancellationToken).ConfigureAwait(false);
+                await operation.ExecuteAsync(epoch.ServiceProvider, context, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex) when (firstException == null)
             {

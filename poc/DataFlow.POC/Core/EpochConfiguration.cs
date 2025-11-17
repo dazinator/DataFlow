@@ -1,5 +1,7 @@
 namespace DataFlow.POC.Core;
 
+using DataFlow.POC.Checkpointing;
+
 /// <summary>
 /// Configuration for epoch processing in a dataflow graph.
 /// Defines the policy, processors, and lifecycle hooks for epoch management.
@@ -15,6 +17,11 @@ public sealed class EpochConfiguration
     /// Gets or sets the lifecycle hooks for epoch processing.
     /// </summary>
     public EpochHooks Hooks { get; private set; } = new();
+    
+    /// <summary>
+    /// Gets or sets the checkpoint strategy for determining when checkpoints are created.
+    /// </summary>
+    public ICheckpointStrategy? CheckpointStrategy { get; private set; }
     
     /// <summary>
     /// Gets the list of processor names to create.
@@ -81,6 +88,15 @@ public sealed class EpochConfiguration
     {
         ArgumentNullException.ThrowIfNull(handler);
         Hooks.OnEpochError = handler;
+    }
+    
+    /// <summary>
+    /// Sets the checkpoint strategy that determines when checkpoints are created.
+    /// </summary>
+    /// <param name="strategy">The checkpoint strategy to use.</param>
+    public void SetCheckpointStrategy(ICheckpointStrategy? strategy)
+    {
+        CheckpointStrategy = strategy;
     }
     
     /// <summary>

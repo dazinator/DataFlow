@@ -2,25 +2,33 @@ namespace DataFlow.POC.Core;
 
 using System.Threading.Channels;
 using Microsoft.Extensions.DependencyInjection;
+using DataFlow.POC.Checkpointing;
 
 /// <summary>
 /// Implementation of <see cref="IEpoch"/> with fully serial operations queue.
 /// All operations, regardless of service type, are executed serially through a single channel.
+/// Also implements <see cref="IEpochOperationContext"/> to avoid allocating context objects.
 /// </summary>
-internal sealed class Epoch : IEpoch
+internal sealed class Epoch : IEpoch, IEpochOperationContext
 {
     private readonly IServiceScope _scope;
     private readonly Channel<IEpochOperation> _operationsChannel;
+    private readonly ICheckpoint? _checkpoint;
     private bool _disposed;
 
     public EpochVector Vector { get; private set; }
     public IServiceProvider ServiceProvider => _scope.ServiceProvider;
     public ChannelReader<IEpochOperation> OperationsReader => _operationsChannel.Reader;
+    public bool IsCheckpointing => _checkpoint != null;
+    
+    // IEpochOperationContext implementation - Epoch provides its own context
+    ICheckpoint? IEpochOperationContext.Checkpoint => _checkpoint;
 
-    public Epoch(EpochVector vector, IServiceScope scope, int operationsQueueCapacity = 100)
+    public Epoch(EpochVector vector, IServiceScope scope, int operationsQueueCapacity = 100, ICheckpoint? checkpoint = null)
     {
         Vector = vector ?? throw new ArgumentNullException(nameof(vector));
         _scope = scope ?? throw new ArgumentNullException(nameof(scope));
+        _checkpoint = checkpoint;
 
         if (operationsQueueCapacity <= 0)
         {
@@ -64,6 +72,22 @@ internal sealed class Epoch : IEpoch
         ArgumentNullException.ThrowIfNull(operation);
 
         // Create operation wrapper that encapsulates type resolution
+        var epochOperation = new EpochOperation<TService>(operation, cancellationToken);
+
+        // Queue to the single operations channel (bounded with Wait mode)
+        // This will block if the channel is full
+        await _operationsChannel.Writer.WriteAsync(epochOperation, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task QueueSerializedOperationAsync<TService>(
+        Func<TService, IEpochOperationContext, Task> operation,
+        CancellationToken cancellationToken = default)
+        where TService : notnull
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ArgumentNullException.ThrowIfNull(operation);
+
+        // Create operation wrapper that encapsulates type resolution and context
         var epochOperation = new EpochOperation<TService>(operation, cancellationToken);
 
         // Queue to the single operations channel (bounded with Wait mode)

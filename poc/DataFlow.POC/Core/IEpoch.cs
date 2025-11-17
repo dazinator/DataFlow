@@ -50,6 +50,32 @@ public interface IEpoch : IAsyncDisposable
         where TService : notnull;
 
     /// <summary>
+    /// Queues an operation for serialized execution with an epoch-scoped service and context.
+    /// This overload provides access to the epoch operation context, which includes the checkpoint
+    /// if this epoch is being checkpointed.
+    /// 
+    /// All operations are queued to a single channel and executed FULLY SERIALLY
+    /// (not per service type). This ensures:
+    /// - No MSDTC escalation (only one connection active at a time)
+    /// - No concurrency bugs (thread-safe by design)
+    /// - Deterministic execution order (FIFO)
+    /// - Thread-safe checkpoint access (only within serialized operations)
+    /// 
+    /// The returned task completes when the operation is successfully queued,
+    /// NOT when the operation has been executed.
+    /// 
+    /// All queued operations will be executed before the epoch completes.
+    /// </summary>
+    /// <typeparam name="TService">The type of service to access.</typeparam>
+    /// <param name="operation">The operation to execute with the service and context.</param>
+    /// <param name="cancellationToken">Cancellation token for the operation.</param>
+    /// <returns>A task that completes when the operation is queued (not executed).</returns>
+    Task QueueSerializedOperationAsync<TService>(
+        Func<TService, Checkpointing.IEpochOperationContext, Task> operation,
+        CancellationToken cancellationToken = default)
+        where TService : notnull;
+
+    /// <summary>
     /// Gets the operations channel for this epoch. Used by EpochProcessorNode to drain operations.
     /// </summary>
     ChannelReader<IEpochOperation> OperationsReader { get; }
@@ -66,4 +92,10 @@ public interface IEpoch : IAsyncDisposable
     /// The channel should be completed externally (e.g., by graph block alignment).
     /// </summary>
     Task WhenAllOperationsCompletedAsync();
+
+    /// <summary>
+    /// Indicates whether this epoch should create a checkpoint.
+    /// This is a read-only flag that can be safely checked from any thread.
+    /// </summary>
+    bool IsCheckpointing { get; }
 }

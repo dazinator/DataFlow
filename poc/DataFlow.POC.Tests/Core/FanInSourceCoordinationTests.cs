@@ -1,6 +1,7 @@
 namespace DataFlow.POC.Tests.Core;
 
 using DataFlow.POC.Blocks;
+using DataFlow.POC.Checkpointing;
 using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
@@ -714,6 +715,7 @@ public class FanInSourceCoordinationTests : IAsyncDisposable
         public CancellationToken CancellationToken { get; set; } = CancellationToken.None;
         public IServiceProvider ServiceProvider => _serviceProvider;
         public Guid InvocationId { get; } = Guid.NewGuid();
+        public ICheckpoint? RecoveryCheckpoint { get; } = null;
 
         public TestExecutionContext()
         {

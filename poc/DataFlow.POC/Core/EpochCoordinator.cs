@@ -2,6 +2,7 @@ namespace DataFlow.POC.Core;
 
 using System.Collections.Concurrent;
 using Microsoft.Extensions.DependencyInjection;
+using DataFlow.POC.Checkpointing;
 
 /// <summary>
 /// Implementation of source-level epoch coordination with:
@@ -13,6 +14,7 @@ public sealed class EpochCoordinator : IEpochCoordinator
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly int _operationsQueueCapacity;
+    private readonly ICheckpointStrategy? _checkpointStrategy;
     private readonly object _lock = new();
     
     // Track sources and their readiness state
@@ -29,7 +31,7 @@ public sealed class EpochCoordinator : IEpochCoordinator
 
     private bool _disposed;
 
-    public EpochCoordinator(IServiceScopeFactory scopeFactory, int operationsQueueCapacity = 100)
+    public EpochCoordinator(IServiceScopeFactory scopeFactory, int operationsQueueCapacity = 100, ICheckpointStrategy? checkpointStrategy = null)
     {
         _scopeFactory = scopeFactory ?? throw new ArgumentNullException(nameof(scopeFactory));
         
@@ -40,6 +42,7 @@ public sealed class EpochCoordinator : IEpochCoordinator
         }
         
         _operationsQueueCapacity = operationsQueueCapacity;
+        _checkpointStrategy = checkpointStrategy;
     }
 
     public async ValueTask<IEpoch> GetOrCreateEpochAsync(
@@ -228,9 +231,17 @@ public sealed class EpochCoordinator : IEpochCoordinator
 
     private IEpoch CreateNewActiveEpoch(EpochVector vector, string sourceId)
     {
+        // Check if we should create a checkpoint for this epoch
+        ICheckpoint? checkpoint = null;
+        if (_checkpointStrategy?.ShouldCreateCheckpoint(vector) == true)
+        {
+            var checkpointId = $"checkpoint-{vector}-{DateTimeOffset.UtcNow.Ticks}";
+            checkpoint = new Checkpoint(checkpointId, vector, DateTimeOffset.UtcNow);
+        }
+
         // Create DI scope for this epoch
         var scope = _scopeFactory.CreateScope();
-        var epoch = new Epoch(vector, scope, _operationsQueueCapacity);
+        var epoch = new Epoch(vector, scope, _operationsQueueCapacity, checkpoint);
         
         _activeEpoch = new ActiveEpoch
         {
@@ -271,8 +282,16 @@ public sealed class EpochCoordinator : IEpochCoordinator
             return existing;
         }
 
+        // Check if we should create a checkpoint for this epoch
+        ICheckpoint? checkpoint = null;
+        if (_checkpointStrategy?.ShouldCreateCheckpoint(vector) == true)
+        {
+            var checkpointId = $"checkpoint-{vector}-{DateTimeOffset.UtcNow.Ticks}";
+            checkpoint = new Checkpoint(checkpointId, vector, DateTimeOffset.UtcNow);
+        }
+
         var scope = _scopeFactory.CreateScope();
-        var epoch = new Epoch(vector, scope, _operationsQueueCapacity);
+        var epoch = new Epoch(vector, scope, _operationsQueueCapacity, checkpoint);
         _allEpochs[vector] = epoch;
         
         _sources[sourceId].CurrentVector = vector;

@@ -1,6 +1,7 @@
 namespace DataFlow.POC.Core;
 
 using Microsoft.Extensions.DependencyInjection;
+using DataFlow.POC.Checkpointing;
 
 /// <summary>
 /// Generic implementation of <see cref="IEpochOperation"/> that encapsulates service resolution
@@ -14,7 +15,8 @@ using Microsoft.Extensions.DependencyInjection;
 internal sealed class EpochOperation<TService> : IEpochOperation
     where TService : notnull
 {
-    private readonly Func<TService, Task> _operation;
+    private readonly Func<TService, Task>? _operation;
+    private readonly Func<TService, IEpochOperationContext, Task>? _operationWithContext;
     private readonly CancellationToken _cancellationToken;
 
     public EpochOperation(
@@ -22,10 +24,20 @@ internal sealed class EpochOperation<TService> : IEpochOperation
         CancellationToken cancellationToken)
     {
         _operation = operation ?? throw new ArgumentNullException(nameof(operation));
+        _operationWithContext = null;
         _cancellationToken = cancellationToken;
     }
 
-    public async Task ExecuteAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken)
+    public EpochOperation(
+        Func<TService, IEpochOperationContext, Task> operation,
+        CancellationToken cancellationToken)
+    {
+        _operation = null;
+        _operationWithContext = operation ?? throw new ArgumentNullException(nameof(operation));
+        _cancellationToken = cancellationToken;
+    }
+
+    public async Task ExecuteAsync(IServiceProvider serviceProvider, IEpochOperationContext context, CancellationToken cancellationToken)
     {
         // Check if cancelled before executing
         if (_cancellationToken.IsCancellationRequested || cancellationToken.IsCancellationRequested)
@@ -36,8 +48,16 @@ internal sealed class EpochOperation<TService> : IEpochOperation
         // Resolve the service from the epoch's DI scope
         var service = serviceProvider.GetRequiredService<TService>();
 
-        // Invoke the caller's callback with the resolved service
-        // Note: Exceptions are propagated to the processor for proper error handling
-        await _operation(service).ConfigureAwait(false);
+        // Invoke the appropriate callback based on which constructor was used
+        if (_operation != null)
+        {
+            // Old signature: just service
+            await _operation(service).ConfigureAwait(false);
+        }
+        else if (_operationWithContext != null)
+        {
+            // New signature: service and context
+            await _operationWithContext(service, context).ConfigureAwait(false);
+        }
     }
 }

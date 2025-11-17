@@ -1,5 +1,7 @@
 namespace DataFlow.POC.Core;
 
+using DataFlow.POC.Checkpointing;
+
 /// <summary>
 /// Represents the execution context for a dataflow.
 /// </summary>
@@ -19,6 +21,12 @@ public interface IExecutionContext
     /// Unique identifier for this execution context.
     /// </summary>
     Guid InvocationId { get; }
+
+    /// <summary>
+    /// Recovery checkpoint to restore state from, if available.
+    /// Blocks can use this to restore their state during execution.
+    /// </summary>
+    ICheckpoint? RecoveryCheckpoint { get; }
 }
 
 /// <summary>
@@ -43,18 +51,25 @@ public class ExecutionContext : IExecutionContext
     }
 
     public ExecutionContext(IServiceProvider serviceProvider, CancellationToken cancellationToken)
-        : this(serviceProvider, cancellationToken, Guid.NewGuid())
+        : this(serviceProvider, cancellationToken, Guid.NewGuid(), null)
     {
     }
 
     public ExecutionContext(IServiceProvider serviceProvider, CancellationToken cancellationToken, Guid invocationId)
+        : this(serviceProvider, cancellationToken, invocationId, null)
+    {
+    }
+
+    public ExecutionContext(IServiceProvider serviceProvider, CancellationToken cancellationToken, Guid invocationId, ICheckpoint? recoveryCheckpoint)
     {
         ServiceProvider = serviceProvider;
         CancellationToken = cancellationToken;
         InvocationId = invocationId;
+        RecoveryCheckpoint = recoveryCheckpoint;
     }
 
     public CancellationToken CancellationToken { get; }
     public IServiceProvider ServiceProvider { get; }
     public Guid InvocationId { get; }
+    public ICheckpoint? RecoveryCheckpoint { get; }
 }
