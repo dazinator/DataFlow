@@ -71,8 +71,15 @@ internal sealed class Epoch : IEpoch, IEpochOperationContext
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(operation);
 
+        // Wrap the operation to capture and ignore the context parameter
+        // This allows EpochOperation to have a single, consistent signature
+        Func<TService, IEpochOperationContext, Task> wrappedOperation = async (service, context) =>
+        {
+            await operation(service).ConfigureAwait(false);
+        };
+
         // Create operation wrapper that encapsulates type resolution
-        var epochOperation = new EpochOperation<TService>(operation, cancellationToken);
+        var epochOperation = new EpochOperation<TService>(wrappedOperation, cancellationToken);
 
         // Queue to the single operations channel (bounded with Wait mode)
         // This will block if the channel is full

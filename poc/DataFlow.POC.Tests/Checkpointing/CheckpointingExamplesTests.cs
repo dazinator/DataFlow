@@ -1,82 +1,97 @@
-namespace DataFlow.POC.Examples;
+namespace DataFlow.POC.Tests.Checkpointing;
 
 using System.Text.Json;
 using DataFlow.POC.Checkpointing;
 using DataFlow.POC.Core;
+using Xunit;
+using Xunit.Abstractions;
 
 /// <summary>
-/// Example of a checkpoint-aware source block that saves its offset to checkpoints.
-/// This allows the source to resume from the last checkpoint position after a restart.
+/// Documentation examples showing how to use checkpointing features.
+/// These tests demonstrate practical usage patterns for checkpoint-aware blocks and strategies.
 /// </summary>
-public class CheckpointAwareQueueSource
+public class CheckpointingExamplesTests
 {
-    private long _currentOffset = 0;
-    private readonly string _blockId;
+    private readonly ITestOutputHelper _output;
 
-    public CheckpointAwareQueueSource(string blockId, long initialOffset = 0)
+    public CheckpointingExamplesTests(ITestOutputHelper output)
     {
-        _blockId = blockId ?? throw new ArgumentNullException(nameof(blockId));
-        _currentOffset = initialOffset;
+        _output = output;
     }
 
     /// <summary>
-    /// Example of producing items while being checkpoint-aware.
-    /// When the epoch is checkpointing, the source contributes its current offset.
+    /// Example of a checkpoint-aware source block that saves its offset to checkpoints.
+    /// This allows the source to resume from the last checkpoint position after a restart.
     /// </summary>
-    public async IAsyncEnumerable<int> ProduceAsync(IEpoch epoch, CancellationToken cancellationToken = default)
+    public class CheckpointAwareQueueSource
     {
-        // Simulate producing items
-        for (int i = 0; i < 100; i++)
+        private long _currentOffset = 0;
+        private readonly string _blockId;
+
+        public CheckpointAwareQueueSource(string blockId, long initialOffset = 0)
         {
-            yield return i;
-            _currentOffset++;
-            
-            // Check if we're at an epoch boundary and should checkpoint
-            if (epoch.IsCheckpointing)
+            _blockId = blockId ?? throw new ArgumentNullException(nameof(blockId));
+            _currentOffset = initialOffset;
+        }
+
+        /// <summary>
+        /// Example of producing items while being checkpoint-aware.
+        /// When the epoch is checkpointing, the source contributes its current offset.
+        /// </summary>
+        public async IAsyncEnumerable<int> ProduceAsync(IEpoch epoch, CancellationToken cancellationToken = default)
+        {
+            // Simulate producing items
+            for (int i = 0; i < 100; i++)
             {
-                // Contribute checkpoint state within a serialized operation
-                // This ensures thread-safe access to the checkpoint
-                await epoch.QueueSerializedOperationAsync<DummyService>(async (svc, ctx) =>
+                yield return i;
+                _currentOffset++;
+                
+                // Check if we're at an epoch boundary and should checkpoint
+                if (epoch.IsCheckpointing)
                 {
-                    // Use SetState helper for canonical, ergonomic API
-                    ctx.Checkpoint?.SetState(_blockId, new { offset = _currentOffset });
-                    await Task.CompletedTask;
-                }, cancellationToken);
+                    // Contribute checkpoint state within a serialized operation
+                    // This ensures thread-safe access to the checkpoint
+                    await epoch.QueueSerializedOperationAsync<DummyService>(async (svc, ctx) =>
+                    {
+                        // Use SetState helper for canonical, ergonomic API
+                        ctx.Checkpoint?.SetState(_blockId, new { offset = _currentOffset });
+                        await Task.CompletedTask;
+                    }, cancellationToken);
+                }
             }
         }
-    }
 
-    /// <summary>
-    /// Restores the source state from a checkpoint.
-    /// This would typically be called during dataflow initialization.
-    /// </summary>
-    public void RestoreFromCheckpoint(ICheckpoint checkpoint)
-    {
-        ArgumentNullException.ThrowIfNull(checkpoint);
-
-        if (checkpoint.TryGetBlockState(_blockId, out var state))
+        /// <summary>
+        /// Restores the source state from a checkpoint.
+        /// This would typically be called during dataflow initialization.
+        /// </summary>
+        public void RestoreFromCheckpoint(ICheckpoint checkpoint)
         {
-            _currentOffset = state.GetProperty("offset").GetInt64();
+            ArgumentNullException.ThrowIfNull(checkpoint);
+
+            if (checkpoint.TryGetBlockState(_blockId, out var state))
+            {
+                _currentOffset = state.GetProperty("offset").GetInt64();
+            }
         }
+
+        // Dummy service for example purposes
+        private class DummyService { }
     }
 
-    // Dummy service for example purposes
-    private class DummyService { }
-}
-
-/// <summary>
-/// Example showing how to configure checkpointing in a dataflow.
-/// </summary>
-public static class CheckpointingExamples
-{
     /// <summary>
     /// Example 1: Simple checkpoint strategy - checkpoint every 10 epochs
     /// </summary>
-    public static void ConfigureCheckpointingEveryNEpochs()
+    [Fact]
+    [Trait("Category", "Documentation")]
+    public void Example1_ConfigureCheckpointingEveryNEpochs()
     {
         // Create a checkpoint strategy
-        var strategy = new Checkpointing.Strategies.EveryNEpochsStrategy(10);
+        var strategy = new DataFlow.POC.Checkpointing.Strategies.EveryNEpochsStrategy(10);
 
+        _output.WriteLine("Created EveryNEpochsStrategy with interval of 10 epochs");
+        _output.WriteLine($"Strategy type: {strategy.GetType().Name}");
+        
         // Create epoch coordinator with checkpoint strategy
         // var coordinator = new EpochCoordinator(serviceProvider.GetRequiredService<IServiceScopeFactory>(), 
         //     checkpointStrategy: strategy);
@@ -85,11 +100,16 @@ public static class CheckpointingExamples
     /// <summary>
     /// Example 2: Time-based checkpoint strategy - checkpoint every 5 minutes
     /// </summary>
-    public static void ConfigureCheckpointingTimeBased()
+    [Fact]
+    [Trait("Category", "Documentation")]
+    public void Example2_ConfigureCheckpointingTimeBased()
     {
         // Create a time-based checkpoint strategy
-        var strategy = new Checkpointing.Strategies.TimeBasedStrategy(TimeSpan.FromMinutes(5));
+        var strategy = new DataFlow.POC.Checkpointing.Strategies.TimeBasedStrategy(TimeSpan.FromMinutes(5));
 
+        _output.WriteLine("Created TimeBasedStrategy with interval of 5 minutes");
+        _output.WriteLine($"Strategy type: {strategy.GetType().Name}");
+        
         // Create epoch coordinator with checkpoint strategy
         // var coordinator = new EpochCoordinator(serviceProvider.GetRequiredService<IServiceScopeFactory>(), 
         //     checkpointStrategy: strategy);
@@ -98,32 +118,46 @@ public static class CheckpointingExamples
     /// <summary>
     /// Example 3: Block contributing to checkpoint
     /// </summary>
-    public static async Task BlockContributingToCheckpoint(IEpoch epoch)
+    [Fact]
+    [Trait("Category", "Documentation")]
+    public async Task Example3_BlockContributingToCheckpoint()
     {
-        // Check if epoch is being checkpointed
-        if (epoch.IsCheckpointing)
-        {
-            // Contribute block state within serialized operation
-            await epoch.QueueSerializedOperationAsync<MyService>(async (svc, ctx) =>
-            {
-                // Get block's current state
-                var blockState = GetBlockState();
-                
-                // Add to checkpoint
-                ctx.Checkpoint?.AddBlockState("my-block-id", blockState);
-                
-                await Task.CompletedTask;
-            });
-        }
+        // This example demonstrates the pattern, but doesn't execute a real epoch
+        // In a real scenario, you would have an IEpoch instance from the dataflow
+        
+        _output.WriteLine("Example pattern for block contributing to checkpoint:");
+        _output.WriteLine("1. Check if epoch.IsCheckpointing");
+        _output.WriteLine("2. Queue a serialized operation with QueueSerializedOperationAsync");
+        _output.WriteLine("3. Use ctx.Checkpoint?.AddBlockState or SetState to contribute state");
+        
+        // Pattern code (commented as it requires a real epoch):
+        // if (epoch.IsCheckpointing)
+        // {
+        //     await epoch.QueueSerializedOperationAsync<MyService>(async (svc, ctx) =>
+        //     {
+        //         var blockState = GetBlockState();
+        //         ctx.Checkpoint?.AddBlockState("my-block-id", blockState);
+        //         await Task.CompletedTask;
+        //     });
+        // }
+        
+        await Task.CompletedTask;
     }
 
     /// <summary>
     /// Example 4: Persisting checkpoint (application-specific)
     /// </summary>
-    public static async Task PersistCheckpointExample(IEpoch epoch)
+    [Fact]
+    [Trait("Category", "Documentation")]
+    public async Task Example4_PersistCheckpointExample()
     {
         // This example shows how an application might persist checkpoints
         // using EpochHooks
+        
+        _output.WriteLine("Example pattern for persisting checkpoints:");
+        _output.WriteLine("1. Configure EpochHooks with OnCommitEpoch handler");
+        _output.WriteLine("2. Queue serialized operation to save checkpoint");
+        _output.WriteLine("3. Serialize checkpoint to your persistence format (DB, file, etc.)");
         
         var hooks = new EpochHooks
         {
@@ -152,6 +186,9 @@ public static class CheckpointingExamples
                 }, ct);
             }
         };
+        
+        _output.WriteLine($"Created EpochHooks with OnCommitEpoch handler");
+        await Task.CompletedTask;
     }
 
     /// <summary>
@@ -258,7 +295,7 @@ public static class CheckpointingExamples
                 }
 
                 // 3. Configure checkpointing
-                var strategy = new Checkpointing.Strategies.EveryNEpochsStrategy(5);
+                var strategy = new DataFlow.POC.Checkpointing.Strategies.EveryNEpochsStrategy(5);
                 // var coordinator = new EpochCoordinator(scopeFactory, checkpointStrategy: strategy);
 
                 // 4. Configure checkpoint persistence in hooks
@@ -302,6 +339,24 @@ public static class CheckpointingExamples
             await app.ExecuteAsync(recoverFromCheckpoint: true);
             // Resumes from last checkpointed offset instead of starting over
         }
+    }
+
+    [Fact]
+    [Trait("Category", "Documentation")]
+    public async Task Example5_EndToEndRecoveryScenario()
+    {
+        _output.WriteLine("Example 5: End-to-End Recovery Scenario");
+        _output.WriteLine("========================================");
+        _output.WriteLine("");
+        _output.WriteLine("This example demonstrates:");
+        _output.WriteLine("1. SimpleCheckpointStore - for saving/loading checkpoints");
+        _output.WriteLine("2. ResumableMessageSource - source block that can restore from checkpoint");
+        _output.WriteLine("3. DataFlowApplication - orchestrates recovery and execution");
+        _output.WriteLine("");
+        _output.WriteLine("See EndToEndRecoveryExample class for complete code");
+        _output.WriteLine("See EndToEndRecoveryExample.DemoRecovery() for usage pattern");
+        
+        await Task.CompletedTask;
     }
 
     // Dummy types for examples

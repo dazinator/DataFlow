@@ -15,49 +15,28 @@ using DataFlow.POC.Checkpointing;
 internal sealed class EpochOperation<TService> : IEpochOperation
     where TService : notnull
 {
-    private readonly Func<TService, Task>? _operation;
-    private readonly Func<TService, IEpochOperationContext, Task>? _operationWithContext;
+    private readonly Func<TService, IEpochOperationContext, Task> _operation;
     private readonly CancellationToken _cancellationToken;
-
-    public EpochOperation(
-        Func<TService, Task> operation,
-        CancellationToken cancellationToken)
-    {
-        _operation = operation ?? throw new ArgumentNullException(nameof(operation));
-        _operationWithContext = null;
-        _cancellationToken = cancellationToken;
-    }
 
     public EpochOperation(
         Func<TService, IEpochOperationContext, Task> operation,
         CancellationToken cancellationToken)
     {
-        _operation = null;
-        _operationWithContext = operation ?? throw new ArgumentNullException(nameof(operation));
+        _operation = operation ?? throw new ArgumentNullException(nameof(operation));
         _cancellationToken = cancellationToken;
     }
 
     public async Task ExecuteAsync(IServiceProvider serviceProvider, IEpochOperationContext context, CancellationToken cancellationToken)
     {
-        // Check if cancelled before executing
-        if (_cancellationToken.IsCancellationRequested || cancellationToken.IsCancellationRequested)
-        {
-            return;
-        }
+        // Check if cancelled before executing - throw to ensure proper exception handling
+        // This is important for transactional operations to avoid partial execution
+        _cancellationToken.ThrowIfCancellationRequested();
+        cancellationToken.ThrowIfCancellationRequested();
 
         // Resolve the service from the epoch's DI scope
         var service = serviceProvider.GetRequiredService<TService>();
 
-        // Invoke the appropriate callback based on which constructor was used
-        if (_operation != null)
-        {
-            // Old signature: just service
-            await _operation(service).ConfigureAwait(false);
-        }
-        else if (_operationWithContext != null)
-        {
-            // New signature: service and context
-            await _operationWithContext(service, context).ConfigureAwait(false);
-        }
+        // Invoke the callback with service and context
+        await _operation(service, context).ConfigureAwait(false);
     }
 }
