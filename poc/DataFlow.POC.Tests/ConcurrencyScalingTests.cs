@@ -9,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
 using Xunit.Abstractions;
+using DataFlow.POC.Tests.TestHelpers;
 
 /// <summary>
 /// Tests specifically focused on verifying concurrent execution and scaling behavior.
@@ -372,7 +373,7 @@ public class ConcurrencyScalingTests
         const int processingDelayMs = 10;
         
         var services = new ServiceCollection().BuildServiceProvider();
-        var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(itemCount));
+        var producer = BlockHelpers.CreateProducer<int>("producer", ProduceIntegers(itemCount));
 
         // Create N transformer instances that will compete for items
         var transformers = new List<ActorBlock<int, string, TransformWithLoggingActor>>();
@@ -398,9 +399,7 @@ public class ConcurrencyScalingTests
         collectorServices.AddScoped<NoOpStringProcessorActor>();
         var collectorServiceProvider = collectorServices.BuildServiceProvider();
 
-        var collector = new ActorBlock<string, object, NoOpStringProcessorActor>(
-            "collector",
-            collectorServiceProvider.GetRequiredService<IServiceScopeFactory>());
+        var collector = BlockHelpers.CreateActor<string, object, NoOpStringProcessorActor>("collector", collectorServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("concurrency-test");
         builder.AddBlock(producer);
@@ -496,7 +495,7 @@ public class ConcurrencyScalingTests
         const int processingDelayMs = 20;
         
         var services = new ServiceCollection().BuildServiceProvider();
-        var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(itemCount));
+        var producer = BlockHelpers.CreateProducer<int>("producer", ProduceIntegers(itemCount));
 
         // Track which processor handles which item and when
         var processingLog = new ConcurrentBag<(string ProcessorName, int Item, long StartMs, long EndMs)>();
@@ -587,7 +586,7 @@ public class ConcurrencyScalingTests
         const int delayMs = 10;
         
         var services = new ServiceCollection().BuildServiceProvider();
-        var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(itemCount));
+        var producer = BlockHelpers.CreateProducer<int>("producer", ProduceIntegers(itemCount));
 
         // Stage 1: Validators
         var validators = new List<ActorBlock<int, int, ValidateWithLoggingActor>>();
@@ -629,9 +628,7 @@ public class ConcurrencyScalingTests
         collectorServices.AddScoped(_ => new StringBagCollectorActor(results));
         var collectorServiceProvider = collectorServices.BuildServiceProvider();
         
-        var collector = new ActorBlock<string, object, StringBagCollectorActor>(
-            "collector",
-            collectorServiceProvider.GetRequiredService<IServiceScopeFactory>());
+        var collector = BlockHelpers.CreateActor<string, object, StringBagCollectorActor>("collector", collectorServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("chained-concurrency-test");
         builder.AddBlock(producer);
@@ -773,7 +770,7 @@ public class ConcurrencyScalingTests
         const int processingDelayMs = 10;
         
         var services = new ServiceCollection().BuildServiceProvider();
-        var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(itemCount));
+        var producer = BlockHelpers.CreateProducer<int>("producer", ProduceIntegers(itemCount));
 
         var transformers = new List<ActorBlock<int, string, TransformWithLoggingActor>>();
         var processingLog = new ConcurrentBag<(string BlockName, int Item, long TimestampMs)>();
@@ -797,9 +794,7 @@ public class ConcurrencyScalingTests
         collectorServices.AddScoped<NoOpStringProcessorActor>();
         var collectorServiceProvider = collectorServices.BuildServiceProvider();
         
-        var collector = new ActorBlock<string, object, NoOpStringProcessorActor>(
-            "collector",
-            collectorServiceProvider.GetRequiredService<IServiceScopeFactory>());
+        var collector = BlockHelpers.CreateActor<string, object, NoOpStringProcessorActor>("collector", collectorServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("level1-test");
         builder.AddBlock(producer);
@@ -856,7 +851,7 @@ public class ConcurrencyScalingTests
         const int delayMs = 10;
         
         var services = new ServiceCollection().BuildServiceProvider();
-        var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(itemCount));
+        var producer = BlockHelpers.CreateProducer<int>("producer", ProduceIntegers(itemCount));
 
         // Stage 1: Validators
         var validators = new List<ActorBlock<int, int, ProcessWithDelayActor>>();
@@ -892,9 +887,7 @@ public class ConcurrencyScalingTests
         collectorServices.AddScoped<NoOpStringProcessorActor>();
         var collectorServiceProvider = collectorServices.BuildServiceProvider();
         
-        var collector = new ActorBlock<string, object, NoOpStringProcessorActor>(
-            "collector",
-            collectorServiceProvider.GetRequiredService<IServiceScopeFactory>());
+        var collector = BlockHelpers.CreateActor<string, object, NoOpStringProcessorActor>("collector", collectorServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("level2-test");
         builder.AddBlock(producer);
@@ -951,7 +944,7 @@ public class ConcurrencyScalingTests
         const int delayMs = 10;
         
         var services = new ServiceCollection().BuildServiceProvider();
-        var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(itemCount));
+        var producer = BlockHelpers.CreateProducer<int>("producer", ProduceIntegers(itemCount));
 
         var validators = new List<ActorBlock<int, int, ProcessWithDelayActor>>();
         for (int i = 0; i < concurrency; i++)
@@ -977,23 +970,19 @@ public class ConcurrencyScalingTests
                 enricherServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
-        var broadcast = new BroadcastBlock<string>("broadcast");
+        var broadcast = BlockHelpers.CreateBroadcast<string>("broadcast");
 
         var collector1Services = new ServiceCollection();
         collector1Services.AddScoped<NoOpStringProcessorActor>();
         var collector1ServiceProvider = collector1Services.BuildServiceProvider();
         
-        var collector1 = new ActorBlock<string, object, NoOpStringProcessorActor>(
-            "collector1",
-            collector1ServiceProvider.GetRequiredService<IServiceScopeFactory>());
+        var collector1 = BlockHelpers.CreateActor<string, object, NoOpStringProcessorActor>("collector1", collector1ServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var collector2Services = new ServiceCollection();
         collector2Services.AddScoped<NoOpStringProcessorActor>();
         var collector2ServiceProvider = collector2Services.BuildServiceProvider();
         
-        var collector2 = new ActorBlock<string, object, NoOpStringProcessorActor>(
-            "collector2",
-            collector2ServiceProvider.GetRequiredService<IServiceScopeFactory>());
+        var collector2 = BlockHelpers.CreateActor<string, object, NoOpStringProcessorActor>("collector2", collector2ServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("level3-test");
         builder.AddBlock(producer);
@@ -1052,7 +1041,7 @@ public class ConcurrencyScalingTests
         const int delayMs = 10;
         
         var services = new ServiceCollection().BuildServiceProvider();
-        var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(itemCount));
+        var producer = BlockHelpers.CreateProducer<int>("producer", ProduceIntegers(itemCount));
 
         var validators = new List<ActorBlock<int, int, ProcessWithDelayActor>>();
         for (int i = 0; i < concurrency; i++)
@@ -1078,26 +1067,22 @@ public class ConcurrencyScalingTests
                 enricherServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
-        var router = new RouterBlock<string>("router", item => item.StartsWith("even") ? "even" : "odd");
+        var router = BlockHelpers.CreateRouter<string>("router", item => item.StartsWith("even") ? "even" : "odd");
         
-        var evenFilter = new RouteFilterBlock<string>("even-filter", "even");
-        var oddFilter = new RouteFilterBlock<string>("odd-filter", "odd");
+        var evenFilter = BlockHelpers.CreateRouteFilter<string>("even-filter", "even");
+        var oddFilter = BlockHelpers.CreateRouteFilter<string>("odd-filter", "odd");
         
         var evenCollectorServices = new ServiceCollection();
         evenCollectorServices.AddScoped<NoOpStringProcessorActor>();
         var evenCollectorServiceProvider = evenCollectorServices.BuildServiceProvider();
         
-        var evenCollector = new ActorBlock<string, object, NoOpStringProcessorActor>(
-            "even-collector",
-            evenCollectorServiceProvider.GetRequiredService<IServiceScopeFactory>());
+        var evenCollector = BlockHelpers.CreateActor<string, object, NoOpStringProcessorActor>("even-collector", evenCollectorServiceProvider.GetRequiredService<IServiceScopeFactory>());
         
         var oddCollectorServices = new ServiceCollection();
         oddCollectorServices.AddScoped<NoOpStringProcessorActor>();
         var oddCollectorServiceProvider = oddCollectorServices.BuildServiceProvider();
         
-        var oddCollector = new ActorBlock<string, object, NoOpStringProcessorActor>(
-            "odd-collector",
-            oddCollectorServiceProvider.GetRequiredService<IServiceScopeFactory>());
+        var oddCollector = BlockHelpers.CreateActor<string, object, NoOpStringProcessorActor>("odd-collector", oddCollectorServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("level4-test");
         builder.AddBlock(producer);
@@ -1159,7 +1144,7 @@ public class ConcurrencyScalingTests
         const int delayMs = 10;
         
         var services = new ServiceCollection().BuildServiceProvider();
-        var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(itemCount));
+        var producer = BlockHelpers.CreateProducer<int>("producer", ProduceIntegers(itemCount));
 
         // Validators
         var validators = new List<ActorBlock<int, int, ProcessWithDelayActor>>();
@@ -1187,22 +1172,20 @@ public class ConcurrencyScalingTests
                 enricherServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
-        var broadcast = new BroadcastBlock<string>("broadcast");
+        var broadcast = BlockHelpers.CreateBroadcast<string>("broadcast");
         
         // Broadcast path 1: Collector
         var metricsCollectorServices = new ServiceCollection();
         metricsCollectorServices.AddScoped<NoOpStringProcessorActor>();
         var metricsCollectorServiceProvider = metricsCollectorServices.BuildServiceProvider();
         
-        var metricsCollector = new ActorBlock<string, object, NoOpStringProcessorActor>(
-            "metrics",
-            metricsCollectorServiceProvider.GetRequiredService<IServiceScopeFactory>());
+        var metricsCollector = BlockHelpers.CreateActor<string, object, NoOpStringProcessorActor>("metrics", metricsCollectorServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         // Broadcast path 2: Router
-        var router = new RouterBlock<string>("router", item => item.StartsWith("even") ? "even" : "odd");
+        var router = BlockHelpers.CreateRouter<string>("router", item => item.StartsWith("even") ? "even" : "odd");
         
-        var evenFilter = new RouteFilterBlock<string>("even-filter", "even");
-        var oddFilter = new RouteFilterBlock<string>("odd-filter", "odd");
+        var evenFilter = BlockHelpers.CreateRouteFilter<string>("even-filter", "even");
+        var oddFilter = BlockHelpers.CreateRouteFilter<string>("odd-filter", "odd");
         
         // Even route: Multiple processors competing
         var evenProcessors = new List<ActorBlock<string, object, DelayProcessorActor>>();
@@ -1308,7 +1291,7 @@ public class ConcurrencyScalingTests
         const int batchSize = 50;
         
         var services = new ServiceCollection().BuildServiceProvider();
-        var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(itemCount));
+        var producer = BlockHelpers.CreateProducer<int>("producer", ProduceIntegers(itemCount));
 
         var validators = new List<ActorBlock<int, int, ProcessWithDelayActor>>();
         for (int i = 0; i < concurrency; i++)
@@ -1334,19 +1317,17 @@ public class ConcurrencyScalingTests
                 enricherServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
-        var broadcast = new BroadcastBlock<string>("broadcast");
+        var broadcast = BlockHelpers.CreateBroadcast<string>("broadcast");
         
         var metricsCollectorServices = new ServiceCollection();
         metricsCollectorServices.AddScoped<NoOpStringProcessorActor>();
         var metricsCollectorServiceProvider = metricsCollectorServices.BuildServiceProvider();
         
-        var metricsCollector = new ActorBlock<string, object, NoOpStringProcessorActor>(
-            "metrics",
-            metricsCollectorServiceProvider.GetRequiredService<IServiceScopeFactory>());
+        var metricsCollector = BlockHelpers.CreateActor<string, object, NoOpStringProcessorActor>("metrics", metricsCollectorServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         // Batch path
-        var router = new RouterBlock<string>("router", item => item.StartsWith("even") ? "even" : "odd");
-        var evenFilter = new RouteFilterBlock<string>("even-filter", "even");
+        var router = BlockHelpers.CreateRouter<string>("router", item => item.StartsWith("even") ? "even" : "odd");
+        var evenFilter = BlockHelpers.CreateRouteFilter<string>("even-filter", "even");
         
         // KEY DIFFERENCE: Add BatchBlock
         var batcher = new BatchBlock<string>("batcher", batchSize, TimeSpan.FromMilliseconds(50));
@@ -1355,17 +1336,13 @@ public class ConcurrencyScalingTests
         aggregatorServices.AddScoped(_ => new AggregateBatchActor(delayMs));
         var aggregatorServiceProvider = aggregatorServices.BuildServiceProvider();
         
-        var aggregator = new ActorBlock<string[], string, AggregateBatchActor>(
-            "aggregator",
-            aggregatorServiceProvider.GetRequiredService<IServiceScopeFactory>());
+        var aggregator = BlockHelpers.CreateActor<string[], string, AggregateBatchActor>("aggregator", aggregatorServiceProvider.GetRequiredService<IServiceScopeFactory>());
         
         var writerServices = new ServiceCollection();
         writerServices.AddScoped<NoOpStringProcessorActor>();
         var writerServiceProvider = writerServices.BuildServiceProvider();
         
-        var writer = new ActorBlock<string, object, NoOpStringProcessorActor>(
-            "writer",
-            writerServiceProvider.GetRequiredService<IServiceScopeFactory>());
+        var writer = BlockHelpers.CreateActor<string, object, NoOpStringProcessorActor>("writer", writerServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("level6-test");
         builder.AddBlock(producer);
@@ -1434,7 +1411,7 @@ public class ConcurrencyScalingTests
         const int delayMs = 1; // Match benchmark delay
         
         var services = new ServiceCollection().BuildServiceProvider();
-        var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(itemCount));
+        var producer = BlockHelpers.CreateProducer<int>("producer", ProduceIntegers(itemCount));
 
         var validators = new List<ActorBlock<int, int, ProcessWithDelayActor>>();
         for (int i = 0; i < concurrency; i++)
@@ -1464,9 +1441,7 @@ public class ConcurrencyScalingTests
         collectorServices.AddScoped<NoOpStringProcessorActor>();
         var collectorServiceProvider = collectorServices.BuildServiceProvider();
         
-        var collector = new ActorBlock<string, object, NoOpStringProcessorActor>(
-            "collector",
-            collectorServiceProvider.GetRequiredService<IServiceScopeFactory>());
+        var collector = BlockHelpers.CreateActor<string, object, NoOpStringProcessorActor>("collector", collectorServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("level7-test");
         builder.AddBlock(producer);
@@ -1527,7 +1502,7 @@ public class ConcurrencyScalingTests
         const int batchSize = 100;
         
         var services = new ServiceCollection().BuildServiceProvider();
-        var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(itemCount));
+        var producer = BlockHelpers.CreateProducer<int>("producer", ProduceIntegers(itemCount));
 
         // Stage 1: Validators
         var validators = new List<ActorBlock<int, int, ProcessWithDelayActor>>();
@@ -1555,17 +1530,15 @@ public class ConcurrencyScalingTests
                 enricherServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
-        var broadcast = new BroadcastBlock<string>("broadcast");
+        var broadcast = BlockHelpers.CreateBroadcast<string>("broadcast");
         
         var metricsCollectorServices = new ServiceCollection();
         metricsCollectorServices.AddScoped<NoOpStringProcessorActor>();
         var metricsCollectorServiceProvider = metricsCollectorServices.BuildServiceProvider();
         
-        var metricsCollector = new ActorBlock<string, object, NoOpStringProcessorActor>(
-            "metrics",
-            metricsCollectorServiceProvider.GetRequiredService<IServiceScopeFactory>());
+        var metricsCollector = BlockHelpers.CreateActor<string, object, NoOpStringProcessorActor>("metrics", metricsCollectorServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
-        var router = new RouterBlock<string>("router", item =>
+        var router = BlockHelpers.CreateRouter<string>("router", item =>
         {
             if (item.Contains("TypeA")) return "TypeA";
             if (item.Contains("TypeB")) return "TypeB";
@@ -1573,7 +1546,7 @@ public class ConcurrencyScalingTests
         });
         
         // TypeA path: filter → processors (competing)
-        var typeAFilter = new RouteFilterBlock<string>("typeA-filter", "TypeA");
+        var typeAFilter = BlockHelpers.CreateRouteFilter<string>("typeA-filter", "TypeA");
         var typeAProcessors = new List<ActorBlock<string, string, ProcessTypeAActor>>();
         for (int i = 0; i < concurrency; i++)
         {
@@ -1598,35 +1571,29 @@ public class ConcurrencyScalingTests
         }
 
         // TypeB path: filter → BATCHER → aggregator → writer
-        var typeBFilter = new RouteFilterBlock<string>("typeB-filter", "TypeB");
+        var typeBFilter = BlockHelpers.CreateRouteFilter<string>("typeB-filter", "TypeB");
         var typeBBatcher = new BatchBlock<string>("typeB-batcher", batchSize, TimeSpan.FromMilliseconds(100));
         
         var typeBAggregatorServices = new ServiceCollection();
         typeBAggregatorServices.AddScoped(_ => new AggregateBatchActor(delayMs));
         var typeBAggregatorServiceProvider = typeBAggregatorServices.BuildServiceProvider();
         
-        var typeBAggregator = new ActorBlock<string[], string, AggregateBatchActor>(
-            "typeB-aggregator",
-            typeBAggregatorServiceProvider.GetRequiredService<IServiceScopeFactory>());
+        var typeBAggregator = BlockHelpers.CreateActor<string[], string, AggregateBatchActor>("typeB-aggregator", typeBAggregatorServiceProvider.GetRequiredService<IServiceScopeFactory>());
         
         var typeBWriterServices = new ServiceCollection();
         typeBWriterServices.AddScoped<NoOpStringProcessorActor>();
         var typeBWriterServiceProvider = typeBWriterServices.BuildServiceProvider();
         
-        var typeBWriter = new ActorBlock<string, object, NoOpStringProcessorActor>(
-            "typeB-writer",
-            typeBWriterServiceProvider.GetRequiredService<IServiceScopeFactory>());
+        var typeBWriter = BlockHelpers.CreateActor<string, object, NoOpStringProcessorActor>("typeB-writer", typeBWriterServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         // TypeC path: filter → writer
-        var typeCFilter = new RouteFilterBlock<string>("typeC-filter", "TypeC");
+        var typeCFilter = BlockHelpers.CreateRouteFilter<string>("typeC-filter", "TypeC");
         
         var typeCWriterServices = new ServiceCollection();
         typeCWriterServices.AddScoped<NoOpStringProcessorActor>();
         var typeCWriterServiceProvider = typeCWriterServices.BuildServiceProvider();
         
-        var typeCWriter = new ActorBlock<string, object, NoOpStringProcessorActor>(
-            "typeC-writer",
-            typeCWriterServiceProvider.GetRequiredService<IServiceScopeFactory>());
+        var typeCWriter = BlockHelpers.CreateActor<string, object, NoOpStringProcessorActor>("typeC-writer", typeCWriterServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("level8-exact-match");
         builder.AddBlock(producer);

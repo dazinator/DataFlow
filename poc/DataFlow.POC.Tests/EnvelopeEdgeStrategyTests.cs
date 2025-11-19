@@ -6,6 +6,7 @@ using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
+using DataFlow.POC.Tests.TestHelpers;
 
 public class EnvelopeEdgeStrategyTests
 {
@@ -78,15 +79,11 @@ public class EnvelopeEdgeStrategyTests
 
         var commonServices = new ServiceCollection().BuildServiceProvider();
 
-        var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceEnvelopes(ctx));
+        var producer = BlockHelpers.CreateProducer<IDataEnvelope>("producer", ctx => ProduceEnvelopes(ctx));
 
-        var consumer1 = new ActorBlock<IDataEnvelope, object, EnvelopeCollectorActor>(
-            "consumer1",
-            serviceProvider1.GetRequiredService<IServiceScopeFactory>());
+        var consumer1 = BlockHelpers.CreateActor<IDataEnvelope, object, EnvelopeCollectorActor>("consumer1", serviceProvider1.GetRequiredService<IServiceScopeFactory>());
 
-        var consumer2 = new ActorBlock<IDataEnvelope, object, EnvelopeCollectorActor>(
-            "consumer2",
-            serviceProvider2.GetRequiredService<IServiceScopeFactory>());
+        var consumer2 = BlockHelpers.CreateActor<IDataEnvelope, object, EnvelopeCollectorActor>("consumer2", serviceProvider2.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("broadcast-envelope-flow");
         builder.AddBlock(producer)
@@ -143,15 +140,11 @@ public class EnvelopeEdgeStrategyTests
 
         var commonServices = new ServiceCollection().BuildServiceProvider();
 
-        var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceEnvelopes(ctx));
+        var producer = BlockHelpers.CreateProducer<IDataEnvelope>("producer", ctx => ProduceEnvelopes(ctx));
 
-        var consumer1 = new ActorBlock<IDataEnvelope, object, DelayedEnvelopeCollectorActor>(
-            "consumer1",
-            serviceProvider1.GetRequiredService<IServiceScopeFactory>());
+        var consumer1 = BlockHelpers.CreateActor<IDataEnvelope, object, DelayedEnvelopeCollectorActor>("consumer1", serviceProvider1.GetRequiredService<IServiceScopeFactory>());
 
-        var consumer2 = new ActorBlock<IDataEnvelope, object, DelayedEnvelopeCollectorActor>(
-            "consumer2",
-            serviceProvider2.GetRequiredService<IServiceScopeFactory>());
+        var consumer2 = BlockHelpers.CreateActor<IDataEnvelope, object, DelayedEnvelopeCollectorActor>("consumer2", serviceProvider2.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("competing-envelope-flow");
         builder.AddBlock(producer)
@@ -194,11 +187,9 @@ public class EnvelopeEdgeStrategyTests
         var serviceProvider = services.BuildServiceProvider();
         var commonServices = new ServiceCollection().BuildServiceProvider();
 
-        var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceOrderedEnvelopes(ctx));
+        var producer = BlockHelpers.CreateProducer<IDataEnvelope>("producer", ctx => ProduceOrderedEnvelopes(ctx));
 
-        var consumer = new ActorBlock<IDataEnvelope, object, EnvelopeCollectorActor>(
-            "consumer",
-            serviceProvider.GetRequiredService<IServiceScopeFactory>());
+        var consumer = BlockHelpers.CreateActor<IDataEnvelope, object, EnvelopeCollectorActor>("consumer", serviceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("ordered-envelope-flow");
         builder.AddBlock(producer)
@@ -245,11 +236,9 @@ public class EnvelopeEdgeStrategyTests
         var serviceProvider = services.BuildServiceProvider();
         var commonServices = new ServiceCollection().BuildServiceProvider();
 
-        var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceOnlyControlSignals(ctx));
+        var producer = BlockHelpers.CreateProducer<IDataEnvelope>("producer", ctx => ProduceOnlyControlSignals(ctx));
 
-        var consumer = new ActorBlock<IDataEnvelope, object, EnvelopeCollectorActor>(
-            "consumer",
-            serviceProvider.GetRequiredService<IServiceScopeFactory>());
+        var consumer = BlockHelpers.CreateActor<IDataEnvelope, object, EnvelopeCollectorActor>("consumer", serviceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("control-only-flow");
         builder.AddBlock(producer)
@@ -282,11 +271,9 @@ public class EnvelopeEdgeStrategyTests
         var serviceProvider = services.BuildServiceProvider();
         var commonServices = new ServiceCollection().BuildServiceProvider();
 
-        var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceOnlyData(ctx));
+        var producer = BlockHelpers.CreateProducer<IDataEnvelope>("producer", ctx => ProduceOnlyData(ctx));
 
-        var consumer = new ActorBlock<IDataEnvelope, object, EnvelopeCollectorActor>(
-            "consumer",
-            serviceProvider.GetRequiredService<IServiceScopeFactory>());
+        var consumer = BlockHelpers.CreateActor<IDataEnvelope, object, EnvelopeCollectorActor>("consumer", serviceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("data-only-flow");
         builder.AddBlock(producer)

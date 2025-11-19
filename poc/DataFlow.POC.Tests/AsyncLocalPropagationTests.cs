@@ -7,6 +7,7 @@ using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
+using DataFlow.POC.Tests.TestHelpers;
 
 /// <summary>
 /// Tests to verify that AsyncLocal values (specifically ExecutionContext.Current) 
@@ -89,8 +90,7 @@ public class AsyncLocalPropagationTests
 
         var commonServices = new ServiceCollection().BuildServiceProvider();
 
-        var producer = new ProducerBlock<int>("producer", ctx =>
-        {
+        var producer = BlockHelpers.CreateProducer<int>("producer", ctx => {
             return ProduceWithContextCapture(5, capturedContextIds);
         });
 
@@ -187,14 +187,11 @@ public class AsyncLocalPropagationTests
 
         var commonServices = new ServiceCollection().BuildServiceProvider();
 
-        var producer = new ProducerBlock<int>("producer", ctx =>
-        {
+        var producer = BlockHelpers.CreateProducer<int>("producer", ctx => {
             return ProduceWithContextCapture(5, producerContextIds);
         });
 
-        var transformer = new ActorBlock<int, string, ContextCapturingTransformerActor>(
-            "transformer",
-            transformerSP.GetRequiredService<IServiceScopeFactory>());
+        var transformer = BlockHelpers.CreateActor<int, string, ContextCapturingTransformerActor>("transformer", transformerSP.GetRequiredService<IServiceScopeFactory>());
 
         var processor = new ActorBlock<string, object, ContextCapturingCollectorActor<string>>(
             "processor",
@@ -247,8 +244,7 @@ public class AsyncLocalPropagationTests
 
         var commonServices = new ServiceCollection().BuildServiceProvider();
 
-        var producer1 = new ProducerBlock<int>("producer1", ctx =>
-        {
+        var producer1 = BlockHelpers.CreateProducer<int>("producer1", ctx => {
             return ProduceWithContextCapture(5, capturedIds1, delay: 10);
         });
 
@@ -256,8 +252,7 @@ public class AsyncLocalPropagationTests
             "processor1",
             processor1SP.GetRequiredService<IServiceScopeFactory>());
 
-        var producer2 = new ProducerBlock<int>("producer2", ctx =>
-        {
+        var producer2 = BlockHelpers.CreateProducer<int>("producer2", ctx => {
             return ProduceWithContextCapture(5, capturedIds2, delay: 10);
         });
 
@@ -333,12 +328,11 @@ public class AsyncLocalPropagationTests
 
         var commonServices = new ServiceCollection().BuildServiceProvider();
 
-        var producer = new ProducerBlock<int>("producer", ctx =>
-        {
+        var producer = BlockHelpers.CreateProducer<int>("producer", ctx => {
             return ProduceWithContextCapture(5, producer1ContextIds);
         });
 
-        var broadcast = new BroadcastBlock<int>("broadcast");
+        var broadcast = BlockHelpers.CreateBroadcast<int>("broadcast");
 
         var processor1 = new ActorBlock<int, object, ContextCapturingCollectorActor<int>>(
             "processor1",
@@ -392,12 +386,11 @@ public class AsyncLocalPropagationTests
 
         var commonServices = new ServiceCollection().BuildServiceProvider();
 
-        var producer = new ProducerBlock<int>("producer", ctx =>
-        {
+        var producer = BlockHelpers.CreateProducer<int>("producer", ctx => {
             return ProduceWithContextCapture(10, producerContextIds);
         });
 
-        var batch = new BatchBlock<int>("batch", maxBatchSize: 3);
+        var batch = BlockHelpers.CreateBatch<int>("batch", 3);
 
         var processor = new ActorBlock<int[], object, ContextCapturingCollectorActor<int[]>>(
             "processor",

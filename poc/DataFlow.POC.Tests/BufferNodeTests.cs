@@ -6,6 +6,7 @@ using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
+using DataFlow.POC.Tests.TestHelpers;
 
 public class BufferNodeTests
 {
@@ -139,10 +140,8 @@ public class BufferNodeTests
 
         var commonServices = new ServiceCollection().BuildServiceProvider();
 
-        var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(ctx, 1, 10));
-        var processor = new ActorBlock<int, object, IntCollectorActor>(
-            "processor",
-            processorSP.GetRequiredService<IServiceScopeFactory>());
+        var producer = BlockHelpers.CreateProducer<int>("producer", ctx => ProduceIntegers(ctx, 1, 10));
+        var processor = BlockHelpers.CreateActor<int, object, IntCollectorActor>("processor", processorSP.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("buffer-node-flow");
         var buffer = builder.Buffer<int>(capacity: 5);
@@ -176,11 +175,9 @@ public class BufferNodeTests
 
         var commonServices = new ServiceCollection().BuildServiceProvider();
 
-        var producer1 = new ProducerBlock<int>("producer1", ctx => ProduceIntegers(ctx, 1, 5));
-        var producer2 = new ProducerBlock<int>("producer2", ctx => ProduceIntegers(ctx, 100, 5));
-        var processor = new ActorBlock<int, object, ThreadSafeIntCollectorActor>(
-            "processor",
-            processorSP.GetRequiredService<IServiceScopeFactory>());
+        var producer1 = BlockHelpers.CreateProducer<int>("producer1", ctx => ProduceIntegers(ctx, 1, 5));
+        var producer2 = BlockHelpers.CreateProducer<int>("producer2", ctx => ProduceIntegers(ctx, 100, 5));
+        var processor = BlockHelpers.CreateActor<int, object, ThreadSafeIntCollectorActor>("processor", processorSP.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("multi-producer-buffer-flow");
         var buffer = builder.Buffer<int>(capacity: 10);
@@ -227,15 +224,11 @@ public class BufferNodeTests
 
         var commonServices = new ServiceCollection().BuildServiceProvider();
 
-        var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(ctx, 1, 10));
+        var producer = BlockHelpers.CreateProducer<int>("producer", ctx => ProduceIntegers(ctx, 1, 10));
         
-        var processor1 = new ActorBlock<int, object, ThreadSafeIntCollectorActor>(
-            "processor1",
-            processor1SP.GetRequiredService<IServiceScopeFactory>());
+        var processor1 = BlockHelpers.CreateActor<int, object, ThreadSafeIntCollectorActor>("processor1", processor1SP.GetRequiredService<IServiceScopeFactory>());
 
-        var processor2 = new ActorBlock<int, object, ThreadSafeIntCollectorActor>(
-            "processor2",
-            processor2SP.GetRequiredService<IServiceScopeFactory>());
+        var processor2 = BlockHelpers.CreateActor<int, object, ThreadSafeIntCollectorActor>("processor2", processor2SP.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("single-producer-multi-consumer-buffer-flow");
         var buffer = builder.Buffer<int>(capacity: 5);
@@ -284,16 +277,12 @@ public class BufferNodeTests
 
         var commonServices = new ServiceCollection().BuildServiceProvider();
 
-        var producer1 = new ProducerBlock<int>("producer1", ctx => ProduceIntegers(ctx, 1, 5));
-        var producer2 = new ProducerBlock<int>("producer2", ctx => ProduceIntegers(ctx, 100, 5));
+        var producer1 = BlockHelpers.CreateProducer<int>("producer1", ctx => ProduceIntegers(ctx, 1, 5));
+        var producer2 = BlockHelpers.CreateProducer<int>("producer2", ctx => ProduceIntegers(ctx, 100, 5));
 
-        var processor1 = new ActorBlock<int, object, ThreadSafeIntCollectorActor>(
-            "processor1",
-            processor1SP.GetRequiredService<IServiceScopeFactory>());
+        var processor1 = BlockHelpers.CreateActor<int, object, ThreadSafeIntCollectorActor>("processor1", processor1SP.GetRequiredService<IServiceScopeFactory>());
 
-        var processor2 = new ActorBlock<int, object, ThreadSafeIntCollectorActor>(
-            "processor2",
-            processor2SP.GetRequiredService<IServiceScopeFactory>());
+        var processor2 = BlockHelpers.CreateActor<int, object, ThreadSafeIntCollectorActor>("processor2", processor2SP.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("multi-producer-multi-consumer-buffer-flow");
         var buffer = builder.Buffer<int>(capacity: 10);
@@ -340,10 +329,8 @@ public class BufferNodeTests
 
         var commonServices = new ServiceCollection().BuildServiceProvider();
 
-        var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(ctx, 1, 100));
-        var processor = new ActorBlock<int, object, DelayingIntCollectorActor>(
-            "processor",
-            processorSP.GetRequiredService<IServiceScopeFactory>());
+        var producer = BlockHelpers.CreateProducer<int>("producer", ctx => ProduceIntegers(ctx, 1, 100));
+        var processor = BlockHelpers.CreateActor<int, object, DelayingIntCollectorActor>("processor", processorSP.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("backpressure-flow");
         var buffer = builder.Buffer<int>(capacity: 5); // Small buffer
@@ -369,7 +356,7 @@ public class BufferNodeTests
     {
         // Arrange
         var builder = new DataFlowGraphBuilder("type-mismatch-flow");
-        var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(ctx, 1, 10));
+        var producer = BlockHelpers.CreateProducer<int>("producer", ctx => ProduceIntegers(ctx, 1, 10));
         var buffer = builder.Buffer<string>(capacity: 10); // Wrong type
         
         builder.AddBlock(producer);
@@ -397,9 +384,7 @@ public class BufferNodeTests
         processorServices.AddScoped(_ => new StringCollectorActor(new List<string>()));
         var processorSP = processorServices.BuildServiceProvider();
         
-        var processor = new ActorBlock<string, object, StringCollectorActor>(
-            "processor",
-            processorSP.GetRequiredService<IServiceScopeFactory>());
+        var processor = BlockHelpers.CreateActor<string, object, StringCollectorActor>("processor", processorSP.GetRequiredService<IServiceScopeFactory>());
         
         builder.AddBlock(processor);
 
@@ -440,21 +425,15 @@ public class BufferNodeTests
 
         var commonServices = new ServiceCollection().BuildServiceProvider();
 
-        var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(ctx, 1, 10));
+        var producer = BlockHelpers.CreateProducer<int>("producer", ctx => ProduceIntegers(ctx, 1, 10));
         
         // Edge consumer - directly connected via edge
-        var edgeConsumer = new ActorBlock<int, object, IntCollectorActor>(
-            "edge-consumer",
-            edgeConsumerSP.GetRequiredService<IServiceScopeFactory>());
+        var edgeConsumer = BlockHelpers.CreateActor<int, object, IntCollectorActor>("edge-consumer", edgeConsumerSP.GetRequiredService<IServiceScopeFactory>());
         
         // Buffer consumers - connected via buffer node (competing)
-        var bufferConsumer1 = new ActorBlock<int, object, IntCollectorActor>(
-            "buffer-consumer1",
-            bufferConsumer1SP.GetRequiredService<IServiceScopeFactory>());
+        var bufferConsumer1 = BlockHelpers.CreateActor<int, object, IntCollectorActor>("buffer-consumer1", bufferConsumer1SP.GetRequiredService<IServiceScopeFactory>());
         
-        var bufferConsumer2 = new ActorBlock<int, object, IntCollectorActor>(
-            "buffer-consumer2",
-            bufferConsumer2SP.GetRequiredService<IServiceScopeFactory>());
+        var bufferConsumer2 = BlockHelpers.CreateActor<int, object, IntCollectorActor>("buffer-consumer2", bufferConsumer2SP.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("broadcast-flow");
         var buffer = builder.Buffer<int>(capacity: 10);

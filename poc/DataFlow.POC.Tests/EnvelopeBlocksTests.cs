@@ -6,6 +6,7 @@ using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
+using DataFlow.POC.Tests.TestHelpers;
 
 public class EnvelopeBlocksTests
 {
@@ -44,11 +45,9 @@ public class EnvelopeBlocksTests
         var serviceProvider = services.BuildServiceProvider();
         var commonServices = new ServiceCollection().BuildServiceProvider();
 
-        var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceMixedEnvelopes(ctx));
-        var transformer = new SimpleEnvelopeTransformerBlock<int, string>("transformer", i => $"Value-{i}");
-        var consumer = new ActorBlock<IDataEnvelope, object, EnvelopeCollectorActor>(
-            "consumer",
-            serviceProvider.GetRequiredService<IServiceScopeFactory>());
+        var producer = BlockHelpers.CreateProducer<IDataEnvelope>("producer", ctx => ProduceMixedEnvelopes(ctx));
+        var transformer = BlockHelpers.CreateSimpleEnvelopeTransformer<int, string>("transformer", i => $"Value-{i}");
+        var consumer = BlockHelpers.CreateActor<IDataEnvelope, object, EnvelopeCollectorActor>("consumer", serviceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("transform-flow");
         builder.AddBlock(producer)
@@ -95,15 +94,13 @@ public class EnvelopeBlocksTests
         var serviceProvider = services.BuildServiceProvider();
         var commonServices = new ServiceCollection().BuildServiceProvider();
 
-        var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceDataOnly(ctx));
-        var transformer = new AsyncEnvelopeTransformerBlock<int, int>("transformer", async (i, ctx) =>
+        var producer = BlockHelpers.CreateProducer<IDataEnvelope>("producer", ctx => ProduceDataOnly(ctx));
+        var transformer = BlockHelpers.CreateAsyncEnvelopeTransformer<int, int>("transformer", async (i, ctx) =>
         {
             await Task.Delay(1); // Simulate async work
             return i * 2;
         });
-        var consumer = new ActorBlock<IDataEnvelope, object, EnvelopeCollectorActor>(
-            "consumer",
-            serviceProvider.GetRequiredService<IServiceScopeFactory>());
+        var consumer = BlockHelpers.CreateActor<IDataEnvelope, object, EnvelopeCollectorActor>("consumer", serviceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("async-transform-flow");
         builder.AddBlock(producer)
@@ -139,15 +136,13 @@ public class EnvelopeBlocksTests
         var serviceProvider = services.BuildServiceProvider();
         var commonServices = new ServiceCollection().BuildServiceProvider();
 
-        var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceDataWithControl(ctx));
-        var projector = new EnvelopeProjectorBlock<int, int>("projector", (i, ctx) =>
+        var producer = BlockHelpers.CreateProducer<IDataEnvelope>("producer", ctx => ProduceDataWithControl(ctx));
+        var projector = BlockHelpers.CreateEnvelopeProjector<int, int>("projector", (i, ctx) =>
         {
             // Each input produces multiple outputs
             return AsyncEnumerable(i, i * 10, i * 100);
         });
-        var consumer = new ActorBlock<IDataEnvelope, object, EnvelopeCollectorActor>(
-            "consumer",
-            serviceProvider.GetRequiredService<IServiceScopeFactory>());
+        var consumer = BlockHelpers.CreateActor<IDataEnvelope, object, EnvelopeCollectorActor>("consumer", serviceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("projector-flow");
         builder.AddBlock(producer)
@@ -192,7 +187,7 @@ public class EnvelopeBlocksTests
         var services = new ServiceCollection().BuildServiceProvider();
         var processedData = new List<int>();
 
-        var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceMixedEnvelopes(ctx));
+        var producer = BlockHelpers.CreateProducer<IDataEnvelope>("producer", ctx => ProduceMixedEnvelopes(ctx));
         var processor = new EnvelopeProcessorBlock<int>("processor", async (value, ctx) =>
         {
             processedData.Add(value);
@@ -225,7 +220,7 @@ public class EnvelopeBlocksTests
         var processedData = new List<int>();
         var observedControlSignals = new List<IDataEnvelope>();
 
-        var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceMixedEnvelopes(ctx));
+        var producer = BlockHelpers.CreateProducer<IDataEnvelope>("producer", ctx => ProduceMixedEnvelopes(ctx));
         var processor = new EnvelopeProcessorBlock<int>(
             "processor",
             processData: async (value, ctx) =>
@@ -272,12 +267,10 @@ public class EnvelopeBlocksTests
         var serviceProvider = services.BuildServiceProvider();
         var commonServices = new ServiceCollection().BuildServiceProvider();
 
-        var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceOrderedStream(ctx));
-        var transformer1 = new SimpleEnvelopeTransformerBlock<int, int>("transformer1", i => i + 1);
-        var transformer2 = new SimpleEnvelopeTransformerBlock<int, int>("transformer2", i => i * 10);
-        var consumer = new ActorBlock<IDataEnvelope, object, EnvelopeCollectorActor>(
-            "consumer",
-            serviceProvider.GetRequiredService<IServiceScopeFactory>());
+        var producer = BlockHelpers.CreateProducer<IDataEnvelope>("producer", ctx => ProduceOrderedStream(ctx));
+        var transformer1 = BlockHelpers.CreateSimpleEnvelopeTransformer<int, int>("transformer1", i => i + 1);
+        var transformer2 = BlockHelpers.CreateSimpleEnvelopeTransformer<int, int>("transformer2", i => i * 10);
+        var consumer = BlockHelpers.CreateActor<IDataEnvelope, object, EnvelopeCollectorActor>("consumer", serviceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("pipeline-flow");
         builder.AddBlock(producer)

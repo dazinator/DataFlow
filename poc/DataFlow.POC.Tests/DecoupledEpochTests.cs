@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using System.Runtime.CompilerServices;
 using Xunit;
+using DataFlow.POC.Tests.TestHelpers;
 
 /// <summary>
 /// Tests for decoupled epoch segmentation design.
@@ -23,9 +24,7 @@ public class DecoupledEpochTests
         services.AddTransient<SimpleNumberProducer>();
         var provider = services.BuildServiceProvider();
 
-        var sourceBlock = new PlainSourceBlock<int, SimpleNumberProducer>(
-            "plain-source",
-            provider.GetRequiredService<IServiceScopeFactory>());
+        var sourceBlock = BlockHelpers.CreatePlainSource<int, SimpleNumberProducer>("plain-source", provider.GetRequiredService<IServiceScopeFactory>());
 
         var context = new TestExecutionContext();
         
@@ -54,13 +53,9 @@ public class DecoupledEpochTests
         services.AddTransient<SimpleNumberProducer>();
         var provider = services.BuildServiceProvider();
 
-        var sourceBlock = new PlainSourceBlock<int, SimpleNumberProducer>(
-            "plain-source",
-            provider.GetRequiredService<IServiceScopeFactory>());
+        var sourceBlock = BlockHelpers.CreatePlainSource<int, SimpleNumberProducer>("plain-source", provider.GetRequiredService<IServiceScopeFactory>());
             
-        var segmenterBlock = new EpochSegmenterBlock<int>(
-            "segmenter",
-            EpochSegmentationPolicy.ByCount(3, "test-source"));
+        var segmenterBlock = BlockHelpers.CreateEpochSegmenter<int>("segmenter", EpochSegmentationPolicy.ByCount(3, "test-source"));
 
         var context = new TestExecutionContext();
         
@@ -110,13 +105,9 @@ public class DecoupledEpochTests
         services.AddTransient<GroupedDataProducer>();
         var provider = services.BuildServiceProvider();
 
-        var sourceBlock = new PlainSourceBlock<(string group, int value), GroupedDataProducer>(
-            "plain-source",
-            provider.GetRequiredService<IServiceScopeFactory>());
+        var sourceBlock = BlockHelpers.CreatePlainSource<(string group, int value), GroupedDataProducer>("plain-source", provider.GetRequiredService<IServiceScopeFactory>());
             
-        var segmenterBlock = new EpochSegmenterBlock<(string group, int value)>(
-            "segmenter",
-            EpochSegmentationPolicy.ByKey<(string group, int value), string>(
+        var segmenterBlock = BlockHelpers.CreateEpochSegmenter<(string group, int value)>("segmenter", EpochSegmentationPolicy.ByKey<(string group, int value), string>(
                 item => item.group,
                 "test-source"));
 
@@ -159,13 +150,9 @@ public class DecoupledEpochTests
         services.AddTransient<SimpleNumberProducer>();
         var provider = services.BuildServiceProvider();
 
-        var sourceBlock = new PlainSourceBlock<int, SimpleNumberProducer>(
-            "plain-source",
-            provider.GetRequiredService<IServiceScopeFactory>());
+        var sourceBlock = BlockHelpers.CreatePlainSource<int, SimpleNumberProducer>("plain-source", provider.GetRequiredService<IServiceScopeFactory>());
             
-        var segmenterBlock = new EpochSegmenterBlock<int>(
-            "segmenter",
-            EpochSegmentationPolicy.None);
+        var segmenterBlock = BlockHelpers.CreateEpochSegmenter<int>("segmenter", EpochSegmentationPolicy.None);
 
         var context = new TestExecutionContext();
         
@@ -204,13 +191,9 @@ public class DecoupledEpochTests
         services.AddTransient<EmptyProducer>();
         var provider = services.BuildServiceProvider();
 
-        var sourceBlock = new PlainSourceBlock<int, EmptyProducer>(
-            "plain-source",
-            provider.GetRequiredService<IServiceScopeFactory>());
+        var sourceBlock = BlockHelpers.CreatePlainSource<int, EmptyProducer>("plain-source", provider.GetRequiredService<IServiceScopeFactory>());
             
-        var segmenterBlock = new EpochSegmenterBlock<int>(
-            "segmenter",
-            EpochSegmentationPolicy.ByCount(3, "test-source"));
+        var segmenterBlock = BlockHelpers.CreateEpochSegmenter<int>("segmenter", EpochSegmentationPolicy.ByCount(3, "test-source"));
 
         var context = new TestExecutionContext();
         
@@ -257,13 +240,9 @@ public class DecoupledEpochTests
         services2.AddTransient<SimpleNumberProducer>();
         var provider2 = services2.BuildServiceProvider();
 
-        var plainSourceBlock = new PlainSourceBlock<int, SimpleNumberProducer>(
-            "plain-source",
-            provider2.GetRequiredService<IServiceScopeFactory>());
+        var plainSourceBlock = BlockHelpers.CreatePlainSource<int, SimpleNumberProducer>("plain-source", provider2.GetRequiredService<IServiceScopeFactory>());
             
-        var segmenterBlock = new EpochSegmenterBlock<int>(
-            "segmenter",
-            EpochSegmentationPolicy.ByCount(3, "test-source"));
+        var segmenterBlock = BlockHelpers.CreateEpochSegmenter<int>("segmenter", EpochSegmentationPolicy.ByCount(3, "test-source"));
 
         var context1 = new TestExecutionContext();
         var context2 = new TestExecutionContext();

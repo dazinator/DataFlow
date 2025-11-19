@@ -10,9 +10,8 @@ using Xunit;
 
 public class BroadcastFlowTests
 {
-    // Refactored to use test helpers - removed duplicate implementations
-    // - IntCollectorActor → using TestHelpers.CollectorActor<int>
-    // - ProduceIntegers → using TestStreams.Integers()
+    // Refactored to use BlockHelpers for consistent block instantiation patterns.
+    // Also using TestHelpers.CollectorActor<int> and TestStreams.Integers()
 
     [Fact]
     public async Task Broadcast_Should_Send_Items_To_Multiple_Processors()
@@ -34,15 +33,15 @@ public class BroadcastFlowTests
         var commonServices = new ServiceCollection().BuildServiceProvider();
 
         // Using TestStreams.Integers() instead of custom ProduceIntegers function
-        var producer = new ProducerBlock<int>("producer", _ => TestStreams.Integers(5));
+        var producer = BlockHelpers.CreateProducer("producer", TestStreams.Integers(5));
 
-        var broadcast = new BroadcastBlock<int>("broadcast");
+        var broadcast = BlockHelpers.CreateBroadcast<int>("broadcast");
 
-        var processor1 = new ActorBlock<int, object, CollectorActor<int>>(
+        var processor1 = BlockHelpers.CreateActor<int, object, CollectorActor<int>>(
             "processor1",
             scopeFactory1);
 
-        var processor2 = new ActorBlock<int, object, CollectorActor<int>>(
+        var processor2 = BlockHelpers.CreateActor<int, object, CollectorActor<int>>(
             "processor2",
             scopeFactory2);
 

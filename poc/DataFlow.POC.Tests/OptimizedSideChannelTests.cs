@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
 using System.Diagnostics;
+using DataFlow.POC.Tests.TestHelpers;
 
 /// <summary>
 /// Tests for Optimized Side-Channel Strategy implementation.
@@ -24,7 +25,7 @@ public class OptimizedSideChannelTests
         var consumer1ControlSignals = new List<IDataEnvelope>();
         var consumer2ControlSignals = new List<IDataEnvelope>();
 
-        var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceEnvelopes(ctx));
+        var producer = BlockHelpers.CreateProducer<IDataEnvelope>("producer", ctx => ProduceEnvelopes(ctx));
 
         var consumer1 = new EnvelopeProcessorBlock<int>(
             "consumer1",
@@ -91,7 +92,7 @@ public class OptimizedSideChannelTests
         var consumer1ControlSignals = new List<IDataEnvelope>();
         var consumer2ControlSignals = new List<IDataEnvelope>();
 
-        var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceOrderedControlSignals(ctx));
+        var producer = BlockHelpers.CreateProducer<IDataEnvelope>("producer", ctx => ProduceOrderedControlSignals(ctx));
 
         var consumer1 = new EnvelopeProcessorBlock<int>(
             "consumer1",
@@ -149,7 +150,7 @@ public class OptimizedSideChannelTests
         var receivedCount = 0;
         var controlSignalCount = 0;
 
-        var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceHighVolumeEnvelopes(ctx));
+        var producer = BlockHelpers.CreateProducer<IDataEnvelope>("producer", ctx => ProduceHighVolumeEnvelopes(ctx));
 
         var consumer = new EnvelopeProcessorBlock<int>(
             "consumer",
@@ -196,7 +197,7 @@ public class OptimizedSideChannelTests
         var services = new ServiceCollection().BuildServiceProvider();
         var consumerCounts = new int[5];
 
-        var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceEnvelopes(ctx));
+        var producer = BlockHelpers.CreateProducer<IDataEnvelope>("producer", ctx => ProduceEnvelopes(ctx));
 
         var consumers = new List<IBlock>();
         for (int i = 0; i < 5; i++)
@@ -247,7 +248,7 @@ public class OptimizedSideChannelTests
         var consumer1Items = new List<IDataEnvelope>();
         var consumer2Items = new List<IDataEnvelope>();
 
-        var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceEnvelopes(ctx));
+        var producer = BlockHelpers.CreateProducer<IDataEnvelope>("producer", ctx => ProduceEnvelopes(ctx));
 
         var consumer1 = new EnvelopeProcessorBlock<int>(
             "consumer1",

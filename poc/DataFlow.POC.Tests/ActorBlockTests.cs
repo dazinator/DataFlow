@@ -3,12 +3,14 @@ namespace DataFlow.POC.Tests;
 using DataFlow.POC.Blocks;
 using DataFlow.POC.Builder;
 using DataFlow.POC.Core;
+using DataFlow.POC.Tests.TestHelpers;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
 
 public class ActorBlockTests
 {
+    // Refactored to use BlockHelpers for consistent block instantiation patterns.
     /// <summary>
     /// Simple collector actor for integers.
     /// </summary>
@@ -187,7 +189,7 @@ public class ActorBlockTests
         var serviceProvider = services.BuildServiceProvider();
 
         var scopeFactory = serviceProvider.GetRequiredService<IServiceScopeFactory>();
-        var actorBlock = new ActorBlock<int, int, CountingActor>("actor", scopeFactory);
+        var actorBlock = BlockHelpers.CreateActor<int, int, CountingActor>("actor", scopeFactory);
         var context = new ExecutionContext(serviceProvider, CancellationToken.None);
 
         var input = ProduceIntegers(10);
@@ -215,7 +217,7 @@ public class ActorBlockTests
         var serviceProvider = services.BuildServiceProvider();
 
         var scopeFactory = serviceProvider.GetRequiredService<IServiceScopeFactory>();
-        var actorBlock = new ActorBlock<int, int, InstanceTrackingActor>("actor", scopeFactory);
+        var actorBlock = BlockHelpers.CreateActor<int, int, InstanceTrackingActor>("actor", scopeFactory);
         var context = new ExecutionContext(serviceProvider, CancellationToken.None);
 
         var input = ProduceIntegers(15);
@@ -252,7 +254,7 @@ public class ActorBlockTests
         var serviceProvider = services.BuildServiceProvider();
 
         var scopeFactory = serviceProvider.GetRequiredService<IServiceScopeFactory>();
-        var actorBlock = new ActorBlock<int, string, ScopedServiceActor>("actor", scopeFactory);
+        var actorBlock = BlockHelpers.CreateActor<int, string, ScopedServiceActor>("actor", scopeFactory);
         var context = new ExecutionContext(serviceProvider, CancellationToken.None);
 
         var input = ProduceIntegers(9);
@@ -286,7 +288,7 @@ public class ActorBlockTests
         var serviceProvider = services.BuildServiceProvider();
 
         var scopeFactory = serviceProvider.GetRequiredService<IServiceScopeFactory>();
-        var actorBlock = new ActorBlock<int, int, CountingActor>("actor", scopeFactory);
+        var actorBlock = BlockHelpers.CreateActor<int, int, CountingActor>("actor", scopeFactory);
 
         using var cts = new CancellationTokenSource();
         var context = new ExecutionContext(serviceProvider, cts.Token);
@@ -332,9 +334,9 @@ public class ActorBlockTests
         
         var scopeFactory = serviceProvider.GetRequiredService<IServiceScopeFactory>();
 
-        var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(12));
-        var actorBlock = new ActorBlock<int, int, InstanceTrackingActor>("actor", scopeFactory);
-        var processor = new ActorBlock<int, object, IntCollectorActor>(
+        var producer = BlockHelpers.CreateProducer("producer", ProduceIntegers(12));
+        var actorBlock = BlockHelpers.CreateActor<int, int, InstanceTrackingActor>("actor", scopeFactory);
+        var processor = BlockHelpers.CreateActor<int, object, IntCollectorActor>(
             "processor",
             processorServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
@@ -369,7 +371,7 @@ public class ActorBlockTests
         var serviceProvider = services.BuildServiceProvider();
 
         var scopeFactory = serviceProvider.GetRequiredService<IServiceScopeFactory>();
-        var actorBlock = new ActorBlock<int, int, CountingActor>("actor", scopeFactory);
+        var actorBlock = BlockHelpers.CreateActor<int, int, CountingActor>("actor", scopeFactory);
         var context = new ExecutionContext(serviceProvider, CancellationToken.None);
 
         var input = ProduceIntegers(0);
@@ -394,7 +396,7 @@ public class ActorBlockTests
         var serviceProvider = services.BuildServiceProvider();
 
         var scopeFactory = serviceProvider.GetRequiredService<IServiceScopeFactory>();
-        var actorBlock = new ActorBlock<int, int, CountingActor>("actor", scopeFactory);
+        var actorBlock = BlockHelpers.CreateActor<int, int, CountingActor>("actor", scopeFactory);
         var context = new ExecutionContext(serviceProvider, CancellationToken.None);
 
         var input = ProduceIntegers(100);
@@ -422,7 +424,7 @@ public class ActorBlockTests
         var serviceProvider = services.BuildServiceProvider();
 
         var scopeFactory = serviceProvider.GetRequiredService<IServiceScopeFactory>();
-        var actorBlock = new ActorBlock<int, int, InstanceTrackingActor>("actor", scopeFactory);
+        var actorBlock = BlockHelpers.CreateActor<int, int, InstanceTrackingActor>("actor", scopeFactory);
         var context = new ExecutionContext(serviceProvider, CancellationToken.None);
 
         // Actor will process 5 items before rotating, but input only has 5 items

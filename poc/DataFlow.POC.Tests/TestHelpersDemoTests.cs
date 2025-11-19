@@ -38,7 +38,7 @@ public class TestHelpersDemoTests
         var transformScopeFactory = transformServiceProvider.GetRequiredService<IServiceScopeFactory>();
 
         // Manual producer
-        var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegersOldWay(ctx, 5));
+        var producer = BlockHelpers.CreateProducer<int>("producer", ctx => ProduceIntegersOldWay(ctx, 5));
         var transformer = new ActorBlock<int, string, LocalIntToStringTransform>("transformer", transformScopeFactory);
         var collector = new ActorBlock<string, object, LocalStringCollector>("collector", collectorScopeFactory);
 
@@ -110,7 +110,7 @@ public class TestHelpersDemoTests
         // Setup: Clean and concise!
         var collected = new List<string>();
 
-        var producer = new ProducerBlock<int>("producer", _ => TestStreams.Integers(5));
+        var producer = BlockHelpers.CreateProducer<int>("producer", TestStreams.Integers(5));
         
         var transformer = new ActorBlock<int, string, TransformActor<int, string>>(
             "transformer",

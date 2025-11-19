@@ -5,6 +5,7 @@ using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
+using DataFlow.POC.Tests.TestHelpers;
 
 /// <summary>
 /// Tests for multi-source epoch segmentation patterns.
@@ -30,9 +31,7 @@ public class MultiSourceSegmentationTests
             CreatePlainStream(source1Items),
             CreatePlainStream(source2Items));
 
-        var segmenter = new EpochSegmenterBlock<int>(
-            "unified-segmenter",
-            EpochSegmentationPolicy.ByCount(3, sourceId: "unified"));
+        var segmenter = BlockHelpers.CreateEpochSegmenter<int>("unified-segmenter", EpochSegmentationPolicy.ByCount(3, sourceId: "unified"));
 
         var epochStreams = segmenter.ExecuteAsync(unifiedStream, context);
 
@@ -76,13 +75,9 @@ public class MultiSourceSegmentationTests
         //                                   ├→ Merge → Downstream
         // Source2 → EpochSegmenter("s2") → ┘
 
-        var segmenter1 = new EpochSegmenterBlock<int>(
-            "seg1",
-            EpochSegmentationPolicy.ByCount(2, sourceId: "source1"));
+        var segmenter1 = BlockHelpers.CreateEpochSegmenter<int>("seg1", EpochSegmentationPolicy.ByCount(2, sourceId: "source1"));
 
-        var segmenter2 = new EpochSegmenterBlock<int>(
-            "seg2",
-            EpochSegmentationPolicy.ByCount(2, sourceId: "source2"));
+        var segmenter2 = BlockHelpers.CreateEpochSegmenter<int>("seg2", EpochSegmentationPolicy.ByCount(2, sourceId: "source2"));
 
         var epochStream1 = segmenter1.ExecuteAsync(CreatePlainStream(source1Items), context);
         var epochStream2 = segmenter2.ExecuteAsync(CreatePlainStream(source2Items), context);
@@ -132,9 +127,7 @@ public class MultiSourceSegmentationTests
         var context = new TestExecutionContext();
 
         // Act - Single source with segmentation
-        var segmenter = new EpochSegmenterBlock<int>(
-            "seg",
-            EpochSegmentationPolicy.ByCount(3, sourceId: "single"));
+        var segmenter = BlockHelpers.CreateEpochSegmenter<int>("seg", EpochSegmentationPolicy.ByCount(3, sourceId: "single"));
 
         var epochStreams = segmenter.ExecuteAsync(CreatePlainStream(items), context);
 
@@ -188,9 +181,7 @@ public class MultiSourceSegmentationTests
             CreatePlainStream(producer3Items),
             CreatePlainStream(producer4Items));
 
-        var segmenter = new EpochSegmenterBlock<int>(
-            "group-segmenter",
-            EpochSegmentationPolicy.ByCount(4, sourceId: "producer-group"));
+        var segmenter = BlockHelpers.CreateEpochSegmenter<int>("group-segmenter", EpochSegmentationPolicy.ByCount(4, sourceId: "producer-group"));
 
         var epochStreams = segmenter.ExecuteAsync(groupStream, context);
 

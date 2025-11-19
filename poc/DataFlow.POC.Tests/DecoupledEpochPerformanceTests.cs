@@ -9,6 +9,7 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Xunit;
 using Xunit.Abstractions;
+using DataFlow.POC.Tests.TestHelpers;
 
 /// <summary>
 /// Performance validation tests for decoupled epoch design.
@@ -189,13 +190,9 @@ public class DecoupledEpochPerformanceTests
         services.AddTransient<PerfPlainSource>();
         var provider = services.BuildServiceProvider();
 
-        var plainSourceBlock = new PlainSourceBlock<int, PerfPlainSource>(
-            "plain-source",
-            provider.GetRequiredService<IServiceScopeFactory>());
+        var plainSourceBlock = BlockHelpers.CreatePlainSource<int, PerfPlainSource>("plain-source", provider.GetRequiredService<IServiceScopeFactory>());
 
-        var segmenterBlock = new EpochSegmenterBlock<int>(
-            "segmenter",
-            EpochSegmentationPolicy.ByCount(ItemsPerEpoch, "source"));
+        var segmenterBlock = BlockHelpers.CreateEpochSegmenter<int>("segmenter", EpochSegmentationPolicy.ByCount(ItemsPerEpoch, "source"));
 
         var context = new TestExecutionContext();
         var count = 0;
@@ -220,9 +217,7 @@ public class DecoupledEpochPerformanceTests
         services.AddTransient<PerfPlainSource>();
         var provider = services.BuildServiceProvider();
 
-        var plainSourceBlock = new PlainSourceBlock<int, PerfPlainSource>(
-            "plain-source",
-            provider.GetRequiredService<IServiceScopeFactory>());
+        var plainSourceBlock = BlockHelpers.CreatePlainSource<int, PerfPlainSource>("plain-source", provider.GetRequiredService<IServiceScopeFactory>());
 
         var context = new TestExecutionContext();
         var count = 0;

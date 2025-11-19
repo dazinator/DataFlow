@@ -6,6 +6,7 @@ using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
+using DataFlow.POC.Tests.TestHelpers;
 
 /// <summary>
 /// Advanced tests demonstrating complex envelope scenarios including:
@@ -88,19 +89,15 @@ public class EnvelopeAdvancedTests
 
         var commonServices = new ServiceCollection().BuildServiceProvider();
 
-        var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceWithBarriers(ctx));
+        var producer = BlockHelpers.CreateProducer<IDataEnvelope>("producer", ctx => ProduceWithBarriers(ctx));
         
         var path1Transform = new SimpleEnvelopeTransformerBlock<int, string>(
             "path1-transform", i => $"Path1-{i}");
-        var path1Consumer = new ActorBlock<IDataEnvelope, object, EnvelopeCollectorActor>(
-            "path1-consumer",
-            serviceProvider1.GetRequiredService<IServiceScopeFactory>());
+        var path1Consumer = BlockHelpers.CreateActor<IDataEnvelope, object, EnvelopeCollectorActor>("path1-consumer", serviceProvider1.GetRequiredService<IServiceScopeFactory>());
 
         var path2Transform = new SimpleEnvelopeTransformerBlock<int, string>(
             "path2-transform", i => $"Path2-{i}");
-        var path2Consumer = new ActorBlock<IDataEnvelope, object, EnvelopeCollectorActor>(
-            "path2-consumer",
-            serviceProvider2.GetRequiredService<IServiceScopeFactory>());
+        var path2Consumer = BlockHelpers.CreateActor<IDataEnvelope, object, EnvelopeCollectorActor>("path2-consumer", serviceProvider2.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("multipath-flow");
         builder.AddBlock(producer)
@@ -159,7 +156,7 @@ public class EnvelopeAdvancedTests
         var checkpoints = new List<CheckpointBarrier>();
         var heartbeats = new List<Heartbeat>();
 
-        var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceAllControlTypes(ctx));
+        var producer = BlockHelpers.CreateProducer<IDataEnvelope>("producer", ctx => ProduceAllControlTypes(ctx));
         var processor = new EnvelopeProcessorBlock<int>(
             "processor",
             processData: async (value, ctx) =>
@@ -216,7 +213,7 @@ public class EnvelopeAdvancedTests
         var serviceProvider = services.BuildServiceProvider();
         var commonServices = new ServiceCollection().BuildServiceProvider();
 
-        var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceComplexStream(ctx));
+        var producer = BlockHelpers.CreateProducer<IDataEnvelope>("producer", ctx => ProduceComplexStream(ctx));
         
         var transformer = new SimpleEnvelopeTransformerBlock<int, int>(
             "transformer", i => i * 10);
@@ -230,9 +227,7 @@ public class EnvelopeAdvancedTests
         processorServices.AddScoped(_ => processorActor);
         var processorServiceProvider = processorServices.BuildServiceProvider();
         
-        var processor = new ActorBlock<IDataEnvelope, object, PositionTrackingEnvelopeCollectorActor>(
-            "processor",
-            processorServiceProvider.GetRequiredService<IServiceScopeFactory>());
+        var processor = BlockHelpers.CreateActor<IDataEnvelope, object, PositionTrackingEnvelopeCollectorActor>("processor", processorServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("complex-pipeline-flow");
         builder.AddBlock(producer)
@@ -275,7 +270,7 @@ public class EnvelopeAdvancedTests
         var heartbeatsSeen = 0;
         var progressSnapshots = new List<int>();
 
-        var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceWithHeartbeats(ctx));
+        var producer = BlockHelpers.CreateProducer<IDataEnvelope>("producer", ctx => ProduceWithHeartbeats(ctx));
         var processor = new EnvelopeProcessorBlock<int>(
             "processor",
             processData: async (value, ctx) =>

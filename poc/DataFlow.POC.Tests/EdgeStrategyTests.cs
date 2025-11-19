@@ -6,6 +6,7 @@ using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
+using DataFlow.POC.Tests.TestHelpers;
 
 public class EdgeStrategyTests
 {
@@ -95,15 +96,11 @@ public class EdgeStrategyTests
 
         var commonServices = new ServiceCollection().BuildServiceProvider();
 
-        var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(ctx, 10));
+        var producer = BlockHelpers.CreateProducer<int>("producer", ctx => ProduceIntegers(ctx, 10));
 
-        var processor1 = new ActorBlock<int, object, WorkSimulatingCollectorActor>(
-            "processor1",
-            serviceProvider1.GetRequiredService<IServiceScopeFactory>());
+        var processor1 = BlockHelpers.CreateActor<int, object, WorkSimulatingCollectorActor>("processor1", serviceProvider1.GetRequiredService<IServiceScopeFactory>());
 
-        var processor2 = new ActorBlock<int, object, WorkSimulatingCollectorActor>(
-            "processor2",
-            serviceProvider2.GetRequiredService<IServiceScopeFactory>());
+        var processor2 = BlockHelpers.CreateActor<int, object, WorkSimulatingCollectorActor>("processor2", serviceProvider2.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("competing-flow");
         builder.AddBlock(producer)
@@ -155,15 +152,11 @@ public class EdgeStrategyTests
 
         var commonServices = new ServiceCollection().BuildServiceProvider();
 
-        var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(ctx, 5));
+        var producer = BlockHelpers.CreateProducer<int>("producer", ctx => ProduceIntegers(ctx, 5));
 
-        var processor1 = new ActorBlock<int, object, WorkSimulatingCollectorActor>(
-            "processor1",
-            serviceProvider1.GetRequiredService<IServiceScopeFactory>());
+        var processor1 = BlockHelpers.CreateActor<int, object, WorkSimulatingCollectorActor>("processor1", serviceProvider1.GetRequiredService<IServiceScopeFactory>());
 
-        var processor2 = new ActorBlock<int, object, WorkSimulatingCollectorActor>(
-            "processor2",
-            serviceProvider2.GetRequiredService<IServiceScopeFactory>());
+        var processor2 = BlockHelpers.CreateActor<int, object, WorkSimulatingCollectorActor>("processor2", serviceProvider2.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("broadcast-flow");
         builder.AddBlock(producer)
@@ -239,13 +232,9 @@ public class EdgeStrategyTests
 
         var producer = new ProducerBlock<CloneableItem>("producer", ProduceCloneableItems);
 
-        var processor1 = new ActorBlock<CloneableItem, object, ModifyingCloneableItemCollectorActor>(
-            "processor1",
-            serviceProvider1.GetRequiredService<IServiceScopeFactory>());
+        var processor1 = BlockHelpers.CreateActor<CloneableItem, object, ModifyingCloneableItemCollectorActor>("processor1", serviceProvider1.GetRequiredService<IServiceScopeFactory>());
 
-        var processor2 = new ActorBlock<CloneableItem, object, ModifyingCloneableItemCollectorActor>(
-            "processor2",
-            serviceProvider2.GetRequiredService<IServiceScopeFactory>());
+        var processor2 = BlockHelpers.CreateActor<CloneableItem, object, ModifyingCloneableItemCollectorActor>("processor2", serviceProvider2.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("cloning-flow");
         builder.AddBlock(producer)
@@ -316,25 +305,17 @@ public class EdgeStrategyTests
 
         var commonServices = new ServiceCollection().BuildServiceProvider();
 
-        var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(ctx, 10));
+        var producer = BlockHelpers.CreateProducer<int>("producer", ctx => ProduceIntegers(ctx, 10));
 
         // Broadcast path processors
-        var broadcastProc1 = new ActorBlock<int, object, WorkSimulatingCollectorActor>(
-            "broadcast-proc1",
-            broadcastSP1.GetRequiredService<IServiceScopeFactory>());
+        var broadcastProc1 = BlockHelpers.CreateActor<int, object, WorkSimulatingCollectorActor>("broadcast-proc1", broadcastSP1.GetRequiredService<IServiceScopeFactory>());
 
-        var broadcastProc2 = new ActorBlock<int, object, WorkSimulatingCollectorActor>(
-            "broadcast-proc2",
-            broadcastSP2.GetRequiredService<IServiceScopeFactory>());
+        var broadcastProc2 = BlockHelpers.CreateActor<int, object, WorkSimulatingCollectorActor>("broadcast-proc2", broadcastSP2.GetRequiredService<IServiceScopeFactory>());
 
         // Competing path processors
-        var competingProc1 = new ActorBlock<int, object, WorkSimulatingCollectorActor>(
-            "competing-proc1",
-            competingSP1.GetRequiredService<IServiceScopeFactory>());
+        var competingProc1 = BlockHelpers.CreateActor<int, object, WorkSimulatingCollectorActor>("competing-proc1", competingSP1.GetRequiredService<IServiceScopeFactory>());
 
-        var competingProc2 = new ActorBlock<int, object, WorkSimulatingCollectorActor>(
-            "competing-proc2",
-            competingSP2.GetRequiredService<IServiceScopeFactory>());
+        var competingProc2 = BlockHelpers.CreateActor<int, object, WorkSimulatingCollectorActor>("competing-proc2", competingSP2.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("mixed-strategy-flow");
         builder.AddBlock(producer)

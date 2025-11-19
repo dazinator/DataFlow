@@ -9,6 +9,7 @@ using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
+using DataFlow.POC.Tests.TestHelpers;
 
 /// <summary>
 /// Tests for Out-of-Band Epoch Control Plane implementation.
@@ -153,10 +154,8 @@ public class EpochControlPlaneTests
         var services = new ServiceCollection().BuildServiceProvider();
         var epochManager = new EpochManager();
 
-        var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(ctx));
-        var consumer = new ActorBlock<int, object, SimpleIntCollectorActor>(
-            "consumer",
-            receivedItemsServiceProvider.GetRequiredService<IServiceScopeFactory>());
+        var producer = BlockHelpers.CreateProducer<int>("producer", ctx => ProduceIntegers(ctx));
+        var consumer = BlockHelpers.CreateActor<int, object, SimpleIntCollectorActor>("consumer", receivedItemsServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var builder = new DataFlowGraphBuilder("epoch-control-plane-flow");
         builder.AddBlock(producer)

@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
 using Xunit.Abstractions;
+using DataFlow.POC.Tests.TestHelpers;
 
 /// <summary>
 /// Demonstrates the BufferNode feature with practical examples.
@@ -201,14 +202,12 @@ public class BufferNodeDemonstrationTests
         var commonServices = new ServiceCollection().BuildServiceProvider();
 
         // Create three producers that generate different ranges of numbers
-        var producer1 = new ProducerBlock<int>("producer-A", ctx => ProduceIntegers(ctx, 1, 3));
-        var producer2 = new ProducerBlock<int>("producer-B", ctx => ProduceIntegers(ctx, 100, 3));
-        var producer3 = new ProducerBlock<int>("producer-C", ctx => ProduceIntegers(ctx, 200, 3));
+        var producer1 = BlockHelpers.CreateProducer<int>("producer-A", ctx => ProduceIntegers(ctx, 1, 3));
+        var producer2 = BlockHelpers.CreateProducer<int>("producer-B", ctx => ProduceIntegers(ctx, 100, 3));
+        var producer3 = BlockHelpers.CreateProducer<int>("producer-C", ctx => ProduceIntegers(ctx, 200, 3));
 
         // Create a processor that tracks which items it receives
-        var processor = new ActorBlock<int, object, SourceTrackingCollectorActor>(
-            "processor",
-            serviceProvider.GetRequiredService<IServiceScopeFactory>());
+        var processor = BlockHelpers.CreateActor<int, object, SourceTrackingCollectorActor>("processor", serviceProvider.GetRequiredService<IServiceScopeFactory>());
 
         // Build the graph with a shared buffer
         var builder = new DataFlowGraphBuilder("fan-in-demo");
@@ -272,20 +271,14 @@ public class BufferNodeDemonstrationTests
         var commonServices = new ServiceCollection().BuildServiceProvider();
 
         // Create a single producer
-        var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegers(ctx, 1, 15));
+        var producer = BlockHelpers.CreateProducer<int>("producer", ctx => ProduceIntegers(ctx, 1, 15));
 
         // Create three workers that compete for items
-        var worker1 = new ActorBlock<int, object, DelayedIntCollectorActor>(
-            "worker-1",
-            serviceProvider1.GetRequiredService<IServiceScopeFactory>());
+        var worker1 = BlockHelpers.CreateActor<int, object, DelayedIntCollectorActor>("worker-1", serviceProvider1.GetRequiredService<IServiceScopeFactory>());
 
-        var worker2 = new ActorBlock<int, object, DelayedIntCollectorActor>(
-            "worker-2",
-            serviceProvider2.GetRequiredService<IServiceScopeFactory>());
+        var worker2 = BlockHelpers.CreateActor<int, object, DelayedIntCollectorActor>("worker-2", serviceProvider2.GetRequiredService<IServiceScopeFactory>());
 
-        var worker3 = new ActorBlock<int, object, DelayedIntCollectorActor>(
-            "worker-3",
-            serviceProvider3.GetRequiredService<IServiceScopeFactory>());
+        var worker3 = BlockHelpers.CreateActor<int, object, DelayedIntCollectorActor>("worker-3", serviceProvider3.GetRequiredService<IServiceScopeFactory>());
 
         // Build the graph with a shared buffer
         var builder = new DataFlowGraphBuilder("fan-out-demo");
@@ -352,21 +345,15 @@ public class BufferNodeDemonstrationTests
         var commonServices = new ServiceCollection().BuildServiceProvider();
 
         // Stage 1: Two producers generate numbers
-        var producer1 = new ProducerBlock<int>("producer-1", ctx => ProduceIntegers(ctx, 1, 5));
-        var producer2 = new ProducerBlock<int>("producer-2", ctx => ProduceIntegers(ctx, 100, 5));
+        var producer1 = BlockHelpers.CreateProducer<int>("producer-1", ctx => ProduceIntegers(ctx, 1, 5));
+        var producer2 = BlockHelpers.CreateProducer<int>("producer-2", ctx => ProduceIntegers(ctx, 100, 5));
 
         // Stage 2: Two workers transform numbers to strings
-        var transformer1 = new ActorBlock<int, string, IntToStringTransformerActor>(
-            "transformer-1",
-            transformer1ServiceProvider.GetRequiredService<IServiceScopeFactory>());
-        var transformer2 = new ActorBlock<int, string, IntToStringTransformerActor>(
-            "transformer-2",
-            transformer2ServiceProvider.GetRequiredService<IServiceScopeFactory>());
+        var transformer1 = BlockHelpers.CreateActor<int, string, IntToStringTransformerActor>("transformer-1", transformer1ServiceProvider.GetRequiredService<IServiceScopeFactory>());
+        var transformer2 = BlockHelpers.CreateActor<int, string, IntToStringTransformerActor>("transformer-2", transformer2ServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         // Stage 3: Final processor
-        var finalProcessor = new ActorBlock<string, object, StringCollectorActor>(
-            "final-processor",
-            finalServiceProvider.GetRequiredService<IServiceScopeFactory>());
+        var finalProcessor = BlockHelpers.CreateActor<string, object, StringCollectorActor>("final-processor", finalServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         // Build the graph with two buffer nodes
         var builder = new DataFlowGraphBuilder("complex-pipeline-demo");

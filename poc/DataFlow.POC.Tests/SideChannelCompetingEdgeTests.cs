@@ -6,6 +6,7 @@ using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
+using DataFlow.POC.Tests.TestHelpers;
 
 /// <summary>
 /// Tests for side-channel architecture in competing edges.
@@ -23,7 +24,7 @@ public class SideChannelCompetingEdgeTests
         var consumer1ControlSignals = new List<IDataEnvelope>();
         var consumer2ControlSignals = new List<IDataEnvelope>();
 
-        var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceEnvelopes(ctx));
+        var producer = BlockHelpers.CreateProducer<IDataEnvelope>("producer", ctx => ProduceEnvelopes(ctx));
 
         var consumer1 = new EnvelopeProcessorBlock<int>(
             "consumer1",
@@ -90,7 +91,7 @@ public class SideChannelCompetingEdgeTests
         var consumer1ControlSignals = new List<IDataEnvelope>();
         var consumer2ControlSignals = new List<IDataEnvelope>();
 
-        var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceOrderedControlSignals(ctx));
+        var producer = BlockHelpers.CreateProducer<IDataEnvelope>("producer", ctx => ProduceOrderedControlSignals(ctx));
 
         var consumer1 = new EnvelopeProcessorBlock<int>(
             "consumer1",
@@ -154,7 +155,7 @@ public class SideChannelCompetingEdgeTests
         var consumer2Barriers = new List<Guid>();
         var barrierLock = new object();
 
-        var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceWithBarriers(ctx));
+        var producer = BlockHelpers.CreateProducer<IDataEnvelope>("producer", ctx => ProduceWithBarriers(ctx));
 
         var consumer1 = new EnvelopeProcessorBlock<int>(
             "consumer1",
@@ -220,7 +221,7 @@ public class SideChannelCompetingEdgeTests
         var consumer2DataCount = 0;
         var dataLock = new object();
 
-        var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceOnlyData(ctx, 100));
+        var producer = BlockHelpers.CreateProducer<IDataEnvelope>("producer", ctx => ProduceOnlyData(ctx, 100));
 
         var consumer1 = new EnvelopeProcessorBlock<int>(
             "consumer1",

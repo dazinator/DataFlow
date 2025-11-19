@@ -6,6 +6,7 @@ using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
+using DataFlow.POC.Tests.TestHelpers;
 
 /// <summary>
 /// Tests for control signal propagation through BufferNode.
@@ -23,7 +24,7 @@ public class BufferNodeControlSignalTests
         var dataLock = new object();
 
         // Producer → BufferNode → Consumer
-        var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceDataWithControlSignals(ctx));
+        var producer = BlockHelpers.CreateProducer<IDataEnvelope>("producer", ctx => ProduceDataWithControlSignals(ctx));
         
         var consumer = new EnvelopeProcessorBlock<int>(
             "consumer",
@@ -77,7 +78,7 @@ public class BufferNodeControlSignalTests
         var dataLock = new object();
 
         // Producer → BufferNode → [Consumer1, Consumer2] (competing with side-channel)
-        var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceDataWithControlSignals(ctx));
+        var producer = BlockHelpers.CreateProducer<IDataEnvelope>("producer", ctx => ProduceDataWithControlSignals(ctx));
         
         var consumer1 = new EnvelopeProcessorBlock<int>(
             "consumer1",
@@ -144,8 +145,8 @@ public class BufferNodeControlSignalTests
         var dataLock = new object();
 
         // Producer → Transform → Buffer → Consumer
-        var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceDataWithControlSignals(ctx));
-        var transform = new SimpleEnvelopeTransformerBlock<int, int>("transform", x => x * 2);
+        var producer = BlockHelpers.CreateProducer<IDataEnvelope>("producer", ctx => ProduceDataWithControlSignals(ctx));
+        var transform = BlockHelpers.CreateSimpleEnvelopeTransformer<int, int>("transform", x => x * 2);
         
         var consumer = new EnvelopeProcessorBlock<int>(
             "consumer",
@@ -193,7 +194,7 @@ public class BufferNodeControlSignalTests
         var dataLock = new object();
 
         // Producer → BufferNode → [Consumer1, Consumer2, Consumer3] (broadcast)
-        var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceDataWithControlSignals(ctx));
+        var producer = BlockHelpers.CreateProducer<IDataEnvelope>("producer", ctx => ProduceDataWithControlSignals(ctx));
         
         var consumer1 = CreateControlSignalConsumer("consumer1", consumer1Signals, dataLock);
         var consumer2 = CreateControlSignalConsumer("consumer2", consumer2Signals, dataLock);
@@ -241,7 +242,7 @@ public class BufferNodeControlSignalTests
         var receivedItems = new List<IDataEnvelope>();
         var dataLock = new object();
 
-        var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceInterleavedDataAndControl(ctx));
+        var producer = BlockHelpers.CreateProducer<IDataEnvelope>("producer", ctx => ProduceInterleavedDataAndControl(ctx));
         
         var consumer = new EnvelopeProcessorBlock<int>(
             "consumer",
@@ -298,7 +299,7 @@ public class BufferNodeControlSignalTests
         var consumer2Barriers = new List<Guid>();
         var barrierLock = new object();
 
-        var producer = new ProducerBlock<IDataEnvelope>("producer", ctx => ProduceWithMultipleBarriers(ctx));
+        var producer = BlockHelpers.CreateProducer<IDataEnvelope>("producer", ctx => ProduceWithMultipleBarriers(ctx));
         
         var consumer1 = new EnvelopeProcessorBlock<int>(
             "consumer1",

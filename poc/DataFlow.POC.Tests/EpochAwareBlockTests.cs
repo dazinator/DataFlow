@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using System.Runtime.CompilerServices;
 using Xunit;
+using DataFlow.POC.Tests.TestHelpers;
 
 /// <summary>
 /// Tests for epoch-aware blocks that enable composability between plain and epoch streams.
@@ -24,17 +25,11 @@ public class EpochAwareBlockTests
         var provider = services.BuildServiceProvider();
 
         // Pipeline: PlainSource → Segmenter → EpochActorBlock
-        var sourceBlock = new PlainSourceBlock<int, SimpleNumberProducer>(
-            "plain-source",
-            provider.GetRequiredService<IServiceScopeFactory>());
+        var sourceBlock = BlockHelpers.CreatePlainSource<int, SimpleNumberProducer>("plain-source", provider.GetRequiredService<IServiceScopeFactory>());
 
-        var segmenterBlock = new EpochSegmenterBlock<int>(
-            "segmenter",
-            EpochSegmentationPolicy.ByCount(3, "test-source"));
+        var segmenterBlock = BlockHelpers.CreateEpochSegmenter<int>("segmenter", EpochSegmentationPolicy.ByCount(3, "test-source"));
 
-        var actorBlock = new EpochActorBlock<int, string, NumberToStringActor>(
-            "actor",
-            provider.GetRequiredService<IServiceScopeFactory>());
+        var actorBlock = BlockHelpers.CreateEpochActor<int, string, NumberToStringActor>("actor", provider.GetRequiredService<IServiceScopeFactory>());
 
         var context = new TestExecutionContext();
 
@@ -77,17 +72,11 @@ public class EpochAwareBlockTests
         services.AddTransient<IdentityActor>();
         var provider = services.BuildServiceProvider();
 
-        var sourceBlock = new PlainSourceBlock<int, SimpleNumberProducer>(
-            "plain-source",
-            provider.GetRequiredService<IServiceScopeFactory>());
+        var sourceBlock = BlockHelpers.CreatePlainSource<int, SimpleNumberProducer>("plain-source", provider.GetRequiredService<IServiceScopeFactory>());
 
-        var segmenterBlock = new EpochSegmenterBlock<int>(
-            "segmenter",
-            EpochSegmentationPolicy.ByCount(2, "test-source"));
+        var segmenterBlock = BlockHelpers.CreateEpochSegmenter<int>("segmenter", EpochSegmentationPolicy.ByCount(2, "test-source"));
 
-        var actorBlock = new EpochActorBlock<int, int, IdentityActor>(
-            "actor",
-            provider.GetRequiredService<IServiceScopeFactory>());
+        var actorBlock = BlockHelpers.CreateEpochActor<int, int, IdentityActor>("actor", provider.GetRequiredService<IServiceScopeFactory>());
 
         var context = new TestExecutionContext();
 
@@ -140,17 +129,11 @@ public class EpochAwareBlockTests
         services.AddTransient<OneToManyActor>();
         var provider = services.BuildServiceProvider();
 
-        var sourceBlock = new PlainSourceBlock<int, SimpleNumberProducer>(
-            "plain-source",
-            provider.GetRequiredService<IServiceScopeFactory>());
+        var sourceBlock = BlockHelpers.CreatePlainSource<int, SimpleNumberProducer>("plain-source", provider.GetRequiredService<IServiceScopeFactory>());
 
-        var segmenterBlock = new EpochSegmenterBlock<int>(
-            "segmenter",
-            EpochSegmentationPolicy.ByCount(5, "test-source"));
+        var segmenterBlock = BlockHelpers.CreateEpochSegmenter<int>("segmenter", EpochSegmentationPolicy.ByCount(5, "test-source"));
 
-        var actorBlock = new EpochActorBlock<int, int, OneToManyActor>(
-            "actor",
-            provider.GetRequiredService<IServiceScopeFactory>());
+        var actorBlock = BlockHelpers.CreateEpochActor<int, int, OneToManyActor>("actor", provider.GetRequiredService<IServiceScopeFactory>());
 
         var context = new TestExecutionContext();
 
@@ -196,17 +179,11 @@ public class EpochAwareBlockTests
         services.AddTransient<FilterEvenActor>();
         var provider = services.BuildServiceProvider();
 
-        var sourceBlock = new PlainSourceBlock<int, SimpleNumberProducer>(
-            "plain-source",
-            provider.GetRequiredService<IServiceScopeFactory>());
+        var sourceBlock = BlockHelpers.CreatePlainSource<int, SimpleNumberProducer>("plain-source", provider.GetRequiredService<IServiceScopeFactory>());
 
-        var segmenterBlock = new EpochSegmenterBlock<int>(
-            "segmenter",
-            EpochSegmentationPolicy.ByCount(5, "test-source"));
+        var segmenterBlock = BlockHelpers.CreateEpochSegmenter<int>("segmenter", EpochSegmentationPolicy.ByCount(5, "test-source"));
 
-        var actorBlock = new EpochActorBlock<int, int, FilterEvenActor>(
-            "actor",
-            provider.GetRequiredService<IServiceScopeFactory>());
+        var actorBlock = BlockHelpers.CreateEpochActor<int, int, FilterEvenActor>("actor", provider.GetRequiredService<IServiceScopeFactory>());
 
         var context = new TestExecutionContext();
 
@@ -250,13 +227,9 @@ public class EpochAwareBlockTests
         var provider = services.BuildServiceProvider();
 
         // Pipeline: PlainSource → Segmenter → EpochBatchBlock
-        var sourceBlock = new PlainSourceBlock<int, SimpleNumberProducer>(
-            "plain-source",
-            provider.GetRequiredService<IServiceScopeFactory>());
+        var sourceBlock = BlockHelpers.CreatePlainSource<int, SimpleNumberProducer>("plain-source", provider.GetRequiredService<IServiceScopeFactory>());
 
-        var segmenterBlock = new EpochSegmenterBlock<int>(
-            "segmenter",
-            EpochSegmentationPolicy.ByCount(5, "test-source"));
+        var segmenterBlock = BlockHelpers.CreateEpochSegmenter<int>("segmenter", EpochSegmentationPolicy.ByCount(5, "test-source"));
 
         var batchBlock = new EpochBatchBlock<int>(
             "batcher",
@@ -310,13 +283,9 @@ public class EpochAwareBlockTests
         var provider = services.BuildServiceProvider();
 
         // Pipeline: PlainSource → Segmenter → EpochBatchBlock
-        var sourceBlock = new PlainSourceBlock<int, SimpleNumberProducer>(
-            "plain-source",
-            provider.GetRequiredService<IServiceScopeFactory>());
+        var sourceBlock = BlockHelpers.CreatePlainSource<int, SimpleNumberProducer>("plain-source", provider.GetRequiredService<IServiceScopeFactory>());
 
-        var segmenterBlock = new EpochSegmenterBlock<int>(
-            "segmenter",
-            EpochSegmentationPolicy.ByCount(3, "test-source"));
+        var segmenterBlock = BlockHelpers.CreateEpochSegmenter<int>("segmenter", EpochSegmentationPolicy.ByCount(3, "test-source"));
 
         var batchBlock = new EpochBatchBlock<int>(
             "batcher",
@@ -370,13 +339,9 @@ public class EpochAwareBlockTests
         services.AddTransient<SimpleNumberProducer>();
         var provider = services.BuildServiceProvider();
 
-        var sourceBlock = new PlainSourceBlock<int, SimpleNumberProducer>(
-            "plain-source",
-            provider.GetRequiredService<IServiceScopeFactory>());
+        var sourceBlock = BlockHelpers.CreatePlainSource<int, SimpleNumberProducer>("plain-source", provider.GetRequiredService<IServiceScopeFactory>());
 
-        var segmenterBlock = new EpochSegmenterBlock<int>(
-            "segmenter",
-            EpochSegmentationPolicy.ByCount(5, "test-source"));
+        var segmenterBlock = BlockHelpers.CreateEpochSegmenter<int>("segmenter", EpochSegmentationPolicy.ByCount(5, "test-source"));
 
         var batchBlock = new EpochBatchBlock<int>(
             "batcher",
@@ -422,25 +387,17 @@ public class EpochAwareBlockTests
         var provider = services.BuildServiceProvider();
 
         // Complex pipeline: PlainSource → Segmenter → Transform → Batch → Transform
-        var sourceBlock = new PlainSourceBlock<int, SimpleNumberProducer>(
-            "plain-source",
-            provider.GetRequiredService<IServiceScopeFactory>());
+        var sourceBlock = BlockHelpers.CreatePlainSource<int, SimpleNumberProducer>("plain-source", provider.GetRequiredService<IServiceScopeFactory>());
 
-        var segmenterBlock = new EpochSegmenterBlock<int>(
-            "segmenter",
-            EpochSegmentationPolicy.ByCount(4, "test-source"));
+        var segmenterBlock = BlockHelpers.CreateEpochSegmenter<int>("segmenter", EpochSegmentationPolicy.ByCount(4, "test-source"));
 
-        var transformerBlock1 = new EpochActorBlock<int, int, DoubleActor>(
-            "transformer1",
-            provider.GetRequiredService<IServiceScopeFactory>());
+        var transformerBlock1 = BlockHelpers.CreateEpochActor<int, int, DoubleActor>("transformer1", provider.GetRequiredService<IServiceScopeFactory>());
 
         var batchBlock = new EpochBatchBlock<int>(
             "batcher",
             maxBatchSize: 2);
 
-        var transformerBlock2 = new EpochActorBlock<int[], string, BatchToStringActor>(
-            "transformer2",
-            provider.GetRequiredService<IServiceScopeFactory>());
+        var transformerBlock2 = BlockHelpers.CreateEpochActor<int[], string, BatchToStringActor>("transformer2", provider.GetRequiredService<IServiceScopeFactory>());
 
         var context = new TestExecutionContext();
 

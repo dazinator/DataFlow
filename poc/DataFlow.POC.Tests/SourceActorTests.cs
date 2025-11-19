@@ -6,6 +6,7 @@ using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
+using DataFlow.POC.Tests.TestHelpers;
 
 /// <summary>
 /// Tests for source actor pattern and EpochSourceBlock.
@@ -25,7 +26,7 @@ public class SourceActorTests
             "test-source"));
         var provider = services.BuildServiceProvider();
 
-        var block = new EpochSourceBlock<int, TestSourceActor>(
+        var block = BlockHelpers.CreateEpochSource<int, TestSourceActor>(
             "testSource",
             provider.GetRequiredService<IServiceScopeFactory>());
 
@@ -78,7 +79,7 @@ public class SourceActorTests
             "test-source"));
         var provider = services.BuildServiceProvider();
 
-        var block = new EpochSourceBlock<int, LongRunningSourceActor>(
+        var block = BlockHelpers.CreateEpochSource<int, LongRunningSourceActor>(
             "testSource",
             provider.GetRequiredService<IServiceScopeFactory>());
 
@@ -136,7 +137,7 @@ public class SourceActorTests
             "continuous-source"));
         var provider = services.BuildServiceProvider();
 
-        var block = new EpochSourceBlock<int, ContinuousSourceActor>(
+        var block = BlockHelpers.CreateEpochSource<int, ContinuousSourceActor>(
             "continuousSource",
             provider.GetRequiredService<IServiceScopeFactory>());
 
@@ -180,7 +181,7 @@ public class SourceActorTests
             "delayed-source"));
         var provider = services.BuildServiceProvider();
 
-        var block = new EpochSourceBlock<int, DelayedSourceActor>(
+        var block = BlockHelpers.CreateEpochSource<int, DelayedSourceActor>(
             "delayedSource",
             provider.GetRequiredService<IServiceScopeFactory>());
 

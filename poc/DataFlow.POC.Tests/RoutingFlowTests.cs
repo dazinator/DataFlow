@@ -33,12 +33,12 @@ public class RoutingFlowTests
         var commonServices = new ServiceCollection().BuildServiceProvider();
 
         // Using TestStreams.Integers() instead of custom ProduceIntegers function
-        var producer = new ProducerBlock<int>("producer", _ => TestStreams.Integers(10));
+        var producer = BlockHelpers.CreateProducer<int>("producer", TestStreams.Integers(10));
 
-        var router = new RouterBlock<int>("router", i => i % 2 == 0 ? "even" : "odd");
+        var router = BlockHelpers.CreateRouter<int>("router", i => i % 2 == 0 ? "even" : "odd");
 
-        var evenFilter = new RouteFilterBlock<int>("even-filter", "even");
-        var oddFilter = new RouteFilterBlock<int>("odd-filter", "odd");
+        var evenFilter = BlockHelpers.CreateRouteFilter<int>("even-filter", "even");
+        var oddFilter = BlockHelpers.CreateRouteFilter<int>("odd-filter", "odd");
 
         var evenProcessor = new ActorBlock<int, object, CollectorActor<int>>(
             "even-processor",
@@ -97,16 +97,16 @@ public class RoutingFlowTests
         var commonServices = new ServiceCollection().BuildServiceProvider();
 
         // Using TestStreams.Integers() instead of custom ProduceIntegers function
-        var producer = new ProducerBlock<int>("producer", _ => TestStreams.Integers(15));
+        var producer = BlockHelpers.CreateProducer<int>("producer", TestStreams.Integers(15));
 
-        var router = new RouterBlock<int>("router", i =>
+        var router = BlockHelpers.CreateRouter<int>("router", i =>
             i <= 5 ? "low" :
             i <= 10 ? "medium" :
             "high");
 
-        var lowFilter = new RouteFilterBlock<int>("low-filter", "low");
-        var mediumFilter = new RouteFilterBlock<int>("medium-filter", "medium");
-        var highFilter = new RouteFilterBlock<int>("high-filter", "high");
+        var lowFilter = BlockHelpers.CreateRouteFilter<int>("low-filter", "low");
+        var mediumFilter = BlockHelpers.CreateRouteFilter<int>("medium-filter", "medium");
+        var highFilter = BlockHelpers.CreateRouteFilter<int>("high-filter", "high");
 
         var lowProcessor = new ActorBlock<int, object, CollectorActor<int>>(
             "low-processor",
