@@ -45,7 +45,7 @@ public class BufferNodeControlSignalTests
                 await Task.CompletedTask;
             });
 
-        var builder = new DataFlowGraphBuilder("buffer-control-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("buffer-control-flow");
         var buffer = builder.Buffer<IDataEnvelope>(capacity: 100, name: "buffer");
         
         builder.AddBlock(producer)
@@ -104,7 +104,7 @@ public class BufferNodeControlSignalTests
                 await Task.CompletedTask;
             });
 
-        var builder = new DataFlowGraphBuilder("buffer-competing-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("buffer-competing-flow");
         var buffer = builder.Buffer<IDataEnvelope>(capacity: 100, name: "buffer");
         
         builder.AddBlock(producer)
@@ -160,7 +160,7 @@ public class BufferNodeControlSignalTests
                 await Task.CompletedTask;
             });
 
-        var builder = new DataFlowGraphBuilder("multi-level-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("multi-level-flow");
         var buffer = builder.Buffer<IDataEnvelope>(capacity: 100, name: "buffer");
         
         builder.AddBlock(producer)
@@ -200,7 +200,7 @@ public class BufferNodeControlSignalTests
         var consumer2 = CreateControlSignalConsumer("consumer2", consumer2Signals, dataLock);
         var consumer3 = CreateControlSignalConsumer("consumer3", consumer3Signals, dataLock);
 
-        var builder = new DataFlowGraphBuilder("buffer-fanout-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("buffer-fanout-flow");
         var buffer = builder.Buffer<IDataEnvelope>(capacity: 100, name: "buffer");
         
         builder.AddBlock(producer)
@@ -263,7 +263,7 @@ public class BufferNodeControlSignalTests
                 await Task.CompletedTask;
             });
 
-        var builder = new DataFlowGraphBuilder("buffer-order-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("buffer-order-flow");
         var buffer = builder.Buffer<IDataEnvelope>(capacity: 100, name: "buffer");
         
         builder.AddBlock(producer)
@@ -331,7 +331,7 @@ public class BufferNodeControlSignalTests
                 await Task.CompletedTask;
             });
 
-        var builder = new DataFlowGraphBuilder("buffer-barrier-alignment-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("buffer-barrier-alignment-flow");
         var buffer = builder.Buffer<IDataEnvelope>(capacity: 100, name: "buffer");
         
         builder.AddBlock(producer)

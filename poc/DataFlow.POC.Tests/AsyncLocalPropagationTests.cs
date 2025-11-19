@@ -98,7 +98,7 @@ public class AsyncLocalPropagationTests
             "processor",
             processorSP.GetRequiredService<IServiceScopeFactory>());
 
-        var builder = new DataFlowGraphBuilder("simple-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("simple-flow");
         builder.AddBlock(producer)
             .AddBlock(processor)
             .Connect(producer, processor);
@@ -146,7 +146,7 @@ public class AsyncLocalPropagationTests
             "processor",
             processorSP.GetRequiredService<IServiceScopeFactory>());
 
-        var builder = new DataFlowGraphBuilder("concurrent-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("concurrent-flow");
         builder.AddBlock(concurrentProducer)
             .AddBlock(processor)
             .Connect(concurrentProducer, processor);
@@ -197,7 +197,7 @@ public class AsyncLocalPropagationTests
             "processor",
             processorSP.GetRequiredService<IServiceScopeFactory>());
 
-        var builder = new DataFlowGraphBuilder("pipeline-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("pipeline-flow");
         builder.AddBlock(producer)
             .AddBlock(transformer)
             .AutoConnect()
@@ -260,12 +260,12 @@ public class AsyncLocalPropagationTests
             "processor2",
             processor2SP.GetRequiredService<IServiceScopeFactory>());
 
-        var builder1 = new DataFlowGraphBuilder("flow1");
+        var builder1 = GraphHelpers.CreateGraphBuilder("flow1");
         builder1.AddBlock(producer1)
             .AddBlock(processor1)
             .Connect(producer1, processor1);
 
-        var builder2 = new DataFlowGraphBuilder("flow2");
+        var builder2 = GraphHelpers.CreateGraphBuilder("flow2");
         builder2.AddBlock(producer2)
             .AddBlock(processor2)
             .Connect(producer2, processor2);
@@ -342,7 +342,7 @@ public class AsyncLocalPropagationTests
             "processor2",
             processor2SP.GetRequiredService<IServiceScopeFactory>());
 
-        var builder = new DataFlowGraphBuilder("broadcast-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("broadcast-flow");
         builder.AddBlock(producer)
             .AddBlock(broadcast)
             .Connect(producer, broadcast)
@@ -396,7 +396,7 @@ public class AsyncLocalPropagationTests
             "processor",
             processorSP.GetRequiredService<IServiceScopeFactory>());
 
-        var builder = new DataFlowGraphBuilder("batch-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("batch-flow");
         builder.AddBlock(producer)
             .AddBlock(batch)
             .Connect(producer, batch)

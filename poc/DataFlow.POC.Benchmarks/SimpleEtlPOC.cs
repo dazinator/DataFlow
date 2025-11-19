@@ -81,7 +81,7 @@ public static class SimpleEtlPOC
         int recordCount,
         int maxConcurrency = 4)
     {
-        var builder = new DataFlowGraphBuilder("SimpleEtlBenchmark-POC");
+        var builder = GraphHelpers.CreateGraphBuilder("SimpleEtlBenchmark-POC");
 
         // Source: Generate raw data records
         var dataSource = new ProducerBlock<RawRecord>("data-source",

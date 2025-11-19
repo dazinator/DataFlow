@@ -151,7 +151,7 @@ public class ActorBlockBenchmark
         var counterServiceProvider = counterServices.BuildServiceProvider();
         var processor = new ActorBlock<int, object, NoOpProcessorActor<int>>("processor", counterServiceProvider.GetRequiredService<IServiceScopeFactory>());
         
-        var builder = new DataFlowGraphBuilder("steady-state-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("steady-state-flow");
         builder.AddBlock(producer)
             .AddBlock(actorBlock)
             .AddBlock(processor)
@@ -204,7 +204,7 @@ public class ActorBlockBenchmark
         var counterServiceProvider = counterServices.BuildServiceProvider();
         var processor = new ActorBlock<int, object, NoOpProcessorActor<int>>("processor", counterServiceProvider.GetRequiredService<IServiceScopeFactory>());
         
-        var builder = new DataFlowGraphBuilder("rotation-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("rotation-flow");
         builder.AddBlock(producer)
             .AddBlock(actorBlock)
             .AddBlock(processor)
@@ -260,7 +260,7 @@ public class ActorBlockBenchmark
         var counterServiceProvider = counterServices.BuildServiceProvider();
         var processor = new ActorBlock<int, object, NoOpProcessorActor<int>>("processor", counterServiceProvider.GetRequiredService<IServiceScopeFactory>());
         
-        var builder = new DataFlowGraphBuilder("memory-intensive-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("memory-intensive-flow");
         builder.AddBlock(producer)
             .AddBlock(actorBlock)
             .AddBlock(processor)

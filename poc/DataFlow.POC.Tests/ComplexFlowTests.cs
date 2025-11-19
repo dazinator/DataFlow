@@ -40,7 +40,7 @@ public class ComplexFlowTests
             "large-processor",
             new CollectorActor<string[]>(largeBatches));
 
-        var builder = new DataFlowGraphBuilder("complex-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("complex-flow");
         builder.AddBlock(producer)
             .AddBlock(transformer)
             .AddBlock(batcher)
@@ -100,7 +100,7 @@ public class ComplexFlowTests
             "processor",
             new CollectorActor<string>(finalResults));
 
-        var builder = new DataFlowGraphBuilder("diamond-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("diamond-flow");
         builder.AddBlock(producer)
             .AddBlock(transformer1)
             .AddBlock(transformer2)

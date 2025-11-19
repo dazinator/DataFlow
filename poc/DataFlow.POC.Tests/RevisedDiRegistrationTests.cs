@@ -6,6 +6,7 @@ using DataFlow.POC.Core;
 using DataFlow.POC.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
+using DataFlow.POC.Tests.TestHelpers;
 
 /// <summary>
 /// Tests for the revised DI service registration design.
@@ -29,7 +30,7 @@ public class RevisedDiRegistrationTests
         var transformer = new TestTransformerBlock();
 
         // Act - Old approach still works (no service provider needed)
-        var builder = new DataFlowGraphBuilder("test");
+        var builder = GraphHelpers.CreateGraphBuilder("test");
         builder.AddBlock(producer)
             .AddBlock(transformer)
             .Connect(producer, transformer);
@@ -53,7 +54,7 @@ public class RevisedDiRegistrationTests
         var serviceProvider = services.BuildServiceProvider();
 
         // Act - New approach using same builder class
-        var builder = new DataFlowGraphBuilder("test", serviceProvider);
+        var builder = GraphHelpers.CreateGraphBuilder("test", serviceProvider);
         builder.UseBlock("producer")
             .UseBlock("transformer")
             .Connect("producer", "transformer");
@@ -77,7 +78,7 @@ public class RevisedDiRegistrationTests
         var directBlock = new TestTransformerBlock();
 
         // Act - Mix DI and direct blocks
-        var builder = new DataFlowGraphBuilder("test", serviceProvider);
+        var builder = GraphHelpers.CreateGraphBuilder("test", serviceProvider);
         builder.UseBlock("producer")           // From DI
             .AddBlock(directBlock)              // Direct instance
             .Connect("producer", "transformer");
@@ -90,8 +91,10 @@ public class RevisedDiRegistrationTests
     [Fact]
     public void UseBlock_ThrowsWhenNoServiceProvider()
     {
-        // Arrange
+        // Arrange - Use old constructor directly to test the error case
+#pragma warning disable CS0618 // Type or member is obsolete
         var builder = new DataFlowGraphBuilder("test");
+#pragma warning restore CS0618 // Type or member is obsolete
 
         // Act & Assert
         var ex = Assert.Throws<InvalidOperationException>(() =>
@@ -107,7 +110,7 @@ public class RevisedDiRegistrationTests
         // Arrange
         var services = new ServiceCollection();
         var serviceProvider = services.BuildServiceProvider();
-        var builder = new DataFlowGraphBuilder("test", serviceProvider);
+        var builder = GraphHelpers.CreateGraphBuilder("test", serviceProvider);
 
         // Act & Assert
         var ex = Assert.Throws<InvalidOperationException>(() =>
@@ -397,7 +400,7 @@ public class RevisedDiRegistrationTests
         var serviceProvider = services.BuildServiceProvider();
 
         // Act - Build graph dynamically at runtime
-        var builder = new DataFlowGraphBuilder("dynamic", serviceProvider);
+        var builder = GraphHelpers.CreateGraphBuilder("dynamic", serviceProvider);
         builder.UseBlock("producer")
             .UseBlock("transformer")
             .Connect("producer", "transformer");

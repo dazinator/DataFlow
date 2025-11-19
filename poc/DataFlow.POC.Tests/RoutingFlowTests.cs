@@ -48,7 +48,7 @@ public class RoutingFlowTests
             "odd-processor",
             oddScopeFactory);
 
-        var builder = new DataFlowGraphBuilder("routing-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("routing-flow");
         builder.AddBlock(producer)
             .AddBlock(router)
             .AutoConnect()
@@ -120,7 +120,7 @@ public class RoutingFlowTests
             "high-processor",
             highScopeFactory);
 
-        var builder = new DataFlowGraphBuilder("three-route-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("three-route-flow");
         builder.AddBlock(producer)
             .AddBlock(router)
             .AutoConnect()

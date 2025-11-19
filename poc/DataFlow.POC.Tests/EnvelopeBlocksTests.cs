@@ -49,7 +49,7 @@ public class EnvelopeBlocksTests
         var transformer = BlockHelpers.CreateSimpleEnvelopeTransformer<int, string>("transformer", i => $"Value-{i}");
         var consumer = BlockHelpers.CreateActor<IDataEnvelope, object, EnvelopeCollectorActor>("consumer", serviceProvider.GetRequiredService<IServiceScopeFactory>());
 
-        var builder = new DataFlowGraphBuilder("transform-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("transform-flow");
         builder.AddBlock(producer)
             .AddBlock(transformer)
             .AddBlock(consumer);
@@ -102,7 +102,7 @@ public class EnvelopeBlocksTests
         });
         var consumer = BlockHelpers.CreateActor<IDataEnvelope, object, EnvelopeCollectorActor>("consumer", serviceProvider.GetRequiredService<IServiceScopeFactory>());
 
-        var builder = new DataFlowGraphBuilder("async-transform-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("async-transform-flow");
         builder.AddBlock(producer)
             .AddBlock(transformer)
             .AddBlock(consumer);
@@ -144,7 +144,7 @@ public class EnvelopeBlocksTests
         });
         var consumer = BlockHelpers.CreateActor<IDataEnvelope, object, EnvelopeCollectorActor>("consumer", serviceProvider.GetRequiredService<IServiceScopeFactory>());
 
-        var builder = new DataFlowGraphBuilder("projector-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("projector-flow");
         builder.AddBlock(producer)
             .AddBlock(projector)
             .AddBlock(consumer);
@@ -194,7 +194,7 @@ public class EnvelopeBlocksTests
             await Task.CompletedTask;
         });
 
-        var builder = new DataFlowGraphBuilder("processor-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("processor-flow");
         builder.AddBlock(producer)
             .AddBlock(processor);
 
@@ -234,7 +234,7 @@ public class EnvelopeBlocksTests
                 await Task.CompletedTask;
             });
 
-        var builder = new DataFlowGraphBuilder("observing-processor-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("observing-processor-flow");
         builder.AddBlock(producer)
             .AddBlock(processor);
 
@@ -272,7 +272,7 @@ public class EnvelopeBlocksTests
         var transformer2 = BlockHelpers.CreateSimpleEnvelopeTransformer<int, int>("transformer2", i => i * 10);
         var consumer = BlockHelpers.CreateActor<IDataEnvelope, object, EnvelopeCollectorActor>("consumer", serviceProvider.GetRequiredService<IServiceScopeFactory>());
 
-        var builder = new DataFlowGraphBuilder("pipeline-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("pipeline-flow");
         builder.AddBlock(producer)
             .AddBlock(transformer1)
             .AddBlock(transformer2)

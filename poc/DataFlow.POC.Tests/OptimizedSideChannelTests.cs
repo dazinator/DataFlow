@@ -53,7 +53,7 @@ public class OptimizedSideChannelTests
                 await Task.CompletedTask;
             });
 
-        var builder = new DataFlowGraphBuilder("optimized-side-channel-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("optimized-side-channel-flow");
         builder.AddBlock(producer)
             .AddBlock(consumer1)
             .AddBlock(consumer2);
@@ -112,7 +112,7 @@ public class OptimizedSideChannelTests
                 await Task.CompletedTask;
             });
 
-        var builder = new DataFlowGraphBuilder("optimized-order-test");
+        var builder = GraphHelpers.CreateGraphBuilder("optimized-order-test");
         builder.AddBlock(producer)
             .AddBlock(consumer1)
             .AddBlock(consumer2);
@@ -165,7 +165,7 @@ public class OptimizedSideChannelTests
                 await Task.CompletedTask;
             });
 
-        var builder = new DataFlowGraphBuilder("optimized-high-throughput");
+        var builder = GraphHelpers.CreateGraphBuilder("optimized-high-throughput");
         builder.AddBlock(producer)
             .AddBlock(consumer);
 
@@ -214,7 +214,7 @@ public class OptimizedSideChannelTests
             consumers.Add(consumer);
         }
 
-        var builder = new DataFlowGraphBuilder("optimized-multi-consumer");
+        var builder = GraphHelpers.CreateGraphBuilder("optimized-multi-consumer");
         builder.AddBlock(producer);
         foreach (var consumer in consumers)
         {
@@ -268,7 +268,7 @@ public class OptimizedSideChannelTests
             },
             processControl: async (signal, ctx) => await Task.CompletedTask);
 
-        var builder = new DataFlowGraphBuilder("optimized-reduced-buffer");
+        var builder = GraphHelpers.CreateGraphBuilder("optimized-reduced-buffer");
         builder.AddBlock(producer)
             .AddBlock(consumer1)
             .AddBlock(consumer2);

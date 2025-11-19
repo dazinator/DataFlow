@@ -102,7 +102,7 @@ public class EdgeStrategyTests
 
         var processor2 = BlockHelpers.CreateActor<int, object, WorkSimulatingCollectorActor>("processor2", serviceProvider2.GetRequiredService<IServiceScopeFactory>());
 
-        var builder = new DataFlowGraphBuilder("competing-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("competing-flow");
         builder.AddBlock(producer)
             .AddBlock(processor1)
             .AddBlock(processor2);
@@ -158,7 +158,7 @@ public class EdgeStrategyTests
 
         var processor2 = BlockHelpers.CreateActor<int, object, WorkSimulatingCollectorActor>("processor2", serviceProvider2.GetRequiredService<IServiceScopeFactory>());
 
-        var builder = new DataFlowGraphBuilder("broadcast-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("broadcast-flow");
         builder.AddBlock(producer)
             .AddBlock(processor1)
             .AddBlock(processor2);
@@ -236,7 +236,7 @@ public class EdgeStrategyTests
 
         var processor2 = BlockHelpers.CreateActor<CloneableItem, object, ModifyingCloneableItemCollectorActor>("processor2", serviceProvider2.GetRequiredService<IServiceScopeFactory>());
 
-        var builder = new DataFlowGraphBuilder("cloning-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("cloning-flow");
         builder.AddBlock(producer)
             .AddBlock(processor1)
             .AddBlock(processor2);
@@ -317,7 +317,7 @@ public class EdgeStrategyTests
 
         var competingProc2 = BlockHelpers.CreateActor<int, object, WorkSimulatingCollectorActor>("competing-proc2", competingSP2.GetRequiredService<IServiceScopeFactory>());
 
-        var builder = new DataFlowGraphBuilder("mixed-strategy-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("mixed-strategy-flow");
         builder.AddBlock(producer)
             .AddBlock(broadcastProc1)
             .AddBlock(broadcastProc2)

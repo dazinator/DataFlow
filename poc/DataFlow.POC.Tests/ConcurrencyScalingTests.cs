@@ -401,7 +401,7 @@ public class ConcurrencyScalingTests
 
         var collector = BlockHelpers.CreateActor<string, object, NoOpStringProcessorActor>("collector", collectorServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
-        var builder = new DataFlowGraphBuilder("concurrency-test");
+        var builder = GraphHelpers.CreateGraphBuilder("concurrency-test");
         builder.AddBlock(producer);
         foreach (var t in transformers)
             builder.AddBlock(t);
@@ -516,7 +516,7 @@ public class ConcurrencyScalingTests
             processors.Add(processor);
         }
 
-        var builder = new DataFlowGraphBuilder("processor-concurrency-test");
+        var builder = GraphHelpers.CreateGraphBuilder("processor-concurrency-test");
         builder.AddBlock(producer);
         foreach (var p in processors)
             builder.AddBlock(p);
@@ -630,7 +630,7 @@ public class ConcurrencyScalingTests
         
         var collector = BlockHelpers.CreateActor<string, object, StringBagCollectorActor>("collector", collectorServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
-        var builder = new DataFlowGraphBuilder("chained-concurrency-test");
+        var builder = GraphHelpers.CreateGraphBuilder("chained-concurrency-test");
         builder.AddBlock(producer);
         foreach (var v in validators) builder.AddBlock(v);
         foreach (var e in enrichers) builder.AddBlock(e);
@@ -796,7 +796,7 @@ public class ConcurrencyScalingTests
         
         var collector = BlockHelpers.CreateActor<string, object, NoOpStringProcessorActor>("collector", collectorServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
-        var builder = new DataFlowGraphBuilder("level1-test");
+        var builder = GraphHelpers.CreateGraphBuilder("level1-test");
         builder.AddBlock(producer);
         foreach (var t in transformers)
             builder.AddBlock(t);
@@ -889,7 +889,7 @@ public class ConcurrencyScalingTests
         
         var collector = BlockHelpers.CreateActor<string, object, NoOpStringProcessorActor>("collector", collectorServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
-        var builder = new DataFlowGraphBuilder("level2-test");
+        var builder = GraphHelpers.CreateGraphBuilder("level2-test");
         builder.AddBlock(producer);
         foreach (var v in validators) builder.AddBlock(v);
         foreach (var e in enrichers) builder.AddBlock(e);
@@ -984,7 +984,7 @@ public class ConcurrencyScalingTests
         
         var collector2 = BlockHelpers.CreateActor<string, object, NoOpStringProcessorActor>("collector2", collector2ServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
-        var builder = new DataFlowGraphBuilder("level3-test");
+        var builder = GraphHelpers.CreateGraphBuilder("level3-test");
         builder.AddBlock(producer);
         foreach (var v in validators) builder.AddBlock(v);
         foreach (var e in enrichers) builder.AddBlock(e);
@@ -1084,7 +1084,7 @@ public class ConcurrencyScalingTests
         
         var oddCollector = BlockHelpers.CreateActor<string, object, NoOpStringProcessorActor>("odd-collector", oddCollectorServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
-        var builder = new DataFlowGraphBuilder("level4-test");
+        var builder = GraphHelpers.CreateGraphBuilder("level4-test");
         builder.AddBlock(producer);
         foreach (var v in validators) builder.AddBlock(v);
         foreach (var e in enrichers) builder.AddBlock(e);
@@ -1213,7 +1213,7 @@ public class ConcurrencyScalingTests
                 oddProcServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
-        var builder = new DataFlowGraphBuilder("level5-test");
+        var builder = GraphHelpers.CreateGraphBuilder("level5-test");
         builder.AddBlock(producer);
         foreach (var v in validators) builder.AddBlock(v);
         foreach (var e in enrichers) builder.AddBlock(e);
@@ -1344,7 +1344,7 @@ public class ConcurrencyScalingTests
         
         var writer = BlockHelpers.CreateActor<string, object, NoOpStringProcessorActor>("writer", writerServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
-        var builder = new DataFlowGraphBuilder("level6-test");
+        var builder = GraphHelpers.CreateGraphBuilder("level6-test");
         builder.AddBlock(producer);
         foreach (var v in validators) builder.AddBlock(v);
         foreach (var e in enrichers) builder.AddBlock(e);
@@ -1443,7 +1443,7 @@ public class ConcurrencyScalingTests
         
         var collector = BlockHelpers.CreateActor<string, object, NoOpStringProcessorActor>("collector", collectorServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
-        var builder = new DataFlowGraphBuilder("level7-test");
+        var builder = GraphHelpers.CreateGraphBuilder("level7-test");
         builder.AddBlock(producer);
         foreach (var v in validators) builder.AddBlock(v);
         foreach (var e in enrichers) builder.AddBlock(e);
@@ -1595,7 +1595,7 @@ public class ConcurrencyScalingTests
         
         var typeCWriter = BlockHelpers.CreateActor<string, object, NoOpStringProcessorActor>("typeC-writer", typeCWriterServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
-        var builder = new DataFlowGraphBuilder("level8-exact-match");
+        var builder = GraphHelpers.CreateGraphBuilder("level8-exact-match");
         builder.AddBlock(producer);
         foreach (var v in validators) builder.AddBlock(v);
         foreach (var e in enrichers) builder.AddBlock(e);

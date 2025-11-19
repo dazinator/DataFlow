@@ -50,7 +50,7 @@ public class TypedChannelBenchmarks
             .Cast<IBlock>()
             .ToList();
         
-        var builder = new DataFlowGraphBuilder("broadcast-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("broadcast-flow");
         builder.AddBlock(producer);
         foreach (var consumer in consumers)
         {
@@ -93,7 +93,7 @@ public class TypedChannelBenchmarks
             .Cast<IBlock>()
             .ToList();
         
-        var builder = new DataFlowGraphBuilder("broadcast-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("broadcast-flow");
         builder.AddBlock(producer);
         foreach (var consumer in consumers)
         {
@@ -139,7 +139,7 @@ public class TypedChannelBenchmarks
             .Cast<IBlock>()
             .ToList();
         
-        var builder = new DataFlowGraphBuilder("competing-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("competing-flow");
         builder.AddBlock(producer);
         foreach (var consumer in consumers)
         {
@@ -184,7 +184,7 @@ public class TypedChannelBenchmarks
             .Cast<IBlock>()
             .ToList();
         
-        var builder = new DataFlowGraphBuilder("competing-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("competing-flow");
         builder.AddBlock(producer);
         foreach (var consumer in consumers)
         {
@@ -224,7 +224,7 @@ public class TypedChannelBenchmarks
             .Cast<IBlock>()
             .ToList();
         
-        var builder = new DataFlowGraphBuilder("broadcast-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("broadcast-flow");
         builder.AddBlock(producer);
         foreach (var consumer in consumers)
         {

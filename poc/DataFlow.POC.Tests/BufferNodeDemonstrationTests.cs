@@ -210,7 +210,7 @@ public class BufferNodeDemonstrationTests
         var processor = BlockHelpers.CreateActor<int, object, SourceTrackingCollectorActor>("processor", serviceProvider.GetRequiredService<IServiceScopeFactory>());
 
         // Build the graph with a shared buffer
-        var builder = new DataFlowGraphBuilder("fan-in-demo");
+        var builder = GraphHelpers.CreateGraphBuilder("fan-in-demo");
         var sharedBuffer = builder.Buffer<int>(capacity: 10);
 
         builder.AddBlock(producer1)
@@ -281,7 +281,7 @@ public class BufferNodeDemonstrationTests
         var worker3 = BlockHelpers.CreateActor<int, object, DelayedIntCollectorActor>("worker-3", serviceProvider3.GetRequiredService<IServiceScopeFactory>());
 
         // Build the graph with a shared buffer
-        var builder = new DataFlowGraphBuilder("fan-out-demo");
+        var builder = GraphHelpers.CreateGraphBuilder("fan-out-demo");
         var workQueue = builder.Buffer<int>(capacity: 5);
 
         builder.AddBlock(producer)
@@ -356,7 +356,7 @@ public class BufferNodeDemonstrationTests
         var finalProcessor = BlockHelpers.CreateActor<string, object, StringCollectorActor>("final-processor", finalServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         // Build the graph with two buffer nodes
-        var builder = new DataFlowGraphBuilder("complex-pipeline-demo");
+        var builder = GraphHelpers.CreateGraphBuilder("complex-pipeline-demo");
         var inputBuffer = builder.Buffer<int>(capacity: 10);
         var outputBuffer = builder.Buffer<string>(capacity: 10);
 

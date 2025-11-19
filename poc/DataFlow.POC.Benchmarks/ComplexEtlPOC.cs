@@ -162,7 +162,7 @@ public static class ComplexEtlPOC
         int maxConcurrency = 4,
         int batchSize = 100)
     {
-        var builder = new DataFlowGraphBuilder("ComplexEtlBenchmark-POC");
+        var builder = GraphHelpers.CreateGraphBuilder("ComplexEtlBenchmark-POC");
 
         // Source: Generate raw data records
         var dataSource = new ProducerBlock<RawRecord>("data-source",

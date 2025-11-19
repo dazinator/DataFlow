@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Xunit;
 using Xunit.Abstractions;
+using DataFlow.POC.Tests.TestHelpers;
 
 /// <summary>
 /// Tests to validate that the untyped IBlock.ExecuteAsync interface is NOT used in execution.
@@ -27,7 +28,7 @@ public class UntypedInterfaceValidationTests
         // Arrange - Create a simple source block
         var sourceBlock = new SimpleSourceBlock("source");
         
-        var builder = new DataFlowGraphBuilder("test-graph");
+        var builder = GraphHelpers.CreateGraphBuilder("test-graph");
         builder.AddBlock(sourceBlock);
         
         var graph = builder.Build();

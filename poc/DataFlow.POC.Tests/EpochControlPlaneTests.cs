@@ -157,7 +157,7 @@ public class EpochControlPlaneTests
         var producer = BlockHelpers.CreateProducer<int>("producer", ctx => ProduceIntegers(ctx));
         var consumer = BlockHelpers.CreateActor<int, object, SimpleIntCollectorActor>("consumer", receivedItemsServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
-        var builder = new DataFlowGraphBuilder("epoch-control-plane-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("epoch-control-plane-flow");
         builder.AddBlock(producer)
             .AddBlock(consumer);
 

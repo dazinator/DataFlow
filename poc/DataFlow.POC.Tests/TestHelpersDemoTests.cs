@@ -42,7 +42,7 @@ public class TestHelpersDemoTests
         var transformer = new ActorBlock<int, string, LocalIntToStringTransform>("transformer", transformScopeFactory);
         var collector = new ActorBlock<string, object, LocalStringCollector>("collector", collectorScopeFactory);
 
-        var builder = new DataFlowGraphBuilder("old-pattern");
+        var builder = GraphHelpers.CreateGraphBuilder("old-pattern");
         builder.AddBlock(producer)
             .AddBlock(transformer)
             .Connect(producer, transformer)
@@ -124,7 +124,7 @@ public class TestHelpersDemoTests
                 .WithScoped(new CollectorActor<string>(collected))
                 .BuildScopeFactory());
 
-        var builder = new DataFlowGraphBuilder("new-pattern");
+        var builder = GraphHelpers.CreateGraphBuilder("new-pattern");
         builder.AddBlock(producer)
             .AddBlock(transformer)
             .Connect(producer, transformer)

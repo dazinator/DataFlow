@@ -7,6 +7,7 @@ using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
 using System.Linq;
 using Xunit;
+using DataFlow.POC.Tests.TestHelpers;
 
 /// <summary>
 /// Integration tests for epoch graph configuration via ConfigureEpochs API.
@@ -42,7 +43,7 @@ public class EpochGraphIntegrationTests : IAsyncDisposable
     public void ConfigureEpochs_RequiresCoordinatorFactory()
     {
         // Arrange
-        var builder = new DataFlowGraphBuilder("test");
+        var builder = GraphHelpers.CreateGraphBuilder("test");
 
         // Act & Assert
         var ex = Assert.Throws<ArgumentNullException>(() =>
@@ -58,7 +59,7 @@ public class EpochGraphIntegrationTests : IAsyncDisposable
     public void ConfigureEpochs_RequiresAtLeastOneProcessor()
     {
         // Arrange
-        var builder = new DataFlowGraphBuilder("test");
+        var builder = GraphHelpers.CreateGraphBuilder("test");
 
         // Act & Assert
         var ex = Assert.Throws<InvalidOperationException>(() =>
@@ -75,7 +76,7 @@ public class EpochGraphIntegrationTests : IAsyncDisposable
     public void ConfigureEpochs_SingleProcessor_CreatesNodes()
     {
         // Arrange & Act
-        var builder = new DataFlowGraphBuilder("test");
+        var builder = GraphHelpers.CreateGraphBuilder("test");
         builder.ConfigureEpochs(config =>
         {
             config.SetPolicy(EpochPolicy.ByCount(100));
@@ -93,7 +94,7 @@ public class EpochGraphIntegrationTests : IAsyncDisposable
     public void ConfigureEpochs_MultipleProcessors_CreatesMultipleNodes()
     {
         // Arrange & Act
-        var builder = new DataFlowGraphBuilder("test");
+        var builder = GraphHelpers.CreateGraphBuilder("test");
         builder.ConfigureEpochs(config =>
         {
             config.SetPolicy(EpochPolicy.ByCount(50));
@@ -148,7 +149,7 @@ public class EpochGraphIntegrationTests : IAsyncDisposable
         // Arrange
         var executionLog = new List<string>();
         
-        var builder = new DataFlowGraphBuilder("test");
+        var builder = GraphHelpers.CreateGraphBuilder("test");
         builder.ConfigureEpochs(config =>
         {
             config.SetPolicy(EpochPolicy.ByCount(10));
@@ -203,7 +204,7 @@ public class EpochGraphIntegrationTests : IAsyncDisposable
     {
         // Arrange
         Exception? capturedError = null;
-        var builder = new DataFlowGraphBuilder("test");
+        var builder = GraphHelpers.CreateGraphBuilder("test");
         
         builder.ConfigureEpochs(config =>
         {
@@ -252,7 +253,7 @@ public class EpochGraphIntegrationTests : IAsyncDisposable
         // Arrange
         var processedEpochs = new System.Collections.Concurrent.ConcurrentBag<int>();
         
-        var builder = new DataFlowGraphBuilder("test");
+        var builder = GraphHelpers.CreateGraphBuilder("test");
         builder.ConfigureEpochs(config =>
         {
             config.AddProcessor("processor1");

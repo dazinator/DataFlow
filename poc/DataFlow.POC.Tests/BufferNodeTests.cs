@@ -143,7 +143,7 @@ public class BufferNodeTests
         var producer = BlockHelpers.CreateProducer<int>("producer", ctx => ProduceIntegers(ctx, 1, 10));
         var processor = BlockHelpers.CreateActor<int, object, IntCollectorActor>("processor", processorSP.GetRequiredService<IServiceScopeFactory>());
 
-        var builder = new DataFlowGraphBuilder("buffer-node-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("buffer-node-flow");
         var buffer = builder.Buffer<int>(capacity: 5);
         
         builder.AddBlock(producer)
@@ -179,7 +179,7 @@ public class BufferNodeTests
         var producer2 = BlockHelpers.CreateProducer<int>("producer2", ctx => ProduceIntegers(ctx, 100, 5));
         var processor = BlockHelpers.CreateActor<int, object, ThreadSafeIntCollectorActor>("processor", processorSP.GetRequiredService<IServiceScopeFactory>());
 
-        var builder = new DataFlowGraphBuilder("multi-producer-buffer-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("multi-producer-buffer-flow");
         var buffer = builder.Buffer<int>(capacity: 10);
         
         builder.AddBlock(producer1)
@@ -230,7 +230,7 @@ public class BufferNodeTests
 
         var processor2 = BlockHelpers.CreateActor<int, object, ThreadSafeIntCollectorActor>("processor2", processor2SP.GetRequiredService<IServiceScopeFactory>());
 
-        var builder = new DataFlowGraphBuilder("single-producer-multi-consumer-buffer-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("single-producer-multi-consumer-buffer-flow");
         var buffer = builder.Buffer<int>(capacity: 5);
         
         builder.AddBlock(producer)
@@ -284,7 +284,7 @@ public class BufferNodeTests
 
         var processor2 = BlockHelpers.CreateActor<int, object, ThreadSafeIntCollectorActor>("processor2", processor2SP.GetRequiredService<IServiceScopeFactory>());
 
-        var builder = new DataFlowGraphBuilder("multi-producer-multi-consumer-buffer-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("multi-producer-multi-consumer-buffer-flow");
         var buffer = builder.Buffer<int>(capacity: 10);
         
         builder.AddBlock(producer1)
@@ -332,7 +332,7 @@ public class BufferNodeTests
         var producer = BlockHelpers.CreateProducer<int>("producer", ctx => ProduceIntegers(ctx, 1, 100));
         var processor = BlockHelpers.CreateActor<int, object, DelayingIntCollectorActor>("processor", processorSP.GetRequiredService<IServiceScopeFactory>());
 
-        var builder = new DataFlowGraphBuilder("backpressure-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("backpressure-flow");
         var buffer = builder.Buffer<int>(capacity: 5); // Small buffer
         
         builder.AddBlock(producer)
@@ -355,7 +355,7 @@ public class BufferNodeTests
     public void BufferNode_Should_Validate_Type_Compatibility_With_Source_Block()
     {
         // Arrange
-        var builder = new DataFlowGraphBuilder("type-mismatch-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("type-mismatch-flow");
         var producer = BlockHelpers.CreateProducer<int>("producer", ctx => ProduceIntegers(ctx, 1, 10));
         var buffer = builder.Buffer<string>(capacity: 10); // Wrong type
         
@@ -376,7 +376,7 @@ public class BufferNodeTests
     public void BufferNode_Should_Validate_Type_Compatibility_With_Target_Block()
     {
         // Arrange
-        var builder = new DataFlowGraphBuilder("type-mismatch-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("type-mismatch-flow");
         var buffer = builder.Buffer<int>(capacity: 10);
         
         // Create a string collector actor for the validation test
@@ -435,7 +435,7 @@ public class BufferNodeTests
         
         var bufferConsumer2 = BlockHelpers.CreateActor<int, object, IntCollectorActor>("buffer-consumer2", bufferConsumer2SP.GetRequiredService<IServiceScopeFactory>());
 
-        var builder = new DataFlowGraphBuilder("broadcast-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("broadcast-flow");
         var buffer = builder.Buffer<int>(capacity: 10);
         
         builder.AddBlock(producer)

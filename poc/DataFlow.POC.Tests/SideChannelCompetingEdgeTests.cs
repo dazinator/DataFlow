@@ -52,7 +52,7 @@ public class SideChannelCompetingEdgeTests
                 await Task.CompletedTask;
             });
 
-        var builder = new DataFlowGraphBuilder("side-channel-competing-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("side-channel-competing-flow");
         builder.AddBlock(producer)
             .AddBlock(consumer1)
             .AddBlock(consumer2);
@@ -111,7 +111,7 @@ public class SideChannelCompetingEdgeTests
                 await Task.CompletedTask;
             });
 
-        var builder = new DataFlowGraphBuilder("order-preservation-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("order-preservation-flow");
         builder.AddBlock(producer)
             .AddBlock(consumer1)
             .AddBlock(consumer2);
@@ -187,7 +187,7 @@ public class SideChannelCompetingEdgeTests
                 await Task.CompletedTask;
             });
 
-        var builder = new DataFlowGraphBuilder("barrier-alignment-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("barrier-alignment-flow");
         builder.AddBlock(producer)
             .AddBlock(consumer1)
             .AddBlock(consumer2);
@@ -239,7 +239,7 @@ public class SideChannelCompetingEdgeTests
                 await Task.Delay(1);
             });
 
-        var builder = new DataFlowGraphBuilder("data-competition-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("data-competition-flow");
         builder.AddBlock(producer)
             .AddBlock(consumer1)
             .AddBlock(consumer2);

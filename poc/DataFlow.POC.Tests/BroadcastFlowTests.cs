@@ -45,7 +45,7 @@ public class BroadcastFlowTests
             "processor2",
             scopeFactory2);
 
-        var builder = new DataFlowGraphBuilder("broadcast-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("broadcast-flow");
         builder.AddBlock(producer)
             .AddBlock(broadcast)
             .AddBlock(processor1)

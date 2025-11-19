@@ -140,7 +140,7 @@ public class SideChannelBenchmark
                 await SimulateWork();
             });
 
-        var builder = new DataFlowGraphBuilder("standard-competing-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("standard-competing-flow");
         builder.AddBlock(producer)
             .AddBlock(consumer1)
             .AddBlock(consumer2);
@@ -223,7 +223,7 @@ public class SideChannelBenchmark
                 await Task.CompletedTask;
             });
 
-        var builder = new DataFlowGraphBuilder("side-channel-competing-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("side-channel-competing-flow");
         builder.AddBlock(producer)
             .AddBlock(consumer1)
             .AddBlock(consumer2);

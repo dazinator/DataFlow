@@ -23,7 +23,7 @@ public class BasicFlowTests
             "processor",
             new CollectorActor<int>(processedItems));
 
-        var builder = new DataFlowGraphBuilder("basic-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("basic-flow");
         builder.AddBlock(producer)
             .AddBlock(processor)
             .Connect(producer, processor);
@@ -59,7 +59,7 @@ public class BasicFlowTests
             "processor",
             scopeFactory);
 
-        var builder = new DataFlowGraphBuilder("transform-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("transform-flow");
         builder.AddBlock(producer)
             .AddBlock(transformer)
             .AutoConnect()  // Connects transformer to producer
@@ -92,7 +92,7 @@ public class BasicFlowTests
             "processor",
             new CollectorActor<int>(processedItems));
 
-        var builder = new DataFlowGraphBuilder("unbuffered-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("unbuffered-flow");
         builder.AddBlock(producer)
             .AddBlock(processor)
             .Connect(producer, processor, bufferCapacity: 1); // Small buffer

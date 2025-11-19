@@ -85,7 +85,7 @@ public class EnvelopeEdgeStrategyTests
 
         var consumer2 = BlockHelpers.CreateActor<IDataEnvelope, object, EnvelopeCollectorActor>("consumer2", serviceProvider2.GetRequiredService<IServiceScopeFactory>());
 
-        var builder = new DataFlowGraphBuilder("broadcast-envelope-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("broadcast-envelope-flow");
         builder.AddBlock(producer)
             .AddBlock(consumer1)
             .AddBlock(consumer2);
@@ -146,7 +146,7 @@ public class EnvelopeEdgeStrategyTests
 
         var consumer2 = BlockHelpers.CreateActor<IDataEnvelope, object, DelayedEnvelopeCollectorActor>("consumer2", serviceProvider2.GetRequiredService<IServiceScopeFactory>());
 
-        var builder = new DataFlowGraphBuilder("competing-envelope-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("competing-envelope-flow");
         builder.AddBlock(producer)
             .AddBlock(consumer1)
             .AddBlock(consumer2);
@@ -191,7 +191,7 @@ public class EnvelopeEdgeStrategyTests
 
         var consumer = BlockHelpers.CreateActor<IDataEnvelope, object, EnvelopeCollectorActor>("consumer", serviceProvider.GetRequiredService<IServiceScopeFactory>());
 
-        var builder = new DataFlowGraphBuilder("ordered-envelope-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("ordered-envelope-flow");
         builder.AddBlock(producer)
             .AddBlock(consumer);
 
@@ -240,7 +240,7 @@ public class EnvelopeEdgeStrategyTests
 
         var consumer = BlockHelpers.CreateActor<IDataEnvelope, object, EnvelopeCollectorActor>("consumer", serviceProvider.GetRequiredService<IServiceScopeFactory>());
 
-        var builder = new DataFlowGraphBuilder("control-only-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("control-only-flow");
         builder.AddBlock(producer)
             .AddBlock(consumer);
 
@@ -275,7 +275,7 @@ public class EnvelopeEdgeStrategyTests
 
         var consumer = BlockHelpers.CreateActor<IDataEnvelope, object, EnvelopeCollectorActor>("consumer", serviceProvider.GetRequiredService<IServiceScopeFactory>());
 
-        var builder = new DataFlowGraphBuilder("data-only-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("data-only-flow");
         builder.AddBlock(producer)
             .AddBlock(consumer);
 

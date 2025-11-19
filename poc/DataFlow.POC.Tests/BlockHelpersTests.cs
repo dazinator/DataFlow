@@ -142,7 +142,7 @@ public class BlockHelpersTests
         var producer = BlockHelpers.CreateProducer("producer", TestStreams.Integers(5));
         var collector = BlockHelpers.CreateActor<int, object, CollectorActor<int>>("collector", new CollectorActor<int>(collected));
 
-        var builder = new DataFlowGraphBuilder("test-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("test-flow");
         builder.AddBlock(producer)
             .AddBlock(collector)
             .Connect(producer, collector);
@@ -167,7 +167,7 @@ public class BlockHelpersTests
         var batcher = BlockHelpers.CreateBatch<int>("batcher", 3);
         var collector = BlockHelpers.CreateActor<int[], object, CollectorActor<int[]>>("collector", new CollectorActor<int[]>(batches));
 
-        var builder = new DataFlowGraphBuilder("test-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("test-flow");
         builder.AddBlock(producer)
             .AddBlock(batcher)
             .AddBlock(collector)

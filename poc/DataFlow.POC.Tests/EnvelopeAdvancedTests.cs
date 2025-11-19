@@ -99,7 +99,7 @@ public class EnvelopeAdvancedTests
             "path2-transform", i => $"Path2-{i}");
         var path2Consumer = BlockHelpers.CreateActor<IDataEnvelope, object, EnvelopeCollectorActor>("path2-consumer", serviceProvider2.GetRequiredService<IServiceScopeFactory>());
 
-        var builder = new DataFlowGraphBuilder("multipath-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("multipath-flow");
         builder.AddBlock(producer)
             .AddBlock(path1Transform)
             .AddBlock(path1Consumer)
@@ -178,7 +178,7 @@ public class EnvelopeAdvancedTests
                 await Task.CompletedTask;
             });
 
-        var builder = new DataFlowGraphBuilder("control-types-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("control-types-flow");
         builder.AddBlock(producer)
             .AddBlock(processor);
 
@@ -229,7 +229,7 @@ public class EnvelopeAdvancedTests
         
         var processor = BlockHelpers.CreateActor<IDataEnvelope, object, PositionTrackingEnvelopeCollectorActor>("processor", processorServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
-        var builder = new DataFlowGraphBuilder("complex-pipeline-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("complex-pipeline-flow");
         builder.AddBlock(producer)
             .AddBlock(transformer)
             .AddBlock(projector)
@@ -289,7 +289,7 @@ public class EnvelopeAdvancedTests
                 await Task.CompletedTask;
             });
 
-        var builder = new DataFlowGraphBuilder("heartbeat-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("heartbeat-flow");
         builder.AddBlock(producer)
             .AddBlock(processor);
 

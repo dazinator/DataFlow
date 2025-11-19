@@ -340,7 +340,7 @@ public class ActorBlockTests
             "processor",
             processorServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
-        var builder = new DataFlowGraphBuilder("actor-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("actor-flow");
         builder.AddBlock(producer)
             .AddBlock(actorBlock)
             .Connect(producer, actorBlock)

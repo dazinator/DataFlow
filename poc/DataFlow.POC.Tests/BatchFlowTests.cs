@@ -35,7 +35,7 @@ public class BatchFlowTests
             "processor",
             new CollectorActor<int[]>(batches));
 
-        var builder = new DataFlowGraphBuilder("batch-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("batch-flow");
         builder.AddBlock(producer)
             .AddBlock(batcher)
             .AddBlock(processor)
@@ -69,7 +69,7 @@ public class BatchFlowTests
             "processor",
             new CollectorActor<int[]>(batches));
 
-        var builder = new DataFlowGraphBuilder("batch-window-flow");
+        var builder = GraphHelpers.CreateGraphBuilder("batch-window-flow");
         builder.AddBlock(producer)
             .AddBlock(batcher)
             .AddBlock(processor)
