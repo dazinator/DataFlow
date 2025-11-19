@@ -1,0 +1,91 @@
+diff --git a/poc/DataFlow.POC/Builder/DataFlowGraphBuilder.cs b/poc/DataFlow.POC/Builder/DataFlowGraphBuilder.cs
+index af1cb87..4e40759 100644
+--- a/poc/DataFlow.POC/Builder/DataFlowGraphBuilder.cs
++++ b/poc/DataFlow.POC/Builder/DataFlowGraphBuilder.cs
+@@ -1,16 +1,19 @@
+ namespace DataFlow.POC.Builder;
+ 
+ using DataFlow.POC.Core;
++using Microsoft.Extensions.DependencyInjection;
+ using Microsoft.Extensions.Logging;
+ using Microsoft.Extensions.Logging.Abstractions;
+ 
+ /// <summary>
+ /// Builder for constructing dataflow graphs with a fluent API.
++/// Supports both direct block instances and blocks registered in dependency injection.
+ /// </summary>
+ public class DataFlowGraphBuilder
+ {
+     private readonly string _name;
+     private readonly ILogger<DataFlowGraph> _logger;
++    private readonly IServiceProvider? _serviceProvider;
+     private readonly List<IBlock> _blocks = new();
+     private readonly List<BufferNode> _bufferNodes = new();
+     private readonly List<Edge> _edges = new();
+@@ -19,9 +22,29 @@ public class DataFlowGraphBuilder
+     private EpochSourceNode? _epochSource;
+     private readonly List<EpochProcessorNode> _epochProcessors = new();
+ 
++    /// <summary>
++    /// Create a new graph builder.
++    /// </summary>
++    /// <param name="name">Name of the graph</param>
++    /// <param name="logger">Optional logger for the graph</param>
+     public DataFlowGraphBuilder(string name, ILogger<DataFlowGraph>? logger = null)
++        : this(name, serviceProvider: null, logger: logger)
++    {
++    }
++
++    /// <summary>
++    /// Create a new graph builder with dependency injection support.
++    /// </summary>
++    /// <param name="name">Name of the graph</param>
++    /// <param name="serviceProvider">Service provider for resolving registered blocks</param>
++    /// <param name="logger">Optional logger for the graph</param>
++    public DataFlowGraphBuilder(
++        string name, 
++        IServiceProvider? serviceProvider, 
++        ILogger<DataFlowGraph>? logger = null)
+     {
+         _name = name ?? throw new ArgumentNullException(nameof(name));
++        _serviceProvider = serviceProvider;
+         _logger = logger ?? NullLogger<DataFlowGraph>.Instance;
+     }
+ 
+@@ -34,6 +57,36 @@ public DataFlowGraphBuilder AddBlock(IBlock block)
+         return this;
+     }
+ 
++    /// <summary>
++    /// Use a block that was registered in dependency injection by name.
++    /// The block will be resolved from the service provider using its registered key.
++    /// </summary>
++    /// <param name="name">The name/key used when registering the block</param>
++    /// <returns>This builder for chaining</returns>
++    /// <exception cref="InvalidOperationException">If no service provider was provided or block not found</exception>
++    public DataFlowGraphBuilder UseBlock(string name)
++    {
++        if (string.IsNullOrWhiteSpace(name))
++            throw new ArgumentException("Block name cannot be null or whitespace", nameof(name));
++
++        if (_serviceProvider == null)
++            throw new InvalidOperationException(
++                "Cannot use UseBlock() without a service provider. " +
++                "Pass an IServiceProvider to the constructor, or use AddBlock() with a block instance instead.");
++
++        // Resolve the block from DI by its registered key
++        var block = _serviceProvider.GetKeyedService<IBlock>(name);
++        if (block == null)
++        {
++            throw new InvalidOperationException(
++                $"Block '{name}' not found in service collection. " +
++                "Make sure it was registered using services.AddDataFlows(df => df.AddBlock(...)).");
++        }
++
++        _blocks.Add(block);
++        return this;
++    }
++
+     /// <summary>
+     /// Automatically connect the last added block to the previous block.
+     /// This provides a more refactor-friendly API when blocks are added sequentially.
