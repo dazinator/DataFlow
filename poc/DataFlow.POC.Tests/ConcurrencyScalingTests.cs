@@ -388,7 +388,7 @@ public class ConcurrencyScalingTests
             transformerServices.AddScoped(_ => new TransformWithLoggingActor(blockName, processingLog, processingDelayMs));
             var transformerServiceProvider = transformerServices.BuildServiceProvider();
             
-            var transformer = new ActorBlock<int, string, TransformWithLoggingActor>(
+            var transformer = BlockHelpers.CreateActor<int, string, TransformWithLoggingActor>(
                 blockName,
                 transformerServiceProvider.GetRequiredService<IServiceScopeFactory>());
             transformers.Add(transformer);
@@ -510,7 +510,7 @@ public class ConcurrencyScalingTests
             processorServices.AddScoped(_ => new ProcessWithTimingActor(processorName, processingDelayMs, processingLog));
             var processorServiceProvider = processorServices.BuildServiceProvider();
             
-            var processor = new ActorBlock<int, object, ProcessWithTimingActor>(
+            var processor = BlockHelpers.CreateActor<int, object, ProcessWithTimingActor>(
                 processorName,
                 processorServiceProvider.GetRequiredService<IServiceScopeFactory>());
             processors.Add(processor);
@@ -600,7 +600,7 @@ public class ConcurrencyScalingTests
             validatorServices.AddScoped(_ => new ValidateWithLoggingActor(name, validatorLog, delayMs));
             var validatorServiceProvider = validatorServices.BuildServiceProvider();
             
-            validators.Add(new ActorBlock<int, int, ValidateWithLoggingActor>(
+            validators.Add(BlockHelpers.CreateActor<int, int, ValidateWithLoggingActor>(
                 name,
                 validatorServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
@@ -617,7 +617,7 @@ public class ConcurrencyScalingTests
             enricherServices.AddScoped(_ => new EnrichWithLoggingActor(name, enricherLog, delayMs));
             var enricherServiceProvider = enricherServices.BuildServiceProvider();
             
-            enrichers.Add(new ActorBlock<int, string, EnrichWithLoggingActor>(
+            enrichers.Add(BlockHelpers.CreateActor<int, string, EnrichWithLoggingActor>(
                 name,
                 enricherServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
@@ -784,7 +784,7 @@ public class ConcurrencyScalingTests
             transformerServices.AddScoped(_ => new TransformWithLoggingActor(blockName, processingLog, processingDelayMs));
             var transformerServiceProvider = transformerServices.BuildServiceProvider();
             
-            var transformer = new ActorBlock<int, string, TransformWithLoggingActor>(
+            var transformer = BlockHelpers.CreateActor<int, string, TransformWithLoggingActor>(
                 blockName,
                 transformerServiceProvider.GetRequiredService<IServiceScopeFactory>());
             transformers.Add(transformer);
@@ -863,7 +863,7 @@ public class ConcurrencyScalingTests
             validatorServices.AddScoped(_ => new ProcessWithDelayActor(delayMs));
             var validatorServiceProvider = validatorServices.BuildServiceProvider();
             
-            validators.Add(new ActorBlock<int, int, ProcessWithDelayActor>(
+            validators.Add(BlockHelpers.CreateActor<int, int, ProcessWithDelayActor>(
                 name,
                 validatorServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
@@ -878,7 +878,7 @@ public class ConcurrencyScalingTests
             enricherServices.AddScoped(_ => new TransformWithDelayActor(delayMs));
             var enricherServiceProvider = enricherServices.BuildServiceProvider();
             
-            enrichers.Add(new ActorBlock<int, string, TransformWithDelayActor>(
+            enrichers.Add(BlockHelpers.CreateActor<int, string, TransformWithDelayActor>(
                 name,
                 enricherServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
@@ -953,7 +953,7 @@ public class ConcurrencyScalingTests
             validatorServices.AddScoped(_ => new ProcessWithDelayActor(delayMs));
             var validatorServiceProvider = validatorServices.BuildServiceProvider();
             
-            validators.Add(new ActorBlock<int, int, ProcessWithDelayActor>(
+            validators.Add(BlockHelpers.CreateActor<int, int, ProcessWithDelayActor>(
                 $"validator-{i}",
                 validatorServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
@@ -965,7 +965,7 @@ public class ConcurrencyScalingTests
             enricherServices.AddScoped(_ => new TransformWithDelayActor(delayMs));
             var enricherServiceProvider = enricherServices.BuildServiceProvider();
             
-            enrichers.Add(new ActorBlock<int, string, TransformWithDelayActor>(
+            enrichers.Add(BlockHelpers.CreateActor<int, string, TransformWithDelayActor>(
                 $"enricher-{i}",
                 enricherServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
@@ -1050,7 +1050,7 @@ public class ConcurrencyScalingTests
             validatorServices.AddScoped(_ => new ProcessWithDelayActor(delayMs));
             var validatorServiceProvider = validatorServices.BuildServiceProvider();
             
-            validators.Add(new ActorBlock<int, int, ProcessWithDelayActor>(
+            validators.Add(BlockHelpers.CreateActor<int, int, ProcessWithDelayActor>(
                 $"validator-{i}",
                 validatorServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
@@ -1062,7 +1062,7 @@ public class ConcurrencyScalingTests
             enricherServices.AddScoped(_ => new TransformWithDelayAndRouteActor(delayMs));
             var enricherServiceProvider = enricherServices.BuildServiceProvider();
             
-            enrichers.Add(new ActorBlock<int, string, TransformWithDelayAndRouteActor>(
+            enrichers.Add(BlockHelpers.CreateActor<int, string, TransformWithDelayAndRouteActor>(
                 $"enricher-{i}",
                 enricherServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
@@ -1154,7 +1154,7 @@ public class ConcurrencyScalingTests
             validatorServices.AddScoped(_ => new ProcessWithDelayActor(delayMs));
             var validatorServiceProvider = validatorServices.BuildServiceProvider();
             
-            validators.Add(new ActorBlock<int, int, ProcessWithDelayActor>(
+            validators.Add(BlockHelpers.CreateActor<int, int, ProcessWithDelayActor>(
                 $"validator-{i}",
                 validatorServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
@@ -1167,7 +1167,7 @@ public class ConcurrencyScalingTests
             enricherServices.AddScoped(_ => new TransformWithDelayAndRouteActor(delayMs));
             var enricherServiceProvider = enricherServices.BuildServiceProvider();
             
-            enrichers.Add(new ActorBlock<int, string, TransformWithDelayAndRouteActor>(
+            enrichers.Add(BlockHelpers.CreateActor<int, string, TransformWithDelayAndRouteActor>(
                 $"enricher-{i}",
                 enricherServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
@@ -1195,7 +1195,7 @@ public class ConcurrencyScalingTests
             evenProcServices.AddScoped(_ => new DelayProcessorActor(delayMs / 2));
             var evenProcServiceProvider = evenProcServices.BuildServiceProvider();
             
-            evenProcessors.Add(new ActorBlock<string, object, DelayProcessorActor>(
+            evenProcessors.Add(BlockHelpers.CreateActor<string, object, DelayProcessorActor>(
                 $"even-proc-{i}",
                 evenProcServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
@@ -1208,7 +1208,7 @@ public class ConcurrencyScalingTests
             oddProcServices.AddScoped(_ => new DelayProcessorActor(delayMs / 2));
             var oddProcServiceProvider = oddProcServices.BuildServiceProvider();
             
-            oddProcessors.Add(new ActorBlock<string, object, DelayProcessorActor>(
+            oddProcessors.Add(BlockHelpers.CreateActor<string, object, DelayProcessorActor>(
                 $"odd-proc-{i}",
                 oddProcServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
@@ -1300,7 +1300,7 @@ public class ConcurrencyScalingTests
             validatorServices.AddScoped(_ => new ProcessWithDelayActor(delayMs));
             var validatorServiceProvider = validatorServices.BuildServiceProvider();
             
-            validators.Add(new ActorBlock<int, int, ProcessWithDelayActor>(
+            validators.Add(BlockHelpers.CreateActor<int, int, ProcessWithDelayActor>(
                 $"validator-{i}",
                 validatorServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
@@ -1312,7 +1312,7 @@ public class ConcurrencyScalingTests
             enricherServices.AddScoped(_ => new TransformWithDelayAndRouteActor(delayMs));
             var enricherServiceProvider = enricherServices.BuildServiceProvider();
             
-            enrichers.Add(new ActorBlock<int, string, TransformWithDelayAndRouteActor>(
+            enrichers.Add(BlockHelpers.CreateActor<int, string, TransformWithDelayAndRouteActor>(
                 $"enricher-{i}",
                 enricherServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
@@ -1330,7 +1330,7 @@ public class ConcurrencyScalingTests
         var evenFilter = BlockHelpers.CreateRouteFilter<string>("even-filter", "even");
         
         // KEY DIFFERENCE: Add BatchBlock
-        var batcher = new BatchBlock<string>("batcher", batchSize, TimeSpan.FromMilliseconds(50));
+        var batcher = BlockHelpers.CreateBatch<string>("batcher", batchSize, TimeSpan.FromMilliseconds(50));
         
         var aggregatorServices = new ServiceCollection();
         aggregatorServices.AddScoped(_ => new AggregateBatchActor(delayMs));
@@ -1420,7 +1420,7 @@ public class ConcurrencyScalingTests
             validatorServices.AddScoped(_ => new ProcessWithDelayActor(delayMs));
             var validatorServiceProvider = validatorServices.BuildServiceProvider();
             
-            validators.Add(new ActorBlock<int, int, ProcessWithDelayActor>(
+            validators.Add(BlockHelpers.CreateActor<int, int, ProcessWithDelayActor>(
                 $"validator-{i}",
                 validatorServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
@@ -1432,7 +1432,7 @@ public class ConcurrencyScalingTests
             enricherServices.AddScoped(_ => new TransformWithDelayActor(delayMs));
             var enricherServiceProvider = enricherServices.BuildServiceProvider();
             
-            enrichers.Add(new ActorBlock<int, string, TransformWithDelayActor>(
+            enrichers.Add(BlockHelpers.CreateActor<int, string, TransformWithDelayActor>(
                 $"enricher-{i}",
                 enricherServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
@@ -1512,7 +1512,7 @@ public class ConcurrencyScalingTests
             validatorServices.AddScoped(_ => new ProcessWithDelayActor(delayMs));
             var validatorServiceProvider = validatorServices.BuildServiceProvider();
             
-            validators.Add(new ActorBlock<int, int, ProcessWithDelayActor>(
+            validators.Add(BlockHelpers.CreateActor<int, int, ProcessWithDelayActor>(
                 $"validator-{i}",
                 validatorServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
@@ -1525,7 +1525,7 @@ public class ConcurrencyScalingTests
             enricherServices.AddScoped(_ => new EnrichForRoutingActor(delayMs));
             var enricherServiceProvider = enricherServices.BuildServiceProvider();
             
-            enrichers.Add(new ActorBlock<int, string, EnrichForRoutingActor>(
+            enrichers.Add(BlockHelpers.CreateActor<int, string, EnrichForRoutingActor>(
                 $"enricher-{i}",
                 enricherServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
@@ -1554,7 +1554,7 @@ public class ConcurrencyScalingTests
             typeAProcServices.AddScoped(_ => new ProcessTypeAActor(delayMs));
             var typeAProcServiceProvider = typeAProcServices.BuildServiceProvider();
             
-            typeAProcessors.Add(new ActorBlock<string, string, ProcessTypeAActor>(
+            typeAProcessors.Add(BlockHelpers.CreateActor<string, string, ProcessTypeAActor>(
                 $"typeA-proc-{i}",
                 typeAProcServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
@@ -1565,14 +1565,14 @@ public class ConcurrencyScalingTests
             typeAWriterServices.AddScoped<NoOpStringProcessorActor>();
             var typeAWriterServiceProvider = typeAWriterServices.BuildServiceProvider();
             
-            typeAWriters.Add(new ActorBlock<string, object, NoOpStringProcessorActor>(
+            typeAWriters.Add(BlockHelpers.CreateActor<string, object, NoOpStringProcessorActor>(
                 $"typeA-writer-{i}",
                 typeAWriterServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
         // TypeB path: filter → BATCHER → aggregator → writer
         var typeBFilter = BlockHelpers.CreateRouteFilter<string>("typeB-filter", "TypeB");
-        var typeBBatcher = new BatchBlock<string>("typeB-batcher", batchSize, TimeSpan.FromMilliseconds(100));
+        var typeBBatcher = BlockHelpers.CreateBatch<string>("typeB-batcher", batchSize, TimeSpan.FromMilliseconds(100));
         
         var typeBAggregatorServices = new ServiceCollection();
         typeBAggregatorServices.AddScoped(_ => new AggregateBatchActor(delayMs));

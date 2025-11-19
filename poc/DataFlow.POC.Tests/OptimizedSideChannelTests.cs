@@ -27,7 +27,7 @@ public class OptimizedSideChannelTests
 
         var producer = BlockHelpers.CreateProducer<IDataEnvelope>("producer", ctx => ProduceEnvelopes(ctx));
 
-        var consumer1 = new EnvelopeProcessorBlock<int>(
+        var consumer1 = BlockHelpers.CreateEnvelopeProcessor<int>(
             "consumer1",
             processData: async (value, ctx) =>
             {
@@ -40,7 +40,7 @@ public class OptimizedSideChannelTests
                 await Task.CompletedTask;
             });
 
-        var consumer2 = new EnvelopeProcessorBlock<int>(
+        var consumer2 = BlockHelpers.CreateEnvelopeProcessor<int>(
             "consumer2",
             processData: async (value, ctx) =>
             {
@@ -94,7 +94,7 @@ public class OptimizedSideChannelTests
 
         var producer = BlockHelpers.CreateProducer<IDataEnvelope>("producer", ctx => ProduceOrderedControlSignals(ctx));
 
-        var consumer1 = new EnvelopeProcessorBlock<int>(
+        var consumer1 = BlockHelpers.CreateEnvelopeProcessor<int>(
             "consumer1",
             processData: async (value, ctx) => await Task.CompletedTask,
             processControl: async (signal, ctx) =>
@@ -103,7 +103,7 @@ public class OptimizedSideChannelTests
                 await Task.CompletedTask;
             });
 
-        var consumer2 = new EnvelopeProcessorBlock<int>(
+        var consumer2 = BlockHelpers.CreateEnvelopeProcessor<int>(
             "consumer2",
             processData: async (value, ctx) => await Task.CompletedTask,
             processControl: async (signal, ctx) =>
@@ -152,7 +152,7 @@ public class OptimizedSideChannelTests
 
         var producer = BlockHelpers.CreateProducer<IDataEnvelope>("producer", ctx => ProduceHighVolumeEnvelopes(ctx));
 
-        var consumer = new EnvelopeProcessorBlock<int>(
+        var consumer = BlockHelpers.CreateEnvelopeProcessor<int>(
             "consumer",
             processData: async (value, ctx) =>
             {
@@ -203,7 +203,7 @@ public class OptimizedSideChannelTests
         for (int i = 0; i < 5; i++)
         {
             int index = i;
-            var consumer = new EnvelopeProcessorBlock<int>(
+            var consumer = BlockHelpers.CreateEnvelopeProcessor<int>(
                 $"consumer{i}",
                 processData: async (value, ctx) =>
                 {
@@ -250,7 +250,7 @@ public class OptimizedSideChannelTests
 
         var producer = BlockHelpers.CreateProducer<IDataEnvelope>("producer", ctx => ProduceEnvelopes(ctx));
 
-        var consumer1 = new EnvelopeProcessorBlock<int>(
+        var consumer1 = BlockHelpers.CreateEnvelopeProcessor<int>(
             "consumer1",
             processData: async (value, ctx) =>
             {
@@ -259,7 +259,7 @@ public class OptimizedSideChannelTests
             },
             processControl: async (signal, ctx) => await Task.CompletedTask);
 
-        var consumer2 = new EnvelopeProcessorBlock<int>(
+        var consumer2 = BlockHelpers.CreateEnvelopeProcessor<int>(
             "consumer2",
             processData: async (value, ctx) =>
             {

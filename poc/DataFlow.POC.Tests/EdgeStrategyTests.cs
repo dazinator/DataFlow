@@ -230,7 +230,7 @@ public class EdgeStrategyTests
 
         var commonServices = new ServiceCollection().BuildServiceProvider();
 
-        var producer = new ProducerBlock<CloneableItem>("producer", ProduceCloneableItems);
+        var producer = BlockHelpers.CreateProducer<CloneableItem>("producer", ProduceCloneableItems);
 
         var processor1 = BlockHelpers.CreateActor<CloneableItem, object, ModifyingCloneableItemCollectorActor>("processor1", serviceProvider1.GetRequiredService<IServiceScopeFactory>());
 

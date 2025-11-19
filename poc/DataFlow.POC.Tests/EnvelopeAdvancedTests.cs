@@ -91,11 +91,11 @@ public class EnvelopeAdvancedTests
 
         var producer = BlockHelpers.CreateProducer<IDataEnvelope>("producer", ctx => ProduceWithBarriers(ctx));
         
-        var path1Transform = new SimpleEnvelopeTransformerBlock<int, string>(
+        var path1Transform = BlockHelpers.CreateSimpleEnvelopeTransformer<int, string>(
             "path1-transform", i => $"Path1-{i}");
         var path1Consumer = BlockHelpers.CreateActor<IDataEnvelope, object, EnvelopeCollectorActor>("path1-consumer", serviceProvider1.GetRequiredService<IServiceScopeFactory>());
 
-        var path2Transform = new SimpleEnvelopeTransformerBlock<int, string>(
+        var path2Transform = BlockHelpers.CreateSimpleEnvelopeTransformer<int, string>(
             "path2-transform", i => $"Path2-{i}");
         var path2Consumer = BlockHelpers.CreateActor<IDataEnvelope, object, EnvelopeCollectorActor>("path2-consumer", serviceProvider2.GetRequiredService<IServiceScopeFactory>());
 
@@ -157,7 +157,7 @@ public class EnvelopeAdvancedTests
         var heartbeats = new List<Heartbeat>();
 
         var producer = BlockHelpers.CreateProducer<IDataEnvelope>("producer", ctx => ProduceAllControlTypes(ctx));
-        var processor = new EnvelopeProcessorBlock<int>(
+        var processor = BlockHelpers.CreateEnvelopeProcessor<int>(
             "processor",
             processData: async (value, ctx) =>
             {
@@ -215,10 +215,10 @@ public class EnvelopeAdvancedTests
 
         var producer = BlockHelpers.CreateProducer<IDataEnvelope>("producer", ctx => ProduceComplexStream(ctx));
         
-        var transformer = new SimpleEnvelopeTransformerBlock<int, int>(
+        var transformer = BlockHelpers.CreateSimpleEnvelopeTransformer<int, int>(
             "transformer", i => i * 10);
         
-        var projector = new EnvelopeProjectorBlock<int, int>(
+        var projector = BlockHelpers.CreateEnvelopeProjector<int, int>(
             "projector", (i, ctx) => DuplicateAsync(i));
         
         // Create a custom actor that tracks position
@@ -271,7 +271,7 @@ public class EnvelopeAdvancedTests
         var progressSnapshots = new List<int>();
 
         var producer = BlockHelpers.CreateProducer<IDataEnvelope>("producer", ctx => ProduceWithHeartbeats(ctx));
-        var processor = new EnvelopeProcessorBlock<int>(
+        var processor = BlockHelpers.CreateEnvelopeProcessor<int>(
             "processor",
             processData: async (value, ctx) =>
             {

@@ -94,7 +94,7 @@ public class AsyncLocalPropagationTests
             return ProduceWithContextCapture(5, capturedContextIds);
         });
 
-        var processor = new ActorBlock<int, object, ContextCapturingCollectorActor<int>>(
+        var processor = BlockHelpers.CreateActor<int, object, ContextCapturingCollectorActor<int>>(
             "processor",
             processorSP.GetRequiredService<IServiceScopeFactory>());
 
@@ -134,15 +134,15 @@ public class AsyncLocalPropagationTests
 
         var commonServices = new ServiceCollection().BuildServiceProvider();
 
-        var concurrentProducer = new ConcurrentProducerBlock<int>("concurrent-producer",
+        var concurrentProducer = BlockHelpers.CreateConcurrentProducer<int>("concurrent-producer",
             ctx => new[]
             {
                 ProduceWithContextCapture(5, capturedContextIds),
                 ProduceWithContextCapture(5, capturedContextIds)
             },
-            maxConcurrency: 2);
+            2);
 
-        var processor = new ActorBlock<int, object, ContextCapturingCollectorActor<int>>(
+        var processor = BlockHelpers.CreateActor<int, object, ContextCapturingCollectorActor<int>>(
             "processor",
             processorSP.GetRequiredService<IServiceScopeFactory>());
 
@@ -193,7 +193,7 @@ public class AsyncLocalPropagationTests
 
         var transformer = BlockHelpers.CreateActor<int, string, ContextCapturingTransformerActor>("transformer", transformerSP.GetRequiredService<IServiceScopeFactory>());
 
-        var processor = new ActorBlock<string, object, ContextCapturingCollectorActor<string>>(
+        var processor = BlockHelpers.CreateActor<string, object, ContextCapturingCollectorActor<string>>(
             "processor",
             processorSP.GetRequiredService<IServiceScopeFactory>());
 
@@ -248,7 +248,7 @@ public class AsyncLocalPropagationTests
             return ProduceWithContextCapture(5, capturedIds1, delay: 10);
         });
 
-        var processor1 = new ActorBlock<int, object, ContextCapturingCollectorActor<int>>(
+        var processor1 = BlockHelpers.CreateActor<int, object, ContextCapturingCollectorActor<int>>(
             "processor1",
             processor1SP.GetRequiredService<IServiceScopeFactory>());
 
@@ -256,7 +256,7 @@ public class AsyncLocalPropagationTests
             return ProduceWithContextCapture(5, capturedIds2, delay: 10);
         });
 
-        var processor2 = new ActorBlock<int, object, ContextCapturingCollectorActor<int>>(
+        var processor2 = BlockHelpers.CreateActor<int, object, ContextCapturingCollectorActor<int>>(
             "processor2",
             processor2SP.GetRequiredService<IServiceScopeFactory>());
 
@@ -334,11 +334,11 @@ public class AsyncLocalPropagationTests
 
         var broadcast = BlockHelpers.CreateBroadcast<int>("broadcast");
 
-        var processor1 = new ActorBlock<int, object, ContextCapturingCollectorActor<int>>(
+        var processor1 = BlockHelpers.CreateActor<int, object, ContextCapturingCollectorActor<int>>(
             "processor1",
             processor1SP.GetRequiredService<IServiceScopeFactory>());
 
-        var processor2 = new ActorBlock<int, object, ContextCapturingCollectorActor<int>>(
+        var processor2 = BlockHelpers.CreateActor<int, object, ContextCapturingCollectorActor<int>>(
             "processor2",
             processor2SP.GetRequiredService<IServiceScopeFactory>());
 
@@ -392,7 +392,7 @@ public class AsyncLocalPropagationTests
 
         var batch = BlockHelpers.CreateBatch<int>("batch", 3);
 
-        var processor = new ActorBlock<int[], object, ContextCapturingCollectorActor<int[]>>(
+        var processor = BlockHelpers.CreateActor<int[], object, ContextCapturingCollectorActor<int[]>>(
             "processor",
             processorSP.GetRequiredService<IServiceScopeFactory>());
 

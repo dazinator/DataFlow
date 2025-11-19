@@ -40,11 +40,11 @@ public class RoutingFlowTests
         var evenFilter = BlockHelpers.CreateRouteFilter<int>("even-filter", "even");
         var oddFilter = BlockHelpers.CreateRouteFilter<int>("odd-filter", "odd");
 
-        var evenProcessor = new ActorBlock<int, object, CollectorActor<int>>(
+        var evenProcessor = BlockHelpers.CreateActor<int, object, CollectorActor<int>>(
             "even-processor",
             evenScopeFactory);
 
-        var oddProcessor = new ActorBlock<int, object, CollectorActor<int>>(
+        var oddProcessor = BlockHelpers.CreateActor<int, object, CollectorActor<int>>(
             "odd-processor",
             oddScopeFactory);
 
@@ -108,15 +108,15 @@ public class RoutingFlowTests
         var mediumFilter = BlockHelpers.CreateRouteFilter<int>("medium-filter", "medium");
         var highFilter = BlockHelpers.CreateRouteFilter<int>("high-filter", "high");
 
-        var lowProcessor = new ActorBlock<int, object, CollectorActor<int>>(
+        var lowProcessor = BlockHelpers.CreateActor<int, object, CollectorActor<int>>(
             "low-processor",
             lowScopeFactory);
 
-        var mediumProcessor = new ActorBlock<int, object, CollectorActor<int>>(
+        var mediumProcessor = BlockHelpers.CreateActor<int, object, CollectorActor<int>>(
             "medium-processor",
             mediumScopeFactory);
 
-        var highProcessor = new ActorBlock<int, object, CollectorActor<int>>(
+        var highProcessor = BlockHelpers.CreateActor<int, object, CollectorActor<int>>(
             "high-processor",
             highScopeFactory);
 

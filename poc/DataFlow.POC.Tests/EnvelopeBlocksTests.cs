@@ -188,7 +188,7 @@ public class EnvelopeBlocksTests
         var processedData = new List<int>();
 
         var producer = BlockHelpers.CreateProducer<IDataEnvelope>("producer", ctx => ProduceMixedEnvelopes(ctx));
-        var processor = new EnvelopeProcessorBlock<int>("processor", async (value, ctx) =>
+        var processor = BlockHelpers.CreateEnvelopeProcessor<int>("processor", async (value, ctx) =>
         {
             processedData.Add(value);
             await Task.CompletedTask;
@@ -221,7 +221,7 @@ public class EnvelopeBlocksTests
         var observedControlSignals = new List<IDataEnvelope>();
 
         var producer = BlockHelpers.CreateProducer<IDataEnvelope>("producer", ctx => ProduceMixedEnvelopes(ctx));
-        var processor = new EnvelopeProcessorBlock<int>(
+        var processor = BlockHelpers.CreateEnvelopeProcessor<int>(
             "processor",
             processData: async (value, ctx) =>
             {

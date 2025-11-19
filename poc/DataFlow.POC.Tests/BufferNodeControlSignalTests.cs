@@ -26,7 +26,7 @@ public class BufferNodeControlSignalTests
         // Producer → BufferNode → Consumer
         var producer = BlockHelpers.CreateProducer<IDataEnvelope>("producer", ctx => ProduceDataWithControlSignals(ctx));
         
-        var consumer = new EnvelopeProcessorBlock<int>(
+        var consumer = BlockHelpers.CreateEnvelopeProcessor<int>(
             "consumer",
             processData: async (value, ctx) =>
             {
@@ -80,7 +80,7 @@ public class BufferNodeControlSignalTests
         // Producer → BufferNode → [Consumer1, Consumer2] (competing with side-channel)
         var producer = BlockHelpers.CreateProducer<IDataEnvelope>("producer", ctx => ProduceDataWithControlSignals(ctx));
         
-        var consumer1 = new EnvelopeProcessorBlock<int>(
+        var consumer1 = BlockHelpers.CreateEnvelopeProcessor<int>(
             "consumer1",
             processData: async (value, ctx) => await Task.Delay(5),
             processControl: async (signal, ctx) =>
@@ -92,7 +92,7 @@ public class BufferNodeControlSignalTests
                 await Task.CompletedTask;
             });
 
-        var consumer2 = new EnvelopeProcessorBlock<int>(
+        var consumer2 = BlockHelpers.CreateEnvelopeProcessor<int>(
             "consumer2",
             processData: async (value, ctx) => await Task.Delay(5),
             processControl: async (signal, ctx) =>
@@ -148,7 +148,7 @@ public class BufferNodeControlSignalTests
         var producer = BlockHelpers.CreateProducer<IDataEnvelope>("producer", ctx => ProduceDataWithControlSignals(ctx));
         var transform = BlockHelpers.CreateSimpleEnvelopeTransformer<int, int>("transform", x => x * 2);
         
-        var consumer = new EnvelopeProcessorBlock<int>(
+        var consumer = BlockHelpers.CreateEnvelopeProcessor<int>(
             "consumer",
             processData: async (value, ctx) => await Task.CompletedTask,
             processControl: async (signal, ctx) =>
@@ -244,7 +244,7 @@ public class BufferNodeControlSignalTests
 
         var producer = BlockHelpers.CreateProducer<IDataEnvelope>("producer", ctx => ProduceInterleavedDataAndControl(ctx));
         
-        var consumer = new EnvelopeProcessorBlock<int>(
+        var consumer = BlockHelpers.CreateEnvelopeProcessor<int>(
             "consumer",
             processData: async (value, ctx) =>
             {
@@ -301,7 +301,7 @@ public class BufferNodeControlSignalTests
 
         var producer = BlockHelpers.CreateProducer<IDataEnvelope>("producer", ctx => ProduceWithMultipleBarriers(ctx));
         
-        var consumer1 = new EnvelopeProcessorBlock<int>(
+        var consumer1 = BlockHelpers.CreateEnvelopeProcessor<int>(
             "consumer1",
             processData: async (value, ctx) => await Task.Delay(10),
             processControl: async (signal, ctx) =>
@@ -316,7 +316,7 @@ public class BufferNodeControlSignalTests
                 await Task.CompletedTask;
             });
 
-        var consumer2 = new EnvelopeProcessorBlock<int>(
+        var consumer2 = BlockHelpers.CreateEnvelopeProcessor<int>(
             "consumer2",
             processData: async (value, ctx) => await Task.Delay(10),
             processControl: async (signal, ctx) =>
@@ -423,7 +423,7 @@ public class BufferNodeControlSignalTests
         List<IDataEnvelope> signalsList,
         object lockObj)
     {
-        return new EnvelopeProcessorBlock<int>(
+        return BlockHelpers.CreateEnvelopeProcessor<int>(
             name,
             processData: async (value, ctx) => await Task.CompletedTask,
             processControl: async (signal, ctx) =>
