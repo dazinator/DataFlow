@@ -3,6 +3,7 @@ namespace DataFlow.POC.Builder;
 using DataFlow.POC.Core;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.DependencyInjection;
 
 /// <summary>
 /// Builder for constructing dataflow graphs with a fluent API.
@@ -11,7 +12,10 @@ public class DataFlowGraphBuilder
 {
     private readonly string _name;
     private readonly ILogger<DataFlowGraph> _logger;
+    private readonly IServiceProvider? _serviceProvider;
+    private readonly string _namespace;
     private readonly List<IBlock> _blocks = new();
+    private readonly Dictionary<string, IBlock> _blocksByName = new(); // Track blocks by their registration name
     private readonly List<BufferNode> _bufferNodes = new();
     private readonly List<Edge> _edges = new();
     private readonly List<(IBlock source, BufferNode target)> _blockToBufferConnections = new();
@@ -19,9 +23,35 @@ public class DataFlowGraphBuilder
     private EpochSourceNode? _epochSource;
     private readonly List<EpochProcessorNode> _epochProcessors = new();
 
+    /// <summary>
+    /// Legacy constructor for inline graph building.
+    /// Prefer using the constructor with IServiceProvider for DI-based graph building.
+    /// </summary>
+    [Obsolete("Use the constructor with IServiceProvider for DI-based graph building via services.AddDataFlows(). This constructor will be removed in a future version.")]
     public DataFlowGraphBuilder(string name, ILogger<DataFlowGraph>? logger = null)
     {
         _name = name ?? throw new ArgumentNullException(nameof(name));
+        _logger = logger ?? NullLogger<DataFlowGraph>.Instance;
+        _serviceProvider = null;
+        _namespace = "global";
+    }
+
+    /// <summary>
+    /// Create a new graph builder with service provider support for DI block resolution.
+    /// </summary>
+    /// <param name="name">Name of the graph</param>
+    /// <param name="serviceProvider">Service provider for resolving registered blocks</param>
+    /// <param name="namespacePrefix">Optional namespace prefix for block resolution (defaults to "global")</param>
+    /// <param name="logger">Optional logger</param>
+    public DataFlowGraphBuilder(
+        string name, 
+        IServiceProvider serviceProvider,
+        string? namespacePrefix = null,
+        ILogger<DataFlowGraph>? logger = null)
+    {
+        _name = name ?? throw new ArgumentNullException(nameof(name));
+        _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+        _namespace = namespacePrefix ?? "global";
         _logger = logger ?? NullLogger<DataFlowGraph>.Instance;
     }
 
@@ -31,7 +61,70 @@ public class DataFlowGraphBuilder
     public DataFlowGraphBuilder AddBlock(IBlock block)
     {
         _blocks.Add(block);
+        // Also track by the block's Name property for Connect lookups
+        _blocksByName[block.Name] = block;
         return this;
+    }
+
+    /// <summary>
+    /// Use a block registered with dependency injection.
+    /// The block will be resolved from the service provider using the provided name.
+    /// </summary>
+    /// <param name="name">The name of the block to resolve from DI</param>
+    /// <returns>The builder for chaining</returns>
+    /// <exception cref="InvalidOperationException">If no service provider was provided or block not found</exception>
+    public DataFlowGraphBuilder UseBlock(string name)
+    {
+        if (_serviceProvider is null)
+        {
+            throw new InvalidOperationException(
+                "Cannot use UseBlock() without a service provider. " +
+                "Either pass a service provider to the DataFlowGraphBuilder constructor, " +
+                "or use AddBlock() to add blocks directly.");
+        }
+
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new ArgumentException("Block name cannot be null or whitespace", nameof(name));
+        }
+
+        // Resolve the key with namespace prefix if needed
+        var key = ResolveBlockKey(name);
+
+        // Resolve block from DI
+        var block = _serviceProvider.GetKeyedService<IBlock>(key);
+        if (block is null)
+        {
+            throw new InvalidOperationException(
+                $"Block '{key}' not found in the service provider. " +
+                $"Ensure the block is registered using services.AddDataFlows() before building the graph. " +
+                $"If you're using a custom namespace, make sure to prefix the block name (e.g., 'moduleA:blockName') " +
+                $"or register the block in the same namespace as this graph.");
+        }
+
+        _blocks.Add(block);
+        // Track by resolved key - for DI blocks, this will match block.Name
+        // since SetContext is called with the keyed service key during DI resolution.
+        // This maintains consistency with AddBlock() which tracks by block.Name.
+        _blocksByName[key] = block;
+        return this;
+    }
+
+    /// <summary>
+    /// Resolves the full key for a block by applying namespace prefix if needed.
+    /// If the name already contains a colon (:), it's treated as a fully-qualified key.
+    /// Otherwise, the current namespace prefix is applied.
+    /// </summary>
+    private string ResolveBlockKey(string name)
+    {
+        // If name contains ':', treat it as fully-qualified (e.g., "global:producer" or "moduleA:transformer")
+        if (name.Contains(':'))
+        {
+            return name;
+        }
+        
+        // Apply current namespace prefix
+        return $"{_namespace}:{name}";
     }
 
     /// <summary>
@@ -163,12 +256,32 @@ public class DataFlowGraphBuilder
         string targetName,
         int bufferCapacity = 100)
     {
-        var source = _blocks.FirstOrDefault(b => b.Name == sourceName)
-            ?? throw new ArgumentException($"Source block '{sourceName}' not found");
-        var target = _blocks.FirstOrDefault(b => b.Name == targetName)
-            ?? throw new ArgumentException($"Target block '{targetName}' not found");
-
+        var source = FindBlockByName(sourceName, "Source");
+        var target = FindBlockByName(targetName, "Target");
         return Connect(source, target, BufferMode.Bounded, bufferCapacity);
+    }
+
+    /// <summary>
+    /// Find a block by name, trying both the original name and the resolved key.
+    /// </summary>
+    private IBlock FindBlockByName(string name, string blockRole)
+    {
+        // First try the name as-is (for blocks added directly or when name matches exactly)
+        var block = _blocksByName.GetValueOrDefault(name);
+        
+        if (block is null)
+        {
+            // Try with resolved key (adds namespace prefix if needed)
+            var key = ResolveBlockKey(name);
+            block = _blocksByName.GetValueOrDefault(key);
+        }
+        
+        if (block is null)
+        {
+            throw new ArgumentException($"{blockRole} block '{name}' not found");
+        }
+
+        return block;
     }
 
     /// <summary>

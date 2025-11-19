@@ -75,6 +75,26 @@ public class DataFlowGraph
 
 **Note**: As of November 2025, the POC has consolidated around the ActorBlock pattern for DI scope safety. The previous TransformerBlock and ProcessorBlock have been removed in favor of ActorBlock, which provides automatic dependency injection scope management and prevents common concurrency bugs. See `/poc/docs/migrations/actor-block-migration.md` for migration guidance.
 
+## Dependency Injection Support
+
+DataFlow POC provides first-class support for dependency injection, allowing you to register blocks, strategies, and entire graphs with your DI container.
+
+**See the [Dependency Injection Registration Guide](./docs/guides/dependency-injection-registration.md) for comprehensive documentation**, including:
+
+- Quick start examples
+- Block, strategy, and graph registration patterns
+- Scoped lifetime support (only supported lifetime for blocks)
+- Namespace isolation for modular monolith scenarios
+- Typed helper methods
+- Best practices and troubleshooting
+
+### Additional Resources
+
+- **Research Documentation**: `/research/design-revision-2025-11/`
+- **API Specification**: `/research/design-revision-2025-11/design/api-spec.md`
+- **ADR**: `/poc/docs/adr/2025-11-19-revised-di-service-registration.md`
+- **Test Examples**: `RevisedDiRegistrationTests.cs` (29 comprehensive tests)
+
 ## Testing Strategy
 
 The POC includes comprehensive tests demonstrating:

@@ -44,23 +44,15 @@ namespace DataFlow.POC.DependencyInjection;
 
 public class DataFlowBuilder
 {
-    // Block Registration (Scoped Default)
+    // Block Registration (Scoped Only - blocks are stateful)
     public DataFlowBuilder AddBlock<TBlock>(
         string name, 
         Func<IServiceProvider, TBlock> factory) where TBlock : IBlock;
     
     public DataFlowBuilder AddBlock(string name, IBlock block);
     
-    // Explicit Lifetime Methods
+    // Explicit Scoped Lifetime (same as default)
     public DataFlowBuilder AddScopedBlock<TBlock>(
-        string name, 
-        Func<IServiceProvider, TBlock> factory) where TBlock : IBlock;
-    
-    public DataFlowBuilder AddSingletonBlock<TBlock>(
-        string name, 
-        Func<IServiceProvider, TBlock> factory) where TBlock : IBlock;
-    
-    public DataFlowBuilder AddTransientBlock<TBlock>(
         string name, 
         Func<IServiceProvider, TBlock> factory) where TBlock : IBlock;
     
@@ -147,21 +139,17 @@ services.AddDataFlows(df =>
     // Scoped (default) - safe for DbContext, etc.
     df.AddBlock("scoped", sp => new ScopedBlock(...));
     df.AddScopedBlock("explicit-scoped", sp => new ScopedBlock(...));
-    
-    // Singleton - for stateless blocks
-    df.AddSingletonBlock("singleton", sp => new StatelessBlock(...));
-    
-    // Transient - new instance each time
-    df.AddTransientBlock("transient", sp => new TransientBlock(...));
 });
 ```
+
+**Note**: Blocks only support scoped lifetime. Singleton and transient lifetimes are not supported as blocks have stateful execution semantics (processing a specific input stream).
 
 ### Integrated Graph Registration
 
 ```csharp
 services.AddDataFlows(df => 
 {
-    // Register blocks
+    // Register blocks (all scoped)
     df.AddBlock("producer", sp => new ProducerBlock<int>(...));
     df.AddBlock("transformer", sp => new TransformBlock<int, string>(...));
     
@@ -372,12 +360,12 @@ public class MyService
 **Lifetime Management**:
 - Graphs registered with `AddGraph()` are scoped by default
 - Scoped blocks within the graph are created per scope
-- Singleton blocks are shared across all graph executions
 - Dispose scopes properly to release scoped resources
+
+**Note**: Blocks only support scoped lifetime. Singleton and transient lifetimes are not supported.
 
 **Concurrency**:
 - Multiple scopes can execute different instances of the same graph simultaneously
-- Singleton blocks must be thread-safe
 - Scoped blocks are isolated per scope
 
 **Error Handling**:
@@ -459,10 +447,11 @@ using services.AddDataFlows(df => df.AddBlock(...))."
 
 ### Breaking Changes
 
-**Lifetime Default**:
-- **Before**: Singleton
-- **After**: Scoped
-- **Migration**: Use `AddSingletonBlock()` to preserve singleton behavior
+**Lifetime Support**:
+- **Before**: Supported singleton, scoped, and transient lifetimes
+- **After**: Only scoped lifetime supported
+- **Rationale**: Blocks are stateful and process specific input streams. Singleton would cause state conflicts, transient doesn't match execution semantics.
+- **Migration**: All blocks use scoped lifetime. Remove `AddSingletonBlock()` and `AddTransientBlock()` calls.
 
 **Builder Class**:
 - **Before**: Use `DataFlowGraphBuilderEx` for DI
@@ -472,7 +461,7 @@ using services.AddDataFlows(df => df.AddBlock(...))."
 ### Compatible Changes
 
 - `AddDataFlows()` method signature unchanged
-- `AddBlock()` method signature unchanged (only default lifetime changed)
+- `AddBlock()` method signature unchanged (only default lifetime enforced)
 - Block registration patterns unchanged
 - Direct block usage (no DI) unchanged
 
@@ -481,7 +470,8 @@ using services.AddDataFlows(df => df.AddBlock(...))."
 **Before**:
 ```csharp
 services.AddDataFlows(df => {
-    df.AddBlock("producer", sp => new ProducerBlock<int>(...)); // Singleton
+    df.AddBlock("producer", sp => new ProducerBlock<int>(...)); // Scoped by default
+    df.AddSingletonBlock("logger", sp => new LoggerBlock(...)); // Singleton
 });
 
 var builder = new DataFlowGraphBuilderEx("flow", serviceProvider);
@@ -491,8 +481,7 @@ builder.UseBlock("producer").Connect(...);
 **After**:
 ```csharp
 services.AddDataFlows(df => {
-    df.AddSingletonBlock("producer", sp => new ProducerBlock<int>(...)); // Explicit
-    // Or just AddBlock for scoped (recommended)
+    df.AddBlock("producer", sp => new ProducerBlock<int>(...)); // Scoped (only option)
     
     df.AddGraph("flow", g => {
         g.UseBlock("producer").Connect(...);
@@ -511,7 +500,7 @@ builder.UseBlock("producer").Connect(...);
 
 **Test Categories**:
 1. Single builder pattern
-2. Lifetime scopes
+2. Scoped lifetime (only supported lifetime)
 3. Duplicate detection
 4. Graph integration
 5. Namespace support
