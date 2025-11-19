@@ -10,28 +10,18 @@ using Xunit;
 
 public class BasicFlowTests
 {
-    // Refactored to use test helpers - removed duplicate actor implementations
-    // - CollectorActor<T> → using TestHelpers.CollectorActor<T>
-    // - IntToStringActor → using TestHelpers.TransformActor<int, string>
-    // - ProduceIntegers → using TestStreams.Integers()
+    // Refactored to use BlockHelpers for consistent block instantiation patterns.
 
     [Fact]
     public async Task Producer_To_Processor_Flow_Should_Process_All_Items()
     {
         // Arrange
         var processedItems = new List<int>();
-        
-        // Using TestServiceBuilder instead of manual ServiceCollection setup
-        var scopeFactory = TestServiceBuilder.Create()
-            .WithScoped(new CollectorActor<int>(processedItems))
-            .BuildScopeFactory();
 
-        // Using TestStreams.Integers() instead of custom ProduceIntegers function
-        var producer = new ProducerBlock<int>("producer", _ => TestStreams.Integers(10));
-
-        var processor = new ActorBlock<int, object, CollectorActor<int>>(
+        var producer = BlockHelpers.CreateProducer("producer", TestStreams.Integers(10));
+        var processor = BlockHelpers.CreateActor<int, object, CollectorActor<int>>(
             "processor",
-            scopeFactory);
+            new CollectorActor<int>(processedItems));
 
         var builder = new DataFlowGraphBuilder("basic-flow");
         builder.AddBlock(producer)
@@ -56,20 +46,16 @@ public class BasicFlowTests
         // Arrange
         var processedItems = new List<string>();
         
-        // Using TestServiceBuilder with TransformActor instead of custom IntToStringActor
         var scopeFactory = TestServiceBuilder.Create()
             .WithScoped(new TransformActor<int, string>(i => $"Item-{i}"))
             .WithScoped(new CollectorActor<string>(processedItems))
             .BuildScopeFactory();
 
-        // Using TestStreams.Integers() instead of custom ProduceIntegers function
-        var producer = new ProducerBlock<int>("producer", _ => TestStreams.Integers(5));
-
-        var transformer = new ActorBlock<int, string, TransformActor<int, string>>(
+        var producer = BlockHelpers.CreateProducer("producer", TestStreams.Integers(5));
+        var transformer = BlockHelpers.CreateActor<int, string, TransformActor<int, string>>(
             "transformer",
             scopeFactory);
-
-        var processor = new ActorBlock<string, object, CollectorActor<string>>(
+        var processor = BlockHelpers.CreateActor<string, object, CollectorActor<string>>(
             "processor",
             scopeFactory);
 
@@ -100,18 +86,11 @@ public class BasicFlowTests
         
         // Arrange
         var processedItems = new List<int>();
-        
-        // Using TestServiceBuilder instead of manual ServiceCollection setup
-        var scopeFactory = TestServiceBuilder.Create()
-            .WithScoped(new CollectorActor<int>(processedItems))
-            .BuildScopeFactory();
 
-        // Using TestStreams.Integers() instead of custom ProduceIntegers function
-        var producer = new ProducerBlock<int>("producer", _ => TestStreams.Integers(5));
-
-        var processor = new ActorBlock<int, object, CollectorActor<int>>(
+        var producer = BlockHelpers.CreateProducer("producer", TestStreams.Integers(5));
+        var processor = BlockHelpers.CreateActor<int, object, CollectorActor<int>>(
             "processor",
-            scopeFactory);
+            new CollectorActor<int>(processedItems));
 
         var builder = new DataFlowGraphBuilder("unbuffered-flow");
         builder.AddBlock(producer)

@@ -10,12 +10,7 @@ using Xunit;
 
 public class ComplexFlowTests
 {
-    // Refactored to use test helpers - removed duplicate implementations
-    // - StringArrayCollectorActor → using TestHelpers.CollectorActor<string[]>
-    // - StringCollectorActor → using TestHelpers.CollectorActor<string>
-    // - IntToFormattedStringActor → using TestHelpers.TransformActor<int, string>
-    // - PrefixTransformActor → using TestHelpers.TransformActor<int, string>
-    // - ProduceIntegers → using TestStreams.Integers()
+    // Refactored to use BlockHelpers for consistent block instantiation patterns.
 
     [Fact]
     public async Task Complex_Flow_With_Transform_Batch_And_Routing_Should_Work()
@@ -24,45 +19,26 @@ public class ComplexFlowTests
         var smallBatches = new List<string[]>();
         var largeBatches = new List<string[]>();
         
-        // Using TestServiceBuilder to create isolated scope factories
-        var smallScopeFactory = TestServiceBuilder.Create()
-            .WithScoped(new CollectorActor<string[]>(smallBatches))
-            .BuildScopeFactory();
-
-        var largeScopeFactory = TestServiceBuilder.Create()
-            .WithScoped(new CollectorActor<string[]>(largeBatches))
-            .BuildScopeFactory();
-
         var transformScopeFactory = TestServiceBuilder.Create()
             .WithScoped(new TransformActor<int, string>(i => $"Item-{i:D2}"))
             .BuildScopeFactory();
 
         var commonServices = new ServiceCollection().BuildServiceProvider();
 
-        // Using TestStreams.Integers() instead of custom ProduceIntegers function
-        var producer = new ProducerBlock<int>("producer", _ => TestStreams.Integers(20));
-
-        // Transform to strings
-        var transformer = new ActorBlock<int, string, TransformActor<int, string>>(
+        var producer = BlockHelpers.CreateProducer("producer", TestStreams.Integers(20));
+        var transformer = BlockHelpers.CreateActor<int, string, TransformActor<int, string>>(
             "transformer",
             transformScopeFactory);
-
-        // Batch into groups of 5
-        var batcher = new BatchBlock<string>("batcher", maxBatchSize: 5, windowPeriod: null);
-
-        // Route batches by size
-        var router = new RouterBlock<string[]>("router", batch => batch.Length < 5 ? "small" : "large");
-
-        var smallFilter = new RouteFilterBlock<string[]>("small-filter", "small");
-        var largeFilter = new RouteFilterBlock<string[]>("large-filter", "large");
-
-        var smallProcessor = new ActorBlock<string[], object, CollectorActor<string[]>>(
+        var batcher = BlockHelpers.CreateBatch<string>("batcher", maxBatchSize: 5);
+        var router = BlockHelpers.CreateRouter<string[]>("router", batch => batch.Length < 5 ? "small" : "large");
+        var smallFilter = BlockHelpers.CreateRouteFilter<string[]>("small-filter", "small");
+        var largeFilter = BlockHelpers.CreateRouteFilter<string[]>("large-filter", "large");
+        var smallProcessor = BlockHelpers.CreateActor<string[], object, CollectorActor<string[]>>(
             "small-processor",
-            smallScopeFactory);
-
-        var largeProcessor = new ActorBlock<string[], object, CollectorActor<string[]>>(
+            new CollectorActor<string[]>(smallBatches));
+        var largeProcessor = BlockHelpers.CreateActor<string[], object, CollectorActor<string[]>>(
             "large-processor",
-            largeScopeFactory);
+            new CollectorActor<string[]>(largeBatches));
 
         var builder = new DataFlowGraphBuilder("complex-flow");
         builder.AddBlock(producer)
@@ -103,7 +79,6 @@ public class ComplexFlowTests
         // Arrange
         var finalResults = new List<string>();
         
-        // Using TestServiceBuilder to create separate scope factories for each path
         var transform1ScopeFactory = TestServiceBuilder.Create()
             .WithScoped(new TransformActor<int, string>(i => $"T1-{i}"))
             .BuildScopeFactory();
@@ -112,28 +87,18 @@ public class ComplexFlowTests
             .WithScoped(new TransformActor<int, string>(i => $"T2-{i}"))
             .BuildScopeFactory();
 
-        var processorScopeFactory = TestServiceBuilder.Create()
-            .WithScoped(new CollectorActor<string>(finalResults))
-            .BuildScopeFactory();
-
         var commonServices = new ServiceCollection().BuildServiceProvider();
 
-        // Using TestStreams.Integers() instead of custom ProduceIntegers function
-        var producer = new ProducerBlock<int>("producer", _ => TestStreams.Integers(6));
-
-        // Split into two transformers
-        var transformer1 = new ActorBlock<int, string, TransformActor<int, string>>(
+        var producer = BlockHelpers.CreateProducer("producer", TestStreams.Integers(6));
+        var transformer1 = BlockHelpers.CreateActor<int, string, TransformActor<int, string>>(
             "transform1",
             transform1ScopeFactory);
-        
-        var transformer2 = new ActorBlock<int, string, TransformActor<int, string>>(
+        var transformer2 = BlockHelpers.CreateActor<int, string, TransformActor<int, string>>(
             "transform2",
             transform2ScopeFactory);
-
-        // Merge back to single processor
-        var processor = new ActorBlock<string, object, CollectorActor<string>>(
+        var processor = BlockHelpers.CreateActor<string, object, CollectorActor<string>>(
             "processor",
-            processorScopeFactory);
+            new CollectorActor<string>(finalResults));
 
         var builder = new DataFlowGraphBuilder("diamond-flow");
         builder.AddBlock(producer)

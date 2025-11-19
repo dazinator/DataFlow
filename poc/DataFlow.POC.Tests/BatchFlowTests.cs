@@ -10,12 +10,7 @@ using Xunit;
 
 public class BatchFlowTests
 {
-    // Refactored to use test helpers - removed duplicate implementations
-    // - BatchCollectorActor → using TestHelpers.CollectorActor<int[]>
-    // - ProduceIntegers → using TestStreams.Integers() or custom for delays
-
-    // Note: For the time-window test with delays, we keep a simple inline producer
-    // since TestStreams doesn't support delays yet (could be future enhancement)
+    // Refactored to use BlockHelpers for consistent block instantiation patterns.
     private static async IAsyncEnumerable<int> ProduceIntegersWithDelay(IExecutionContext ctx, int count, int delayMs)
     {
         for (int i = 1; i <= count; i++)
@@ -33,20 +28,12 @@ public class BatchFlowTests
     {
         // Arrange
         var batches = new List<int[]>();
-        
-        // Using TestServiceBuilder instead of manual ServiceCollection setup
-        var scopeFactory = TestServiceBuilder.Create()
-            .WithScoped(new CollectorActor<int[]>(batches))
-            .BuildScopeFactory();
 
-        // Using TestStreams.Integers() instead of custom ProduceIntegers function
-        var producer = new ProducerBlock<int>("producer", _ => TestStreams.Integers(10));
-
-        var batcher = new BatchBlock<int>("batcher", maxBatchSize: 3, windowPeriod: null);
-
-        var processor = new ActorBlock<int[], object, CollectorActor<int[]>>(
+        var producer = BlockHelpers.CreateProducer("producer", TestStreams.Integers(10));
+        var batcher = BlockHelpers.CreateBatch<int>("batcher", maxBatchSize: 3);
+        var processor = BlockHelpers.CreateActor<int[], object, CollectorActor<int[]>>(
             "processor",
-            scopeFactory);
+            new CollectorActor<int[]>(batches));
 
         var builder = new DataFlowGraphBuilder("batch-flow");
         builder.AddBlock(producer)
@@ -75,20 +62,12 @@ public class BatchFlowTests
     {
         // Arrange
         var batches = new List<int[]>();
-        
-        // Using TestServiceBuilder instead of manual ServiceCollection setup
-        var scopeFactory = TestServiceBuilder.Create()
-            .WithScoped(new CollectorActor<int[]>(batches))
-            .BuildScopeFactory();
 
-        // Using inline producer with delays (TestStreams doesn't support delays yet)
-        var producer = new ProducerBlock<int>("producer", ctx => ProduceIntegersWithDelay(ctx, 5, delayMs: 50));
-
-        var batcher = new BatchBlock<int>("batcher", maxBatchSize: 100, windowPeriod: TimeSpan.FromMilliseconds(120));
-
-        var processor = new ActorBlock<int[], object, CollectorActor<int[]>>(
+        var producer = BlockHelpers.CreateProducer("producer", ctx => ProduceIntegersWithDelay(ctx, 5, delayMs: 50));
+        var batcher = BlockHelpers.CreateBatch<int>("batcher", maxBatchSize: 100, windowPeriod: TimeSpan.FromMilliseconds(120));
+        var processor = BlockHelpers.CreateActor<int[], object, CollectorActor<int[]>>(
             "processor",
-            scopeFactory);
+            new CollectorActor<int[]>(batches));
 
         var builder = new DataFlowGraphBuilder("batch-window-flow");
         builder.AddBlock(producer)
