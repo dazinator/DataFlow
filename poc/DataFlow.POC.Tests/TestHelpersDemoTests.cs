@@ -39,8 +39,8 @@ public class TestHelpersDemoTests
 
         // Manual producer
         var producer = BlockHelpers.CreateProducer<int>("producer", ctx => ProduceIntegersOldWay(ctx, 5));
-        var transformer = new ActorBlock<int, string, LocalIntToStringTransform>("transformer", transformScopeFactory);
-        var collector = new ActorBlock<string, object, LocalStringCollector>("collector", collectorScopeFactory);
+        var transformer = new ActorBlock<int, string, LocalIntToStringTransform>(new BlockContext("transformer"), transformScopeFactory);
+        var collector = new ActorBlock<string, object, LocalStringCollector>(new BlockContext("collector"), collectorScopeFactory);
 
         var builder = GraphHelpers.CreateGraphBuilder("old-pattern");
         builder.AddBlock(producer)
@@ -113,13 +113,13 @@ public class TestHelpersDemoTests
         var producer = BlockHelpers.CreateProducer<int>("producer", TestStreams.Integers(5));
         
         var transformer = new ActorBlock<int, string, TransformActor<int, string>>(
-            "transformer",
+            new BlockContext("transformer"),
             TestServiceBuilder.Create()
                 .WithScoped(new TransformActor<int, string>(i => $"Item-{i}"))
                 .BuildScopeFactory());
 
         var collector = new ActorBlock<string, object, CollectorActor<string>>(
-            "collector",
+            new BlockContext("collector"),
             TestServiceBuilder.Create()
                 .WithScoped(new CollectorActor<string>(collected))
                 .BuildScopeFactory());

@@ -70,12 +70,10 @@ public class FanInSourceCoordinationTests : IAsyncDisposable
             new[] { 4, 5, 6 }));
         var sp2 = services2.BuildServiceProvider();
 
-        var source1Block = new EpochSourceBlock<int, TestSourceActor>(
-            "source1",
+        var source1Block = new EpochSourceBlock<int, TestSourceActor>(new BlockContext("source1"),
             sp1.GetRequiredService<IServiceScopeFactory>());
 
-        var source2Block = new EpochSourceBlock<int, TestSourceActor>(
-            "source2",
+        var source2Block = new EpochSourceBlock<int, TestSourceActor>(new BlockContext("source2"),
             sp2.GetRequiredService<IServiceScopeFactory>());
 
         var context = new TestExecutionContext();
@@ -170,12 +168,10 @@ public class FanInSourceCoordinationTests : IAsyncDisposable
             new[] { 30, 40 }));
         var sp2 = services2.BuildServiceProvider();
 
-        var source1Block = new EpochSourceBlock<int, TestSourceActor>(
-            "source1",
+        var source1Block = new EpochSourceBlock<int, TestSourceActor>(new BlockContext("source1"),
             sp1.GetRequiredService<IServiceScopeFactory>());
 
-        var source2Block = new EpochSourceBlock<int, TestSourceActor>(
-            "source2",
+        var source2Block = new EpochSourceBlock<int, TestSourceActor>(new BlockContext("source2"),
             sp2.GetRequiredService<IServiceScopeFactory>());
 
         var context = new TestExecutionContext();
@@ -249,8 +245,7 @@ public class FanInSourceCoordinationTests : IAsyncDisposable
             delayMs: 50));
         var sp1 = services1.BuildServiceProvider();
 
-        var source1Block = new EpochSourceBlock<int, SlowSourceActor>(
-            "source1",
+        var source1Block = new EpochSourceBlock<int, SlowSourceActor>(new BlockContext("source1"),
             sp1.GetRequiredService<IServiceScopeFactory>());
 
         var context = new TestExecutionContext();
@@ -289,8 +284,7 @@ public class FanInSourceCoordinationTests : IAsyncDisposable
             new[] { 100, 200 }));
         var sp2 = services2.BuildServiceProvider();
 
-        var source2Block = new EpochSourceBlock<int, TestSourceActor>(
-            "source2",
+        var source2Block = new EpochSourceBlock<int, TestSourceActor>(new BlockContext("source2"),
             sp2.GetRequiredService<IServiceScopeFactory>());
 
         var task2 = Task.Run(async () =>
@@ -363,16 +357,14 @@ public class FanInSourceCoordinationTests : IAsyncDisposable
             new[] { 5, 6 }));
         var sp3 = services3.BuildServiceProvider();
 
-        var source1Block = new EpochSourceBlock<int, TestSourceActor>(
-            "source1",
+        var source1Block = new EpochSourceBlock<int, TestSourceActor>(new BlockContext("source1"),
             sp1.GetRequiredService<IServiceScopeFactory>());
 
-        var source2Block = new EpochSourceBlock<int, TestSourceActor>(
-            "source2",
+        var source2Block = new EpochSourceBlock<int, TestSourceActor>(new BlockContext("source2"),
             sp2.GetRequiredService<IServiceScopeFactory>());
 
         var source3Block = new EpochSourceBlock<int, TestSourceActor>(
-            "source3",
+            new BlockContext("source3"),
             sp3.GetRequiredService<IServiceScopeFactory>());
 
         var context = new TestExecutionContext();
@@ -473,12 +465,10 @@ public class FanInSourceCoordinationTests : IAsyncDisposable
             delayMs: 100));
         var sp2 = services2.BuildServiceProvider();
 
-        var fastBlock = new EpochSourceBlock<int, TestSourceActor>(
-            "fast-source",
+        var fastBlock = new EpochSourceBlock<int, TestSourceActor>(new BlockContext("fast-source"),
             sp1.GetRequiredService<IServiceScopeFactory>());
 
-        var slowBlock = new EpochSourceBlock<int, SlowSourceActor>(
-            "slow-source",
+        var slowBlock = new EpochSourceBlock<int, SlowSourceActor>(new BlockContext("slow-source"),
             sp2.GetRequiredService<IServiceScopeFactory>());
 
         var context = new TestExecutionContext();
@@ -565,12 +555,10 @@ public class FanInSourceCoordinationTests : IAsyncDisposable
             new[] { 2 }));
         var sp2 = services2.BuildServiceProvider();
 
-        var source1Block = new EpochSourceBlock<int, TestSourceActor>(
-            "source1",
+        var source1Block = new EpochSourceBlock<int, TestSourceActor>(new BlockContext("source1"),
             sp1.GetRequiredService<IServiceScopeFactory>());
 
-        var source2Block = new EpochSourceBlock<int, TestSourceActor>(
-            "source2",
+        var source2Block = new EpochSourceBlock<int, TestSourceActor>(new BlockContext("source2"),
             sp2.GetRequiredService<IServiceScopeFactory>());
 
         var context = new TestExecutionContext();

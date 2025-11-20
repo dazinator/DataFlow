@@ -165,7 +165,7 @@ public class DecoupledEpochPerformanceTests
         var provider = services.BuildServiceProvider();
 
         var sourceBlock = new EpochSourceBlock<int, PerfSourceCentricSource>(
-            "source",
+            new BlockContext("source"),
             provider.GetRequiredService<IServiceScopeFactory>());
 
         var context = new TestExecutionContext();

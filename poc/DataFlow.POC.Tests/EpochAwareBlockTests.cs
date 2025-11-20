@@ -232,7 +232,7 @@ public class EpochAwareBlockTests
         var segmenterBlock = BlockHelpers.CreateEpochSegmenter<int>("segmenter", EpochSegmentationPolicy.ByCount(5, "test-source"));
 
         var batchBlock = new EpochBatchBlock<int>(
-            "batcher",
+            new BlockContext("batcher"),
             maxBatchSize: 2);
 
         var context = new TestExecutionContext();
@@ -288,7 +288,7 @@ public class EpochAwareBlockTests
         var segmenterBlock = BlockHelpers.CreateEpochSegmenter<int>("segmenter", EpochSegmentationPolicy.ByCount(3, "test-source"));
 
         var batchBlock = new EpochBatchBlock<int>(
-            "batcher",
+            new BlockContext("batcher"),
             maxBatchSize: 10); // Large batch size - should still break at epoch boundaries
 
         var context = new TestExecutionContext();
@@ -344,7 +344,7 @@ public class EpochAwareBlockTests
         var segmenterBlock = BlockHelpers.CreateEpochSegmenter<int>("segmenter", EpochSegmentationPolicy.ByCount(5, "test-source"));
 
         var batchBlock = new EpochBatchBlock<int>(
-            "batcher",
+            new BlockContext("batcher"),
             maxBatchSize: 3);
 
         var context = new TestExecutionContext();
@@ -394,7 +394,7 @@ public class EpochAwareBlockTests
         var transformerBlock1 = BlockHelpers.CreateEpochActor<int, int, DoubleActor>("transformer1", provider.GetRequiredService<IServiceScopeFactory>());
 
         var batchBlock = new EpochBatchBlock<int>(
-            "batcher",
+            new BlockContext("batcher"),
             maxBatchSize: 2);
 
         var transformerBlock2 = BlockHelpers.CreateEpochActor<int[], string, BatchToStringActor>("transformer2", provider.GetRequiredService<IServiceScopeFactory>());

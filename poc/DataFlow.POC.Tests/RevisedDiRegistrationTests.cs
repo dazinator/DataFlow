@@ -719,7 +719,7 @@ public class RevisedDiRegistrationTests
     {
         private readonly List<int> _items = new() { 1, 2, 3 };
 
-        public TestProducerBlock() : base("producer") { }
+        public TestProducerBlock() : base(new BlockContext("producer")) { }
 
         public override async IAsyncEnumerable<int> ExecuteAsync(
             IAsyncEnumerable<object> input,
@@ -735,7 +735,7 @@ public class RevisedDiRegistrationTests
 
     private class TestTransformerBlock : BlockBase<int, string>
     {
-        public TestTransformerBlock() : base("transformer") { }
+        public TestTransformerBlock() : base(new BlockContext("transformer")) { }
 
         public override async IAsyncEnumerable<string> ExecuteAsync(
             IAsyncEnumerable<int> input,
@@ -750,7 +750,7 @@ public class RevisedDiRegistrationTests
 
     private class TestProcessorBlock : BlockBase<int, object>
     {
-        public TestProcessorBlock() : base("processor") { }
+        public TestProcessorBlock() : base(new BlockContext("processor")) { }
 
         public override async IAsyncEnumerable<object> ExecuteAsync(
             IAsyncEnumerable<int> input,

@@ -47,7 +47,7 @@ public class SourceCoordinationTests : IAsyncDisposable
         var testServiceProvider = services.BuildServiceProvider();
 
         var sourceBlock = new EpochSourceBlock<int, SingleEpochSourceActor>(
-            "source1",
+            new BlockContext("source1"),
             testServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var context = new TestExecutionContext();
@@ -99,7 +99,7 @@ public class SourceCoordinationTests : IAsyncDisposable
         var testServiceProvider = services.BuildServiceProvider();
 
         var sourceBlock = new EpochSourceBlock<int, MultiEpochSourceActor>(
-            "source1",
+            new BlockContext("source1"),
             testServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var context = new TestExecutionContext();
@@ -156,11 +156,11 @@ public class SourceCoordinationTests : IAsyncDisposable
         var sp2 = services2.BuildServiceProvider();
 
         var source1Block = new EpochSourceBlock<int, SingleEpochSourceActor>(
-            "source1",
+            new BlockContext("source1"),
             sp1.GetRequiredService<IServiceScopeFactory>());
 
         var source2Block = new EpochSourceBlock<int, SingleEpochSourceActor>(
-            "source2",
+            new BlockContext("source2"),
             sp2.GetRequiredService<IServiceScopeFactory>());
 
         var context = new TestExecutionContext();
@@ -237,7 +237,7 @@ public class SourceCoordinationTests : IAsyncDisposable
         var testServiceProvider = services.BuildServiceProvider();
 
         var sourceBlock = new EpochSourceBlock<int, MultiEpochSourceActor>(
-            "source1",
+            new BlockContext("source1"),
             testServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var context = new TestExecutionContext();

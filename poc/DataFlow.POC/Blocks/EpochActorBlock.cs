@@ -30,17 +30,6 @@ public sealed class EpochActorBlock<TIn, TOut, TActor> : BlockBase<IEpochStream<
     private readonly ActorExecutionContext _context = new();
 
     /// <summary>
-    /// Legacy constructor for inline graph building.
-    /// Prefer using the constructor with IBlockContext via DI registration.
-    /// </summary>
-    [Obsolete("Use the constructor with IBlockContext parameter via services.AddDataFlows(). This constructor will be removed in a future version.")]
-    public EpochActorBlock(string name, IServiceScopeFactory scopeFactory)
-        : base(name)
-    {
-        _scopeFactory = scopeFactory ?? throw new ArgumentNullException(nameof(scopeFactory));
-    }
-
-    /// <summary>
     /// Constructor with IBlockContext for proper dependency injection.
     /// All dependencies are passed via constructor.
     /// </summary>

@@ -12,15 +12,6 @@ using System.Runtime.CompilerServices;
 public abstract class EnvelopeTransformerBlock<TIn, TOut> : BlockBase<IDataEnvelope, IDataEnvelope>
 {
     /// <summary>
-    /// Legacy constructor for inline graph building.
-    /// Prefer using the constructor with IBlockContext via DI registration.
-    /// </summary>
-    [Obsolete("Use the constructor with IBlockContext parameter via services.AddDataFlows(). This constructor will be removed in a future version.")]
-    protected EnvelopeTransformerBlock(string name) : base(name)
-    {
-    }
-
-    /// <summary>
     /// Constructor with IBlockContext for proper dependency injection.
     /// All dependencies are passed via constructor.
     /// </summary>
@@ -72,16 +63,6 @@ public class SimpleEnvelopeTransformerBlock<TIn, TOut> : EnvelopeTransformerBloc
     private readonly Func<TIn, TOut> _transform;
 
     /// <summary>
-    /// Legacy constructor for inline graph building.
-    /// Prefer using the constructor with IBlockContext via DI registration.
-    /// </summary>
-    [Obsolete("Use the constructor with IBlockContext parameter via services.AddDataFlows(). This constructor will be removed in a future version.")]
-    public SimpleEnvelopeTransformerBlock(string name, Func<TIn, TOut> transform) : base(name)
-    {
-        _transform = transform ?? throw new ArgumentNullException(nameof(transform));
-    }
-
-    /// <summary>
     /// Constructor with IBlockContext for proper dependency injection.
     /// All dependencies are passed via constructor.
     /// </summary>
@@ -106,18 +87,6 @@ public class SimpleEnvelopeTransformerBlock<TIn, TOut> : EnvelopeTransformerBloc
 public class AsyncEnvelopeTransformerBlock<TIn, TOut> : EnvelopeTransformerBlock<TIn, TOut>
 {
     private readonly Func<TIn, IExecutionContext, Task<TOut>> _transformAsync;
-
-    /// <summary>
-    /// Legacy constructor for inline graph building.
-    /// Prefer using the constructor with IBlockContext via DI registration.
-    /// </summary>
-    [Obsolete("Use the constructor with IBlockContext parameter via services.AddDataFlows(). This constructor will be removed in a future version.")]
-    public AsyncEnvelopeTransformerBlock(
-        string name,
-        Func<TIn, IExecutionContext, Task<TOut>> transformAsync) : base(name)
-    {
-        _transformAsync = transformAsync ?? throw new ArgumentNullException(nameof(transformAsync));
-    }
 
     /// <summary>
     /// Constructor with IBlockContext for proper dependency injection.
@@ -145,18 +114,6 @@ public class AsyncEnvelopeTransformerBlock<TIn, TOut> : EnvelopeTransformerBlock
 public class EnvelopeProjectorBlock<TIn, TOut> : EnvelopeTransformerBlock<TIn, TOut>
 {
     private readonly Func<TIn, IExecutionContext, IAsyncEnumerable<TOut>> _project;
-
-    /// <summary>
-    /// Legacy constructor for inline graph building.
-    /// Prefer using the constructor with IBlockContext via DI registration.
-    /// </summary>
-    [Obsolete("Use the constructor with IBlockContext parameter via services.AddDataFlows(). This constructor will be removed in a future version.")]
-    public EnvelopeProjectorBlock(
-        string name,
-        Func<TIn, IExecutionContext, IAsyncEnumerable<TOut>> project) : base(name)
-    {
-        _project = project ?? throw new ArgumentNullException(nameof(project));
-    }
 
     /// <summary>
     /// Constructor with IBlockContext for proper dependency injection.
@@ -188,20 +145,6 @@ public class EnvelopeProcessorBlock<T> : BlockBase<IDataEnvelope, IDataEnvelope>
 {
     private readonly Func<T, IExecutionContext, Task> _processData;
     private readonly Func<IDataEnvelope, IExecutionContext, Task>? _processControl;
-
-    /// <summary>
-    /// Legacy constructor for inline graph building.
-    /// Prefer using the constructor with IBlockContext via DI registration.
-    /// </summary>
-    [Obsolete("Use the constructor with IBlockContext parameter via services.AddDataFlows(). This constructor will be removed in a future version.")]
-    public EnvelopeProcessorBlock(
-        string name,
-        Func<T, IExecutionContext, Task> processData,
-        Func<IDataEnvelope, IExecutionContext, Task>? processControl = null) : base(name)
-    {
-        _processData = processData ?? throw new ArgumentNullException(nameof(processData));
-        _processControl = processControl;
-    }
 
     /// <summary>
     /// Constructor with IBlockContext for proper dependency injection.

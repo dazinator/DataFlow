@@ -232,7 +232,7 @@ public class DecoupledEpochTests
         var provider1 = services1.BuildServiceProvider();
 
         var sourceCentricBlock = new EpochSourceBlock<int, SourceCentricNumberProducer>(
-            "source-centric",
+            new BlockContext("source-centric"),
             provider1.GetRequiredService<IServiceScopeFactory>());
 
         // Arrange - Decoupled approach

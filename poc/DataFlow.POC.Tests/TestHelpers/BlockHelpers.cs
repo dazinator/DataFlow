@@ -51,7 +51,7 @@ public static class BlockHelpers
         string name,
         IEnumerable<T> items)
     {
-        return new ProducerBlock<T>(name, _ => ToAsyncEnumerable(items));
+        return new ProducerBlock<T>(new BlockContext(name), _ => ToAsyncEnumerable(items));
     }
 
     /// <summary>
@@ -61,7 +61,7 @@ public static class BlockHelpers
         string name,
         IAsyncEnumerable<T> items)
     {
-        return new ProducerBlock<T>(name, _ => items);
+        return new ProducerBlock<T>(new BlockContext(name), _ => items);
     }
 
     /// <summary>
@@ -71,7 +71,7 @@ public static class BlockHelpers
         string name,
         Func<IExecutionContext, IAsyncEnumerable<T>> producer)
     {
-        return new ProducerBlock<T>(name, producer);
+        return new ProducerBlock<T>(new BlockContext(name), producer);
     }
 
     /// <summary>
@@ -82,7 +82,7 @@ public static class BlockHelpers
         Func<IExecutionContext, IEnumerable<IAsyncEnumerable<T>>> producersFactory,
         int maxConcurrency = 4)
     {
-        return new ConcurrentProducerBlock<T>(name, producersFactory, maxConcurrency);
+        return new ConcurrentProducerBlock<T>(new BlockContext(name), producersFactory, maxConcurrency);
     }
 
     #endregion
@@ -128,7 +128,7 @@ public static class BlockHelpers
         string name,
         int maxBatchSize)
     {
-        return new BatchBlock<T>(name, maxBatchSize, windowPeriod: null);
+        return new BatchBlock<T>(new BlockContext(name), maxBatchSize, windowPeriod: null);
     }
 
     /// <summary>
@@ -139,7 +139,7 @@ public static class BlockHelpers
         int maxBatchSize,
         TimeSpan windowPeriod)
     {
-        return new BatchBlock<T>(name, maxBatchSize, windowPeriod);
+        return new BatchBlock<T>(new BlockContext(name), maxBatchSize, windowPeriod);
     }
 
     #endregion
@@ -151,7 +151,7 @@ public static class BlockHelpers
     /// </summary>
     public static BroadcastBlock<T> CreateBroadcast<T>(string name)
     {
-        return new BroadcastBlock<T>(name);
+        return new BroadcastBlock<T>(new BlockContext(name));
     }
 
     #endregion
@@ -165,7 +165,7 @@ public static class BlockHelpers
         string name,
         Func<T, string> routeSelector)
     {
-        return new RouterBlock<T>(name, routeSelector);
+        return new RouterBlock<T>(new BlockContext(name), routeSelector);
     }
 
     /// <summary>
@@ -175,7 +175,7 @@ public static class BlockHelpers
         string name,
         string routeKey)
     {
-        return new RouteFilterBlock<T>(name, routeKey);
+        return new RouteFilterBlock<T>(new BlockContext(name), routeKey);
     }
 
     #endregion
@@ -189,7 +189,7 @@ public static class BlockHelpers
         string name,
         Func<TIn, TOut> transform)
     {
-        return new SimpleEnvelopeTransformerBlock<TIn, TOut>(name, transform);
+        return new SimpleEnvelopeTransformerBlock<TIn, TOut>(new BlockContext(name), transform);
     }
 
     /// <summary>
@@ -199,7 +199,7 @@ public static class BlockHelpers
         string name,
         Func<TIn, IExecutionContext, Task<TOut>> transformAsync)
     {
-        return new AsyncEnvelopeTransformerBlock<TIn, TOut>(name, transformAsync);
+        return new AsyncEnvelopeTransformerBlock<TIn, TOut>(new BlockContext(name), transformAsync);
     }
 
     /// <summary>
@@ -209,7 +209,7 @@ public static class BlockHelpers
         string name,
         Func<TIn, IExecutionContext, IAsyncEnumerable<TOut>> project)
     {
-        return new EnvelopeProjectorBlock<TIn, TOut>(name, project);
+        return new EnvelopeProjectorBlock<TIn, TOut>(new BlockContext(name), project);
     }
 
     /// <summary>
@@ -220,7 +220,7 @@ public static class BlockHelpers
         Func<T, IExecutionContext, Task> processData,
         Func<IDataEnvelope, IExecutionContext, Task>? processControl = null)
     {
-        return new EnvelopeProcessorBlock<T>(name, processData, processControl);
+        return new EnvelopeProcessorBlock<T>(new BlockContext(name), processData, processControl);
     }
 
     #endregion
@@ -235,7 +235,7 @@ public static class BlockHelpers
         IServiceScopeFactory scopeFactory)
         where TActor : ISourceActor<T>
     {
-        return new EpochSourceBlock<T, TActor>(name, scopeFactory);
+        return new EpochSourceBlock<T, TActor>(new BlockContext(name), scopeFactory);
     }
 
     /// <summary>
@@ -249,7 +249,7 @@ public static class BlockHelpers
         var scopeFactory = TestServiceBuilder.Create()
             .WithScoped(actor)
             .BuildScopeFactory();
-        return new EpochSourceBlock<T, TActor>(name, scopeFactory);
+        return new EpochSourceBlock<T, TActor>(new BlockContext(name), scopeFactory);
     }
 
     /// <summary>
@@ -260,7 +260,7 @@ public static class BlockHelpers
         IServiceScopeFactory scopeFactory)
         where TActor : IStreamActor<TIn, TOut>
     {
-        return new EpochActorBlock<TIn, TOut, TActor>(name, scopeFactory);
+        return new EpochActorBlock<TIn, TOut, TActor>(new BlockContext(name), scopeFactory);
     }
 
     /// <summary>
@@ -274,7 +274,7 @@ public static class BlockHelpers
         var scopeFactory = TestServiceBuilder.Create()
             .WithScoped(actor)
             .BuildScopeFactory();
-        return new EpochActorBlock<TIn, TOut, TActor>(name, scopeFactory);
+        return new EpochActorBlock<TIn, TOut, TActor>(new BlockContext(name), scopeFactory);
     }
 
     /// <summary>
@@ -284,7 +284,7 @@ public static class BlockHelpers
         string name,
         int maxBatchSize)
     {
-        return new EpochBatchBlock<T>(name, maxBatchSize, windowPeriod: null);
+        return new EpochBatchBlock<T>(new BlockContext(name), maxBatchSize, windowPeriod: null);
     }
 
     /// <summary>
@@ -295,7 +295,7 @@ public static class BlockHelpers
         int maxBatchSize,
         TimeSpan windowPeriod)
     {
-        return new EpochBatchBlock<T>(name, maxBatchSize, windowPeriod);
+        return new EpochBatchBlock<T>(new BlockContext(name), maxBatchSize, windowPeriod);
     }
 
     /// <summary>
@@ -305,7 +305,7 @@ public static class BlockHelpers
         string name,
         EpochSegmentationPolicy policy)
     {
-        return new EpochSegmenterBlock<T>(name, policy);
+        return new EpochSegmenterBlock<T>(new BlockContext(name), policy);
     }
 
     #endregion
@@ -320,7 +320,7 @@ public static class BlockHelpers
         IServiceScopeFactory scopeFactory)
         where TActor : IPlainSourceActor<T>
     {
-        return new PlainSourceBlock<T, TActor>(name, scopeFactory);
+        return new PlainSourceBlock<T, TActor>(new BlockContext(name), scopeFactory);
     }
 
     /// <summary>
@@ -334,7 +334,7 @@ public static class BlockHelpers
         var scopeFactory = TestServiceBuilder.Create()
             .WithScoped(actor)
             .BuildScopeFactory();
-        return new PlainSourceBlock<T, TActor>(name, scopeFactory);
+        return new PlainSourceBlock<T, TActor>(new BlockContext(name), scopeFactory);
     }
 
     #endregion

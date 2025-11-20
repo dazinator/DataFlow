@@ -8,17 +8,6 @@ public abstract class BlockBase<TIn, TOut> : IBlock<TIn, TOut>
     private readonly IBlockContext _context;
 
     /// <summary>
-    /// Legacy constructor for inline graph building.
-    /// Prefer using constructor with IBlockContext via DI registration.
-    /// </summary>
-    [Obsolete("Use the constructor with IBlockContext parameter via services.AddDataFlows(). This constructor will be removed in a future version.")]
-    protected BlockBase(string name)
-    {
-        ArgumentNullException.ThrowIfNull(name);
-        _context = new BlockContext(name);
-    }
-
-    /// <summary>
     /// Constructor with IBlockContext for proper dependency injection.
     /// Context is required and immutable after construction.
     /// </summary>

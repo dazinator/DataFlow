@@ -60,7 +60,7 @@ public class UntypedInterfaceValidationTests
     {
         public bool TypedExecuteCalled { get; private set; }
 
-        public SimpleSourceBlock(string name) : base(name)
+        public SimpleSourceBlock(string name) : base(new BlockContext(name))
         {
         }
 
