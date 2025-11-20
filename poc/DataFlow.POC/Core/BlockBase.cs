@@ -5,13 +5,13 @@ namespace DataFlow.POC.Core;
 /// </summary>
 public abstract class BlockBase<TIn, TOut> : IBlock<TIn, TOut>
 {
-    private IBlockContext? _context;
+    private readonly IBlockContext _context;
 
     /// <summary>
     /// Legacy constructor for inline graph building.
-    /// Prefer using the parameterless constructor with DI registration.
+    /// Prefer using constructor with IBlockContext via DI registration.
     /// </summary>
-    [Obsolete("Use the parameterless constructor with DI registration via services.AddDataFlows(). This constructor will be removed in a future version.")]
+    [Obsolete("Use the constructor with IBlockContext parameter via services.AddDataFlows(). This constructor will be removed in a future version.")]
     protected BlockBase(string name)
     {
         ArgumentNullException.ThrowIfNull(name);
@@ -19,27 +19,16 @@ public abstract class BlockBase<TIn, TOut> : IBlock<TIn, TOut>
     }
 
     /// <summary>
-    /// Protected constructor for DI-friendly blocks where context is set after construction.
+    /// Constructor with IBlockContext for proper dependency injection.
+    /// Context is required and immutable after construction.
     /// </summary>
-    protected BlockBase()
-    {
-        // Context will be set by registration infrastructure
-    }
-
-    /// <summary>
-    /// Sets the block context. Should be called once after construction.
-    /// </summary>
-    internal void SetContext(IBlockContext context)
+    protected BlockBase(IBlockContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
-        if (_context is not null)
-        {
-            throw new InvalidOperationException("Block context has already been set");
-        }
         _context = context;
     }
 
-    public string Name => _context?.BlockName ?? string.Empty;
+    public string Name => _context.BlockName;
 
     public Type InputType => typeof(TIn);
 

@@ -97,9 +97,8 @@ public static class BlockHelpers
         IServiceScopeFactory scopeFactory)
         where TActor : IStreamActor<TIn, TOut>
     {
-#pragma warning disable CS0618 // Type or member is obsolete
-        return new ActorBlock<TIn, TOut, TActor>(name, scopeFactory);
-#pragma warning restore CS0618 // Type or member is obsolete
+        var context = new BlockContext(name);
+        return new ActorBlock<TIn, TOut, TActor>(context, scopeFactory);
     }
 
     /// <summary>
@@ -114,9 +113,8 @@ public static class BlockHelpers
         var scopeFactory = TestServiceBuilder.Create()
             .WithScoped(actor)
             .BuildScopeFactory();
-#pragma warning disable CS0618 // Type or member is obsolete
-        return new ActorBlock<TIn, TOut, TActor>(name, scopeFactory);
-#pragma warning restore CS0618 // Type or member is obsolete
+        var context = new BlockContext(name);
+        return new ActorBlock<TIn, TOut, TActor>(context, scopeFactory);
     }
 
     #endregion

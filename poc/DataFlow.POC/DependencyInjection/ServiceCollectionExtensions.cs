@@ -201,8 +201,8 @@ public class DataFlowBuilder
 
     /// <summary>
     /// Register an ActorBlock with type-safe API. No name duplication required.
-    /// All dependencies are automatically injected via DI.
-    /// Uses IBlockContext initialization pattern for proper lifecycle management.
+    /// All dependencies are automatically injected via constructor.
+    /// Uses IBlockContext constructor injection for proper lifecycle management.
     /// </summary>
     /// <typeparam name="TIn">Input type</typeparam>
     /// <typeparam name="TOut">Output type</typeparam>
@@ -217,18 +217,17 @@ public class DataFlowBuilder
         var fullKey = ResolveKey(name);
         CheckDuplicateRegistration(fullKey, "Block");
 
-        // Register ActorBlock<TIn, TOut, TActor> as scoped for DI resolution
-        _services.TryAddScoped<ActorBlock<TIn, TOut, TActor>>();
-
         _services.AddKeyedScoped<IBlock>(fullKey, (sp, key) =>
         {
-            // Resolve block from DI (all dependencies auto-injected, scoped services tracked)
-            var block = sp.GetRequiredService<ActorBlock<TIn, TOut, TActor>>();
-            // Initialize block with context containing name
+            // Step 1: Create context from key
             var blockName = key as string ?? throw new InvalidOperationException("Block key must be a string");
             var context = new BlockContext(blockName);
-            block.SetContext(context);
-            return block;
+            
+            // Step 2: Resolve other dependencies
+            var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
+            
+            // Step 3: Construct block with ALL dependencies via constructor
+            return new ActorBlock<TIn, TOut, TActor>(context, scopeFactory);
         });
 
         return this;

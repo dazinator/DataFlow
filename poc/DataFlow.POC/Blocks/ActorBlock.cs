@@ -19,9 +19,9 @@ public sealed class ActorBlock<TIn, TOut, TActor> : BlockBase<TIn, TOut>
 
     /// <summary>
     /// Legacy constructor for inline graph building.
-    /// Prefer using the parameterless constructor with DI registration via AddActorBlock().
+    /// Prefer using the constructor with IBlockContext via DI registration.
     /// </summary>
-    [Obsolete("Use the parameterless constructor with DI registration via services.AddDataFlows(). This constructor will be removed in a future version.")]
+    [Obsolete("Use the constructor with IBlockContext parameter via services.AddDataFlows(). This constructor will be removed in a future version.")]
     public ActorBlock(string name, IServiceScopeFactory scopeFactory)
         : base(name)
     {
@@ -29,11 +29,11 @@ public sealed class ActorBlock<TIn, TOut, TActor> : BlockBase<TIn, TOut>
     }
 
     /// <summary>
-    /// DI-friendly constructor for typed helper methods.
-    /// Name will be set by registration infrastructure.
+    /// Constructor with IBlockContext for proper dependency injection.
+    /// All dependencies are passed via constructor.
     /// </summary>
-    public ActorBlock(IServiceScopeFactory scopeFactory)
-        : base()
+    public ActorBlock(IBlockContext context, IServiceScopeFactory scopeFactory)
+        : base(context)
     {
         _scopeFactory = scopeFactory ?? throw new ArgumentNullException(nameof(scopeFactory));
     }
