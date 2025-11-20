@@ -6,6 +6,28 @@ using DataFlow.POC.Core;
 /// Producer block that generates items from a source.
 /// This is a source block with no input.
 /// </summary>
+/// <remarks>
+/// <para>
+/// <strong>⚠️ DEPRECATED:</strong> This plain producer is deprecated in favor of the unified epoch-based architecture.
+/// All sources now produce epoch streams by default. Plain producers should be wrapped in single-epoch streams.
+/// </para>
+/// <para>
+/// <strong>Migration Guide:</strong>
+/// </para>
+/// <list type="bullet">
+/// <item>For simple producers: Wrap output with <c>.WrapInSingleEpoch(sourceName)</c></item>
+/// <item>For actor-based sources: Use <c>PlainSourceAdapter&lt;T, TActor&gt;</c></item>
+/// <item>For epoch-aware sources: Use <c>EpochSourceBlock&lt;T, TActor&gt;</c> directly</item>
+/// <item>For automatic wrapping in graph builder: Use <c>builder.AddPlainSource&lt;T, TActor&gt;(name)</c></item>
+/// </list>
+/// <para>
+/// <strong>Performance:</strong> Single-epoch wrapping has &lt;5% overhead (research validated: 4.08%).
+/// </para>
+/// <para>
+/// <strong>Removal Timeline:</strong> This class will be removed in v3.0 (Q1 2027).
+/// </para>
+/// </remarks>
+[Obsolete("Use EpochSourceBlock for epoch-aware sources or wrap plain streams with WrapInSingleEpoch extension method. See XML docs for migration guide.", false)]
 public class ProducerBlock<T> : BlockBase<object, T>
 {
     private readonly Func<IExecutionContext, IAsyncEnumerable<T>> _producer;

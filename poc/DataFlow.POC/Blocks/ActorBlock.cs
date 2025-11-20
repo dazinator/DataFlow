@@ -11,6 +11,27 @@ using System.Runtime.CompilerServices;
 /// <typeparam name="TIn">Input item type</typeparam>
 /// <typeparam name="TOut">Output item type</typeparam>
 /// <typeparam name="TActor">Actor type implementing IStreamActor</typeparam>
+/// <remarks>
+/// <para>
+/// <strong>⚠️ DEPRECATED:</strong> This plain variant of ActorBlock is deprecated in favor of the unified epoch-based architecture.
+/// All blocks now use epochs by default. Plain sources are automatically wrapped in single-epoch streams.
+/// </para>
+/// <para>
+/// <strong>Migration Guide:</strong>
+/// </para>
+/// <list type="bullet">
+/// <item>If your source produces plain items: Use <c>PlainSourceAdapter&lt;T, TActor&gt;</c> or call <c>.WrapInSingleEpoch(sourceName)</c> on your stream.</item>
+/// <item>If your source is already epoch-aware: Use <c>EpochActorBlock&lt;TIn, TOut, TActor&gt;</c> directly (no changes needed).</item>
+/// <item>For automatic wrapping in graph builder: Use <c>builder.AddPlainSource&lt;T, TActor&gt;(name)</c>.</item>
+/// </list>
+/// <para>
+/// <strong>Performance:</strong> Single-epoch wrapping has &lt;5% overhead (research validated: 4.08%).
+/// </para>
+/// <para>
+/// <strong>Removal Timeline:</strong> This class will be removed in v3.0 (Q1 2027).
+/// </para>
+/// </remarks>
+[Obsolete("Use EpochActorBlock for epoch-aware processing. For plain sources, use PlainSourceAdapter or WrapInSingleEpoch extension method. See XML docs for migration guide.", false)]
 public sealed class ActorBlock<TIn, TOut, TActor> : BlockBase<TIn, TOut>
     where TActor : IStreamActor<TIn, TOut>
 {

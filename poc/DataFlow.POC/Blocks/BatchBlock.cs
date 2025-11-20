@@ -5,6 +5,27 @@ using DataFlow.POC.Core;
 /// <summary>
 /// Batch block that accumulates items into batches based on size and/or time window.
 /// </summary>
+/// <remarks>
+/// <para>
+/// <strong>⚠️ DEPRECATED:</strong> This plain variant of BatchBlock is deprecated in favor of the unified epoch-based architecture.
+/// All blocks now use epochs by default. Plain sources are automatically wrapped in single-epoch streams.
+/// </para>
+/// <para>
+/// <strong>Migration Guide:</strong>
+/// </para>
+/// <list type="bullet">
+/// <item>If your source produces plain items: Use <c>PlainSourceAdapter&lt;T, TActor&gt;</c> or call <c>.WrapInSingleEpoch(sourceName)</c> on your stream.</item>
+/// <item>If your source is already epoch-aware: Use <c>EpochBatchBlock&lt;T&gt;</c> directly (no changes needed).</item>
+/// <item>For automatic wrapping in graph builder: Use <c>builder.AddPlainSource&lt;T, TActor&gt;(name)</c>.</item>
+/// </list>
+/// <para>
+/// <strong>Performance:</strong> Single-epoch wrapping has &lt;5% overhead (research validated: 4.08%).
+/// </para>
+/// <para>
+/// <strong>Removal Timeline:</strong> This class will be removed in v3.0 (Q1 2027).
+/// </para>
+/// </remarks>
+[Obsolete("Use EpochBatchBlock for epoch-aware processing. For plain sources, use PlainSourceAdapter or WrapInSingleEpoch extension method. See XML docs for migration guide.", false)]
 public class BatchBlock<T> : BlockBase<T, T[]>
 {
     private readonly int _maxBatchSize;
