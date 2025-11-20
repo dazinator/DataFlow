@@ -112,35 +112,6 @@ public class BlockContextConstructorInjectionTests
 
     #endregion
 
-    #region RouterBlock Tests
-
-    [Fact]
-    public void RouterBlock_ConstructorWithContext_SetsNameImmediately()
-    {
-        // Arrange
-        var context = new BlockContext("router-block");
-        var routeSelector = (int x) => x % 2 == 0 ? "even" : "odd";
-
-        // Act
-        var block = new RouterBlock<int>(context, routeSelector);
-
-        // Assert
-        block.Name.ShouldBe("router-block");
-    }
-
-    [Fact]
-    public void RouterBlock_ConstructorWithNullContext_ThrowsArgumentNullException()
-    {
-        // Arrange
-        IBlockContext? nullContext = null;
-        var routeSelector = (int x) => "route";
-
-        // Act & Assert
-        Should.Throw<ArgumentNullException>(() => new RouterBlock<int>(nullContext!, routeSelector));
-    }
-
-    #endregion
-
     #region EpochActorBlock Tests
 
     [Fact]

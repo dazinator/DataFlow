@@ -1,66 +1,110 @@
 # Analysis: POC Routing Behavior
 
 **Date**: 2025-11-20  
-**Status**: Complete  
+**Status**: Updated  
 **Related Issue**: [#75](https://github.com/uniun-technology/lib-dataflow/issues/75) - Selective Routing Feature Request
 
 ## Executive Summary
 
-This analysis investigates the current state of routing in the POC codebase to:
-1. Document the routing mechanisms available
-2. Determine if issue #75 (selective routing vs broadcast-and-filter) is still relevant
-3. Identify gaps in routing documentation under `/poc/docs/guides`
-4. Provide recommendations for documentation improvements
+This analysis documents the routing mechanisms available in the POC codebase and provides guidance on when to use each approach.
 
 ### Key Findings
 
-1. **POC supports selective routing for load balancing but NOT for content-based routing**
-2. **Issue #75 IS STILL RELEVANT** - selective content-based routing (by routing key) is not implemented
-3. **Routing documentation exists but is scattered** - needs consolidation in guides
-4. **Two routing mechanisms exist in POC**: Edge-level routing and Block-based routing (Structured routing is production code only)
+1. **POC supports THREE routing mechanisms**: Selective content-based routing, load balancing, and broadcasting
+2. **Issue #75 HAS BEEN RESOLVED** - selective content-based routing is now available via `SelectiveRoutingEdgeStrategy`
+3. **Broadcast-and-filter approach has been removed** - replaced by more efficient selective routing
+4. **All routing mechanisms use edge strategies** - blocks remain simple and focused on business logic
 
-### Recommendation
+### Available Routing Mechanisms
 
-⚠️ **Issue #75 remains relevant** - POC lacks selective content-based routing:
-- `CompetingEdgeStrategy` provides selective routing for load balancing (not content-based)
-- `RouterBlock` + `RouteFilterBlock` uses inefficient broadcast-and-filter pattern
-- Missing: Selective routing based on content (e.g., routing keys) without broadcasting
-
-✅ **Create routing guide** under `/poc/docs/guides/routing.md` to consolidate routing documentation
-
-✅ **Document broadcast strategy** - BroadcastEdgeStrategy uses concurrent broadcasting (Task.WhenAll)
+| Mechanism | Use Case | Performance |
+|-----------|----------|-------------|
+| `SelectiveRoutingEdgeStrategy<TItem>` | Content-based routing by route keys | ✅ Zero overhead, O(1) lookup |
+| `CompetingEdgeStrategy` | Load balancing, concurrent processing | ✅ Natural load balancing |
+| `BroadcastEdgeStrategy` | Fan-out to all targets | ⚠️ N concurrent writes |
 
 ---
 
 ## Context and Motivation
 
-The issue #75 (referenced in the analysis request) asked whether the POC needed to develop a "selective routing strategy" rather than relying solely on "broadcast and filter based strategy." This analysis was commissioned to:
+The issue #75 (referenced in the analysis request) asked whether the POC needed to develop a "selective routing strategy" rather than relying solely on "broadcast and filter based strategy." 
 
-- Understand the current state of routing in the POC
-- Determine if issue #75's concerns are still valid
-- Ensure adequate documentation exists for routing features
+**✅ RESOLVED**: `SelectiveRoutingEdgeStrategy<TItem>` has been implemented and the inefficient broadcast-and-filter pattern (`RouterBlock` + `RouteFilterBlock`) has been removed.
 
 ---
 
-## Observations and Analysis
+## Routing Mechanisms in the POC
 
-### 1. Routing Mechanisms in the POC
+The POC implements **edge strategy pattern** for all routing. Edges own delivery semantics, not blocks.
 
-The POC implements **two distinct routing mechanisms** (note: Structured Routing exists only in production code under `/src`, not in POC):
+### Mechanism 1: Selective Content-Based Routing (NEW)
 
-#### Mechanism 1: Edge Strategy Pattern (Recommended for Load Balancing)
+**Class**: `SelectiveRoutingEdgeStrategy<TItem>`  
+**Location**: `poc/DataFlow.POC/Core/SelectiveRoutingEdgeStrategy.cs`
 
+This mechanism provides efficient content-based routing where each item is sent ONLY to the matching route based on a user-provided selector function.
+
+**Features**:
+- Zero allocation overhead (no wrapper records)
+- O(1) route lookup per item
+- Works with any type T (no wrapping needed)
+- Type-safe route selector functions
+- Clear error messages for unknown routes
+
+**Example**:
+```csharp
+var producer = BlockHelpers.CreateProducer<Order>("producer", ...);
+var customerAProcessor = BlockHelpers.CreateProcessor<Order>("procA", ...);
+var customerBProcessor = BlockHelpers.CreateProcessor<Order>("procB", ...);
+
+// Create route mapping
+var routeMapping = new Dictionary<string, IBlock>
+{
+    ["CustomerA"] = customerAProcessor,
+    ["CustomerB"] = customerBProcessor
+};
+
+// Create selective routing strategy
+var strategy = new SelectiveRoutingEdgeStrategy<Order>(
+    routeKeyToBlock: routeMapping,
+    routeSelector: order => order.CustomerId);
+
+// Create edge with selective routing
+var edge = new Edge(
+    producer,
+    new[] { customerAProcessor, customerBProcessor },
+    strategy);
+
+builder.AddEdge(edge);
+
+// Result: Each order goes ONLY to its matching customer processor
+// No broadcasting, no filtering, no wasted work
+```
+
+**Performance Characteristics**:
+- **Per-item cost**: 1 dictionary lookup + 1 channel write
+- **Allocation overhead**: Zero (no wrapper records)
+- **Broadcast overhead**: Zero (single write per item)
+- **Scalability**: O(1) regardless of route count
+
+**When to Use**:
+- Routing decision is based on item content
+- Routes are known at build time
+- Performance is critical (high-volume scenarios)
+- Multiple routes (scales efficiently with N routes)
+
+### Mechanism 2: Selective Load Balancing (Competing Strategy)
+
+**Class**: `CompetingEdgeStrategy`  
 **Location**: `poc/DataFlow.POC/Core/EdgeStrategy.cs`
 
-The edge strategy pattern is the primary routing mechanism in the POC. It provides formalized delivery semantics at the **edge level** rather than requiring specialized blocks.
+The edge strategy pattern provides load balancing with selective routing. Each item is consumed by exactly ONE target based on availability.
 
-**Available Strategies**:
+**Available for Load Balancing**:
 
 | Strategy | Delivery Pattern | Use Case | Selective? |
 |----------|-----------------|----------|------------|
-| `BroadcastEdgeStrategy` | All targets get all items (separate channels) | Fan-out scenarios, monitoring | ❌ No (broadcast) |
 | `CompetingEdgeStrategy` | Each item consumed once (shared channel) | Concurrent processing, load balancing | ✅ Yes (selective) |
-| `CloningEdgeStrategy` | All targets get independent clones | Mutation isolation | ❌ No (broadcast with cloning) |
 
 **Key Architecture Points**:
 - Edges own delivery semantics, not blocks
@@ -87,57 +131,108 @@ graph.AddEdge(competingEdge);
 // Each item is consumed by exactly ONE processor
 ```
 
-This is **true selective routing for load balancing** - each item goes to exactly one target based on availability. However, this does NOT support content-based routing (routing keys).
+This is **true selective routing for load balancing** - each item goes to exactly one target based on availability.
 
-**Limitation**: CompetingEdgeStrategy cannot inspect item content to make routing decisions. It only distributes items among competing consumers.
+**Limitation**: CompetingEdgeStrategy cannot inspect item content to make routing decisions. It only distributes items among competing consumers. For content-based routing, use `SelectiveRoutingEdgeStrategy<TItem>` instead.
 
-#### Mechanism 2: Block-Based Routing (RouterBlock + RouteFilterBlock)
+### Mechanism 3: Broadcasting (Fan-Out)
 
-**Location**: `poc/DataFlow.POC/Blocks/RouterBlock.cs`
+**Class**: `BroadcastEdgeStrategy`  
+**Location**: `poc/DataFlow.POC/Core/EdgeStrategy.cs`
 
-This mechanism uses specialized blocks for routing:
-- `RouterBlock<T>` - Tags items with route keys
-- `RouteFilterBlock<T>` - Filters items based on route keys
-- `RoutingEdge` - Specialized edge that checks route keys
+Broadcasting sends each item to ALL targets concurrently.
 
-**Pattern**: Broadcast-and-Filter (Concurrent)
+| Strategy | Delivery Pattern | Use Case | Selective? |
+|----------|-----------------|----------|------------|
+| `BroadcastEdgeStrategy` | All targets get all items (separate channels) | Fan-out scenarios, monitoring | ❌ No (broadcast) |
+| `CloningEdgeStrategy` | All targets get independent clones | Mutation isolation | ❌ No (broadcast with cloning) |
 
-**Broadcasting Strategy**: Items are broadcast to ALL filters **concurrently** using `Task.WhenAll`. This means:
-- Each filter receives ALL items simultaneously
-- Filters run in parallel
-- Each filter drops items that don't match its route key
-- Inefficient for high-volume scenarios with many routes
+**Broadcasting Strategy**: Items are broadcast to ALL targets **concurrently** using `Task.WhenAll`:
 
 ```csharp
-// RouterBlock tags each item with a route key
-var router = new RouterBlock<int>("router", i => i % 2 == 0 ? "even" : "odd");
-
-// RouteFilterBlocks filter based on route keys
-var evenFilter = new RouteFilterBlock<int>("even-filter", "even");
-var oddFilter = new RouteFilterBlock<int>("odd-filter", "odd");
-
-// RouterBlock broadcasts to all filters, each filter selectively passes items
-graph.Connect(router, evenFilter);
-graph.Connect(router, oddFilter);
-
-// Result: Even numbers go through even filter, odd through odd filter
+// From EdgeStrategy.cs - BroadcastEdgeStrategy.RouteTypedItemAsync
+// Multiple writers: write concurrently to avoid serialization bottleneck
+var writeTasks = new Task[typedWriters.Count];
+// ... create tasks for all writers ...
+await Task.WhenAll(writeTasks).ConfigureAwait(false);
 ```
 
-**How it works**:
-1. Router broadcasts `RoutedItem<T>` to ALL downstream filters
-2. Each filter receives ALL items but only passes items matching its route key
-3. This is broadcast-and-filter, but appears selective from user perspective
+This means:
+- All target channels receive items **simultaneously** (not round-robin)
+- Each consumer processes at its own pace (independent backpressure)
+- No sequential delivery - all broadcasts happen in parallel
 
-**Performance Note**: The ADR document (`2025-11-03-routing-strategies.md`) notes this creates one record allocation per item, which could cause GC pressure at high volumes. Additionally, broadcasting to all filters is inefficient when routes are known at build time.
-
-**Missing Feature**: Selective routing based on routing keys where each item is sent ONLY to the matching route without broadcasting. This would:
-- Eliminate wasted CPU cycles filtering non-matching items
-- Reduce memory pressure from broadcasting
-- Improve performance for high-volume content-based routing
+**When to Use**:
+- Fan-out scenarios where all targets need every item
+- Monitoring or auditing (one target processes, another logs)
+- Multiple independent transformations of same data
 
 ---
 
-### 3. Structured Routing (Production Code Only - NOT in POC)
+## Obsolete Mechanisms (REMOVED)
+
+### ~~Block-Based Routing (RouterBlock + RouteFilterBlock)~~ ❌ REMOVED
+
+**Previous Location**: `poc/DataFlow.POC/Blocks/RouterBlock.cs` (DELETED)
+
+This mechanism used specialized blocks for routing:
+- ~~`RouterBlock<T>`~~ - Tagged items with route keys
+- ~~`RouteFilterBlock<T>`~~ - Filtered items based on route keys
+- ~~`RoutingEdge`~~ - Specialized edge that checked route keys
+- ~~`RoutedItemEdgeStrategy`~~ - Edge strategy for RoutedItem<T> types
+
+**Pattern**: Broadcast-and-Filter (Concurrent) - **INEFFICIENT**
+
+**Why It Was Removed**:
+- Broadcasting to ALL filters was wasteful (N concurrent writes per item)
+- Required record allocation for `RoutedItem<T>` wrapper
+- Each filter received ALL items and dropped non-matching items
+- Inefficient for high-volume scenarios with many routes
+
+**Replacement**: Use `SelectiveRoutingEdgeStrategy<TItem>` instead, which:
+- Sends each item ONLY to matching route (1 write vs N writes)
+- Zero allocation overhead (no wrapper records)
+- O(1) route lookup (vs O(N) filtering)
+- Better performance especially with many routes
+
+**Migration Guide**: See `/research/selective-content-routing/README.md` for migration examples.
+
+---
+
+## Routing Strategy Comparison
+
+| Approach | Mechanism | When to Use | Performance |
+|----------|-----------|-------------|-------------|
+| **Selective Content Routing** | `SelectiveRoutingEdgeStrategy<TItem>` | Content-based routing, routing keys | ✅ O(1) lookup<br>✅ Zero overhead<br>✅ Scales with routes |
+| **Selective Load Balancing** | `CompetingEdgeStrategy` | Concurrent processing, identical workers | ✅ No wasted work<br>✅ Natural load balancing<br>❌ Cannot inspect content |
+| **Broadcasting** | `BroadcastEdgeStrategy` | Fan-out to all targets | ⚠️ N concurrent writes<br>⚠️ Use only when all targets need all items |
+| ~~**Broadcast-and-Filter**~~ | ~~RouterBlock + RouteFilterBlock~~ | ~~Content routing (OBSOLETE)~~ | ❌ REMOVED<br>Use SelectiveRoutingEdgeStrategy instead |
+
+**Recommendation for Users**:
+
+- **Use SelectiveRoutingEdgeStrategy** when:
+  - Routing decision is based on item content
+  - Routes are known at build time  
+  - You need routing keys or content inspection
+  - Performance is critical (zero overhead)
+  - **Advantage**: Optimal performance for content-based routing
+
+- **Use CompetingEdgeStrategy** when:
+  - You want concurrent processing (multiple identical workers competing for items)
+  - Items don't need content-based routing
+  - You want natural load balancing
+  - Performance is critical (no allocation overhead)
+  - **Limitation**: Cannot route based on item content
+
+- **Use BroadcastEdgeStrategy** when:
+  - All targets need to receive every item
+  - Fan-out scenarios (monitoring, auditing, etc.)
+  - Multiple independent transformations
+  - **Limitation**: All targets receive all items (broadcasting overhead)
+
+---
+
+## Structured Routing (Production Code Only - NOT in POC)
 
 **Important**: This mechanism exists in `/src/DataFlow/Builder/Graph/` (production code), NOT in the POC codebase.
 
@@ -179,70 +274,7 @@ This is also broadcast-and-filter underneath, but provides a much more ergonomic
 
 ---
 
-### 4. Broadcast-and-Filter vs Selective Routing
-
-The question from issue #75 was whether the POC needed selective routing or if broadcast-and-filter was sufficient.
-
-**Current State**: **Only partially supported**
-
-The POC has:
-- ✅ Selective routing for **load balancing** (CompetingEdgeStrategy)
-- ❌ NO selective routing for **content-based** routing (must use broadcast-and-filter)
-
-| Approach | Mechanism | When to Use | Trade-offs |
-|----------|-----------|-------------|------------|
-| **Selective Load Balancing** | `CompetingEdgeStrategy` | Concurrent processing, load balancing, identical workers | ✅ No wasted work<br>✅ Natural load balancing<br>❌ Cannot inspect content<br>❌ Not suitable for routing keys |
-| **Broadcast-and-Filter** | `RouterBlock` + `RouteFilterBlock` | Content-based routing (ONLY option in POC) | ❌ All filters see all items (concurrent broadcast)<br>❌ Record allocation per item<br>❌ Wasted CPU filtering<br>✅ Flexible routing logic |
-| **Selective Content Routing** | **NOT IMPLEMENTED** | Would be ideal for routing keys | ✅ No wasted work<br>✅ No broadcasting overhead<br>✅ Efficient for many routes<br>⚠️ **Missing in POC** |
-
-**Recommendation for Users**:
-
-- **Use CompetingEdgeStrategy** when:
-  - You want concurrent processing (multiple identical workers competing for items)
-  - Items don't need content-based routing
-  - You want natural load balancing
-  - Performance is critical (no allocation overhead)
-  - **Limitation**: Cannot route based on item content
-
-- **Use RouterBlock + RouteFilterBlock** when:
-  - Routing decision is based on item content (ONLY option for this in POC)
-  - You need routing logic based on item properties
-  - Routes are known at build time
-  - Allocation overhead and broadcasting inefficiency are acceptable
-  - **Limitation**: All filters receive all items (broadcast-and-filter)
-
-- **Missing: Selective Content Routing** 
-  - Would send each item ONLY to matching route based on content
-  - No broadcasting, no filtering, no wasted work
-  - **Not currently available in POC**
-
----
-
-### 5. Broadcast Strategy Documentation
-**Broadcasting is Concurrent**: The `BroadcastEdgeStrategy` writes to all target channels **concurrently** using `Task.WhenAll`:
-
-```csharp
-// From EdgeStrategy.cs - BroadcastEdgeStrategy.RouteTypedItemAsync
-// Multiple writers: write concurrently to avoid serialization bottleneck
-var writeTasks = new Task[typedWriters.Count];
-// ... create tasks for all writers ...
-await Task.WhenAll(writeTasks).ConfigureAwait(false);
-```
-
-This means:
-- All target channels receive items **simultaneously** (not round-robin)
-- Each consumer processes at its own pace (independent backpressure)
-- No sequential delivery - all broadcasts happen in parallel
-
-**Missing Documentation**: The POC lacks clear user guide documenting:
-- Current broadcast strategy (concurrent vs sequential)
-- When to use broadcast vs competing strategies
-- How backpressure works with broadcasting
-- Performance implications of concurrent broadcasting
-
----
-
-### 6. Documentation Gaps
+## Documentation Gaps
 
 **Current State**:
 - ✅ ADR exists: `poc/docs/adr/poc/2025-11-03-routing-strategies.md` (comprehensive)

@@ -35,10 +35,6 @@ using Microsoft.Extensions.DependencyInjection;
 /// 
 /// // Broadcast blocks
 /// var broadcast = BlockHelpers.CreateBroadcast<int>("broadcast");
-/// 
-/// // Router blocks
-/// var router = BlockHelpers.CreateRouter("router", item => item % 2 == 0 ? "even" : "odd");
-/// var filter = BlockHelpers.CreateRouteFilter<int>("filter", "even");
 /// </summary>
 public static class BlockHelpers
 {
@@ -355,26 +351,6 @@ public static class BlockHelpers
     #endregion
 
     #region Router Blocks
-
-    /// <summary>
-    /// Creates a RouterBlock with a route selector function.
-    /// </summary>
-    public static RouterBlock<T> CreateRouter<T>(
-        string name,
-        Func<T, string> routeSelector)
-    {
-        return new RouterBlock<T>(new BlockContext(name), routeSelector);
-    }
-
-    /// <summary>
-    /// Creates a RouteFilterBlock for a specific route key.
-    /// </summary>
-    public static RouteFilterBlock<T> CreateRouteFilter<T>(
-        string name,
-        string routeKey)
-    {
-        return new RouteFilterBlock<T>(new BlockContext(name), routeKey);
-    }
 
     #endregion
 

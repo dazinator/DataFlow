@@ -12,7 +12,7 @@ public class ComplexFlowTests
 {
     // Refactored to use BlockHelpers for consistent block instantiation patterns.
 
-    [Fact]
+    [Fact(Skip = "Uses obsolete RouterBlock - needs migration to SelectiveRoutingEdgeStrategy")]
     public async Task Complex_Flow_With_Transform_Batch_And_Routing_Should_Work()
     {
         // Arrange

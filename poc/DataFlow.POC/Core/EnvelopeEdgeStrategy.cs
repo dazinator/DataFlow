@@ -138,19 +138,6 @@ public static class EnvelopeEdgeStrategyFactory
     }
 
     /// <summary>
-    /// Creates a routed envelope edge strategy.
-    /// Data items are routed based on route keys, control signals are broadcast to all targets.
-    /// </summary>
-    public static EnvelopeEdgeStrategy CreateRouted(
-        Dictionary<string, IBlock> routeKeyToBlock,
-        BufferMode bufferMode = BufferMode.Bounded,
-        int bufferCapacity = 100)
-    {
-        var underlyingStrategy = new RoutedItemEdgeStrategy(routeKeyToBlock, bufferMode, bufferCapacity);
-        return new EnvelopeEdgeStrategy(underlyingStrategy);
-    }
-
-    /// <summary>
     /// Creates a competing envelope edge strategy with dedicated side-channel for control signals.
     /// Data items compete among targets (one consumer per item), but control signals are 
     /// delivered to ALL targets via dedicated side-channels.

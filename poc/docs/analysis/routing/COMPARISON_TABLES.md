@@ -1,9 +1,10 @@
 # Routing Mechanisms: Detailed Comparison Tables
 
 **Date**: 2025-11-20  
+**Status**: Updated to reflect SelectiveRoutingEdgeStrategy  
 **Related**: [Analysis: POC Routing Behavior](./README.md)
 
-This document provides detailed comparison tables for the three routing mechanisms available in the POC.
+This document provides detailed comparison tables for the routing mechanisms available in the POC.
 
 ---
 
@@ -24,33 +25,33 @@ This document provides detailed comparison tables for the three routing mechanis
 
 **Note**: Structured Routing exists only in production code (`/src`), not in POC (`/poc`).
 
-| Feature | CompetingEdgeStrategy | RouterBlock + Filter | Structured Routing* |
-|---------|----------------------|---------------------|-------------------|
-| **Selective Load Balancing** | ✅ Yes | ❌ No | ❌ No |
-| **Selective Content Routing** | ❌ No | ❌ No (broadcast-filter) | ❌ No (broadcast-filter) |
-| **Broadcast Routing** | ❌ No | ✅ Yes (concurrent) | ✅ Yes (concurrent) |
-| **Content-Based Routing** | ❌ No | ✅ Yes (inefficient) | ✅ Yes (inefficient) |
-| **Static Routes** | N/A | ✅ Yes | ✅ Yes |
-| **Dynamic Routes** | N/A | ❌ No | ✅ Yes (template-based) |
-| **Multi-Block Routes** | N/A | ⚠️ Manual | ✅ Yes (built-in) |
-| **Route Isolation** | N/A | ❌ No | ✅ Yes (DI scopes) |
-| **Complex Routing Logic** | ❌ No | ✅ Yes | ✅ Yes |
-| **Type Safety** | ✅ Compile-time | ✅ Compile-time | ✅ Compile-time |
-| **Route Limits** | N/A | N/A | ✅ Yes (configurable) |
+| Feature | SelectiveRoutingEdgeStrategy | CompetingEdgeStrategy | BroadcastEdgeStrategy | Structured Routing* |
+|---------|------------------------------|----------------------|----------------------|-------------------|
+| **Selective Content Routing** | ✅ Yes (optimal) | ❌ No | ❌ No | ❌ No (broadcast-filter) |
+| **Selective Load Balancing** | ❌ No | ✅ Yes | ❌ No | ❌ No |
+| **Broadcast Routing** | ❌ No | ❌ No | ✅ Yes (concurrent) | ✅ Yes (concurrent) |
+| **Content-Based Routing** | ✅ Yes (optimal) | ❌ No | ❌ No | ✅ Yes (inefficient) |
+| **Static Routes** | ✅ Yes | N/A | N/A | ✅ Yes |
+| **Dynamic Routes** | ❌ No | N/A | N/A | ✅ Yes (template-based) |
+| **Multi-Block Routes** | ⚠️ Manual | N/A | N/A | ✅ Yes (built-in) |
+| **Route Isolation** | ⚠️ Manual | N/A | N/A | ✅ Yes (DI scopes) |
+| **Complex Routing Logic** | ✅ Yes (via selector) | ❌ No | ❌ No | ✅ Yes |
+| **Type Safety** | ✅ Compile-time | ✅ Compile-time | ✅ Compile-time | ✅ Compile-time |
+| **Route Limits** | ⚠️ Manual | N/A | N/A | ✅ Yes (configurable) |
 
 *Structured Routing is **production code only** (`/src/DataFlow/Builder/Graph/`), not part of POC.
 
 ### Architectural Characteristics
 
-| Characteristic | CompetingEdgeStrategy | RouterBlock + Filter | Structured Routing |
-|----------------|----------------------|---------------------|-------------------|
-| **Separation of Concerns** | ✅ Excellent | ⚠️ Moderate | ✅ Excellent |
-| **Testability** | ✅ High | ✅ High | ⚠️ Moderate |
-| **Composability** | ✅ High | ✅ High | ✅ High |
-| **Graph Visibility** | ✅ Full | ✅ Full | ⚠️ Routes hidden |
-| **Learning Curve** | ✅ Low | ✅ Low | ⚠️ Moderate |
-| **Code Maintainability** | ✅ High | ✅ High | ✅ High |
-| **Error Handling** | ✅ Simple | ✅ Simple | ⚠️ Complex |
+| Characteristic | SelectiveRoutingEdgeStrategy | CompetingEdgeStrategy | BroadcastEdgeStrategy | Structured Routing |
+|----------------|------------------------------|----------------------|----------------------|-------------------|
+| **Separation of Concerns** | ✅ Excellent | ✅ Excellent | ✅ Excellent | ✅ Excellent |
+| **Testability** | ✅ High | ✅ High | ✅ High | ⚠️ Moderate |
+| **Composability** | ✅ High | ✅ High | ✅ High | ✅ High |
+| **Graph Visibility** | ✅ Full | ✅ Full | ✅ Full | ⚠️ Routes hidden |
+| **Learning Curve** | ⚠️ Moderate | ✅ Low | ✅ Low | ⚠️ Moderate |
+| **Code Maintainability** | ✅ High | ✅ High | ✅ High | ✅ High |
+| **Error Handling** | ✅ Simple | ✅ Simple | ✅ Simple | ⚠️ Complex |
 
 ---
 
@@ -58,24 +59,24 @@ This document provides detailed comparison tables for the three routing mechanis
 
 ### Memory and CPU
 
-| Metric | CompetingEdgeStrategy | RouterBlock + Filter | Structured Routing |
-|--------|----------------------|---------------------|-------------------|
-| **Allocations per Item** | 0 | 1 (RoutedItem record) | 1+ (RoutedItem + route overhead) |
-| **GC Pressure** | ✅ None | ⚠️ Moderate (record alloc) | ⚠️ High (records + routes) |
-| **CPU per Item** | ✅ Minimal (channel write) | ⚠️ Moderate (filter checks) | ⚠️ High (route lookup + checks) |
-| **Channel Overhead** | ✅ 1 shared channel | ⚠️ N channels (N=filters) | ⚠️ N channels (N=routes) |
-| **Boxing/Unboxing** | ✅ None (typed channels) | ✅ None (typed channels) | ✅ None (typed channels) |
+| Metric | SelectiveRoutingEdgeStrategy | CompetingEdgeStrategy | BroadcastEdgeStrategy | Structured Routing |
+|--------|------------------------------|----------------------|----------------------|-------------------|
+| **Allocations per Item** | 0 | 0 | 0 | 1+ (RoutedItem + route overhead) |
+| **GC Pressure** | ✅ None | ✅ None | ✅ None | ⚠️ High (records + routes) |
+| **CPU per Item** | ✅ Minimal (O(1) lookup + write) | ✅ Minimal (channel write) | ⚠️ Moderate (N concurrent writes) | ⚠️ High (route lookup + checks) |
+| **Channel Overhead** | ✅ N channels (1 per route) | ✅ 1 shared channel | ⚠️ N channels (N=targets) | ⚠️ N channels (N=routes) |
+| **Boxing/Unboxing** | ✅ None (typed channels) | ✅ None (typed channels) | ✅ None (typed channels) | ✅ None (typed channels) |
 
 ### Throughput Estimates (Items/Second)
 
 *Note: These are estimated ranges based on architectural analysis. Actual benchmarking is recommended.*
 
-| Load Pattern | CompetingEdgeStrategy | RouterBlock + Filter | Structured Routing |
-|--------------|----------------------|---------------------|-------------------|
-| **Light (100 items/sec)** | ~100 (no bottleneck) | ~95 (filter overhead) | ~90 (route overhead) |
-| **Medium (10K items/sec)** | ~10K (no bottleneck) | ~8K (GC starts) | ~7K (GC + route lookup) |
-| **High (100K items/sec)** | ~100K (channel limit) | ~50K (GC pressure) | ~40K (GC + overhead) |
-| **Very High (1M items/sec)** | ~500K (channel contention) | ⚠️ GC thrashing | ⚠️ GC thrashing + memory |
+| Load Pattern | SelectiveRoutingEdgeStrategy | CompetingEdgeStrategy | BroadcastEdgeStrategy | Structured Routing |
+|--------------|------------------------------|----------------------|----------------------|-------------------|
+| **Light (100 items/sec)** | ~100 (optimal) | ~100 (no bottleneck) | ~95 (broadcast overhead) | ~90 (route overhead) |
+| **Medium (10K items/sec)** | ~10K (optimal) | ~10K (no bottleneck) | ~9K (broadcast overhead) | ~7K (GC + route lookup) |
+| **High (100K items/sec)** | ~100K (near optimal) | ~100K (channel limit) | ~80K (broadcast overhead) | ~40K (GC + overhead) |
+| **Very High (1M items/sec)** | ~900K (optimal scaling) | ~500K (channel contention) | ⚠️ Broadcast overhead | ⚠️ GC thrashing + memory |
 
 **Legend**:
 - ✅ Green: Handles well
@@ -84,12 +85,12 @@ This document provides detailed comparison tables for the three routing mechanis
 
 ### Backpressure Behavior
 
-| Scenario | CompetingEdgeStrategy | RouterBlock + Filter | Structured Routing |
-|----------|----------------------|---------------------|-------------------|
-| **Slow Consumer** | ✅ Shared channel blocks | ✅ Per-filter backpressure | ✅ Per-route backpressure |
-| **One Slow, Others Fast** | ⚠️ All affected (shared) | ✅ Independent | ✅ Independent |
-| **Backpressure Propagation** | ✅ Immediate | ✅ Immediate | ✅ Immediate |
-| **Memory Bounded** | ✅ Yes (channel capacity) | ✅ Yes (per-filter capacity) | ✅ Yes (per-route capacity) |
+| Scenario | SelectiveRoutingEdgeStrategy | CompetingEdgeStrategy | BroadcastEdgeStrategy | Structured Routing |
+|----------|------------------------------|----------------------|----------------------|-------------------|
+| **Slow Consumer** | ✅ Per-route backpressure | ✅ Shared channel blocks | ✅ Per-target backpressure | ✅ Per-route backpressure |
+| **One Slow, Others Fast** | ✅ Independent | ⚠️ All affected (shared) | ✅ Independent | ✅ Independent |
+| **Backpressure Propagation** | ✅ Immediate | ✅ Immediate | ✅ Immediate | ✅ Immediate |
+| **Memory Bounded** | ✅ Yes (per-route capacity) | ✅ Yes (channel capacity) | ✅ Yes (per-target capacity) | ✅ Yes (per-route capacity) |
 
 ---
 
@@ -97,29 +98,29 @@ This document provides detailed comparison tables for the three routing mechanis
 
 ### When to Use Each Mechanism (POC)
 
-**Note**: Only CompetingEdgeStrategy and RouterBlock+Filter are available in POC. Structured Routing is production code only.
+**Note**: SelectiveRoutingEdgeStrategy, CompetingEdgeStrategy, and BroadcastEdgeStrategy are available in POC. Structured Routing is production code only.
 
 | Use Case | Recommended Approach | Why? |
 |----------|---------------------|------|
 | **Load balancing identical workers** | CompetingEdgeStrategy | Zero overhead, natural load balancing |
 | **Concurrent processing (N workers)** | CompetingEdgeStrategy | Simplest, most efficient |
-| **Route by item property (2-5 routes)** | RouterBlock + Filter | Only option for content routing (inefficient) |
-| **Route by complex business logic** | RouterBlock + Filter | Only option for content routing (inefficient) |
+| **Route by item property (2-5 routes)** | SelectiveRoutingEdgeStrategy | Optimal - zero overhead, O(1) lookup |
+| **Route by complex business logic** | SelectiveRoutingEdgeStrategy | Flexible selector function |
+| **High-throughput content routing** | SelectiveRoutingEdgeStrategy | Zero allocation, optimal performance |
 | **Dynamic routes (per customer/tenant)** | ⚠️ **Not available in POC** | Use production Structured Routing |
 | **Routes with multi-step pipelines** | ⚠️ **Not available in POC** | Use production Structured Routing |
 | **Routes needing DI scoping** | ⚠️ **Not available in POC** | Use production Structured Routing |
-| **High-throughput content routing** | ⚠️ **Missing feature** | Would need selective content routing |
 | **Fan-out to monitoring/logging** | BroadcastEdgeStrategy | All consumers need all items |
 
 ### Anti-Patterns
 
 | ❌ Don't Do This | ✅ Do This Instead | Why? |
 |------------------|-------------------|------|
-| Use RouterBlock for load balancing | Use CompetingEdgeStrategy | Avoid unnecessary allocation |
-| Use CompetingEdgeStrategy for content routing | Use RouterBlock | Can't inspect content at edge level |
+| Use BroadcastEdgeStrategy for content routing | Use SelectiveRoutingEdgeStrategy | Avoid wasted broadcasts and CPU |
+| Use CompetingEdgeStrategy for content routing | Use SelectiveRoutingEdgeStrategy | Can't inspect content at edge level |
 | Create 100s of static routes | Use dynamic routing | Code bloat, maintenance nightmare |
-| Use Structured Routing for simple 2-way split | Use RouterBlock | Over-engineering |
-| Broadcast to filters that drop 99% of items | Redesign to use selective routing | Wasted CPU and memory |
+| Use Structured Routing for simple 2-way split | Use SelectiveRoutingEdgeStrategy | Over-engineering |
+| ~~Use RouterBlock + RouteFilterBlock~~ | Use SelectiveRoutingEdgeStrategy | RouterBlock removed - obsolete approach |
 
 ---
 
@@ -129,6 +130,23 @@ This document provides detailed comparison tables for the three routing mechanis
 
 **Scenario**: Route integers by even/odd to different processors.
 
+#### SelectiveRoutingEdgeStrategy (8 lines)
+
+```csharp
+var routeMapping = new Dictionary<string, IBlock>
+{
+    ["even"] = evenProcessor,
+    ["odd"] = oddProcessor
+};
+
+var strategy = new SelectiveRoutingEdgeStrategy<int>(
+    routeKeyToBlock: routeMapping,
+    routeSelector: i => i % 2 == 0 ? "even" : "odd");
+
+var edge = new Edge(producer, new[] { evenProcessor, oddProcessor }, strategy);
+builder.AddEdge(edge);
+```
+
 #### CompetingEdgeStrategy (N/A - doesn't support content-based routing)
 
 ```csharp
@@ -136,21 +154,10 @@ This document provides detailed comparison tables for the three routing mechanis
 // Would need upstream block to separate even/odd first
 ```
 
-#### RouterBlock + Filter (12 lines)
+#### ~~RouterBlock + Filter~~ ❌ REMOVED (was 12 lines)
 
 ```csharp
-var router = new RouterBlock<int>("router", i => i % 2 == 0 ? "even" : "odd");
-var evenFilter = new RouteFilterBlock<int>("even-filter", "even");
-var oddFilter = new RouteFilterBlock<int>("odd-filter", "odd");
-
-var evenProc = /* processor */;
-var oddProc = /* processor */;
-
-builder.AddBlock(router)
-    .AddBlock(evenFilter).AddBlock(oddFilter)
-    .AddBlock(evenProc).AddBlock(oddProc)
-    .Connect(router, evenFilter).Connect(router, oddFilter)
-    .Connect(evenFilter, evenProc).Connect(oddFilter, oddProc);
+// This approach has been removed - use SelectiveRoutingEdgeStrategy instead
 ```
 
 #### Structured Routing (15 lines)
@@ -173,8 +180,8 @@ var flow = builder.Build();
 ```
 
 **Verdict**: 
-- RouterBlock is most concise for simple routing
-- Structured Routing pays off when routes are complex
+- SelectiveRoutingEdgeStrategy is most concise and performant for simple routing
+- Structured Routing pays off when routes are complex or dynamic
 
 ---
 
@@ -182,21 +189,21 @@ var flow = builder.Build();
 
 ### Item Delivery Guarantees
 
-| Guarantee | CompetingEdgeStrategy | RouterBlock + Filter | Structured Routing |
-|-----------|----------------------|---------------------|-------------------|
-| **Each item delivered at least once** | ✅ Yes | ✅ Yes | ✅ Yes |
-| **Each item delivered at most once** | ✅ Yes (per target) | ✅ Yes (per route) | ✅ Yes (per route) |
-| **Exactly-once semantics** | ✅ Yes | ✅ Yes | ✅ Yes |
-| **Order preservation** | ⚠️ No (competing) | ⚠️ No (per-filter yes) | ⚠️ No (per-route yes) |
-| **All targets see all items** | ❌ No | ✅ Yes (then filtered) | ✅ Yes (then filtered) |
+| Guarantee | SelectiveRoutingEdgeStrategy | CompetingEdgeStrategy | BroadcastEdgeStrategy | Structured Routing |
+|-----------|------------------------------|----------------------|----------------------|-------------------|
+| **Each item delivered at least once** | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes |
+| **Each item delivered at most once** | ✅ Yes (per route) | ✅ Yes (per target) | ✅ Yes (per target) | ✅ Yes (per route) |
+| **Exactly-once semantics** | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes |
+| **Order preservation** | ⚠️ Per-route yes | ⚠️ No (competing) | ⚠️ Per-target yes | ⚠️ Per-route yes |
+| **All targets see all items** | ❌ No (selective) | ❌ No (competing) | ✅ Yes (broadcast) | ❌ No (filtered) |
 
 ### Concurrency Model
 
-| Aspect | CompetingEdgeStrategy | RouterBlock + Filter | Structured Routing |
-|--------|----------------------|---------------------|-------------------|
-| **Target Concurrency** | ✅ All targets run concurrently | ✅ All filters run concurrently | ✅ All routes run concurrently |
-| **Item Distribution** | ✅ Dynamic (competing) | ❌ All get all | ❌ All get all |
-| **Load Balancing** | ✅ Automatic | ❌ None | ❌ None |
+| Aspect | SelectiveRoutingEdgeStrategy | CompetingEdgeStrategy | BroadcastEdgeStrategy | Structured Routing |
+|--------|------------------------------|----------------------|----------------------|-------------------|
+| **Target Concurrency** | ✅ All routes run concurrently | ✅ All targets run concurrently | ✅ All targets run concurrently | ✅ All routes run concurrently |
+| **Item Distribution** | ✅ By content (selective) | ✅ Dynamic (competing) | ❌ All get all | ✅ By content (filtered) |
+| **Load Balancing** | ⚠️ By route distribution | ✅ Automatic | ❌ None | ⚠️ By route distribution |
 | **Worker Isolation** | ✅ Perfect | ✅ Perfect | ✅ Perfect (+ DI scopes) |
 
 ---

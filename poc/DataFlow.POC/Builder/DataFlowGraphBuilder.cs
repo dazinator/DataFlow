@@ -189,26 +189,6 @@ public class DataFlowGraphBuilder
     }
 
     /// <summary>
-    /// Connect a router block to multiple target blocks using route-based filtering.
-    /// Each target block is associated with a route key and will only receive items matching that key.
-    /// This is more efficient than broadcasting to all targets with filter blocks.
-    /// </summary>
-    /// <param name="routerBlock">The router block producing RoutedItem<T></param>
-    /// <param name="routeKeyToBlock">Mapping of route keys to target blocks</param>
-    /// <param name="bufferCapacity">The buffer capacity for the channels</param>
-    /// <returns>The builder for chaining</returns>
-    public DataFlowGraphBuilder ConnectRouted(
-        IBlock routerBlock,
-        Dictionary<string, IBlock> routeKeyToBlock,
-        int bufferCapacity)
-    {
-        var strategy = new RoutedItemEdgeStrategy(routeKeyToBlock, BufferMode.Bounded, bufferCapacity);
-        var edge = new Edge(routerBlock, routeKeyToBlock.Values.ToList(), strategy);
-        _edges.Add(edge);
-        return this;
-    }
-
-    /// <summary>
     /// Connect a source block to multiple target blocks.
     /// Useful for broadcasting or routing scenarios.
     /// </summary>

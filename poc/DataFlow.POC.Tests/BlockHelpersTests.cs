@@ -113,28 +113,6 @@ public class BlockHelpersTests
     }
 
     [Fact]
-    public void CreateRouter_ShouldCreateRouterBlock()
-    {
-        // Act
-        var router = BlockHelpers.CreateRouter<int>("test", i => i % 2 == 0 ? "even" : "odd");
-
-        // Assert
-        router.ShouldNotBeNull();
-        router.Name.ShouldBe("test");
-    }
-
-    [Fact]
-    public void CreateRouteFilter_ShouldCreateRouteFilterBlock()
-    {
-        // Act
-        var filter = BlockHelpers.CreateRouteFilter<int>("test", "even");
-
-        // Assert
-        filter.ShouldNotBeNull();
-        filter.Name.ShouldBe("test");
-    }
-
-    [Fact]
     public async Task CreateProducer_Integration_ShouldProduceItems()
     {
         // Arrange
