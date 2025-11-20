@@ -1,0 +1,9 @@
+﻿flowchart LR
+    %% DataFlow: BroadcastFlow
+
+    source(["source<br/><small>→ int</small>"])
+    target1["target1<br/><small>int →</small>"]
+    target2["target2<br/><small>int →</small>"]
+
+    source -->|Int32| target1
+    source -->|Int32| target2

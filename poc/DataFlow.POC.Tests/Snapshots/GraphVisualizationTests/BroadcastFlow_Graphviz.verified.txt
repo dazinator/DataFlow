@@ -1,0 +1,12 @@
+﻿digraph "BroadcastFlow" {
+    label="DataFlow: BroadcastFlow";
+    rankdir=LR;
+    node [fontname="Arial"];
+
+    source [shape=oval, label="source\n→ int"];
+    target1 [shape=box, label="target1\nint →"];
+    target2 [shape=box, label="target2\nint →"];
+
+    source -> target1 [label="Int32"];
+    source -> target2 [label="Int32"];
+}

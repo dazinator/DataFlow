@@ -1,0 +1,9 @@
+﻿flowchart LR
+    %% DataFlow: CompetingConsumersFlow
+
+    source(["source<br/><small>→ int</small>"])
+    worker1["worker1<br/><small>int →</small>"]
+    worker2["worker2<br/><small>int →</small>"]
+
+    source -.->|Int32| worker1
+    source -.->|Int32| worker2

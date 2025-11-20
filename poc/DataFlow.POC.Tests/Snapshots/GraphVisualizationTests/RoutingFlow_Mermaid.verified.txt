@@ -1,0 +1,20 @@
+﻿flowchart LR
+    %% DataFlow: RoutingFlow
+
+    source(["source<br/><small>→ int</small>"])
+
+
+    %% Routes for 'source':
+    subgraph source_route_even ["Route: even"]
+        direction LR
+        even_handler["even-handler<br/><small>int →</small>"]
+    end
+
+    source -.->|Int32<br/>'even'| source_route_even
+    subgraph source_route_odd ["Route: odd"]
+        direction LR
+        odd_handler["odd-handler<br/><small>int →</small>"]
+    end
+
+    source -.->|Int32<br/>'odd'| source_route_odd
+

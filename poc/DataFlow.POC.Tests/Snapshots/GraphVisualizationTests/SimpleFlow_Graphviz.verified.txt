@@ -1,0 +1,12 @@
+﻿digraph "SimpleFlow" {
+    label="DataFlow: SimpleFlow";
+    rankdir=LR;
+    node [fontname="Arial"];
+
+    source [shape=oval, label="source\n→ int"];
+    transform [shape=parallelogram, label="transform\nint → string"];
+    target [shape=box, label="target\nstring →"];
+
+    source -> transform [label="Int32"];
+    transform -> target [label="String"];
+}

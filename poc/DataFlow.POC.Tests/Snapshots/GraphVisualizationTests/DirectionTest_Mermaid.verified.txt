@@ -1,0 +1,46 @@
+﻿{
+  LR:
+flowchart LR
+    %% DataFlow: SimpleFlow
+
+    source(["source<br/><small>→ int</small>"])
+    transform[/"transform<br/><small>int → string</small>"/]
+    target["target<br/><small>string →</small>"]
+
+    source -->|Int32| transform
+    transform -->|String| target
+,
+  TB:
+flowchart TB
+    %% DataFlow: SimpleFlow
+
+    source(["source<br/><small>→ int</small>"])
+    transform[/"transform<br/><small>int → string</small>"/]
+    target["target<br/><small>string →</small>"]
+
+    source -->|Int32| transform
+    transform -->|String| target
+,
+  RL:
+flowchart RL
+    %% DataFlow: SimpleFlow
+
+    source(["source<br/><small>→ int</small>"])
+    transform[/"transform<br/><small>int → string</small>"/]
+    target["target<br/><small>string →</small>"]
+
+    source -->|Int32| transform
+    transform -->|String| target
+,
+  BT:
+flowchart BT
+    %% DataFlow: SimpleFlow
+
+    source(["source<br/><small>→ int</small>"])
+    transform[/"transform<br/><small>int → string</small>"/]
+    target["target<br/><small>string →</small>"]
+
+    source -->|Int32| transform
+    transform -->|String| target
+
+}

@@ -25,6 +25,11 @@ public class SelectiveRoutingEdgeStrategy<TItem> : EdgeStrategy
     private readonly Func<TItem, string> _routeSelector;
 
     /// <summary>
+    /// Gets the mapping of route keys to target blocks for visualization purposes.
+    /// </summary>
+    public IReadOnlyDictionary<string, IBlock> RouteKeyToBlock => _routeKeyToBlock;
+
+    /// <summary>
     /// Creates a selective routing edge strategy.
     /// </summary>
     /// <param name="routeKeyToBlock">Mapping of route keys to target blocks.

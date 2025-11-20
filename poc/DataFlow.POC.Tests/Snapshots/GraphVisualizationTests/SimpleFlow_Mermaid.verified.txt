@@ -1,0 +1,9 @@
+﻿flowchart LR
+    %% DataFlow: SimpleFlow
+
+    source(["source<br/><small>→ int</small>"])
+    transform[/"transform<br/><small>int → string</small>"/]
+    target["target<br/><small>string →</small>"]
+
+    source -->|Int32| transform
+    transform -->|String| target

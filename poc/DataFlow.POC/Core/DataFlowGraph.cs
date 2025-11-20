@@ -56,6 +56,16 @@ public class DataFlowGraph
     public IReadOnlyList<Edge> Edges => _edges;
 
     /// <summary>
+    /// The epoch source node for the graph, if configured.
+    /// </summary>
+    public EpochSourceNode? EpochSource => _epochSource;
+
+    /// <summary>
+    /// All epoch processor nodes in the graph.
+    /// </summary>
+    public IReadOnlyList<EpochProcessorNode> EpochProcessors => _epochProcessors;
+
+    /// <summary>
     /// Add a block to the graph.
     /// </summary>
     public void AddBlock(IBlock block)
@@ -187,6 +197,62 @@ public class DataFlowGraph
         }
 
         _logger.LogDebug("Added edge: {Edge}", edge);
+    }
+
+    /// <summary>
+    /// Gets all blocks that produce data to the specified buffer node.
+    /// </summary>
+    /// <param name="buffer">The buffer node to query.</param>
+    /// <returns>An enumerable of blocks that write to this buffer.</returns>
+    public IEnumerable<IBlock> GetBufferProducers(BufferNode buffer)
+    {
+        if (_bufferProducers.TryGetValue(buffer, out var producers))
+        {
+            return producers;
+        }
+        return Enumerable.Empty<IBlock>();
+    }
+
+    /// <summary>
+    /// Gets all blocks that consume data from the specified buffer node.
+    /// </summary>
+    /// <param name="buffer">The buffer node to query.</param>
+    /// <returns>An enumerable of blocks that read from this buffer.</returns>
+    public IEnumerable<IBlock> GetBufferConsumers(BufferNode buffer)
+    {
+        if (_bufferConsumers.TryGetValue(buffer, out var consumers))
+        {
+            return consumers;
+        }
+        return Enumerable.Empty<IBlock>();
+    }
+
+    /// <summary>
+    /// Gets all outgoing edges from the specified block.
+    /// </summary>
+    /// <param name="block">The block to query.</param>
+    /// <returns>An enumerable of outgoing edges.</returns>
+    public IEnumerable<Edge> GetOutgoingEdges(IBlock block)
+    {
+        if (_outgoingEdges.TryGetValue(block, out var edges))
+        {
+            return edges;
+        }
+        return Enumerable.Empty<Edge>();
+    }
+
+    /// <summary>
+    /// Gets all incoming edges to the specified block.
+    /// </summary>
+    /// <param name="block">The block to query.</param>
+    /// <returns>An enumerable of incoming edges.</returns>
+    public IEnumerable<Edge> GetIncomingEdges(IBlock block)
+    {
+        if (_incomingEdges.TryGetValue(block, out var edges))
+        {
+            return edges;
+        }
+        return Enumerable.Empty<Edge>();
     }
 
     /// <summary>
