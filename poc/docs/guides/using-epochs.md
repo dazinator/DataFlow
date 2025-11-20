@@ -308,14 +308,14 @@ If you're using the old `IEpochStream<T>` pattern, see the migration guide for d
 - ✅ Lifecycle hooks replace `IEpochLifecycleParticipant`
 - ✅ Serialized operations replace per-block state management
 flowchart LR
-    A[PlainSourceBlock] --> B[TransformerBlock<br/>Stateless]
-    B --> C[EpochSegmenterBlock<br/>Add Epochs]
+    A[PlainSourceAdapter] --> B[EpochActorBlock<br/>Epoch-aware]
+    B --> C[EpochBatchBlock<br/>Batching]
     C --> D[EpochActorBlock<br/>Transactional]
     
     style A fill:#e1f5fe
-    style B fill:#fff9c4
+    style B fill:#d1c4e9
     style C fill:#ffccbc
-    style D fill:#d1c4e9
+    style D fill:#c8e6c9
 ```
 
 **Best For**: Some stateless processing, some requiring transactions
@@ -440,16 +440,17 @@ services.AddTransient<MyDataProducer>();
 services.AddTransient<DatabaseWriteActor>();
 var provider = services.BuildServiceProvider();
 
-var sourceBlock = new PlainSourceBlock<Invoice, MyDataProducer>(
-    "invoice-source",
-    provider.GetRequiredService<IServiceScopeFactory>());
+var sourceBlock = new PlainSourceAdapter<Invoice, MyDataProducer>(
+    new BlockContext("invoice-source"),
+    provider.GetRequiredService<IServiceScopeFactory>(),
+    "invoice-source");
 
 var segmenterBlock = new EpochSegmenterBlock<Invoice>(
-    "segmenter",
+    new BlockContext("segmenter"),
     EpochSegmentationPolicy.ByCount(100, "invoices")); // Batch 100 invoices per epoch
 
 var writerBlock = new EpochActorBlock<Invoice, object, DatabaseWriteActor>(
-    "writer",
+    new BlockContext("writer"),
     provider.GetRequiredService<IServiceScopeFactory>());
 
 // Execute pipeline

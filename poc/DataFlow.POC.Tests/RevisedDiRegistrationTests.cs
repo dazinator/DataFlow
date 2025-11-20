@@ -666,7 +666,7 @@ public class RevisedDiRegistrationTests
         // Assert
         Assert.NotNull(block);
         Assert.Equal("global:transformer", block.Name);
-        Assert.IsType<ActorBlock<int, string, TestActor>>(block);
+        Assert.IsType<EpochActorBlock<int, string, TestActor>>(block);
     }
 
     [Fact]
@@ -704,7 +704,7 @@ public class RevisedDiRegistrationTests
         });
 
         var sp = services.BuildServiceProvider();
-        var block = sp.GetRequiredKeyedService<IBlock>("global:auto") as ActorBlock<int, string, TestActor>;
+        var block = sp.GetRequiredKeyedService<IBlock>("global:auto") as EpochActorBlock<int, string, TestActor>;
 
         // Assert
         Assert.NotNull(block);

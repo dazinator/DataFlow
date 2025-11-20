@@ -376,7 +376,7 @@ public class ConcurrencyScalingTests
         var producer = BlockHelpers.CreateProducer<int>("producer", ProduceIntegers(itemCount));
 
         // Create N transformer instances that will compete for items
-        var transformers = new List<ActorBlock<int, string, TransformWithLoggingActor>>();
+        var transformers = new List<IBlock<int, string>>();
         var processingLog = new ConcurrentBag<(string BlockName, int Item, long TimestampMs)>();
         
         for (int i = 0; i < concurrency; i++)
@@ -500,7 +500,7 @@ public class ConcurrencyScalingTests
         // Track which processor handles which item and when
         var processingLog = new ConcurrentBag<(string ProcessorName, int Item, long StartMs, long EndMs)>();
         
-        var processors = new List<ActorBlock<int, object, ProcessWithTimingActor>>();
+        var processors = new List<IBlock<int, object>>();
         for (int i = 0; i < concurrency; i++)
         {
             var processorName = $"processor-{i}";
@@ -589,7 +589,7 @@ public class ConcurrencyScalingTests
         var producer = BlockHelpers.CreateProducer<int>("producer", ProduceIntegers(itemCount));
 
         // Stage 1: Validators
-        var validators = new List<ActorBlock<int, int, ValidateWithLoggingActor>>();
+        var validators = new List<IBlock<int, int>>();
         var validatorLog = new ConcurrentBag<string>();
         for (int i = 0; i < concurrencyPerStage; i++)
         {
@@ -606,7 +606,7 @@ public class ConcurrencyScalingTests
         }
 
         // Stage 2: Enrichers
-        var enrichers = new List<ActorBlock<int, string, EnrichWithLoggingActor>>();
+        var enrichers = new List<IBlock<int, string>>();
         var enricherLog = new ConcurrentBag<string>();
         for (int i = 0; i < concurrencyPerStage; i++)
         {
@@ -772,7 +772,7 @@ public class ConcurrencyScalingTests
         var services = new ServiceCollection().BuildServiceProvider();
         var producer = BlockHelpers.CreateProducer<int>("producer", ProduceIntegers(itemCount));
 
-        var transformers = new List<ActorBlock<int, string, TransformWithLoggingActor>>();
+        var transformers = new List<IBlock<int, string>>();
         var processingLog = new ConcurrentBag<(string BlockName, int Item, long TimestampMs)>();
         
         for (int i = 0; i < concurrency; i++)
@@ -854,7 +854,7 @@ public class ConcurrencyScalingTests
         var producer = BlockHelpers.CreateProducer<int>("producer", ProduceIntegers(itemCount));
 
         // Stage 1: Validators
-        var validators = new List<ActorBlock<int, int, ProcessWithDelayActor>>();
+        var validators = new List<IBlock<int, int>>();
         for (int i = 0; i < concurrency; i++)
         {
             var name = $"validator-{i}";
@@ -869,7 +869,7 @@ public class ConcurrencyScalingTests
         }
 
         // Stage 2: Enrichers
-        var enrichers = new List<ActorBlock<int, string, TransformWithDelayActor>>();
+        var enrichers = new List<IBlock<int, string>>();
         for (int i = 0; i < concurrency; i++)
         {
             var name = $"enricher-{i}";
@@ -946,7 +946,7 @@ public class ConcurrencyScalingTests
         var services = new ServiceCollection().BuildServiceProvider();
         var producer = BlockHelpers.CreateProducer<int>("producer", ProduceIntegers(itemCount));
 
-        var validators = new List<ActorBlock<int, int, ProcessWithDelayActor>>();
+        var validators = new List<IBlock<int, int>>();
         for (int i = 0; i < concurrency; i++)
         {
             var validatorServices = new ServiceCollection();
@@ -958,7 +958,7 @@ public class ConcurrencyScalingTests
                 validatorServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
-        var enrichers = new List<ActorBlock<int, string, TransformWithDelayActor>>();
+        var enrichers = new List<IBlock<int, string>>();
         for (int i = 0; i < concurrency; i++)
         {
             var enricherServices = new ServiceCollection();
@@ -1043,7 +1043,7 @@ public class ConcurrencyScalingTests
         var services = new ServiceCollection().BuildServiceProvider();
         var producer = BlockHelpers.CreateProducer<int>("producer", ProduceIntegers(itemCount));
 
-        var validators = new List<ActorBlock<int, int, ProcessWithDelayActor>>();
+        var validators = new List<IBlock<int, int>>();
         for (int i = 0; i < concurrency; i++)
         {
             var validatorServices = new ServiceCollection();
@@ -1055,7 +1055,7 @@ public class ConcurrencyScalingTests
                 validatorServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
-        var enrichers = new List<ActorBlock<int, string, TransformWithDelayAndRouteActor>>();
+        var enrichers = new List<IBlock<int, string>>();
         for (int i = 0; i < concurrency; i++)
         {
             var enricherServices = new ServiceCollection();
@@ -1147,7 +1147,7 @@ public class ConcurrencyScalingTests
         var producer = BlockHelpers.CreateProducer<int>("producer", ProduceIntegers(itemCount));
 
         // Validators
-        var validators = new List<ActorBlock<int, int, ProcessWithDelayActor>>();
+        var validators = new List<IBlock<int, int>>();
         for (int i = 0; i < concurrency; i++)
         {
             var validatorServices = new ServiceCollection();
@@ -1160,7 +1160,7 @@ public class ConcurrencyScalingTests
         }
 
         // Enrichers
-        var enrichers = new List<ActorBlock<int, string, TransformWithDelayAndRouteActor>>();
+        var enrichers = new List<IBlock<int, string>>();
         for (int i = 0; i < concurrency; i++)
         {
             var enricherServices = new ServiceCollection();
@@ -1188,7 +1188,7 @@ public class ConcurrencyScalingTests
         var oddFilter = BlockHelpers.CreateRouteFilter<string>("odd-filter", "odd");
         
         // Even route: Multiple processors competing
-        var evenProcessors = new List<ActorBlock<string, object, DelayProcessorActor>>();
+        var evenProcessors = new List<IBlock<string, object>>();
         for (int i = 0; i < concurrency; i++)
         {
             var evenProcServices = new ServiceCollection();
@@ -1201,7 +1201,7 @@ public class ConcurrencyScalingTests
         }
         
         // Odd route: Multiple processors competing
-        var oddProcessors = new List<ActorBlock<string, object, DelayProcessorActor>>();
+        var oddProcessors = new List<IBlock<string, object>>();
         for (int i = 0; i < concurrency; i++)
         {
             var oddProcServices = new ServiceCollection();
@@ -1293,7 +1293,7 @@ public class ConcurrencyScalingTests
         var services = new ServiceCollection().BuildServiceProvider();
         var producer = BlockHelpers.CreateProducer<int>("producer", ProduceIntegers(itemCount));
 
-        var validators = new List<ActorBlock<int, int, ProcessWithDelayActor>>();
+        var validators = new List<IBlock<int, int>>();
         for (int i = 0; i < concurrency; i++)
         {
             var validatorServices = new ServiceCollection();
@@ -1305,7 +1305,7 @@ public class ConcurrencyScalingTests
                 validatorServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
-        var enrichers = new List<ActorBlock<int, string, TransformWithDelayAndRouteActor>>();
+        var enrichers = new List<IBlock<int, string>>();
         for (int i = 0; i < concurrency; i++)
         {
             var enricherServices = new ServiceCollection();
@@ -1413,7 +1413,7 @@ public class ConcurrencyScalingTests
         var services = new ServiceCollection().BuildServiceProvider();
         var producer = BlockHelpers.CreateProducer<int>("producer", ProduceIntegers(itemCount));
 
-        var validators = new List<ActorBlock<int, int, ProcessWithDelayActor>>();
+        var validators = new List<IBlock<int, int>>();
         for (int i = 0; i < concurrency; i++)
         {
             var validatorServices = new ServiceCollection();
@@ -1425,7 +1425,7 @@ public class ConcurrencyScalingTests
                 validatorServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
-        var enrichers = new List<ActorBlock<int, string, TransformWithDelayActor>>();
+        var enrichers = new List<IBlock<int, string>>();
         for (int i = 0; i < concurrency; i++)
         {
             var enricherServices = new ServiceCollection();
@@ -1505,7 +1505,7 @@ public class ConcurrencyScalingTests
         var producer = BlockHelpers.CreateProducer<int>("producer", ProduceIntegers(itemCount));
 
         // Stage 1: Validators
-        var validators = new List<ActorBlock<int, int, ProcessWithDelayActor>>();
+        var validators = new List<IBlock<int, int>>();
         for (int i = 0; i < concurrency; i++)
         {
             var validatorServices = new ServiceCollection();
@@ -1518,7 +1518,7 @@ public class ConcurrencyScalingTests
         }
 
         // Stage 2: Enrichers  
-        var enrichers = new List<ActorBlock<int, string, EnrichForRoutingActor>>();
+        var enrichers = new List<IBlock<int, string>>();
         for (int i = 0; i < concurrency; i++)
         {
             var enricherServices = new ServiceCollection();
@@ -1547,7 +1547,7 @@ public class ConcurrencyScalingTests
         
         // TypeA path: filter → processors (competing)
         var typeAFilter = BlockHelpers.CreateRouteFilter<string>("typeA-filter", "TypeA");
-        var typeAProcessors = new List<ActorBlock<string, string, ProcessTypeAActor>>();
+        var typeAProcessors = new List<IBlock<string, string>>();
         for (int i = 0; i < concurrency; i++)
         {
             var typeAProcServices = new ServiceCollection();
@@ -1558,7 +1558,7 @@ public class ConcurrencyScalingTests
                 $"typeA-proc-{i}",
                 typeAProcServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
-        var typeAWriters = new List<ActorBlock<string, object, NoOpStringProcessorActor>>();
+        var typeAWriters = new List<IBlock<string, object>>();
         for (int i = 0; i < concurrency; i++)
         {
             var typeAWriterServices = new ServiceCollection();

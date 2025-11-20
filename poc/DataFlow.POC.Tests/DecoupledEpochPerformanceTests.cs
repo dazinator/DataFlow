@@ -19,6 +19,31 @@ using DataFlow.POC.Tests.TestHelpers;
 /// </summary>
 public class DecoupledEpochPerformanceTests
 {
+
+    /// <summary>
+    /// Helper to unwrap epoch streams to plain items (for testing segmenters).
+    /// </summary>
+    private static async System.Collections.Generic.IAsyncEnumerable<T> UnwrapEpochStreams<T>(
+        System.Collections.Generic.IAsyncEnumerable<DataFlow.POC.Core.IEpochStream<T>> epochStreams)
+    {
+        await foreach (var epochStream in epochStreams)
+        {
+            await foreach (var item in epochStream.Items)
+            {
+                yield return item;
+            }
+        }
+    }
+
+    private static async System.Collections.Generic.IAsyncEnumerable<int> ProducePlainItems(int count = 10)
+    {
+        for (int i = 0; i < count; i++)
+        {
+            yield return i;
+        }
+        await System.Threading.Tasks.Task.CompletedTask;
+    }
+
     private readonly ITestOutputHelper _output;
     private const int TotalItems = 1000;
     private const int ItemsPerEpoch = 100;
@@ -198,7 +223,8 @@ public class DecoupledEpochPerformanceTests
         var count = 0;
 
         var plainItems = plainSourceBlock.ExecuteAsync(EmptyInput(), context);
-        var epochStreams = segmenterBlock.ExecuteAsync(plainItems, context);
+        var unwrappedItems = UnwrapEpochStreams(plainItems);
+        var epochStreams = segmenterBlock.ExecuteAsync(unwrappedItems, context);
 
         await foreach (var epochStream in epochStreams)
         {

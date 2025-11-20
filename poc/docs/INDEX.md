@@ -111,10 +111,14 @@ Test summary: total: 10, failed: 0, succeeded: 10, skipped: 0
 
 ### Example Usage
 ```csharp
-// Create blocks
-var producer = new ProducerBlock<int>("source", ctx => GenerateNumbers());
-var transformer = new SimpleTransformerBlock<int, string>("transform", n => $"Item-{n}");
-var processor = new ProcessorBlock<string>("sink", async (item, ctx) => Console.WriteLine(item));
+// Create blocks - using epoch-based architecture
+var producer = BlockHelpers.CreateProducer<int>("source", ctx => GenerateNumbers());
+var transformer = BlockHelpers.CreateActor<int, string, SimpleTransformActor>(
+    "transform", 
+    new SimpleTransformActor(n => $"Item-{n}"));
+var processor = BlockHelpers.CreateActor<string, object, SimpleProcessorActor>(
+    "sink",
+    new SimpleProcessorActor(async (item, ctx) => Console.WriteLine(item)));
 
 // Build graph
 var graph = new DataFlowGraphBuilder("my-flow")

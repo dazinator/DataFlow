@@ -42,70 +42,167 @@ using Microsoft.Extensions.DependencyInjection;
 /// </summary>
 public static class BlockHelpers
 {
-    #region Producer Blocks
-
+    #region Temporary Migration Helpers (Producer Wrappers)
+    
     /// <summary>
-    /// Creates a ProducerBlock with a static enumerable of items.
+    /// Creates a source block from a static enumerable.
+    /// TEMPORARY: Wraps plain stream in epoch for compatibility.
     /// </summary>
-    public static ProducerBlock<T> CreateProducer<T>(
+    public static IBlock<object, T> CreateProducer<T>(
         string name,
         IEnumerable<T> items)
     {
-        return new ProducerBlock<T>(new BlockContext(name), _ => ToAsyncEnumerable(items));
+        return CreateProducer(name, ToAsyncEnumerable(items));
     }
 
     /// <summary>
-    /// Creates a ProducerBlock with an async enumerable of items.
+    /// Creates a source block from an async enumerable.
+    /// TEMPORARY: Wraps plain stream in epoch for compatibility.
     /// </summary>
-    public static ProducerBlock<T> CreateProducer<T>(
+    public static IBlock<object, T> CreateProducer<T>(
         string name,
         IAsyncEnumerable<T> items)
     {
-        return new ProducerBlock<T>(new BlockContext(name), _ => items);
+        return new PlainProducerWrapper<T>(name, _ => items);
     }
 
     /// <summary>
-    /// Creates a ProducerBlock with a producer function.
+    /// Creates a source block from a producer function.
+    /// TEMPORARY: Wraps plain stream in epoch for compatibility.
     /// </summary>
-    public static ProducerBlock<T> CreateProducer<T>(
+    public static IBlock<object, T> CreateProducer<T>(
         string name,
         Func<IExecutionContext, IAsyncEnumerable<T>> producer)
     {
-        return new ProducerBlock<T>(new BlockContext(name), producer);
+        return new PlainProducerWrapper<T>(name, producer);
     }
 
     /// <summary>
-    /// Creates a ConcurrentProducerBlock with multiple producers.
+    /// Wrapper block that wraps a plain producer in a single epoch.
     /// </summary>
-    public static ConcurrentProducerBlock<T> CreateConcurrentProducer<T>(
-        string name,
-        Func<IExecutionContext, IEnumerable<IAsyncEnumerable<T>>> producersFactory,
-        int maxConcurrency = 4)
+    private class PlainProducerWrapper<T> : BlockBase<object, T>
     {
-        return new ConcurrentProducerBlock<T>(new BlockContext(name), producersFactory, maxConcurrency);
+        private readonly Func<IExecutionContext, IAsyncEnumerable<T>> _producer;
+
+        public PlainProducerWrapper(string name, Func<IExecutionContext, IAsyncEnumerable<T>> producer)
+            : base(new BlockContext(name))
+        {
+            _producer = producer ?? throw new ArgumentNullException(nameof(producer));
+        }
+
+        public override async IAsyncEnumerable<T> ExecuteAsync(
+            IAsyncEnumerable<object> input,
+            IExecutionContext context)
+        {
+            // Source blocks ignore input - they generate data
+            await foreach (var item in _producer(context).WithCancellation(context.CancellationToken))
+            {
+                yield return item;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Wrapper for concurrent producer (multi-stream merge).
+    /// </summary>
+    private class ConcurrentProducerWrapper<T> : BlockBase<object, T>
+    {
+        private readonly Func<IExecutionContext, IEnumerable<IAsyncEnumerable<T>>> _producersFactory;
+        private readonly int _maxConcurrency;
+
+        public ConcurrentProducerWrapper(
+            string name,
+            Func<IExecutionContext, IEnumerable<IAsyncEnumerable<T>>> producersFactory,
+            int maxConcurrency)
+            : base(new BlockContext(name))
+        {
+            _producersFactory = producersFactory ?? throw new ArgumentNullException(nameof(producersFactory));
+            _maxConcurrency = maxConcurrency;
+        }
+
+        public override async IAsyncEnumerable<T> ExecuteAsync(
+            IAsyncEnumerable<object> input,
+            IExecutionContext context)
+        {
+            var producers = _producersFactory(context).ToList();
+            
+            // Use bounded channel
+            var capacity = Math.Max(100, producers.Count * 10);
+            var channel = System.Threading.Channels.Channel.CreateBounded<T>(
+                new System.Threading.Channels.BoundedChannelOptions(capacity)
+                {
+                    FullMode = System.Threading.Channels.BoundedChannelFullMode.Wait
+                });
+
+            var tasks = producers.Select(producer => Task.Run(async () =>
+            {
+                try
+                {
+                    await foreach (var item in producer.WithCancellation(context.CancellationToken))
+                    {
+                        await channel.Writer.WriteAsync(item, context.CancellationToken);
+                    }
+                }
+                catch (Exception)
+                {
+                    throw;
+                }
+            }, context.CancellationToken)).ToList();
+
+            // Complete channel when all producers are done
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.WhenAll(tasks);
+                    channel.Writer.Complete();
+                }
+                catch (Exception ex)
+                {
+                    channel.Writer.Complete(ex);
+                }
+            }, context.CancellationToken);
+
+            // Yield items from the channel
+            await foreach (var item in channel.Reader.ReadAllAsync(context.CancellationToken))
+            {
+                yield return item;
+            }
+        }
     }
 
     #endregion
 
-    #region Actor Blocks
+    #region Producer Blocks (Removed - Use Epoch Sources)
 
+    // Producer blocks have been removed. Use epoch-based sources instead:
+    // - For simple producers: Wrap streams with .WrapInSingleEpoch("source-name")
+    // - For actor-based sources: Use PlainSourceAdapter or EpochSourceBlock
+    // - See SingleEpochExtensions for wrapping utilities
+
+    #endregion
+
+    #region Temporary Migration Helpers (Plain to Epoch Wrappers)
+    
     /// <summary>
-    /// Creates an ActorBlock with a service scope factory.
+    /// Creates an epoch-wrapped actor that accepts plain input streams.
+    /// TEMPORARY: This wraps the input in a single epoch for easier test migration.
+    /// Eventually tests should use CreateEpochActor directly with epoch streams.
     /// </summary>
-    public static ActorBlock<TIn, TOut, TActor> CreateActor<TIn, TOut, TActor>(
+    public static IBlock<TIn, TOut> CreateActor<TIn, TOut, TActor>(
         string name,
         IServiceScopeFactory scopeFactory)
         where TActor : IStreamActor<TIn, TOut>
     {
-        var context = new BlockContext(name);
-        return new ActorBlock<TIn, TOut, TActor>(context, scopeFactory);
+        // Return a wrapper block that converts plain input to epoch input
+        return new PlainToEpochActorWrapper<TIn, TOut, TActor>(name, scopeFactory);
     }
 
     /// <summary>
-    /// Creates an ActorBlock with a single actor instance (automatically wraps in scope factory).
-    /// Useful for simple test scenarios where you don't need full DI.
+    /// Creates an epoch-wrapped actor with a single actor instance.
+    /// TEMPORARY: This wraps the input in a single epoch for easier test migration.
     /// </summary>
-    public static ActorBlock<TIn, TOut, TActor> CreateActor<TIn, TOut, TActor>(
+    public static IBlock<TIn, TOut> CreateActor<TIn, TOut, TActor>(
         string name,
         TActor actor)
         where TActor : class, IStreamActor<TIn, TOut>
@@ -113,34 +210,135 @@ public static class BlockHelpers
         var scopeFactory = TestServiceBuilder.Create()
             .WithScoped(actor)
             .BuildScopeFactory();
-        var context = new BlockContext(name);
-        return new ActorBlock<TIn, TOut, TActor>(context, scopeFactory);
+        return CreateActor<TIn, TOut, TActor>(name, scopeFactory);
+    }
+
+    /// <summary>
+    /// Creates a concurrent producer wrapper.
+    /// TEMPORARY: For test migration compatibility.
+    /// </summary>
+    public static IBlock<object, T> CreateConcurrentProducer<T>(
+        string name,
+        Func<IExecutionContext, IEnumerable<IAsyncEnumerable<T>>> producersFactory,
+        int maxConcurrency = 4)
+    {
+        return new ConcurrentProducerWrapper<T>(name, producersFactory, maxConcurrency);
+    }
+
+    /// <summary>
+    /// Wrapper block that converts plain input to epoch streams for actor processing.
+    /// This allows tests written for plain ActorBlock to work with EpochActorBlock.
+    /// </summary>
+    private class PlainToEpochActorWrapper<TIn, TOut, TActor> : BlockBase<TIn, TOut>
+        where TActor : IStreamActor<TIn, TOut>
+    {
+        private readonly EpochActorBlock<TIn, TOut, TActor> _epochActor;
+
+        public PlainToEpochActorWrapper(string name, IServiceScopeFactory scopeFactory)
+            : base(new BlockContext(name))
+        {
+            _epochActor = new EpochActorBlock<TIn, TOut, TActor>(new BlockContext(name + "-epoch"), scopeFactory);
+        }
+
+        public override async IAsyncEnumerable<TOut> ExecuteAsync(
+            IAsyncEnumerable<TIn> input,
+            IExecutionContext context)
+        {
+            // Wrap plain input in single epoch
+            var epochInput = input.WrapInSingleEpoch("test-source", context.CancellationToken);
+            
+            // Process through epoch actor
+            var epochOutput = _epochActor.ExecuteAsync(epochInput, context);
+            
+            // Unwrap epoch output to plain output
+            await foreach (var epochStream in epochOutput)
+            {
+                await foreach (var item in epochStream.Items)
+                {
+                    yield return item;
+                }
+            }
+        }
     }
 
     #endregion
 
-    #region Batch Blocks
+    #region Actor Blocks (Removed - Use Epoch Actor Blocks)
 
+    // Plain ActorBlock has been removed. Use EpochActorBlock instead:
+    // - Use CreateEpochActor<TIn, TOut, TActor>(name, scopeFactory)
+    // - Input must be IAsyncEnumerable<IEpochStream<TIn>>
+    // - For plain sources, wrap with .WrapInSingleEpoch("source-name")
+
+    #endregion
+
+    #region Temporary Migration Helpers (Batch Wrappers)
+    
     /// <summary>
-    /// Creates a BatchBlock with only max batch size.
+    /// Creates an epoch-wrapped batch block that accepts plain input streams.
+    /// TEMPORARY: This wraps the input in a single epoch for easier test migration.
     /// </summary>
-    public static BatchBlock<T> CreateBatch<T>(
+    public static IBlock<T, T[]> CreateBatch<T>(
         string name,
         int maxBatchSize)
     {
-        return new BatchBlock<T>(new BlockContext(name), maxBatchSize, windowPeriod: null);
+        return new PlainToEpochBatchWrapper<T>(name, maxBatchSize, null);
     }
 
     /// <summary>
-    /// Creates a BatchBlock with max batch size and time window.
+    /// Creates an epoch-wrapped batch block with time window that accepts plain input streams.
+    /// TEMPORARY: This wraps the input in a single epoch for easier test migration.
     /// </summary>
-    public static BatchBlock<T> CreateBatch<T>(
+    public static IBlock<T, T[]> CreateBatch<T>(
         string name,
         int maxBatchSize,
         TimeSpan windowPeriod)
     {
-        return new BatchBlock<T>(new BlockContext(name), maxBatchSize, windowPeriod);
+        return new PlainToEpochBatchWrapper<T>(name, maxBatchSize, windowPeriod);
     }
+
+    /// <summary>
+    /// Wrapper block that converts plain input to epoch streams for batch processing.
+    /// </summary>
+    private class PlainToEpochBatchWrapper<T> : BlockBase<T, T[]>
+    {
+        private readonly EpochBatchBlock<T> _epochBatch;
+
+        public PlainToEpochBatchWrapper(string name, int maxBatchSize, TimeSpan? windowPeriod)
+            : base(new BlockContext(name))
+        {
+            _epochBatch = new EpochBatchBlock<T>(new BlockContext(name + "-epoch"), maxBatchSize, windowPeriod);
+        }
+
+        public override async IAsyncEnumerable<T[]> ExecuteAsync(
+            IAsyncEnumerable<T> input,
+            IExecutionContext context)
+        {
+            // Wrap plain input in single epoch
+            var epochInput = input.WrapInSingleEpoch("test-source", context.CancellationToken);
+            
+            // Process through epoch batch
+            var epochOutput = _epochBatch.ExecuteAsync(epochInput, context);
+            
+            // Unwrap epoch output to plain output
+            await foreach (var epochStream in epochOutput)
+            {
+                await foreach (var batch in epochStream.Items)
+                {
+                    yield return batch;
+                }
+            }
+        }
+    }
+
+    #endregion
+
+    #region Batch Blocks (Removed - Use Epoch Batch Blocks)
+
+    // Plain BatchBlock has been removed. Use EpochBatchBlock instead:
+    // - Use CreateEpochBatch<T>(name, maxBatchSize)
+    // - Input must be IAsyncEnumerable<IEpochStream<T>>
+    // - For plain sources, wrap with .WrapInSingleEpoch("source-name")
 
     #endregion
 
@@ -310,23 +508,25 @@ public static class BlockHelpers
 
     #endregion
 
-    #region Plain Source Blocks
-
+    #region Temporary Migration Helpers (PlainSource Wrappers)
+    
     /// <summary>
-    /// Creates a PlainSourceBlock with a service scope factory.
+    /// Creates a plain source adapter with a service scope factory.
+    /// This is the direct replacement for PlainSourceBlock.
     /// </summary>
-    public static PlainSourceBlock<T, TActor> CreatePlainSource<T, TActor>(
+    public static PlainSourceAdapter<T, TActor> CreatePlainSource<T, TActor>(
         string name,
         IServiceScopeFactory scopeFactory)
         where TActor : IPlainSourceActor<T>
     {
-        return new PlainSourceBlock<T, TActor>(new BlockContext(name), scopeFactory);
+        return new PlainSourceAdapter<T, TActor>(new BlockContext(name), scopeFactory, name);
     }
 
     /// <summary>
-    /// Creates a PlainSourceBlock with a single actor instance (automatically wraps in scope factory).
+    /// Creates a plain source adapter with a single actor instance.
+    /// This is the direct replacement for PlainSourceBlock.
     /// </summary>
-    public static PlainSourceBlock<T, TActor> CreatePlainSource<T, TActor>(
+    public static PlainSourceAdapter<T, TActor> CreatePlainSource<T, TActor>(
         string name,
         TActor actor)
         where TActor : class, IPlainSourceActor<T>
@@ -334,8 +534,16 @@ public static class BlockHelpers
         var scopeFactory = TestServiceBuilder.Create()
             .WithScoped(actor)
             .BuildScopeFactory();
-        return new PlainSourceBlock<T, TActor>(new BlockContext(name), scopeFactory);
+        return new PlainSourceAdapter<T, TActor>(new BlockContext(name), scopeFactory, name);
     }
+
+    #endregion
+
+    #region Plain Source Blocks (Removed - Use PlainSourceAdapter)
+
+    // PlainSourceBlock has been removed. Use PlainSourceAdapter instead:
+    // - PlainSourceAdapter automatically wraps plain sources in single-epoch streams
+    // - For epoch-aware sources, use CreateEpochSource<T, TActor>(name, scopeFactory)
 
     #endregion
 

@@ -16,6 +16,31 @@ using DataFlow.POC.Tests.TestHelpers;
 /// </summary>
 public class DecoupledEpochTests
 {
+
+    /// <summary>
+    /// Helper to unwrap epoch streams to plain items (for testing segmenters).
+    /// </summary>
+    private static async System.Collections.Generic.IAsyncEnumerable<T> UnwrapEpochStreams<T>(
+        System.Collections.Generic.IAsyncEnumerable<DataFlow.POC.Core.IEpochStream<T>> epochStreams)
+    {
+        await foreach (var epochStream in epochStreams)
+        {
+            await foreach (var item in epochStream.Items)
+            {
+                yield return item;
+            }
+        }
+    }
+
+    private static async System.Collections.Generic.IAsyncEnumerable<int> ProducePlainItems(int count = 10)
+    {
+        for (int i = 0; i < count; i++)
+        {
+            yield return i;
+        }
+        await System.Threading.Tasks.Task.CompletedTask;
+    }
+
     [Fact]
     public async Task PlainSource_WithoutSegmenter_ProducesContinuousStream()
     {
@@ -35,9 +60,13 @@ public class DecoupledEpochTests
 
         // Act
         var items = new List<int>();
-        await foreach (var item in sourceBlock.ExecuteAsync(EmptyInput(), context))
+        await foreach (var epochStream in sourceBlock.ExecuteAsync(EmptyInput(), context))
         {
-            items.Add(item);
+            // PlainSourceAdapter wraps items in epochs - unwrap them
+            await foreach (var item in epochStream.Items)
+            {
+                items.Add(item);
+            }
         }
 
         // Assert
@@ -53,8 +82,6 @@ public class DecoupledEpochTests
         services.AddTransient<SimpleNumberProducer>();
         var provider = services.BuildServiceProvider();
 
-        var sourceBlock = BlockHelpers.CreatePlainSource<int, SimpleNumberProducer>("plain-source", provider.GetRequiredService<IServiceScopeFactory>());
-            
         var segmenterBlock = BlockHelpers.CreateEpochSegmenter<int>("segmenter", EpochSegmentationPolicy.ByCount(3, "test-source"));
 
         var context = new TestExecutionContext();
@@ -68,7 +95,7 @@ public class DecoupledEpochTests
         var epochs = new List<(EpochVector epoch, List<int> items)>();
         
         // Pipeline: PlainSource → Segmenter
-        var plainItems = sourceBlock.ExecuteAsync(EmptyInput(), context);
+        var plainItems = ProducePlainItems();
         var epochStreams = segmenterBlock.ExecuteAsync(plainItems, context);
         
         await foreach (var epochStream in epochStreams)
@@ -121,7 +148,8 @@ public class DecoupledEpochTests
         // Act
         var epochs = new List<(EpochVector epoch, List<(string, int)> items)>();
         
-        var plainItems = sourceBlock.ExecuteAsync(EmptyInput(), context);
+        var epochItems = sourceBlock.ExecuteAsync(EmptyInput(), context);
+        var plainItems = UnwrapEpochStreams(epochItems);
         var epochStreams = segmenterBlock.ExecuteAsync(plainItems, context);
         
         await foreach (var epochStream in epochStreams)
@@ -150,8 +178,6 @@ public class DecoupledEpochTests
         services.AddTransient<SimpleNumberProducer>();
         var provider = services.BuildServiceProvider();
 
-        var sourceBlock = BlockHelpers.CreatePlainSource<int, SimpleNumberProducer>("plain-source", provider.GetRequiredService<IServiceScopeFactory>());
-            
         var segmenterBlock = BlockHelpers.CreateEpochSegmenter<int>("segmenter", EpochSegmentationPolicy.None);
 
         var context = new TestExecutionContext();
@@ -164,7 +190,7 @@ public class DecoupledEpochTests
         // Act
         var epochs = new List<(EpochVector epoch, List<int> items)>();
         
-        var plainItems = sourceBlock.ExecuteAsync(EmptyInput(), context);
+        var plainItems = ProducePlainItems();
         var epochStreams = segmenterBlock.ExecuteAsync(plainItems, context);
         
         await foreach (var epochStream in epochStreams)
@@ -205,7 +231,7 @@ public class DecoupledEpochTests
         // Act
         var epochs = new List<EpochVector>();
         
-        var plainItems = sourceBlock.ExecuteAsync(EmptyInput(), context);
+        var plainItems = ProducePlainItems();
         var epochStreams = segmenterBlock.ExecuteAsync(plainItems, context);
         
         await foreach (var epochStream in epochStreams)
@@ -267,7 +293,8 @@ public class DecoupledEpochTests
         // Act - Decoupled
         var decoupledEpochs = new List<(EpochVector epoch, List<int> items)>();
         var plainItems = plainSourceBlock.ExecuteAsync(EmptyInput(), context2);
-        var epochStreams = segmenterBlock.ExecuteAsync(plainItems, context2);
+        var unwrappedItems = UnwrapEpochStreams(plainItems);
+        var epochStreams = segmenterBlock.ExecuteAsync(unwrappedItems, context2);
         
         await foreach (var epochStream in epochStreams)
         {

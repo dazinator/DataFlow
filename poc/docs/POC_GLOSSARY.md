@@ -216,24 +216,27 @@ A downstream block that manages per-epoch state (typically DbContext) and partic
 
 **Pattern**: Composable - can have multiple tracking blocks in same pipeline (multi-sink).
 
-### PlainSourceBlock
-A source block that produces a continuous stream of items without epoch knowledge.
+### PlainSourceAdapter
+A source block adapter that wraps plain source actors in single-epoch streams.
 
-**Type**: `PlainSourceBlock<T, TActor>` where `TActor : IPlainSourceActor<T>`
+**Type**: `PlainSourceAdapter<T, TActor>` where `TActor : IPlainSourceActor<T>`
 
 **Purpose**: 
-- Produces plain `IAsyncEnumerable<T>` streams
-- Epoch segmentation applied externally via `EpochSegmenterBlock`
-- Enables decoupled epoch concerns
+- Wraps plain `IAsyncEnumerable<T>` sources in epoch streams
+- Provides automatic single-epoch wrapping for legacy sources
+- Outputs `IAsyncEnumerable<IEpochStream<T>>`
 
-**Pattern**: Source → (optional transformations) → EpochSegmenterBlock → epoch-aware blocks
+**Pattern**: PlainSourceAdapter → epoch-aware blocks (no segmenter needed)
 
 **Example**:
 ```csharp
-var sourceBlock = new PlainSourceBlock<int, MyProducer>(
-    "plain-source",
-    serviceScopeFactory);
+var sourceBlock = new PlainSourceAdapter<int, MyProducer>(
+    new BlockContext("plain-source"),
+    serviceScopeFactory,
+    "plain-source");
 ```
+
+**Note**: Replaces the deprecated `PlainSourceBlock`. For new code, prefer `EpochSourceBlock` with epoch-aware actors.
 
 ### EpochSegmenterBlock
 A block that segments plain item streams into epoch streams.
@@ -324,12 +327,12 @@ var batchBlock = new EpochBatchBlock<int>(
 
 ## Composability Patterns
 
-### Plain Pipeline Pattern
-Processing without epochs - for stateless transformations.
+### Epoch-Based Pipeline Pattern
+Modern processing with epoch awareness - standard for all pipelines.
 
-**Structure**: `PlainSourceBlock → TransformerBlock → ProcessorBlock`
+**Structure**: `PlainSourceAdapter → EpochActorBlock → EpochBatchBlock → EpochProcessorBlock`
 
-**Use When**: No transactional boundaries or checkpointing needed
+**Use When**: Standard pattern for all new code (epochs provide transactional boundaries and checkpointing)
 
 ### Full Epoch Pipeline Pattern
 Processing with epochs throughout the pipeline.

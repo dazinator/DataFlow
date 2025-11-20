@@ -26,98 +26,6 @@ public class BlockContextConstructorInjectionTests
     }
 
     [Fact]
-    public void ActorBlock_ConstructorWithContext_SetsNameImmediately()
-    {
-        // Arrange
-        var services = new ServiceCollection();
-        services.AddTransient<SimpleActor>();
-        var serviceProvider = services.BuildServiceProvider();
-        var scopeFactory = serviceProvider.GetRequiredService<IServiceScopeFactory>();
-        
-        var context = new BlockContext("test-block");
-
-        // Act
-        var actorBlock = new ActorBlock<int, int, SimpleActor>(context, scopeFactory);
-
-        // Assert
-        actorBlock.Name.ShouldBe("test-block");
-    }
-
-    [Fact]
-    public void ActorBlock_ConstructorWithContext_ContextIsImmutable()
-    {
-        // Arrange
-        var services = new ServiceCollection();
-        services.AddTransient<SimpleActor>();
-        var serviceProvider = services.BuildServiceProvider();
-        var scopeFactory = serviceProvider.GetRequiredService<IServiceScopeFactory>();
-        
-        var context = new BlockContext("immutable-block");
-
-        // Act
-        var actorBlock = new ActorBlock<int, int, SimpleActor>(context, scopeFactory);
-
-        // Assert
-        actorBlock.Name.ShouldBe("immutable-block");
-        
-        // Verify that there's no SetContext method available (compilation would fail if called)
-        // This test validates that the block's name is set once and cannot be changed
-    }
-
-    [Fact]
-    public void ActorBlock_ConstructorWithNullContext_ThrowsArgumentNullException()
-    {
-        // Arrange
-        var services = new ServiceCollection();
-        var serviceProvider = services.BuildServiceProvider();
-        var scopeFactory = serviceProvider.GetRequiredService<IServiceScopeFactory>();
-        IBlockContext? nullContext = null;
-
-        // Act & Assert
-        Should.Throw<ArgumentNullException>(() => 
-            new ActorBlock<int, int, SimpleActor>(nullContext!, scopeFactory));
-    }
-
-    [Fact]
-    public void ActorBlock_ConstructorWithNullScopeFactory_ThrowsArgumentNullException()
-    {
-        // Arrange
-        var context = new BlockContext("test-block");
-
-        // Act & Assert
-        Should.Throw<ArgumentNullException>(() => 
-            new ActorBlock<int, int, SimpleActor>(context, null!));
-    }
-
-    [Fact]
-    public async Task ActorBlock_WithConstructorInjectedContext_ExecutesCorrectly()
-    {
-        // Arrange
-        var services = new ServiceCollection();
-        services.AddTransient<SimpleActor>();
-        var serviceProvider = services.BuildServiceProvider();
-        var scopeFactory = serviceProvider.GetRequiredService<IServiceScopeFactory>();
-        
-        var context = new BlockContext("processing-block");
-        var actorBlock = new ActorBlock<int, int, SimpleActor>(context, scopeFactory);
-        
-        var executionContext = new ExecutionContext(serviceProvider, CancellationToken.None);
-        var input = ProduceIntegers(5);
-
-        // Act
-        var results = new List<int>();
-        await foreach (var item in actorBlock.ExecuteAsync(input, executionContext))
-        {
-            results.Add(item);
-        }
-
-        // Assert
-        actorBlock.Name.ShouldBe("processing-block");
-        results.Count.ShouldBe(5);
-        results.ShouldBe(new[] { 2, 4, 6, 8, 10 });
-    }
-
-    [Fact]
     public void BlockContext_WithMetadata_PreservesMetadata()
     {
         // Arrange
@@ -134,7 +42,7 @@ public class BlockContextConstructorInjectionTests
         var scopeFactory = serviceProvider.GetRequiredService<IServiceScopeFactory>();
 
         // Act
-        var actorBlock = new ActorBlock<int, int, SimpleActor>(context, scopeFactory);
+        var actorBlock = new EpochActorBlock<int, int, SimpleActor>(context, scopeFactory);
 
         // Assert
         actorBlock.Name.ShouldBe("metadata-block");
@@ -149,112 +57,30 @@ public class BlockContextConstructorInjectionTests
         }
     }
 
-    #region ProducerBlock Tests
+    #region ProducerBlock Tests (Skipped - ProducerBlock removed)
 
-    [Fact]
+    [Fact(Skip = "ProducerBlock removed - use EpochSourceBlock with actor or PlainSourceAdapter")]
     public void ProducerBlock_ConstructorWithContext_SetsNameImmediately()
     {
-        // Arrange
-        var context = new BlockContext("producer-block");
-        var producer = (IExecutionContext ctx) => ProduceIntegers(5);
-
-        // Act
-        var block = new ProducerBlock<int>(context, producer);
-
-        // Assert
-        block.Name.ShouldBe("producer-block");
+        // ProducerBlock has been removed
     }
 
-    [Fact]
+    [Fact(Skip = "ProducerBlock removed - use EpochSourceBlock with actor or PlainSourceAdapter")]
     public void ProducerBlock_ConstructorWithNullContext_ThrowsArgumentNullException()
     {
-        // Arrange
-        IBlockContext? nullContext = null;
-        var producer = (IExecutionContext ctx) => ProduceIntegers(5);
-
-        // Act & Assert
-        Should.Throw<ArgumentNullException>(() => new ProducerBlock<int>(nullContext!, producer));
+        // ProducerBlock has been removed
     }
 
-    [Fact]
+    [Fact(Skip = "ProducerBlock removed - use EpochSourceBlock with actor or PlainSourceAdapter")]
     public async Task ProducerBlock_WithConstructorInjectedContext_ExecutesCorrectly()
     {
-        // Arrange
-        var context = new BlockContext("producer-test");
-        var producer = (IExecutionContext ctx) => ProduceIntegers(3);
-        var block = new ProducerBlock<int>(context, producer);
-        
-        var services = new ServiceCollection();
-        var serviceProvider = services.BuildServiceProvider();
-        var executionContext = new ExecutionContext(serviceProvider, CancellationToken.None);
-
-        // Act
-        var results = new List<int>();
-        await foreach (var item in block.ExecuteAsync(EmptyInput(), executionContext))
-        {
-            results.Add(item);
-        }
-
-        // Assert
-        results.ShouldBe(new[] { 1, 2, 3 });
+        // ProducerBlock has been removed
     }
 
     private static async IAsyncEnumerable<object> EmptyInput()
     {
         // Producer blocks don't use input, but ExecuteAsync requires it
         yield break;
-    }
-
-    #endregion
-
-    #region BatchBlock Tests
-
-    [Fact]
-    public void BatchBlock_ConstructorWithContext_SetsNameImmediately()
-    {
-        // Arrange
-        var context = new BlockContext("batch-block");
-
-        // Act
-        var block = new BatchBlock<int>(context, maxBatchSize: 10);
-
-        // Assert
-        block.Name.ShouldBe("batch-block");
-    }
-
-    [Fact]
-    public void BatchBlock_ConstructorWithNullContext_ThrowsArgumentNullException()
-    {
-        // Arrange
-        IBlockContext? nullContext = null;
-
-        // Act & Assert
-        Should.Throw<ArgumentNullException>(() => new BatchBlock<int>(nullContext!, 10));
-    }
-
-    [Fact]
-    public async Task BatchBlock_WithConstructorInjectedContext_ExecutesCorrectly()
-    {
-        // Arrange
-        var context = new BlockContext("batch-test");
-        var block = new BatchBlock<int>(context, maxBatchSize: 3);
-        
-        var services = new ServiceCollection();
-        var serviceProvider = services.BuildServiceProvider();
-        var executionContext = new ExecutionContext(serviceProvider, CancellationToken.None);
-
-        // Act
-        var results = new List<int[]>();
-        await foreach (var batch in block.ExecuteAsync(ProduceIntegers(7), executionContext))
-        {
-            results.Add(batch);
-        }
-
-        // Assert
-        results.Count.ShouldBe(3);  // 3 full batches + 1 partial
-        results[0].Length.ShouldBe(3);
-        results[1].Length.ShouldBe(3);
-        results[2].Length.ShouldBe(1);
     }
 
     #endregion

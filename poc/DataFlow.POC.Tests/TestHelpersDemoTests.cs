@@ -39,8 +39,12 @@ public class TestHelpersDemoTests
 
         // Manual producer
         var producer = BlockHelpers.CreateProducer<int>("producer", ctx => ProduceIntegersOldWay(ctx, 5));
-        var transformer = new ActorBlock<int, string, LocalIntToStringTransform>(new BlockContext("transformer"), transformScopeFactory);
-        var collector = new ActorBlock<string, object, LocalStringCollector>(new BlockContext("collector"), collectorScopeFactory);
+        var transformer = BlockHelpers.CreateActor<int, string, LocalIntToStringTransform>(
+            "transformer",
+            new LocalIntToStringTransform());
+        var collector = BlockHelpers.CreateActor<string, object, LocalStringCollector>(
+            "collector",
+            new LocalStringCollector(processedItems));
 
         var builder = GraphHelpers.CreateGraphBuilder("old-pattern");
         builder.AddBlock(producer)
@@ -107,22 +111,16 @@ public class TestHelpersDemoTests
     [Fact]
     public async Task NEW_PATTERN_Transform_Flow_With_Helpers()
     {
-        // Setup: Clean and concise!
+        // Setup: Clean and concise using helper wrappers!
         var collected = new List<string>();
 
         var producer = BlockHelpers.CreateProducer<int>("producer", TestStreams.Integers(5));
-        
-        var transformer = new ActorBlock<int, string, TransformActor<int, string>>(
-            new BlockContext("transformer"),
-            TestServiceBuilder.Create()
-                .WithScoped(new TransformActor<int, string>(i => $"Item-{i}"))
-                .BuildScopeFactory());
-
-        var collector = new ActorBlock<string, object, CollectorActor<string>>(
-            new BlockContext("collector"),
-            TestServiceBuilder.Create()
-                .WithScoped(new CollectorActor<string>(collected))
-                .BuildScopeFactory());
+        var transformer = BlockHelpers.CreateActor<int, string, TransformActor<int, string>>(
+            "transformer",
+            new TransformActor<int, string>(i => $"Item-{i}"));
+        var collector = BlockHelpers.CreateActor<string, object, CollectorActor<string>>(
+            "collector",
+            new CollectorActor<string>(collected));
 
         var builder = GraphHelpers.CreateGraphBuilder("new-pattern");
         builder.AddBlock(producer)

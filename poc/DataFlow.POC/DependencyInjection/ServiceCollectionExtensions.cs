@@ -244,9 +244,12 @@ public class DataFlowBuilder
     #region Typed Helper Methods (Problem 6: Block Name Duplication)
 
     /// <summary>
-    /// Register an ActorBlock with type-safe API. No name duplication required.
+    /// Register an EpochActorBlock with type-safe API. No name duplication required.
     /// All dependencies are automatically injected via constructor.
     /// Uses IBlockContext constructor injection for proper lifecycle management.
+    /// 
+    /// Note: This method now registers EpochActorBlock (epoch-aware processing).
+    /// The plain ActorBlock variant has been removed in favor of unified epoch architecture.
     /// </summary>
     /// <typeparam name="TIn">Input type</typeparam>
     /// <typeparam name="TOut">Output type</typeparam>
@@ -262,6 +265,8 @@ public class DataFlowBuilder
         CheckDuplicateRegistration(fullKey, "Block");
 
         // Register metadata with known types
+        // Note: EpochActorBlock works with IEpochStream<TIn> -> IEpochStream<TOut>
+        // but we register base types for compatibility
         var metadata = new BlockTypeMetadata(typeof(TIn), typeof(TOut));
         _registry.RegisterBlock(fullKey, metadata);
 
@@ -274,8 +279,8 @@ public class DataFlowBuilder
             // Step 2: Resolve other dependencies
             var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
             
-            // Step 3: Construct block with ALL dependencies via constructor
-            return new ActorBlock<TIn, TOut, TActor>(context, scopeFactory);
+            // Step 3: Construct epoch-aware block with ALL dependencies via constructor
+            return new EpochActorBlock<TIn, TOut, TActor>(context, scopeFactory);
         });
 
         return this;
