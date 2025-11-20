@@ -12,7 +12,7 @@ public class ComplexFlowTests
 {
     // Refactored to use BlockHelpers for consistent block instantiation patterns.
 
-    [Fact(Skip = "Uses obsolete RouterBlock - needs migration to SelectiveRoutingEdgeStrategy")]
+    [Fact]
     public async Task Complex_Flow_With_Transform_Batch_And_Routing_Should_Work()
     {
         // Arrange
@@ -30,9 +30,6 @@ public class ComplexFlowTests
             "transformer",
             transformScopeFactory);
         var batcher = BlockHelpers.CreateBatch<string>("batcher", maxBatchSize: 5);
-        var router = BlockHelpers.CreateRouter<string[]>("router", batch => batch.Length < 5 ? "small" : "large");
-        var smallFilter = BlockHelpers.CreateRouteFilter<string[]>("small-filter", "small");
-        var largeFilter = BlockHelpers.CreateRouteFilter<string[]>("large-filter", "large");
         var smallProcessor = BlockHelpers.CreateActor<string[], object, CollectorActor<string[]>>(
             "small-processor",
             new CollectorActor<string[]>(smallBatches));
@@ -40,22 +37,31 @@ public class ComplexFlowTests
             "large-processor",
             new CollectorActor<string[]>(largeBatches));
 
+        // Create selective routing edge strategy
+        var routeMapping = new Dictionary<string, IBlock>
+        {
+            ["small"] = smallProcessor,
+            ["large"] = largeProcessor
+        };
+
+        var routingStrategy = new SelectiveRoutingEdgeStrategy<string[]>(
+            routeKeyToBlock: routeMapping,
+            routeSelector: batch => batch.Length < 5 ? "small" : "large");
+
+        var routingEdge = new Edge(
+            batcher,
+            new[] { smallProcessor, largeProcessor },
+            routingStrategy);
+
         var builder = GraphHelpers.CreateGraphBuilder("complex-flow");
         builder.AddBlock(producer)
             .AddBlock(transformer)
             .AddBlock(batcher)
-            .AddBlock(router)
-            .AddBlock(smallFilter)
-            .AddBlock(largeFilter)
             .AddBlock(smallProcessor)
             .AddBlock(largeProcessor)
             .Connect(producer, transformer)
             .Connect(transformer, batcher)
-            .Connect(batcher, router)
-            .Connect(router, smallFilter)
-            .Connect(router, largeFilter)
-            .Connect(smallFilter, smallProcessor)
-            .Connect(largeFilter, largeProcessor);
+            .AddEdge(routingEdge);
 
         var graph = builder.Build();
         var context = new ExecutionContext(commonServices, CancellationToken.None);

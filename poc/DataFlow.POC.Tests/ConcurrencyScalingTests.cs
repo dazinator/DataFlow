@@ -1031,10 +1031,10 @@ public class ConcurrencyScalingTests
 
     #region Level 4: Add Simple Routing
 
-    [Fact(Skip = "Uses obsolete RouterBlock - needs migration to SelectiveRoutingEdgeStrategy")]
+    [Fact]
     public async Task Level4_WithRouting_Should_Scale()
     {
-        // Add routing: Source → Validators → Enrichers → Router → [RouteA, RouteB]
+        // Add routing: Source → Validators → Enrichers → SelectiveRouting → [Even, Odd]
         
         const int itemCount = 100;
         const int concurrency = 4;
@@ -1067,11 +1067,6 @@ public class ConcurrencyScalingTests
                 enricherServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
-        var router = BlockHelpers.CreateRouter<string>("router", item => item.StartsWith("even") ? "even" : "odd");
-        
-        var evenFilter = BlockHelpers.CreateRouteFilter<string>("even-filter", "even");
-        var oddFilter = BlockHelpers.CreateRouteFilter<string>("odd-filter", "odd");
-        
         var evenCollectorServices = new ServiceCollection();
         evenCollectorServices.AddScoped<NoOpStringProcessorActor>();
         var evenCollectorServiceProvider = evenCollectorServices.BuildServiceProvider();
@@ -1088,9 +1083,6 @@ public class ConcurrencyScalingTests
         builder.AddBlock(producer);
         foreach (var v in validators) builder.AddBlock(v);
         foreach (var e in enrichers) builder.AddBlock(e);
-        builder.AddBlock(router);
-        builder.AddBlock(evenFilter);
-        builder.AddBlock(oddFilter);
         builder.AddBlock(evenCollector);
         builder.AddBlock(oddCollector);
 
@@ -1103,15 +1095,25 @@ public class ConcurrencyScalingTests
                 new CompetingEdgeStrategy(BufferMode.Bounded, 10)));
         }
 
+        // Create selective routing from enrichers to collectors
+        var routeMapping = new Dictionary<string, IBlock>
+        {
+            ["even"] = evenCollector,
+            ["odd"] = oddCollector
+        };
+
+        var routingStrategy = new SelectiveRoutingEdgeStrategy<string>(
+            routeKeyToBlock: routeMapping,
+            routeSelector: item => item.StartsWith("even") ? "even" : "odd");
+
         foreach (var enricher in enrichers)
         {
-            builder.Connect(enricher, router);
+            var routingEdge = new Edge(
+                enricher,
+                new[] { evenCollector, oddCollector },
+                routingStrategy);
+            builder.AddEdge(routingEdge);
         }
-
-        builder.Connect(router, evenFilter);
-        builder.Connect(router, oddFilter);
-        builder.Connect(evenFilter, evenCollector);
-        builder.Connect(oddFilter, oddCollector);
 
         var graph = builder.Build();
         var context = new ExecutionContext(services, CancellationToken.None);
@@ -1134,7 +1136,7 @@ public class ConcurrencyScalingTests
 
     #region Level 5: Full Complexity (Like ComplexEtlPOC)
 
-    [Fact(Skip = "Uses obsolete RouterBlock - needs migration to SelectiveRoutingEdgeStrategy")]
+    [Fact]
     public async Task Level5_FullComplexity_Should_Scale()
     {
         // Full complexity: Broadcast + Routing + Multiple downstream paths with competing processors
@@ -1181,12 +1183,6 @@ public class ConcurrencyScalingTests
         
         var metricsCollector = BlockHelpers.CreateActor<string, object, NoOpStringProcessorActor>("metrics", metricsCollectorServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
-        // Broadcast path 2: Router
-        var router = BlockHelpers.CreateRouter<string>("router", item => item.StartsWith("even") ? "even" : "odd");
-        
-        var evenFilter = BlockHelpers.CreateRouteFilter<string>("even-filter", "even");
-        var oddFilter = BlockHelpers.CreateRouteFilter<string>("odd-filter", "odd");
-        
         // Even route: Multiple processors competing
         var evenProcessors = new List<IBlock<string, object>>();
         for (int i = 0; i < concurrency; i++)
@@ -1219,9 +1215,6 @@ public class ConcurrencyScalingTests
         foreach (var e in enrichers) builder.AddBlock(e);
         builder.AddBlock(broadcast);
         builder.AddBlock(metricsCollector);
-        builder.AddBlock(router);
-        builder.AddBlock(evenFilter);
-        builder.AddBlock(oddFilter);
         foreach (var p in evenProcessors) builder.AddBlock(p);
         foreach (var p in oddProcessors) builder.AddBlock(p);
 
@@ -1242,19 +1235,43 @@ public class ConcurrencyScalingTests
             builder.Connect(enricher, broadcast);
         }
 
-        // Broadcast → Metrics & Router
+        // Broadcast → Metrics
         builder.AddEdge(new Edge(broadcast, metricsCollector, BufferMode.Bounded, 10));
-        builder.AddEdge(new Edge(broadcast, router, BufferMode.Bounded, 10));
 
-        // Router → Filters
-        builder.Connect(router, evenFilter);
-        builder.Connect(router, oddFilter);
+        // Broadcast → Selective Routing to [even processors (competing), odd processors (competing)]
+        // Route to all processors of each type, then they compete
+        var routeMapping = new Dictionary<string, IBlock>();
+        foreach (var proc in evenProcessors)
+        {
+            routeMapping[proc.Name] = proc;
+        }
+        foreach (var proc in oddProcessors)
+        {
+            routeMapping[proc.Name] = proc;
+        }
 
-        // Filters → Processors (competing)
-        builder.AddEdge(new Edge(evenFilter, evenProcessors.Cast<IBlock>().ToList(),
-            new CompetingEdgeStrategy(BufferMode.Bounded, 10)));
-        builder.AddEdge(new Edge(oddFilter, oddProcessors.Cast<IBlock>().ToList(),
-            new CompetingEdgeStrategy(BufferMode.Bounded, 10)));
+        // Selector picks a route for even/odd and distributes among processors of that type
+        int evenIndex = 0;
+        int oddIndex = 0;
+        var routingStrategy = new SelectiveRoutingEdgeStrategy<string>(
+            routeKeyToBlock: routeMapping,
+            routeSelector: item =>
+            {
+                if (item.StartsWith("even"))
+                {
+                    var idx = Interlocked.Increment(ref evenIndex) - 1;
+                    return evenProcessors[idx % concurrency].Name;
+                }
+                else
+                {
+                    var idx = Interlocked.Increment(ref oddIndex) - 1;
+                    return oddProcessors[idx % concurrency].Name;
+                }
+            });
+
+        var allProcessors = evenProcessors.Cast<IBlock>().Concat(oddProcessors.Cast<IBlock>()).ToList();
+        var routingEdge = new Edge(broadcast, allProcessors, routingStrategy);
+        builder.AddEdge(routingEdge);
 
         var graph = builder.Build();
         var context = new ExecutionContext(services, CancellationToken.None);
@@ -1279,11 +1296,11 @@ public class ConcurrencyScalingTests
 
     #region Level 6: Add BatchBlock
 
-    [Fact(Skip = "Uses obsolete RouterBlock - needs migration to SelectiveRoutingEdgeStrategy")]
+    [Fact]
     public async Task Level6_WithBatchBlock_Should_Scale()
     {
         // Add batching: Source → Validators → Enrichers → Broadcast → [Metrics, BatchPath]
-        // BatchPath: Router → Filter → Batch → Aggregator → Writer
+        // BatchPath: SelectiveRouting → Batch → Aggregator → Writer (only even items)
         
         const int itemCount = 1000; // Increased to make batching meaningful
         const int concurrency = 4;
@@ -1325,11 +1342,7 @@ public class ConcurrencyScalingTests
         
         var metricsCollector = BlockHelpers.CreateActor<string, object, NoOpStringProcessorActor>("metrics", metricsCollectorServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
-        // Batch path
-        var router = BlockHelpers.CreateRouter<string>("router", item => item.StartsWith("even") ? "even" : "odd");
-        var evenFilter = BlockHelpers.CreateRouteFilter<string>("even-filter", "even");
-        
-        // KEY DIFFERENCE: Add BatchBlock
+        // Batch path - only route "even" items to the batcher, odd items to a discard sink
         var batcher = BlockHelpers.CreateBatch<string>("batcher", batchSize, TimeSpan.FromMilliseconds(50));
         
         var aggregatorServices = new ServiceCollection();
@@ -1344,17 +1357,23 @@ public class ConcurrencyScalingTests
         
         var writer = BlockHelpers.CreateActor<string, object, NoOpStringProcessorActor>("writer", writerServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
+        // Discard sink for odd items (not batched)
+        var discardServices = new ServiceCollection();
+        discardServices.AddScoped<NoOpStringProcessorActor>();
+        var discardServiceProvider = discardServices.BuildServiceProvider();
+        
+        var discardSink = BlockHelpers.CreateActor<string, object, NoOpStringProcessorActor>("discard", discardServiceProvider.GetRequiredService<IServiceScopeFactory>());
+
         var builder = GraphHelpers.CreateGraphBuilder("level6-test");
         builder.AddBlock(producer);
         foreach (var v in validators) builder.AddBlock(v);
         foreach (var e in enrichers) builder.AddBlock(e);
         builder.AddBlock(broadcast);
         builder.AddBlock(metricsCollector);
-        builder.AddBlock(router);
-        builder.AddBlock(evenFilter);
         builder.AddBlock(batcher);
         builder.AddBlock(aggregator);
         builder.AddBlock(writer);
+        builder.AddBlock(discardSink);
 
         builder.AddEdge(new Edge(producer, validators.Cast<IBlock>().ToList(), 
             new CompetingEdgeStrategy(BufferMode.Bounded, 10)));
@@ -1371,9 +1390,21 @@ public class ConcurrencyScalingTests
         }
 
         builder.AddEdge(new Edge(broadcast, metricsCollector, BufferMode.Bounded, 10));
-        builder.AddEdge(new Edge(broadcast, router, BufferMode.Bounded, 10));
-        builder.Connect(router, evenFilter);
-        builder.Connect(evenFilter, batcher);
+        
+        // Selective routing from broadcast - "even" items go to batcher, "odd" to discard
+        var routeMapping = new Dictionary<string, IBlock>
+        {
+            ["even"] = batcher,
+            ["odd"] = discardSink
+        };
+
+        var routingStrategy = new SelectiveRoutingEdgeStrategy<string>(
+            routeKeyToBlock: routeMapping,
+            routeSelector: item => item.StartsWith("even") ? "even" : "odd");
+
+        var routingEdge = new Edge(broadcast, new IBlock[] { batcher, discardSink }, routingStrategy);
+        builder.AddEdge(routingEdge);
+        
         builder.Connect(batcher, aggregator);
         builder.Connect(aggregator, writer);
 
@@ -1486,15 +1517,15 @@ public class ConcurrencyScalingTests
 
     #region Level 8: Exact ComplexEtlPOC Match
 
-    [Fact(Skip = "Uses obsolete RouterBlock - needs migration to SelectiveRoutingEdgeStrategy")]
+    [Fact]
     public async Task Level8_ExactComplexEtlPOCMatch_Should_Scale()
     {
         // Exact match to ComplexEtlPOC benchmark:
         // - 10K items
         // - 1ms delays
         // - BatchBlock with batchSize=100
-        // - Full complexity: validators → enrichers → broadcast → [metrics, router]
-        // - Router → filters → [processors (competing), batcher→aggregator, direct writer]
+        // - Full complexity: validators → enrichers → broadcast → [metrics, selective routing]
+        // - Selective routing → [processors (competing), batcher→aggregator, direct writer]
         
         const int itemCount = 10000;
         const int concurrency = 4;
@@ -1538,15 +1569,7 @@ public class ConcurrencyScalingTests
         
         var metricsCollector = BlockHelpers.CreateActor<string, object, NoOpStringProcessorActor>("metrics", metricsCollectorServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
-        var router = BlockHelpers.CreateRouter<string>("router", item =>
-        {
-            if (item.Contains("TypeA")) return "TypeA";
-            if (item.Contains("TypeB")) return "TypeB";
-            return "TypeC";
-        });
-        
-        // TypeA path: filter → processors (competing)
-        var typeAFilter = BlockHelpers.CreateRouteFilter<string>("typeA-filter", "TypeA");
+        // TypeA path: processors (competing) → writers (competing)
         var typeAProcessors = new List<IBlock<string, string>>();
         for (int i = 0; i < concurrency; i++)
         {
@@ -1570,8 +1593,7 @@ public class ConcurrencyScalingTests
                 typeAWriterServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
-        // TypeB path: filter → BATCHER → aggregator → writer
-        var typeBFilter = BlockHelpers.CreateRouteFilter<string>("typeB-filter", "TypeB");
+        // TypeB path: BATCHER → aggregator → writer
         var typeBBatcher = BlockHelpers.CreateBatch<string>("typeB-batcher", batchSize, TimeSpan.FromMilliseconds(100));
         
         var typeBAggregatorServices = new ServiceCollection();
@@ -1586,9 +1608,7 @@ public class ConcurrencyScalingTests
         
         var typeBWriter = BlockHelpers.CreateActor<string, object, NoOpStringProcessorActor>("typeB-writer", typeBWriterServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
-        // TypeC path: filter → writer
-        var typeCFilter = BlockHelpers.CreateRouteFilter<string>("typeC-filter", "TypeC");
-        
+        // TypeC path: direct writer
         var typeCWriterServices = new ServiceCollection();
         typeCWriterServices.AddScoped<NoOpStringProcessorActor>();
         var typeCWriterServiceProvider = typeCWriterServices.BuildServiceProvider();
@@ -1601,15 +1621,11 @@ public class ConcurrencyScalingTests
         foreach (var e in enrichers) builder.AddBlock(e);
         builder.AddBlock(broadcast);
         builder.AddBlock(metricsCollector);
-        builder.AddBlock(router);
-        builder.AddBlock(typeAFilter);
         foreach (var p in typeAProcessors) builder.AddBlock(p);
         foreach (var w in typeAWriters) builder.AddBlock(w);
-        builder.AddBlock(typeBFilter);
         builder.AddBlock(typeBBatcher);
         builder.AddBlock(typeBAggregator);
         builder.AddBlock(typeBWriter);
-        builder.AddBlock(typeCFilter);
         builder.AddBlock(typeCWriter);
 
         // Producer → Validators (competing)
@@ -1629,32 +1645,59 @@ public class ConcurrencyScalingTests
             builder.Connect(enricher, broadcast);
         }
 
-        // Broadcast → Metrics & Router
+        // Broadcast → Metrics
         builder.AddEdge(new Edge(broadcast, metricsCollector, BufferMode.Bounded, 100));
-        builder.AddEdge(new Edge(broadcast, router, BufferMode.Bounded, 100));
 
-        // Router → Filters
-        builder.Connect(router, typeAFilter);
-        builder.Connect(router, typeBFilter);
-        builder.Connect(router, typeCFilter);
-
-        // TypeA: Filter → Processors (competing) → Writers (competing)
-        builder.AddEdge(new Edge(typeAFilter, typeAProcessors.Cast<IBlock>().ToList(),
-            new CompetingEdgeStrategy(BufferMode.Bounded, 100)));
+        // Broadcast → Selective Routing to [TypeA processors, TypeB batcher, TypeC writer]
+        // For TypeA, route to competing processors
+        var routeMapping = new Dictionary<string, IBlock>();
         
+        // TypeA routes - distribute across competing processors
+        for (int i = 0; i < concurrency; i++)
+        {
+            routeMapping[$"TypeA-{i}"] = typeAProcessors[i];
+        }
+        
+        // TypeB route - to batcher
+        routeMapping["TypeB"] = typeBBatcher;
+        
+        // TypeC route - direct to writer
+        routeMapping["TypeC"] = typeCWriter;
+
+        int typeAIndex = 0;
+        var routingStrategy = new SelectiveRoutingEdgeStrategy<string>(
+            routeKeyToBlock: routeMapping,
+            routeSelector: item =>
+            {
+                if (item.Contains("TypeA"))
+                {
+                    var idx = Interlocked.Increment(ref typeAIndex) - 1;
+                    return $"TypeA-{idx % concurrency}";
+                }
+                if (item.Contains("TypeB")) return "TypeB";
+                return "TypeC";
+            });
+
+        var allTargets = typeAProcessors.Cast<IBlock>()
+            .Append(typeBBatcher)
+            .Append(typeCWriter)
+            .ToList();
+        
+        var routingEdge = new Edge(broadcast, allTargets, routingStrategy);
+        builder.AddEdge(routingEdge);
+
+        // TypeA: Processors → Writers (competing)
         foreach (var processor in typeAProcessors)
         {
             builder.AddEdge(new Edge(processor, typeAWriters.Cast<IBlock>().ToList(),
                 new CompetingEdgeStrategy(BufferMode.Bounded, 50)));
         }
 
-        // TypeB: Filter → Batcher → Aggregator → Writer
-        builder.Connect(typeBFilter, typeBBatcher);
+        // TypeB: Batcher → Aggregator → Writer
         builder.Connect(typeBBatcher, typeBAggregator);
         builder.Connect(typeBAggregator, typeBWriter);
 
-        // TypeC: Filter → Writer
-        builder.Connect(typeCFilter, typeCWriter);
+        // TypeC: already routed to writer
 
         var graph = builder.Build();
         var context = new ExecutionContext(services, CancellationToken.None);
