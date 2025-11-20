@@ -10,8 +10,22 @@ using DataFlow.POC.Core;
 /// </summary>
 public class BroadcastBlock<T> : BlockBase<T, T>
 {
+    /// <summary>
+    /// Legacy constructor for inline graph building.
+    /// Prefer using the constructor with IBlockContext via DI registration.
+    /// </summary>
+    [Obsolete("Use the constructor with IBlockContext parameter via services.AddDataFlows(). This constructor will be removed in a future version.")]
     public BroadcastBlock(string name)
         : base(name)
+    {
+    }
+
+    /// <summary>
+    /// Constructor with IBlockContext for proper dependency injection.
+    /// All dependencies are passed via constructor.
+    /// </summary>
+    public BroadcastBlock(IBlockContext context)
+        : base(context)
     {
     }
 

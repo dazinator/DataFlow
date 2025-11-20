@@ -10,8 +10,23 @@ public class ProducerBlock<T> : BlockBase<object, T>
 {
     private readonly Func<IExecutionContext, IAsyncEnumerable<T>> _producer;
 
+    /// <summary>
+    /// Legacy constructor for inline graph building.
+    /// Prefer using the constructor with IBlockContext via DI registration.
+    /// </summary>
+    [Obsolete("Use the constructor with IBlockContext parameter via services.AddDataFlows(). This constructor will be removed in a future version.")]
     public ProducerBlock(string name, Func<IExecutionContext, IAsyncEnumerable<T>> producer)
         : base(name)
+    {
+        _producer = producer ?? throw new ArgumentNullException(nameof(producer));
+    }
+
+    /// <summary>
+    /// Constructor with IBlockContext for proper dependency injection.
+    /// All dependencies are passed via constructor.
+    /// </summary>
+    public ProducerBlock(IBlockContext context, Func<IExecutionContext, IAsyncEnumerable<T>> producer)
+        : base(context)
     {
         _producer = producer ?? throw new ArgumentNullException(nameof(producer));
     }
@@ -36,11 +51,30 @@ public class ConcurrentProducerBlock<T> : BlockBase<object, T>
     private readonly Func<IExecutionContext, IEnumerable<IAsyncEnumerable<T>>> _producersFactory;
     private readonly int _maxConcurrency;
 
+    /// <summary>
+    /// Legacy constructor for inline graph building.
+    /// Prefer using the constructor with IBlockContext via DI registration.
+    /// </summary>
+    [Obsolete("Use the constructor with IBlockContext parameter via services.AddDataFlows(). This constructor will be removed in a future version.")]
     public ConcurrentProducerBlock(
         string name,
         Func<IExecutionContext, IEnumerable<IAsyncEnumerable<T>>> producersFactory,
         int maxConcurrency = 4)
         : base(name)
+    {
+        _producersFactory = producersFactory ?? throw new ArgumentNullException(nameof(producersFactory));
+        _maxConcurrency = maxConcurrency;
+    }
+
+    /// <summary>
+    /// Constructor with IBlockContext for proper dependency injection.
+    /// All dependencies are passed via constructor.
+    /// </summary>
+    public ConcurrentProducerBlock(
+        IBlockContext context,
+        Func<IExecutionContext, IEnumerable<IAsyncEnumerable<T>>> producersFactory,
+        int maxConcurrency = 4)
+        : base(context)
     {
         _producersFactory = producersFactory ?? throw new ArgumentNullException(nameof(producersFactory));
         _maxConcurrency = maxConcurrency;

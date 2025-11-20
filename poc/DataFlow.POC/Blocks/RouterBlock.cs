@@ -11,8 +11,23 @@ public class RouterBlock<T> : BlockBase<T, RoutedItem<T>>
 {
     private readonly Func<T, string> _routeSelector;
 
+    /// <summary>
+    /// Legacy constructor for inline graph building.
+    /// Prefer using the constructor with IBlockContext via DI registration.
+    /// </summary>
+    [Obsolete("Use the constructor with IBlockContext parameter via services.AddDataFlows(). This constructor will be removed in a future version.")]
     public RouterBlock(string name, Func<T, string> routeSelector)
         : base(name)
+    {
+        _routeSelector = routeSelector ?? throw new ArgumentNullException(nameof(routeSelector));
+    }
+
+    /// <summary>
+    /// Constructor with IBlockContext for proper dependency injection.
+    /// All dependencies are passed via constructor.
+    /// </summary>
+    public RouterBlock(IBlockContext context, Func<T, string> routeSelector)
+        : base(context)
     {
         _routeSelector = routeSelector ?? throw new ArgumentNullException(nameof(routeSelector));
     }
@@ -73,8 +88,23 @@ public class RouteFilterBlock<T> : BlockBase<RoutedItem<T>, T>
 {
     private readonly string _routeKey;
 
+    /// <summary>
+    /// Legacy constructor for inline graph building.
+    /// Prefer using the constructor with IBlockContext via DI registration.
+    /// </summary>
+    [Obsolete("Use the constructor with IBlockContext parameter via services.AddDataFlows(). This constructor will be removed in a future version.")]
     public RouteFilterBlock(string name, string routeKey)
         : base(name)
+    {
+        _routeKey = routeKey ?? throw new ArgumentNullException(nameof(routeKey));
+    }
+
+    /// <summary>
+    /// Constructor with IBlockContext for proper dependency injection.
+    /// All dependencies are passed via constructor.
+    /// </summary>
+    public RouteFilterBlock(IBlockContext context, string routeKey)
+        : base(context)
     {
         _routeKey = routeKey ?? throw new ArgumentNullException(nameof(routeKey));
     }

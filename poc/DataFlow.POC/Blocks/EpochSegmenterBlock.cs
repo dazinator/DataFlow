@@ -12,8 +12,23 @@ public sealed class EpochSegmenterBlock<T> : BlockBase<T, IEpochStream<T>>
 {
     private readonly EpochSegmentationPolicy _policy;
 
+    /// <summary>
+    /// Legacy constructor for inline graph building.
+    /// Prefer using the constructor with IBlockContext via DI registration.
+    /// </summary>
+    [Obsolete("Use the constructor with IBlockContext parameter via services.AddDataFlows(). This constructor will be removed in a future version.")]
     public EpochSegmenterBlock(string name, EpochSegmentationPolicy policy)
         : base(name)
+    {
+        _policy = policy ?? throw new ArgumentNullException(nameof(policy));
+    }
+
+    /// <summary>
+    /// Constructor with IBlockContext for proper dependency injection.
+    /// All dependencies are passed via constructor.
+    /// </summary>
+    public EpochSegmenterBlock(IBlockContext context, EpochSegmentationPolicy policy)
+        : base(context)
     {
         _policy = policy ?? throw new ArgumentNullException(nameof(policy));
     }

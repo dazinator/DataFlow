@@ -14,8 +14,29 @@ public sealed class EpochBatchBlock<T> : BlockBase<IEpochStream<T>, IEpochStream
     private readonly int _maxBatchSize;
     private readonly TimeSpan? _windowPeriod;
 
+    /// <summary>
+    /// Legacy constructor for inline graph building.
+    /// Prefer using the constructor with IBlockContext via DI registration.
+    /// </summary>
+    [Obsolete("Use the constructor with IBlockContext parameter via services.AddDataFlows(). This constructor will be removed in a future version.")]
     public EpochBatchBlock(string name, int maxBatchSize, TimeSpan? windowPeriod = null)
         : base(name)
+    {
+        if (maxBatchSize <= 0)
+        {
+            throw new ArgumentException("Max batch size must be greater than 0", nameof(maxBatchSize));
+        }
+
+        _maxBatchSize = maxBatchSize;
+        _windowPeriod = windowPeriod;
+    }
+
+    /// <summary>
+    /// Constructor with IBlockContext for proper dependency injection.
+    /// All dependencies are passed via constructor.
+    /// </summary>
+    public EpochBatchBlock(IBlockContext context, int maxBatchSize, TimeSpan? windowPeriod = null)
+        : base(context)
     {
         if (maxBatchSize <= 0)
         {
