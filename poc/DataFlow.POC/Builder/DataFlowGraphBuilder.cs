@@ -1,6 +1,7 @@
 namespace DataFlow.POC.Builder;
 
 using DataFlow.POC.Core;
+using DataFlow.POC.Registry;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,6 +14,7 @@ public class DataFlowGraphBuilder
     private readonly string _name;
     private readonly ILogger<DataFlowGraph> _logger;
     private readonly IServiceProvider? _serviceProvider;
+    private readonly IBlockTypeRegistry? _registry;
     private readonly string _namespace;
     private readonly List<IBlock> _blocks = new();
     private readonly Dictionary<string, IBlock> _blocksByName = new(); // Track blocks by their registration name
@@ -33,6 +35,7 @@ public class DataFlowGraphBuilder
         _name = name ?? throw new ArgumentNullException(nameof(name));
         _logger = logger ?? NullLogger<DataFlowGraph>.Instance;
         _serviceProvider = null;
+        _registry = null;
         _namespace = "global";
     }
 
@@ -41,16 +44,19 @@ public class DataFlowGraphBuilder
     /// </summary>
     /// <param name="name">Name of the graph</param>
     /// <param name="serviceProvider">Service provider for resolving registered blocks</param>
+    /// <param name="registry">Block type registry for block resolution and metadata</param>
     /// <param name="namespacePrefix">Optional namespace prefix for block resolution (defaults to "global")</param>
     /// <param name="logger">Optional logger</param>
     public DataFlowGraphBuilder(
         string name, 
         IServiceProvider serviceProvider,
+        IBlockTypeRegistry registry,
         string? namespacePrefix = null,
         ILogger<DataFlowGraph>? logger = null)
     {
         _name = name ?? throw new ArgumentNullException(nameof(name));
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+        _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         _namespace = namespacePrefix ?? "global";
         _logger = logger ?? NullLogger<DataFlowGraph>.Instance;
     }
@@ -83,6 +89,13 @@ public class DataFlowGraphBuilder
                 "or use AddBlock() to add blocks directly.");
         }
 
+        if (_registry is null)
+        {
+            throw new InvalidOperationException(
+                "Cannot use UseBlock() without a block registry. " +
+                "Ensure the registry is passed to the DataFlowGraphBuilder constructor.");
+        }
+
         if (string.IsNullOrWhiteSpace(name))
         {
             throw new ArgumentException("Block name cannot be null or whitespace", nameof(name));
@@ -91,16 +104,8 @@ public class DataFlowGraphBuilder
         // Resolve the key with namespace prefix if needed
         var key = ResolveBlockKey(name);
 
-        // Resolve block from DI
-        var block = _serviceProvider.GetKeyedService<IBlock>(key);
-        if (block is null)
-        {
-            throw new InvalidOperationException(
-                $"Block '{key}' not found in the service provider. " +
-                $"Ensure the block is registered using services.AddDataFlows() before building the graph. " +
-                $"If you're using a custom namespace, make sure to prefix the block name (e.g., 'moduleA:blockName') " +
-                $"or register the block in the same namespace as this graph.");
-        }
+        // Resolve block from registry
+        var block = _registry.GetBlock(_serviceProvider, key);
 
         _blocks.Add(block);
         // Track by resolved key - for DI blocks, this will match block.Name

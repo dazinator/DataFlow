@@ -2,6 +2,7 @@ namespace DataFlow.POC.Tests.TestHelpers;
 
 using DataFlow.POC.Builder;
 using DataFlow.POC.Core;
+using DataFlow.POC.Registry;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -61,7 +62,10 @@ public static class GraphHelpers
         // Create minimal service provider if not provided
         serviceProvider ??= CreateMinimalServiceProvider();
 
-        return new DataFlowGraphBuilder(name, serviceProvider, namespacePrefix: null, logger);
+        // Get or create registry from service provider
+        var registry = serviceProvider.GetService<IBlockTypeRegistry>() ?? new BlockTypeRegistry();
+
+        return new DataFlowGraphBuilder(name, serviceProvider, registry, namespacePrefix: null, logger);
     }
 
     /// <summary>

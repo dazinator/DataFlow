@@ -3,6 +3,7 @@ namespace DataFlow.POC.DependencyInjection;
 using DataFlow.POC.Core;
 using DataFlow.POC.Builder;
 using DataFlow.POC.Blocks;
+using DataFlow.POC.Registry;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -14,10 +15,12 @@ public class DataFlowBuilder
 {
     private readonly IServiceCollection _services;
     private readonly string _namespace;
+    private readonly IBlockTypeRegistry _registry;
 
-    internal DataFlowBuilder(IServiceCollection services, string? namespacePrefix = null)
+    internal DataFlowBuilder(IServiceCollection services, IBlockTypeRegistry registry, string? namespacePrefix = null)
     {
         _services = services ?? throw new ArgumentNullException(nameof(services));
+        _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         _namespace = namespacePrefix ?? "global";
     }
 
@@ -60,6 +63,11 @@ public class DataFlowBuilder
     /// Register a block as a scoped service.
     /// Scoped services are created once per scope (e.g., per graph execution).
     /// This is safe for blocks that use scoped dependencies like DbContext.
+    /// 
+    /// Note: For introspection to work before first block resolution, type information
+    /// must be extractable via reflection from TBlock implementing IBlock&lt;TIn, TOut&gt;.
+    /// If your block type doesn't implement the generic interface directly, use
+    /// AddActorBlock or provide metadata explicitly via overload (if available).
     /// </summary>
     public DataFlowBuilder AddScopedBlock<TBlock>(string name, Func<IServiceProvider, TBlock> factory)
         where TBlock : IBlock
@@ -70,7 +78,41 @@ public class DataFlowBuilder
         var fullKey = ResolveKey(name);
         CheckDuplicateRegistration(fullKey, "Block");
 
-        _services.AddKeyedScoped<IBlock>(fullKey, (sp, key) => factory(sp));
+        // Try to extract type parameters from IBlock<TIn, TOut> interface for eager metadata registration
+        Type? inputType = null;
+        Type? outputType = null;
+        
+        var blockType = typeof(TBlock);
+        var genericBlockInterface = blockType.GetInterfaces()
+            .FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IBlock<,>));
+        
+        if (genericBlockInterface != null)
+        {
+            var typeArgs = genericBlockInterface.GetGenericArguments();
+            inputType = typeArgs[0];
+            outputType = typeArgs[1];
+            
+            // Register metadata eagerly for introspection before first resolution
+            var metadata = new BlockTypeMetadata(inputType, outputType);
+            _registry.RegisterBlock(fullKey, metadata);
+        }
+        // else: Type info not extractable via reflection - metadata will be registered on first resolution
+        // This is a limitation for introspection - consider using AddActorBlock<TIn,TOut,TActor> for typed blocks
+
+        // Register the block with DI
+        _services.AddKeyedScoped<IBlock>(fullKey, (sp, key) =>
+        {
+            var block = factory(sp);
+            
+            // Lazy fallback: Register metadata on first resolution if not already registered
+            // This handles cases where reflection couldn't extract type info above
+            // Use TryRegisterBlock to avoid race condition on concurrent first resolution
+            var metadata = new BlockTypeMetadata(block.InputType, block.OutputType);
+            _registry.TryRegisterBlock(fullKey, metadata);
+            
+            return block;
+        });
+        
         return this;
     }
 
@@ -154,7 +196,8 @@ public class DataFlowBuilder
         
         _services.AddKeyedScoped<DataFlowGraph>(fullKey, (sp, key) =>
         {
-            var builder = new DataFlowGraphBuilder(name, sp, currentNamespace);
+            var registry = sp.GetRequiredService<IBlockTypeRegistry>();
+            var builder = new DataFlowGraphBuilder(name, sp, registry, currentNamespace);
             configure(builder);
             return builder.Build();
         });
@@ -187,7 +230,8 @@ public class DataFlowBuilder
         _services.AddKeyedScoped<DataFlowGraph>(fullKey, (sp, key) =>
         {
             var definition = sp.GetRequiredService<TDefinition>();
-            var builder = new DataFlowGraphBuilder(name, sp, currentNamespace);
+            var registry = sp.GetRequiredService<IBlockTypeRegistry>();
+            var builder = new DataFlowGraphBuilder(name, sp, registry, currentNamespace);
             definition.Configure(builder);
             return builder.Build();
         });
@@ -216,6 +260,10 @@ public class DataFlowBuilder
         
         var fullKey = ResolveKey(name);
         CheckDuplicateRegistration(fullKey, "Block");
+
+        // Register metadata with known types
+        var metadata = new BlockTypeMetadata(typeof(TIn), typeof(TOut));
+        _registry.RegisterBlock(fullKey, metadata);
 
         _services.AddKeyedScoped<IBlock>(fullKey, (sp, key) =>
         {
@@ -369,7 +417,30 @@ public static class ServiceCollectionExtensions
         
         ArgumentNullException.ThrowIfNull(configure);
 
-        var builder = new DataFlowBuilder(services, namespacePrefix);
+        // Get or create the singleton registry instance
+        // Use Any() with early exit for efficiency instead of FirstOrDefault
+        IBlockTypeRegistry registry;
+        var hasRegistry = services.Any(d => 
+            d.ServiceType == typeof(IBlockTypeRegistry) && 
+            d.Lifetime == ServiceLifetime.Singleton &&
+            d.ImplementationInstance != null);
+        
+        if (hasRegistry)
+        {
+            // Find and reuse existing instance (only called when hasRegistry is true)
+            var existingDescriptor = services.First(d => 
+                d.ServiceType == typeof(IBlockTypeRegistry) && 
+                d.ImplementationInstance != null);
+            registry = (IBlockTypeRegistry)existingDescriptor.ImplementationInstance!;
+        }
+        else
+        {
+            // Create new instance and register it
+            registry = new BlockTypeRegistry();
+            services.AddSingleton<IBlockTypeRegistry>(registry);
+        }
+
+        var builder = new DataFlowBuilder(services, registry, namespacePrefix);
         configure(builder);
 
         return services;
