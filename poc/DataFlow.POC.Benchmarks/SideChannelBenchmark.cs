@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using DataFlow.POC.Benchmarks.DeprecatedBlocks;
 using DataFlow.POC.Blocks;
 using DataFlow.POC.Builder;
 using DataFlow.POC.Core;
@@ -124,16 +125,14 @@ public class SideChannelBenchmark
             "producer",
             ctx => ProduceEnvelopes(itemCount, controlSignalCount, ctx));
 
-        var consumer1 = new EnvelopeProcessorBlock<int>(
-            "consumer1",
+        var consumer1 = new EnvelopeProcessorBlock<int>(new BlockContext("consumer1"),
             processData: async (value, ctx) =>
             {
                 lock (processLock) processedCount++;
                 await SimulateWork();
             });
 
-        var consumer2 = new EnvelopeProcessorBlock<int>(
-            "consumer2",
+        var consumer2 = new EnvelopeProcessorBlock<int>(new BlockContext("consumer2"),
             processData: async (value, ctx) =>
             {
                 lock (processLock) processedCount++;
@@ -197,8 +196,7 @@ public class SideChannelBenchmark
             "producer",
             ctx => ProduceEnvelopes(itemCount, controlSignalCount, ctx));
 
-        var consumer1 = new EnvelopeProcessorBlock<int>(
-            "consumer1",
+        var consumer1 = new EnvelopeProcessorBlock<int>(new BlockContext("consumer1"),
             processData: async (value, ctx) =>
             {
                 lock (processLock) processedCount++;
@@ -210,8 +208,7 @@ public class SideChannelBenchmark
                 await Task.CompletedTask;
             });
 
-        var consumer2 = new EnvelopeProcessorBlock<int>(
-            "consumer2",
+        var consumer2 = new EnvelopeProcessorBlock<int>(new BlockContext("consumer2"),
             processData: async (value, ctx) =>
             {
                 lock (processLock) processedCount++;

@@ -3,6 +3,7 @@ namespace DataFlow.POC.Benchmarks;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Jobs;
 using DataFlow.POC.Benchmarks.DeprecatedBlocks;
+using DataFlow.POC.Blocks;
 using DataFlow.POC.Checkpointing;
 using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
@@ -91,7 +92,7 @@ public class BatchBlockComparisonBenchmark
             "source",
             _pocServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
-        var batchBlock = new global::DataFlow.POC.Blocks.BatchBlock<int>(
+        var batchBlock = new DeprecatedBlocks.BatchBlock<int>(
             "batcher",
             maxBatchSize: BatchSize);
 
@@ -124,11 +125,11 @@ public class BatchBlockComparisonBenchmark
 
         // Use "None" policy - wraps entire stream in single epoch
         var segmenter = new EpochSegmenterBlock<int>(
-            "segmenter",
+            new BlockContext("segmenter"),
             EpochSegmentationPolicy.None);
 
         var batchBlock = new EpochBatchBlock<int>(
-            "batcher",
+            new BlockContext("batcher"),
             maxBatchSize: BatchSize);
 
         var context = new BenchmarkExecutionContext();
@@ -163,11 +164,11 @@ public class BatchBlockComparisonBenchmark
             _pocServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var segmenter = new EpochSegmenterBlock<int>(
-            "segmenter",
+            new BlockContext("segmenter"),
             EpochSegmentationPolicy.ByCount(ItemsPerEpoch, "benchmark"));
 
         var batchBlock = new EpochBatchBlock<int>(
-            "batcher",
+            new BlockContext("batcher"),
             maxBatchSize: BatchSize);
 
         var context = new BenchmarkExecutionContext();

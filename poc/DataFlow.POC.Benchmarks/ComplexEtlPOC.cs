@@ -204,7 +204,7 @@ public static class ComplexEtlPOC
         var enricherBuffer = builder.Buffer<EnrichedRecord>(capacity: 100, name: "enricher-buffer");
 
         // Broadcast: Fan out enriched records for parallel processing
-        var broadcast = new BroadcastBlock<EnrichedRecord>("broadcast");
+        var broadcast = new DataFlow.POC.Blocks.BroadcastBlock<EnrichedRecord>(new BlockContext("broadcast"));
 
         // Broadcast Fan-out Path 1: Metrics collector
         var metricsServices = new ServiceCollection();
@@ -256,7 +256,7 @@ public static class ComplexEtlPOC
         // TypeB route: Batch and aggregate records
         var typeBFilter = new RouteFilterBlock<EnrichedRecord>("typeB-filter", "TypeB");
         var typeBFilterBuffer = builder.Buffer<EnrichedRecord>(capacity: 100, name: "typeB-filter-buffer");
-        var typeBBatcher = new BatchBlock<EnrichedRecord>("typeB-batcher", batchSize, TimeSpan.FromMilliseconds(100));
+        var typeBBatcher = new DeprecatedBlocks.BatchBlock<EnrichedRecord>("typeB-batcher", batchSize, TimeSpan.FromMilliseconds(100));
         
         var typeBServices = new ServiceCollection();
         typeBServices.AddScoped<TypeBAggregatorActor>();

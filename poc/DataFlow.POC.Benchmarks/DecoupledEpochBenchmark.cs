@@ -3,6 +3,7 @@ namespace DataFlow.POC.Benchmarks;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Jobs;
 using DataFlow.POC.Benchmarks.DeprecatedBlocks;
+using DataFlow.POC.Blocks;
 using DataFlow.POC.Checkpointing;
 using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
@@ -38,7 +39,7 @@ public class DecoupledEpochBenchmark
     {
         // Current approach: Source emits epoch streams directly
         var sourceBlock = new EpochSourceBlock<int, BenchmarkSourceCentricSource>(
-            "source",
+            new BlockContext("source"),
             _serviceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var context = new BenchmarkExecutionContext();
@@ -64,7 +65,7 @@ public class DecoupledEpochBenchmark
             _serviceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var segmenterBlock = new EpochSegmenterBlock<int>(
-            "segmenter",
+            new BlockContext("segmenter"),
             EpochSegmentationPolicy.ByCount(ItemsPerEpoch, "source"));
 
         var context = new BenchmarkExecutionContext();
@@ -89,7 +90,7 @@ public class DecoupledEpochBenchmark
     {
         // Current approach with realistic processing work (30ms per item)
         var sourceBlock = new EpochSourceBlock<int, BenchmarkSourceCentricSource>(
-            "source",
+            new BlockContext("source"),
             _serviceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var context = new BenchmarkExecutionContext();
@@ -116,7 +117,7 @@ public class DecoupledEpochBenchmark
             _serviceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var segmenterBlock = new EpochSegmenterBlock<int>(
-            "segmenter",
+            new BlockContext("segmenter"),
             EpochSegmentationPolicy.ByCount(ItemsPerEpoch, "source"));
 
         var context = new BenchmarkExecutionContext();

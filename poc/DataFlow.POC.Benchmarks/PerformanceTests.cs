@@ -1,6 +1,7 @@
 namespace DataFlow.POC.Benchmarks;
 
 using System.Diagnostics;
+using DataFlow.POC.Benchmarks.DeprecatedBlocks;
 using DataFlow.POC.Blocks;
 using DataFlow.POC.Builder;
 using DataFlow.POC.Core;

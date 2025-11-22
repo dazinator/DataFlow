@@ -4,6 +4,7 @@ using System.Diagnostics;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Jobs;
 using DataFlow.POC.Benchmarks.DeprecatedBlocks;
+using DataFlow.POC.Blocks;
 using DataFlow.POC.Checkpointing;
 using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
@@ -72,12 +73,10 @@ public class EpochAwareBlockBenchmark
             "source",
             _serviceProvider.GetRequiredService<IServiceScopeFactory>());
 
-        var segmenter = new EpochSegmenterBlock<int>(
-            "segmenter",
+        var segmenter = new EpochSegmenterBlock<int>(new BlockContext("segmenter"),
             EpochSegmentationPolicy.ByCount(ItemsPerEpoch, "benchmark"));
 
-        var epochActor = new EpochActorBlock<int, int, EpochSimpleTransformActor>(
-            "epoch-actor",
+        var epochActor = new EpochActorBlock<int, int, EpochSimpleTransformActor>(new BlockContext("epoch-actor"),
             _serviceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var context = new BenchmarkExecutionContext();
@@ -109,12 +108,10 @@ public class EpochAwareBlockBenchmark
             "source",
             _serviceProvider.GetRequiredService<IServiceScopeFactory>());
 
-        var segmenter = new EpochSegmenterBlock<int>(
-            "segmenter",
+        var segmenter = new EpochSegmenterBlock<int>(new BlockContext("segmenter"),
             EpochSegmentationPolicy.ByCount(ItemsPerEpoch, "benchmark"));
 
-        var epochActor = new EpochActorBlock<int, int, OneToManyActor>(
-            "epoch-actor",
+        var epochActor = new EpochActorBlock<int, int, OneToManyActor>(new BlockContext("epoch-actor"),
             _serviceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var context = new BenchmarkExecutionContext();
@@ -146,12 +143,10 @@ public class EpochAwareBlockBenchmark
             "source",
             _serviceProvider.GetRequiredService<IServiceScopeFactory>());
 
-        var segmenter = new EpochSegmenterBlock<int>(
-            "segmenter",
+        var segmenter = new EpochSegmenterBlock<int>(new BlockContext("segmenter"),
             EpochSegmentationPolicy.ByCount(ItemsPerEpoch, "benchmark"));
 
-        var epochActor = new EpochActorBlock<int, int, FilterEvenActor>(
-            "epoch-actor",
+        var epochActor = new EpochActorBlock<int, int, FilterEvenActor>(new BlockContext("epoch-actor"),
             _serviceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var context = new BenchmarkExecutionContext();
@@ -183,12 +178,10 @@ public class EpochAwareBlockBenchmark
             "source",
             _serviceProvider.GetRequiredService<IServiceScopeFactory>());
 
-        var segmenter = new EpochSegmenterBlock<int>(
-            "segmenter",
+        var segmenter = new EpochSegmenterBlock<int>(new BlockContext("segmenter"),
             EpochSegmentationPolicy.ByCount(ItemsPerEpoch, "benchmark"));
 
-        var batcher = new EpochBatchBlock<int>(
-            "batcher",
+        var batcher = new EpochBatchBlock<int>(new BlockContext("batcher"),
             maxBatchSize: 10);
 
         var context = new BenchmarkExecutionContext();
@@ -222,16 +215,13 @@ public class EpochAwareBlockBenchmark
             "source",
             _serviceProvider.GetRequiredService<IServiceScopeFactory>());
 
-        var segmenter = new EpochSegmenterBlock<int>(
-            "segmenter",
+        var segmenter = new EpochSegmenterBlock<int>(new BlockContext("segmenter"),
             EpochSegmentationPolicy.ByCount(ItemsPerEpoch, "benchmark"));
 
-        var transformer = new EpochActorBlock<int, int, EpochSimpleTransformActor>(
-            "transformer",
+        var transformer = new EpochActorBlock<int, int, EpochSimpleTransformActor>(new BlockContext("transformer"),
             _serviceProvider.GetRequiredService<IServiceScopeFactory>());
 
-        var batcher = new EpochBatchBlock<int>(
-            "batcher",
+        var batcher = new EpochBatchBlock<int>(new BlockContext("batcher"),
             maxBatchSize: 10);
 
         var context = new BenchmarkExecutionContext();
@@ -395,12 +385,10 @@ public class EpochAwareBlockRealisticBenchmark
             "source",
             _serviceProvider.GetRequiredService<IServiceScopeFactory>());
 
-        var segmenter = new EpochSegmenterBlock<int>(
-            "segmenter",
+        var segmenter = new EpochSegmenterBlock<int>(new BlockContext("segmenter"),
             EpochSegmentationPolicy.ByCount(ItemsPerEpoch, "benchmark"));
 
-        var epochActor = new EpochActorBlock<int, int, EpochRealisticTransformActor>(
-            "epoch-actor",
+        var epochActor = new EpochActorBlock<int, int, EpochRealisticTransformActor>(new BlockContext("epoch-actor"),
             _serviceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var context = new BenchmarkExecutionContext();

@@ -20,6 +20,36 @@ public static class GraphHelpers
         ILogger<DataFlowGraph>? logger = null)
     {
         serviceProvider ??= new ServiceCollection().BuildServiceProvider();
-        return new DataFlowGraphBuilder(name, serviceProvider, namespacePrefix: null, logger);
+        // Use the obsolete constructor for benchmarking to keep benchmarks simple
+        #pragma warning disable CS0618 // Type or member is obsolete
+        return new DataFlowGraphBuilder(name, logger);
+        #pragma warning restore CS0618 // Type or member is obsolete
+    }
+
+    /// <summary>
+    /// ⚠️ DEPRECATED - Benchmark-only extension method for routing.
+    /// Connects a router block to multiple filter blocks using broadcast.
+    /// This is a workaround for the deprecated RouterBlock pattern.
+    /// </summary>
+    [Obsolete("ConnectRouted is deprecated. Use SelectiveRoutingEdgeStrategy for new code.")]
+    public static DataFlowGraphBuilder ConnectRouted(
+        this DataFlowGraphBuilder builder,
+        IBlock router,
+        Dictionary<string, IBlock> routeKeyToBlock,
+        int bufferCapacity = 100)
+    {
+        // The router emits RoutedItem<T>, which needs to be broadcast to all filters
+        // Each filter will filter for its specific route key
+        var filters = routeKeyToBlock.Values.ToList();
+        
+        // Use broadcast strategy to send all routed items to all filters
+        var edge = new Edge(
+            router,
+            filters,
+            new BroadcastEdgeStrategy(BufferMode.Bounded, bufferCapacity));
+        
+        builder.AddEdge(edge);
+        return builder;
     }
 }
+
