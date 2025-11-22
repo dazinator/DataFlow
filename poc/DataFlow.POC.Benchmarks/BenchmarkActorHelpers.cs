@@ -47,7 +47,8 @@ public static class BenchmarkActorHelpers
     /// <typeparam name="TActor">Actor implementation type</typeparam>
     /// <param name="name">Block name</param>
     /// <param name="actorFactory">Factory function to create the actor instance</param>
-    /// <returns>Configured ActorBlock instance</returns>
+    /// <returns">Configured ActorBlock instance</returns>
+    [Obsolete("ActorBlock is deprecated. Use EpochActorBlock for new code.")]
     public static ActorBlock<TIn, TOut, TActor> CreateActorBlock<TIn, TOut, TActor>(
         string name,
         Func<TActor> actorFactory)
@@ -73,6 +74,7 @@ public static class BenchmarkActorHelpers
     /// <param name="count">Number of blocks to create</param>
     /// <param name="actorFactory">Factory function to create actor instances</param>
     /// <returns>List of configured ActorBlock instances</returns>
+    [Obsolete("ActorBlock is deprecated. Use EpochActorBlock for new code.")]
     public static List<ActorBlock<TIn, TOut, TActor>> CreateActorBlocks<TIn, TOut, TActor>(
         string namePrefix,
         int count,

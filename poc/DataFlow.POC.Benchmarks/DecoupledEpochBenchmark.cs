@@ -3,6 +3,7 @@ namespace DataFlow.POC.Benchmarks;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Jobs;
 using DataFlow.POC.Blocks;
+using DataFlow.POC.Checkpointing;
 using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
 using System.Runtime.CompilerServices;
@@ -219,5 +220,6 @@ public class DecoupledEpochBenchmark
         public CancellationToken CancellationToken { get; } = CancellationToken.None;
         public IServiceProvider ServiceProvider { get; } = new ServiceCollection().BuildServiceProvider();
         public Guid InvocationId { get; } = Guid.NewGuid();
+        public ICheckpoint? RecoveryCheckpoint { get; } = null;
     }
 }
