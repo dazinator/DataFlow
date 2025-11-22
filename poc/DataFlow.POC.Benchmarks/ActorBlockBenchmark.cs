@@ -2,7 +2,7 @@ namespace DataFlow.POC.Benchmarks;
 
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using DataFlow.POC.Blocks;
+using DataFlow.POC.Benchmarks.DeprecatedBlocks;
 using DataFlow.POC.Builder;
 using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;

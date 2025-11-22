@@ -1,10 +1,12 @@
-namespace DataFlow.POC.Blocks;
+namespace DataFlow.POC.Benchmarks.DeprecatedBlocks;
 
 using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
 
 /// <summary>
-/// DEPRECATED: Plain source block for backward compatibility with benchmarks.
+/// ⚠️ DEPRECATED - Benchmark-only. Use PlainSourceAdapter for new code.
+/// 
+/// Plain source block for backward compatibility with benchmarks.
 /// This block is retained solely for benchmark comparisons between plain and epoch-based processing.
 /// New code should use PlainSourceAdapter instead.
 /// </summary>

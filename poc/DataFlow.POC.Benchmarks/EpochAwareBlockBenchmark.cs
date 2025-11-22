@@ -3,7 +3,7 @@ namespace DataFlow.POC.Benchmarks;
 using System.Diagnostics;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Jobs;
-using DataFlow.POC.Blocks;
+using DataFlow.POC.Benchmarks.DeprecatedBlocks;
 using DataFlow.POC.Checkpointing;
 using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;

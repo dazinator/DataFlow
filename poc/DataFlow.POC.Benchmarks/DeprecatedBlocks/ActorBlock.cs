@@ -1,11 +1,13 @@
-namespace DataFlow.POC.Blocks;
+namespace DataFlow.POC.Benchmarks.DeprecatedBlocks;
 
 using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
 using System.Runtime.CompilerServices;
 
 /// <summary>
-/// DEPRECATED: Plain (non-epoch) actor block for backward compatibility with benchmarks.
+/// ⚠️ DEPRECATED - Benchmark-only. Use EpochActorBlock for new code.
+/// 
+/// Plain (non-epoch) actor block for backward compatibility with benchmarks.
 /// This block is retained solely for benchmark comparisons between plain and epoch-based processing.
 /// New code should use EpochActorBlock instead.
 /// </summary>
