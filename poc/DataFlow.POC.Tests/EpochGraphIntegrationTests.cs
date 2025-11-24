@@ -387,6 +387,9 @@ public class EpochGraphIntegrationTests : IAsyncDisposable
         public IServiceProvider ServiceProvider => throw new NotImplementedException();
         public Guid InvocationId { get; } = Guid.NewGuid();
         public ICheckpoint? RecoveryCheckpoint { get; } = null;
+        public string? FlowName { get; } = null;
+        public POC.Observability.IDataFlowMetrics? Metrics { get; } = null;
+        public string? CurrentBlockName { get; set; }
         
         public void Cancel() => _cts.Cancel();
     }
