@@ -23,7 +23,7 @@
 
 ## Overview
 
-The DataFlow POC provides three primary **control flow topologies** (routing patterns) for managing how data flows between blocks. These patterns are implemented using **Edge Strategies** that define delivery semantics at the edge level, keeping blocks simple and focused on business logic.
+The DataFlow POC provides **four primary control flow topologies** (routing patterns) for managing how data flows between blocks. These patterns are implemented using **Edge Strategies** that define delivery semantics at the edge level, keeping blocks simple and focused on business logic.
 
 ### Core Principle: Edge-Level Routing
 
@@ -45,6 +45,7 @@ This separation allows you to:
 | Pattern | Edge Strategy | Use Case | Items Per Route |
 |---------|---------------|----------|-----------------|
 | **Broadcast** | `BroadcastEdgeStrategy` | Fan-out to all consumers | All items to all targets |
+| **Broadcast with Cloning** | `BroadcastEdgeStrategy` (with cloning) | Fan-out with mutation isolation | All items to all targets (cloned) |
 | **Competing Consumers** | `CompetingEdgeStrategy` | Load balancing, concurrency | Each item to one target |
 | **Selective Routing** | `SelectiveRoutingEdgeStrategy<T>` | Content-based routing | Each item to matching target |
 
@@ -207,19 +208,31 @@ public override async Task RouteTypedItemAsync<T>(
 
 ### Broadcasting with Cloning
 
-For scenarios where downstream consumers might mutate items, use `CloningEdgeStrategy`:
+For scenarios where downstream consumers might mutate items, `BroadcastEdgeStrategy` supports **optional cloning** via a constructor overload:
 
 ```csharp
+// Define a clone function for your item type
+Func<object, object> cloneFunc = item => ((MyDataItem)item).Clone();
+
+// Create broadcast edge with cloning enabled
 var cloningEdge = new Edge(
     producer,
     new[] { mutatingProcessor1, mutatingProcessor2 },
-    new CloningEdgeStrategy(BufferMode.Bounded, 100));
+    new BroadcastEdgeStrategy(cloneFunc, BufferMode.Bounded, 100));
 ```
 
+**How It Works**:
+- Same as `BroadcastEdgeStrategy` but clones each item before writing to each channel
+- Uses the provided `cloneFunc` to create independent copies
+- Each consumer receives its own clone, mutations don't affect others
+- Items are written concurrently to all target channels (like regular broadcast)
+
 **Requirements**:
-- Items must implement `ICloneable`, be value types, or be immutable (like strings)
+- Items must be cloneable (implement `ICloneable`, be value types, or provide custom clone logic)
 - Each target receives an independent clone
 - Mutations in one consumer don't affect others
+
+**Note**: This is not a separate `CloningEdgeStrategy` class - it's a constructor overload of `BroadcastEdgeStrategy` that accepts a clone function.
 
 ---
 
@@ -393,6 +406,7 @@ var edge = new Edge(
 | Your Need | Pattern | Why |
 |-----------|---------|-----|
 | All consumers need all items | **Broadcast** | Fan-out with independent processing |
+| All consumers need all items (with mutation) | **Broadcast with Cloning** | Fan-out with mutation isolation |
 | Load balancing identical workers | **Competing** | Natural distribution, simple |
 | Route by item property | **Selective Routing** | Zero overhead, O(1) lookup |
 | Logging + processing | **Broadcast** | One processes, one logs |
@@ -400,13 +414,19 @@ var edge = new Edge(
 | Priority-based routing | **Selective Routing** | Route by priority field |
 | Monitoring pipeline | **Broadcast** | Process + collect metrics |
 | Concurrent processing | **Competing** | Topology-level concurrency |
+| Mutating consumers need isolation | **Broadcast with Cloning** | Independent clones per consumer |
 
 ### Decision Flow
 
 ```
 Do all consumers need all items?
-├─ YES → Use BroadcastEdgeStrategy
-│        (Fan-out scenarios, monitoring, logging)
+├─ YES → Do consumers mutate items?
+│        │
+│        ├─ YES → Use BroadcastEdgeStrategy with cloning
+│        │        (Fan-out with mutation isolation)
+│        │
+│        └─ NO → Use BroadcastEdgeStrategy
+│                 (Fan-out scenarios, monitoring, logging)
 │
 └─ NO → Do you need content-based routing?
     ├─ YES → Use SelectiveRoutingEdgeStrategy<T>
@@ -427,6 +447,7 @@ Do all consumers need all items?
 | **Competing** | ~100 | ~10K | ~100K | Channel limit is bottleneck |
 | **Selective Routing** | ~100 | ~10K | ~100K | Near optimal scaling |
 | **Broadcast (2 targets)** | ~95 | ~9K | ~80K | N concurrent writes overhead |
+| **Broadcast with Cloning (2 targets)** | ~90 | ~8K | ~70K | Clone + N writes overhead |
 | **Broadcast (10 targets)** | ~85 | ~7K | ~50K | Overhead increases with targets |
 
 ### Memory & CPU Overhead
@@ -436,6 +457,7 @@ Do all consumers need all items?
 | **Competing** | 0 (zero overhead) | Minimal (1 write) | 1 shared |
 | **Selective Routing** | 0 (zero overhead) | O(1) lookup + 1 write | N (per route) |
 | **Broadcast** | 0 (zero overhead) | N concurrent writes | N (per target) |
+| **Broadcast with Cloning** | N clones (N = targets) | Clone + N concurrent writes | N (per target) |
 
 ### Backpressure Behavior
 
@@ -443,6 +465,7 @@ Do all consumers need all items?
 |---------|---------------------|-------------------|
 | **Competing** | Affects all (shared channel) | Shared |
 | **Selective Routing** | Independent per route | Per-route |
+| **Broadcast** | Independent per target | Per-target |
 | **Broadcast** | Independent per target | Per-target |
 
 **Important**: 
@@ -748,21 +771,24 @@ The POC supports:
 
 ### Key Takeaways
 
-1. **Three patterns**: Broadcast, Competing, Selective Routing
+1. **Four patterns**: Broadcast, Broadcast with Cloning, Competing, Selective Routing
 2. **Edge-level routing**: Blocks stay simple, edges define delivery
-3. **Performance**: All patterns have zero allocation overhead
+3. **Performance**: Base patterns have zero allocation overhead (cloning adds N allocations)
 4. **Flexibility**: Change routing without changing block code
 5. **Testability**: Blocks testable in isolation
+6. **Cloning is an overload**: Not a separate class - use `BroadcastEdgeStrategy` constructor with clone function
 
 ### Pattern Selection Guide
 
 | If you need... | Use this pattern |
 |----------------|------------------|
 | All consumers get all items | `BroadcastEdgeStrategy` |
+| All consumers get all items (with mutation) | `BroadcastEdgeStrategy` (with cloning) |
 | Load balancing | `CompetingEdgeStrategy` |
 | Content-based routing | `SelectiveRoutingEdgeStrategy<T>` |
 | Monitoring + processing | `BroadcastEdgeStrategy` |
 | Scale concurrency | `CompetingEdgeStrategy` |
+| Mutation isolation | `BroadcastEdgeStrategy` (with cloning) |
 
 ### Next Steps
 
