@@ -213,8 +213,8 @@ public class DataFlowMetrics : IDataFlowMetrics
     public static class TagConstantValues
     {
 #pragma warning disable IDE1006 // Naming Styles
-        internal static KeyValuePair<string, object?> SuccessOutcomeTag = new(TagNames.Outcome, OutcomeSuccess);
-        internal static KeyValuePair<string, object?> FailureOutcomeTag = new(TagNames.Outcome, OutcomeFailure);
+        internal static readonly KeyValuePair<string, object?> SuccessOutcomeTag = new(TagNames.Outcome, OutcomeSuccess);
+        internal static readonly KeyValuePair<string, object?> FailureOutcomeTag = new(TagNames.Outcome, OutcomeFailure);
 #pragma warning restore IDE1006 // Naming Styles
         internal const string OutcomeSuccess = "success";
         internal const string OutcomeFailure = "failure";
