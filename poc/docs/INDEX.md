@@ -255,6 +255,7 @@ The POC also includes an epoch-based coordination system for managing transactio
 **Practical guides for using the epoch system:**
 
 📁 **[/guides](./guides/)** - How-to guides and patterns
+- [Control Flow Topologies](./guides/control-flow-topologies.md) - ⭐ Complete guide to routing patterns (broadcast, competing, selective routing)
 - [Testing Guide](./guides/testing-guide.md) - ⭐ Comprehensive testing guide with helpers and patterns
 - [Business Logic Decoupling](./guides/business-logic-decoupling.md) - Pattern for separating logic from actors
 - [Using Epochs](./guides/using-epochs.md) - Formalized epoch system overview
