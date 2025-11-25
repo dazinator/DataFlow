@@ -68,7 +68,7 @@ public class MetricsTests
     }
 
     [Fact]
-    public void ExecutionContext_ContainsMetricsProperties()
+    public void ExecutionContext_ContainsMetricsProperty()
     {
         // Arrange
         var services = new ServiceCollection();
@@ -84,13 +84,10 @@ public class MetricsTests
             CancellationToken.None,
             Guid.NewGuid(),
             null,
-            "TestFlow",
             metrics);
 
         // Assert
-        Assert.Equal("TestFlow", context.FlowName);
         Assert.Same(metrics, context.Metrics);
-        Assert.Null(context.CurrentBlockName);
     }
 }
 

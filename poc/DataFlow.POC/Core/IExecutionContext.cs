@@ -30,19 +30,10 @@ public interface IExecutionContext
     ICheckpoint? RecoveryCheckpoint { get; }
 
     /// <summary>
-    /// The name of the flow being executed.
-    /// </summary>
-    string? FlowName { get; }
-
-    /// <summary>
     /// Metrics collection interface for observability (optional).
+    /// Blocks can use this to emit custom metrics.
     /// </summary>
     IDataFlowMetrics? Metrics { get; }
-
-    /// <summary>
-    /// The name of the currently executing block (set during block execution).
-    /// </summary>
-    string? CurrentBlockName { get; set; }
 }
 
 /// <summary>
@@ -67,17 +58,17 @@ public class ExecutionContext : IExecutionContext
     }
 
     public ExecutionContext(IServiceProvider serviceProvider, CancellationToken cancellationToken)
-        : this(serviceProvider, cancellationToken, Guid.NewGuid(), null, null, null)
+        : this(serviceProvider, cancellationToken, Guid.NewGuid(), null, null)
     {
     }
 
     public ExecutionContext(IServiceProvider serviceProvider, CancellationToken cancellationToken, Guid invocationId)
-        : this(serviceProvider, cancellationToken, invocationId, null, null, null)
+        : this(serviceProvider, cancellationToken, invocationId, null, null)
     {
     }
 
     public ExecutionContext(IServiceProvider serviceProvider, CancellationToken cancellationToken, Guid invocationId, ICheckpoint? recoveryCheckpoint)
-        : this(serviceProvider, cancellationToken, invocationId, recoveryCheckpoint, null, null)
+        : this(serviceProvider, cancellationToken, invocationId, recoveryCheckpoint, null)
     {
     }
 
@@ -86,14 +77,12 @@ public class ExecutionContext : IExecutionContext
         CancellationToken cancellationToken, 
         Guid invocationId, 
         ICheckpoint? recoveryCheckpoint,
-        string? flowName,
         IDataFlowMetrics? metrics)
     {
         ServiceProvider = serviceProvider;
         CancellationToken = cancellationToken;
         InvocationId = invocationId;
         RecoveryCheckpoint = recoveryCheckpoint;
-        FlowName = flowName;
         Metrics = metrics;
     }
 
@@ -101,7 +90,5 @@ public class ExecutionContext : IExecutionContext
     public IServiceProvider ServiceProvider { get; }
     public Guid InvocationId { get; }
     public ICheckpoint? RecoveryCheckpoint { get; }
-    public string? FlowName { get; }
     public IDataFlowMetrics? Metrics { get; }
-    public string? CurrentBlockName { get; set; }
 }

@@ -756,9 +756,6 @@ public class DataFlowGraph
 
             try
             {
-                // Set the current block name in the context
-                context.CurrentBlockName = _block.Name;
-
                 logger.LogDebug("Block {BlockName} starting execution (Thread: {ThreadId})", _block.Name, Environment.CurrentManagedThreadId);
                 
                 var adapter = Adapter!;
@@ -859,9 +856,6 @@ public class DataFlowGraph
             }
             finally
             {
-                // Clear the current block name from the context
-                context.CurrentBlockName = null;
-
                 double blockDuration;
                 if (activity != null)
                 {
