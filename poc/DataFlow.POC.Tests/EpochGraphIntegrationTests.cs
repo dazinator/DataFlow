@@ -73,6 +73,7 @@ public class EpochGraphIntegrationTests : IAsyncDisposable
             }));
         
         Assert.Contains("service provider", ex.Message);
+        Assert.Contains("coordinatorFactory", ex.Message);
     }
 
     [Fact]

@@ -46,10 +46,8 @@ public static class EpochConfigurationExtensions
             if (serviceProvider == null)
             {
                 throw new InvalidOperationException(
-                    "Cannot use ConfigureEpochs without a coordinatorFactory when the DataFlowGraphBuilder " +
-                    "was not constructed with a service provider. " +
-                    "Either pass a service provider to the DataFlowGraphBuilder constructor, " +
-                    "or provide a coordinatorFactory parameter to ConfigureEpochs.");
+                    "ConfigureEpochs requires either a service provider in the builder constructor " +
+                    "or an explicit coordinatorFactory parameter.");
             }
             
             // Create default factory using IServiceScopeFactory from DI
