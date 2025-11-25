@@ -270,41 +270,17 @@ public class DataFlowGraph
     {
         _logger.LogInformation("Starting execution of dataflow: {FlowName}", Name);
 
-        // Ensure metrics are set on the context
-        ExecutionContext executionContext;
-        if (context is ExecutionContext ec && ec.Metrics == null && _metrics != null)
-        {
-            // Create new context with metrics injected
-            executionContext = new ExecutionContext(
-                context.ServiceProvider,
-                context.CancellationToken,
-                context.InvocationId,
-                context.RecoveryCheckpoint,
-                _metrics);
-        }
-        else if (context is not ExecutionContext)
-        {
-            // Wrap custom context implementation with metrics
-            executionContext = new ExecutionContext(
-                context.ServiceProvider,
-                context.CancellationToken,
-                context.InvocationId,
-                context.RecoveryCheckpoint,
-                _metrics);
-        }
-        else
-        {
-            executionContext = (ExecutionContext)context;
-        }
-
         Stopwatch? stopwatch = null;
         var isSuccessful = false;
         DataFlowMetricsTagsContext? flowMetrics = null;
 
+        // Use metrics from context if available, otherwise use graph's metrics
+        var metrics = context.Metrics ?? _metrics;
+
         // Initialize metrics context if metrics are available
-        if (_metrics != null)
+        if (metrics != null)
         {
-            flowMetrics = new DataFlowMetricsTagsContext(Name, executionContext.InvocationId, _metrics);
+            flowMetrics = new DataFlowMetricsTagsContext(Name, context.InvocationId, metrics);
             flowMetrics.Started();
         }
 
@@ -312,11 +288,11 @@ public class DataFlowGraph
         {
             if (flowActivity is not null)
             {
-                if (_metrics != null)
+                if (metrics != null)
                 {
-                    flowActivity.AddTags(_metrics.GlobalTags);
+                    flowActivity.AddTags(metrics.GlobalTags);
                 }
-                flowActivity.AddTag(ActivityNames.TagNames.FlowInvocationId, executionContext.InvocationId);
+                flowActivity.AddTag(ActivityNames.TagNames.FlowInvocationId, context.InvocationId);
                 flowActivity.AddTag(ActivityNames.TagNames.FlowName, Name);
                 flowActivity.DisplayName = $"{ActivityNames.Flow} {Name}";
             }
@@ -331,7 +307,7 @@ public class DataFlowGraph
                 var pipeline = BuildExecutionPipeline();
                 
                 // Set the active channel count provider for metrics
-                if (_metrics is DataFlowMetrics metricsImpl)
+                if (metrics is DataFlowMetrics metricsImpl)
                 {
                     metricsImpl.SetActiveChannelCountProvider(() => 
                         pipeline.EdgeRuntimeModels.Count + pipeline.BufferRuntimeModels.Count);
@@ -341,7 +317,7 @@ public class DataFlowGraph
                 var allTasks = new List<Task>();
         
                 // Add block execution tasks - pass graph so flow name can be accessed
-                var blockExecutionTask = pipeline.ExecuteBlocksAsync(_blocks, _outgoingEdges, _incomingEdges, executionContext, flowActivity, this, _logger);
+                var blockExecutionTask = pipeline.ExecuteBlocksAsync(_blocks, _outgoingEdges, _incomingEdges, context, flowActivity, this, _logger);
                 allTasks.Add(blockExecutionTask);
         
                 // Add epoch processor completion tasks if epochs are configured
