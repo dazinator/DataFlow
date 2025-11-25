@@ -42,17 +42,31 @@ Learn different graph patterns:
    - One-to-many patterns
    - Parallel processing
    - Result aggregation
+   - Broadcasting with cloning
 
-6. **[Control Flow Topologies](./control-flow-topologies.md)** - Advanced routing patterns
-   - Competing consumers (load balancing)
-   - Selective routing (content-based)
-   - Complex graph structures
+6. **[Competing Consumers Topology](./topology-competing-consumers.md)** - Load balancing
+   - Multiple workers, shared channel
+   - Natural load distribution
+   - Scaling throughput
+   - vs. ConcurrentProcessorBlock
+
+7. **[Selective Routing Topology](./topology-selective-routing.md)** - Content-based routing
+   - Route by item properties
+   - Zero-overhead routing
+   - Priority/region/type routing
+   - Handling unknown routes
+
+8. **[Control Flow Topologies](./control-flow-topologies.md)** - Complete topology reference
+   - All patterns in one place
+   - Performance comparisons
+   - Decision trees
+   - Advanced combinations
 
 ## 🔧 Data Sources
 
 Create custom data sources:
 
-7. **[Source Blocks](./source-blocks.md)** - Building data sources
+9. **[Source Blocks](./source-blocks.md)** - Building data sources
    - Database sources with Entity Framework
    - File-based sources
    - API/HTTP sources
@@ -63,27 +77,27 @@ Create custom data sources:
 
 Master advanced DataFlow capabilities:
 
-8. **[Using Epochs](./using-epochs.md)** - Transaction boundaries and coordination
-   - What are epochs?
-   - Epoch segmentation strategies
-   - Lifecycle hooks (OnBegin, OnCommit, OnRollback)
-   - Epoch-scoped DI services
-   - Use cases: transactions, batching, checkpointing
+10. **[Using Epochs](./using-epochs.md)** - Transaction boundaries and coordination
+    - What are epochs?
+    - Epoch segmentation strategies
+    - Lifecycle hooks (OnBegin, OnCommit, OnRollback)
+    - Epoch-scoped DI services
+    - Use cases: transactions, batching, checkpointing
 
-9. **[Epoch Actor Block](./epoch-actor-block.md)** - Scope rotation for memory management
-   - Understanding scope rotation
-   - When to use epoch actor blocks
-   - Complete graph integration examples
-   - Entity Framework Core lifecycle management
-   - Best practices
+11. **[Epoch Actor Block](./epoch-actor-block.md)** - Scope rotation for memory management
+    - Understanding scope rotation
+    - When to use epoch actor blocks
+    - Complete graph integration examples
+    - Entity Framework Core lifecycle management
+    - Best practices
 
-10. **[EF Core with Epochs](./ef-core-epochs.md)** - Database transactions with DataFlow
+12. **[EF Core with Epochs](./ef-core-epochs.md)** - Database transactions with DataFlow
     - Transaction management
     - Scoped DbContext usage
     - Commit/rollback patterns
     - Production examples
 
-11. **[Checkpointing](./checkpointing.md)** - Resume processing from checkpoints *(Coming Soon)*
+13. **[Checkpointing](./checkpointing.md)** - Resume processing from checkpoints *(Coming Soon)*
     - Configuring checkpointing
     - Implementing checkpoint-aware blocks
     - Persisting checkpoint data
@@ -93,10 +107,15 @@ Master advanced DataFlow capabilities:
 
 Understand the architecture and migration:
 
-12. **[Business Logic Decoupling](./business-logic-decoupling.md)** - Separate concerns
+14. **[Business Logic Decoupling](./business-logic-decoupling.md)** - Separate concerns
     - Decoupling patterns
     - Actor design principles
     - Domain-driven design with DataFlow
+
+15. **[Migrating from Current Design](./migrating-from-current-design.md)** - Migration guide
+    - Breaking changes
+    - Migration strategies
+    - Before/after examples
 
 13. **[Migrating from Current Design](./migrating-from-current-design.md)** - Upgrade guide
     - Breaking changes
