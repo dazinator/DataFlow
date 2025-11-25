@@ -29,13 +29,13 @@ public class ObservabilityDocumentationTests
             .WithMetrics(metrics =>
             {
                 metrics
-                    .AddDataFlowPOC()
+                    .AddDataFlow()
                     .AddInMemoryExporter(new List<Metric>());
             })
             .WithTracing(tracing =>
             {
                 tracing
-                    .AddDataFlowPOC()
+                    .AddDataFlow()
                     .AddInMemoryExporter(new List<Activity>());
             });
 

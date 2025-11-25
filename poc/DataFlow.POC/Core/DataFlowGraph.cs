@@ -32,7 +32,7 @@ public class DataFlowGraph
     private readonly List<EpochProcessorNode> _epochProcessors = new();
     private readonly IDataFlowMetrics? _metrics;
 
-    private static readonly ActivitySource ActivitySource = new("DataFlow.POC");
+    private static readonly ActivitySource ActivitySource = new("DataFlow");
 
     public DataFlowGraph(string name, ILogger<DataFlowGraph> logger, IDataFlowMetrics? metrics = null)
     {
@@ -689,7 +689,7 @@ public class DataFlowGraph
     /// </summary>
     private class BlockRuntimeModel
     {
-        private static readonly ActivitySource ActivitySource = new("DataFlow.POC");
+        private static readonly ActivitySource ActivitySource = new("DataFlow");
         
         private readonly IBlock _block;
         private readonly Dictionary<IBlock, List<Edge>> _outgoingEdges;

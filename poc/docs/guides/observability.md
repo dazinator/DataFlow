@@ -44,18 +44,18 @@ using OpenTelemetry.Trace;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add OpenTelemetry with DataFlow POC instrumentation
+// Add OpenTelemetry with DataFlow instrumentation
 builder.Services.AddOpenTelemetry()
     .WithMetrics(metrics =>
     {
         metrics
-            .AddDataFlowPOC()              // Add DataFlow POC meters
+            .AddDataFlow()              // Add DataFlow meters
             .AddConsoleExporter();         // Export to console (for demo)
     })
     .WithTracing(tracing =>
     {
         tracing
-            .AddDataFlowPOC()              // Add DataFlow POC activity source
+            .AddDataFlow()              // Add DataFlow activity source
             .AddConsoleExporter();         // Export to console (for demo)
     });
 
@@ -121,7 +121,7 @@ builder.Services.AddOpenTelemetry()
     .WithTracing(tracing =>
     {
         tracing
-            .AddDataFlowPOC()                    // Add DataFlow POC activities
+            .AddDataFlow()                    // Add DataFlow activities
             .AddAspNetCoreInstrumentation()      // Correlate with HTTP requests
             .AddConsoleExporter();
     });
@@ -305,7 +305,7 @@ builder.Services.AddOpenTelemetry()
     .WithMetrics(metrics =>
     {
         metrics
-            .AddDataFlowPOC()
+            .AddDataFlow()
             .AddPrometheusExporter();
     });
 
@@ -321,7 +321,7 @@ builder.Services.AddOpenTelemetry()
     .WithMetrics(metrics =>
     {
         metrics
-            .AddDataFlowPOC()
+            .AddDataFlow()
             .AddAzureMonitorMetricExporter(options =>
             {
                 options.ConnectionString = builder.Configuration["ApplicationInsights:ConnectionString"];
@@ -330,7 +330,7 @@ builder.Services.AddOpenTelemetry()
     .WithTracing(tracing =>
     {
         tracing
-            .AddDataFlowPOC()
+            .AddDataFlow()
             .AddAzureMonitorTraceExporter(options =>
             {
                 options.ConnectionString = builder.Configuration["ApplicationInsights:ConnectionString"];
@@ -349,7 +349,7 @@ builder.Services.AddOpenTelemetry()
     .WithMetrics(metrics =>
     {
         metrics
-            .AddDataFlowPOC()
+            .AddDataFlow()
             .AddOtlpExporter(options =>
             {
                 options.Endpoint = new Uri("http://localhost:4317");
@@ -358,7 +358,7 @@ builder.Services.AddOpenTelemetry()
     .WithTracing(tracing =>
     {
         tracing
-            .AddDataFlowPOC()
+            .AddDataFlow()
             .AddOtlpExporter(options =>
             {
                 options.Endpoint = new Uri("http://localhost:4317");
@@ -370,16 +370,16 @@ builder.Services.AddOpenTelemetry()
 
 ### Metrics Not Appearing
 
-1. **Verify meter is added**: Ensure `.AddDataFlowPOC()` is called on `MeterProviderBuilder`
+1. **Verify meter is added**: Ensure `.AddDataFlow()` is called on `MeterProviderBuilder`
 2. **Check exporter**: Verify an exporter is configured (Console, Prometheus, etc.)
 3. **Metrics instance**: Ensure `DataFlowMetrics` is created and passed to graph or context
 4. **MeterFactory**: Verify `IMeterFactory` is available in DI container
 
 ### Activities Not Traced
 
-1. **Verify activity source**: Ensure `.AddDataFlowPOC()` is called on `TracerProviderBuilder`
+1. **Verify activity source**: Ensure `.AddDataFlow()` is called on `TracerProviderBuilder`
 2. **Check sampling**: Verify tracing sampler is not filtering out activities
-3. **ActivitySource name**: The source name is "DataFlow.POC"
+3. **ActivitySource name**: The source name is "DataFlow"
 
 ### Performance Considerations
 
