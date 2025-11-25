@@ -68,6 +68,8 @@ var fruits = BlockHelpers.CreateProducer<string>("fruits", ctx =>
 For asynchronous data sources, use `async` enumeration:
 
 ```csharp
+using System.Runtime.CompilerServices;
+
 var asyncSource = BlockHelpers.CreateProducer<string>("async-source", async ctx =>
 {
     await foreach (var item in GetDataAsync(ctx.CancellationToken))

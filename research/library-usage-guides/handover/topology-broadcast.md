@@ -266,7 +266,7 @@ public class ClonableBroadcastEdgeStrategy<T> : BroadcastEdgeStrategy
         for (int i = 0; i < writers.Count; i++)
         {
             // Clone the item for each target (except the first)
-            var itemToWrite = i == 0 ? item : (TItem)(item as ICloneable).Clone();
+            var itemToWrite = i == 0 ? item : (TItem)((ICloneable)(object)item!).Clone();
             tasks.Add(writers[i].WriteAsync(itemToWrite, cancellationToken).AsTask());
         }
         

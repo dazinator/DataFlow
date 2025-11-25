@@ -50,7 +50,7 @@ var numbers = BlockHelpers.CreateProducer<int>("numbers", ctx =>
 });
 
 // Asynchronous data
-var async linesFromFile = BlockHelpers.CreateProducer<string>("file-reader", async ctx =>
+var linesFromFile = BlockHelpers.CreateProducer<string>("file-reader", async ctx =>
 {
     using var reader = new StreamReader("data.txt");
     string? line;
@@ -249,9 +249,7 @@ public class OrderSaverActor : IStreamActor<Order, object>
         {
             _dbContext.Orders.Add(order);
             await _dbContext.SaveChangesAsync(context.CancellationToken);
-            
             // Processor doesn't yield output
-            // (or yields object as placeholder - implementation detail)
         }
     }
 }

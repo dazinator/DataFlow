@@ -142,7 +142,7 @@ public class ConsoleWriterActor : IStreamActor<string, object>
         await foreach (var item in input.WithCancellation(context.CancellationToken))
         {
             Console.WriteLine($"Output: {item}");
-            yield break; // Processor doesn't output
+            // Processor doesn't yield output
         }
     }
 }
