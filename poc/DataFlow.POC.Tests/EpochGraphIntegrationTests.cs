@@ -40,19 +40,39 @@ public class EpochGraphIntegrationTests : IAsyncDisposable
     }
 
     [Fact]
-    public void ConfigureEpochs_RequiresCoordinatorFactory()
+    public void ConfigureEpochs_WorksWithoutFactoryWhenServiceProviderAvailable()
     {
         // Arrange
         var builder = GraphHelpers.CreateGraphBuilder("test");
 
-        // Act & Assert
-        var ex = Assert.Throws<ArgumentNullException>(() =>
+        // Act - No factory provided, should use default
+        builder.ConfigureEpochs(config =>
+        {
+            config.AddProcessor("proc1");
+        });
+        
+        var graph = builder.Build();
+
+        // Assert - Should build successfully with default factory
+        Assert.NotNull(graph);
+    }
+    
+    [Fact]
+    public void ConfigureEpochs_ThrowsWhenNoServiceProviderAndNoFactory()
+    {
+        // Arrange - Use obsolete constructor without service provider
+        #pragma warning disable CS0618 // Type or member is obsolete
+        var builder = new DataFlowGraphBuilder("test");
+        #pragma warning restore CS0618 // Type or member is obsolete
+
+        // Act & Assert - Should throw when no service provider and no factory
+        var ex = Assert.Throws<InvalidOperationException>(() =>
             builder.ConfigureEpochs(config =>
             {
                 config.AddProcessor("proc1");
             }));
         
-        Assert.Contains("coordinatorFactory", ex.Message);
+        Assert.Contains("service provider", ex.Message);
     }
 
     [Fact]
