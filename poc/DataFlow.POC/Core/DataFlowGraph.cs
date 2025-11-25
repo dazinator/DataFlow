@@ -270,6 +270,33 @@ public class DataFlowGraph
     {
         _logger.LogInformation("Starting execution of dataflow: {FlowName}", Name);
 
+        // Ensure metrics are set on the context
+        ExecutionContext executionContext;
+        if (context is ExecutionContext ec && ec.Metrics == null && _metrics != null)
+        {
+            // Create new context with metrics injected
+            executionContext = new ExecutionContext(
+                context.ServiceProvider,
+                context.CancellationToken,
+                context.InvocationId,
+                context.RecoveryCheckpoint,
+                _metrics);
+        }
+        else if (context is not ExecutionContext)
+        {
+            // Wrap custom context implementation with metrics
+            executionContext = new ExecutionContext(
+                context.ServiceProvider,
+                context.CancellationToken,
+                context.InvocationId,
+                context.RecoveryCheckpoint,
+                _metrics);
+        }
+        else
+        {
+            executionContext = (ExecutionContext)context;
+        }
+
         Stopwatch? stopwatch = null;
         var isSuccessful = false;
         DataFlowMetricsTagsContext? flowMetrics = null;
@@ -277,7 +304,7 @@ public class DataFlowGraph
         // Initialize metrics context if metrics are available
         if (_metrics != null)
         {
-            flowMetrics = new DataFlowMetricsTagsContext(Name, context.InvocationId, _metrics);
+            flowMetrics = new DataFlowMetricsTagsContext(Name, executionContext.InvocationId, _metrics);
             flowMetrics.Started();
         }
 
@@ -289,7 +316,7 @@ public class DataFlowGraph
                 {
                     flowActivity.AddTags(_metrics.GlobalTags);
                 }
-                flowActivity.AddTag(ActivityNames.TagNames.FlowInvocationId, context.InvocationId);
+                flowActivity.AddTag(ActivityNames.TagNames.FlowInvocationId, executionContext.InvocationId);
                 flowActivity.AddTag(ActivityNames.TagNames.FlowName, Name);
                 flowActivity.DisplayName = $"{ActivityNames.Flow} {Name}";
             }
@@ -313,8 +340,8 @@ public class DataFlowGraph
                 // Collect all tasks to wait for
                 var allTasks = new List<Task>();
         
-                // Add block execution tasks
-                var blockExecutionTask = pipeline.ExecuteBlocksAsync(_blocks, _outgoingEdges, _incomingEdges, context, flowActivity, _metrics, Name, _logger);
+                // Add block execution tasks - pass graph so flow name can be accessed
+                var blockExecutionTask = pipeline.ExecuteBlocksAsync(_blocks, _outgoingEdges, _incomingEdges, executionContext, flowActivity, this, _logger);
                 allTasks.Add(blockExecutionTask);
         
                 // Add epoch processor completion tasks if epochs are configured
@@ -461,14 +488,13 @@ public class DataFlowGraph
             Dictionary<IBlock, List<Edge>> incomingEdges,
             IExecutionContext context,
             Activity? flowActivity,
-            IDataFlowMetrics? metrics,
-            string flowName,
+            DataFlowGraph graph,
             ILogger<DataFlowGraph> logger)
         {
             var blockTasks = new List<Task>();
             foreach (var block in blocks)
             {
-                var task = StartBlockTask(block, outgoingEdges, incomingEdges, context, flowActivity, metrics, flowName, logger);
+                var task = StartBlockTask(block, outgoingEdges, incomingEdges, context, flowActivity, graph, logger);
                 blockTasks.Add(task);
             }
 
@@ -486,14 +512,13 @@ public class DataFlowGraph
             Dictionary<IBlock, List<Edge>> incomingEdges,
             IExecutionContext context,
             Activity? flowActivity,
-            IDataFlowMetrics? metrics,
-            string flowName,
+            DataFlowGraph graph,
             ILogger<DataFlowGraph> logger)
         {
             var blockModel = BlockRuntimeModels[block];
             return Task.Run(async () =>
             {
-                await blockModel.ExecuteAsync(context, flowActivity, metrics, flowName, logger);
+                await blockModel.ExecuteAsync(context, flowActivity, graph, logger);
             }, context.CancellationToken);
         }
 
@@ -720,16 +745,19 @@ public class DataFlowGraph
         /// Executes the block with routing of its output to downstream blocks.
         /// Handles block execution, output routing, and channel completion for both success and error cases.
         /// </summary>
-        public async Task ExecuteAsync(IExecutionContext context, Activity? flowActivity, IDataFlowMetrics? metrics, string flowName, ILogger<DataFlowGraph> logger)
+        public async Task ExecuteAsync(IExecutionContext context, Activity? flowActivity, DataFlowGraph graph, ILogger<DataFlowGraph> logger)
         {
             Stopwatch? stopwatch = null;
             var isSuccessful = false;
             BlockMetricsTagsContext? blockMetrics = null;
 
+            // Get metrics from context
+            var metrics = context.Metrics;
+
             // Initialize block metrics context if metrics are available
             if (metrics != null)
             {
-                var flowMetrics = new DataFlowMetricsTagsContext(flowName, context.InvocationId, metrics);
+                var flowMetrics = new DataFlowMetricsTagsContext(graph.Name, context.InvocationId, metrics);
                 blockMetrics = flowMetrics.CreateBlockContext(_block.Name);
                 blockMetrics.Started();
             }
@@ -745,7 +773,7 @@ public class DataFlowGraph
                 {
                     activity.AddTags(metrics.GlobalTags);
                 }
-                activity.AddTag(ActivityNames.TagNames.FlowName, flowName);
+                activity.AddTag(ActivityNames.TagNames.FlowName, graph.Name);
                 activity.AddTag(ActivityNames.TagNames.BlockName, _block.Name);
                 activity.DisplayName = $"{ActivityNames.Block} {_block.Name}";
             }
