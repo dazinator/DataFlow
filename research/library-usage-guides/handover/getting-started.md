@@ -56,6 +56,26 @@ dotnet add package Uniun.DataFlow
 
 **Note**: During POC phase, use the POC project directly. The package name shown above is for illustration.
 
+### Setting Up Global Usings
+
+To simplify your code and make future namespace changes easier, add these global usings to your project. Create a `GlobalUsings.cs` file:
+
+```csharp
+// GlobalUsings.cs
+global using DataFlow.POC.Builder;
+global using DataFlow.POC.Blocks;
+global using DataFlow.POC.Core;
+global using DataFlow.POC.DependencyInjection;
+global using Microsoft.Extensions.DependencyInjection;
+```
+
+**Why Global Usings?**
+- Reduces repetitive `using` statements in every file
+- Makes future namespace refactoring easier (one place to update)
+- Cleaner, more readable code examples
+
+All code examples in this guide assume these global usings are configured.
+
 ---
 
 ## Core Concepts
@@ -103,22 +123,24 @@ Graphs orchestrate the entire pipeline:
 
 Let's build a simple pipeline that processes console input, transforms it to uppercase, and writes the result.
 
+This guide shows the **idiomatic, production-ready approach** using dependency injection and the canonical registration API.
+
 ### Step 1: Create the Project
 
 ```bash
 dotnet new console -n MyFirstDataFlow
 cd MyFirstDataFlow
-# Add DataFlow package here
+dotnet add package Uniun.DataFlow
 ```
+
+Create the `GlobalUsings.cs` file as shown in the [Installation](#installation) section.
 
 ### Step 2: Define Your Actors
 
-Actors are the logic that runs in your blocks. They're simple classes that implement an interface.
+Actors contain the logic that runs in your blocks. Create these classes in your project:
 
 ```csharp
-using DataFlow.POC.Core;
-
-// Transform actor: converts strings to uppercase
+// UppercaseActor.cs
 public class UppercaseActor : IStreamActor<string, string>
 {
     public async IAsyncEnumerable<string> RunAsync(
@@ -132,7 +154,7 @@ public class UppercaseActor : IStreamActor<string, string>
     }
 }
 
-// Processor actor: writes to console
+// ConsoleWriterActor.cs  
 public class ConsoleWriterActor : IStreamActor<string, object>
 {
     public async IAsyncEnumerable<object> RunAsync(
@@ -148,134 +170,124 @@ public class ConsoleWriterActor : IStreamActor<string, object>
 }
 ```
 
-### Step 3: Build the Graph
+### Step 3: Define a Source Actor
 
-Now let's connect everything together:
+For the producer, create a source actor that reads from console:
 
 ```csharp
-using DataFlow.POC.Builder;
-using DataFlow.POC.Blocks;
-using DataFlow.POC.Tests.TestHelpers;
-using Microsoft.Extensions.DependencyInjection;
-
-// Create a producer that reads from console
-var producer = BlockHelpers.CreateProducer<string>("input", async ctx => ReadLinesAsync());
-
-// Create transformer and processor blocks using actors
-var transformer = BlockHelpers.CreateActor<string, string, UppercaseActor>(
-    "uppercase",
-    new UppercaseActor());
-
-var processor = BlockHelpers.CreateActor<string, object, ConsoleWriterActor>(
-    "writer",
-    new ConsoleWriterActor());
-
-// Build the graph
-var graph = GraphHelpers.CreateGraphBuilder("my-first-flow")
-    .AddBlock(producer)
-    .AddBlock(transformer)
-    .AddBlock(processor)
-    .Connect(producer, transformer)     // input → uppercase
-    .Connect(transformer, processor)    // uppercase → writer
-    .Build();
-
-// Helper function to read console lines
-async IAsyncEnumerable<string> ReadLinesAsync()
+// ConsoleInputSource.cs
+public class ConsoleInputSource : IPlainSourceActor<string>
 {
-    Console.WriteLine("Enter text (type 'quit' to exit):");
-    while (true)
+    public async IAsyncEnumerable<string> ProduceAsync(
+        IActorExecutionContext context)
     {
-        var line = Console.ReadLine();
-        if (line == "quit" || string.IsNullOrEmpty(line))
-            break;
-        yield return line;
+        Console.WriteLine("Enter text (type 'quit' to exit):");
+        while (!context.CancellationToken.IsCancellationRequested)
+        {
+            var line = Console.ReadLine();
+            if (line == "quit" || string.IsNullOrEmpty(line))
+                break;
+            yield return line;
+            await Task.CompletedTask; // For async iterator
+        }
     }
 }
 ```
 
-### Step 4: Execute the Graph
+### Step 4: Register with Dependency Injection (Program.cs)
+
+**This is the idiomatic way to use DataFlow in production applications.**
 
 ```csharp
-// Create execution context
-var serviceProvider = new ServiceCollection().BuildServiceProvider();
-var context = new ExecutionContext(serviceProvider, CancellationToken.None);
+// Program.cs
+using Microsoft.Extensions.Hosting;
 
-// Execute!
-await graph.ExecuteAsync(context);
+var builder = Host.CreateApplicationBuilder(args);
+
+// Register actors
+builder.Services.AddScoped<ConsoleInputSource>();
+builder.Services.AddScoped<UppercaseActor>();
+builder.Services.AddScoped<ConsoleWriterActor>();
+
+// Register DataFlow components
+builder.Services.AddDataFlows("app", df =>
+{
+    // Register source block
+    df.AddBlock("input", sp =>
+    {
+        var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
+        return new PlainSourceAdapter<string, ConsoleInputSource>(
+            new BlockContext("input"),
+            scopeFactory,
+            sourceName: "console-input");
+    });
+    
+    // Register actor blocks (transform and processor)
+    df.AddActorBlock<string, string, UppercaseActor>("uppercase");
+    df.AddActorBlock<string, object, ConsoleWriterActor>("writer");
+    
+    // Define the graph
+    df.AddGraph("main", g =>
+    {
+        g.UseBlock("input")
+         .UseBlock("uppercase")
+         .UseBlock("writer")
+         .Connect("input", "uppercase")
+         .Connect("uppercase", "writer");
+    });
+});
+
+var app = builder.Build();
+
+// Resolve and execute the graph
+var graph = app.Services.GetKeyedService<DataFlowGraph>("app:main");
+var context = new ExecutionContext(app.Services, CancellationToken.None);
+await graph!.ExecuteAsync(context);
 
 Console.WriteLine("Pipeline completed!");
 ```
 
-### Complete Example
+### What Just Happened?
 
-Here's the full `Program.cs`:
+Let's break down the key patterns:
 
+**1. Actor Registration**
 ```csharp
-using DataFlow.POC.Builder;
-using DataFlow.POC.Blocks;
-using DataFlow.POC.Core;
-using DataFlow.POC.Tests.TestHelpers;
-using Microsoft.Extensions.DependencyInjection;
-
-// Define actors
-public class UppercaseActor : IStreamActor<string, string>
-{
-    public async IAsyncEnumerable<string> RunAsync(
-        IAsyncEnumerable<string> input,
-        IActorExecutionContext context)
-    {
-        await foreach (var item in input.WithCancellation(context.CancellationToken))
-        {
-            yield return item.ToUpperInvariant();
-        }
-    }
-}
-
-public class ConsoleWriterActor : IStreamActor<string, object>
-{
-    public async IAsyncEnumerable<object> RunAsync(
-        IAsyncEnumerable<string> input,
-        IActorExecutionContext context)
-    {
-        await foreach (var item in input.WithCancellation(context.CancellationToken))
-        {
-            Console.WriteLine($"Output: {item}");
-        }
-    }
-}
-
-// Helper for console input
-static async IAsyncEnumerable<string> ReadLinesAsync()
-{
-    Console.WriteLine("Enter text (type 'quit' to exit):");
-    while (true)
-    {
-        var line = Console.ReadLine();
-        if (line == "quit" || string.IsNullOrEmpty(line))
-            break;
-        yield return line;
-    }
-}
-
-// Build and execute the graph
-var producer = BlockHelpers.CreateProducer<string>("input", ctx => ReadLinesAsync());
-var transformer = BlockHelpers.CreateActor<string, string, UppercaseActor>("uppercase", new UppercaseActor());
-var processor = BlockHelpers.CreateActor<string, object, ConsoleWriterActor>("writer", new ConsoleWriterActor());
-
-var graph = GraphHelpers.CreateGraphBuilder("my-first-flow")
-    .AddBlock(producer)
-    .AddBlock(transformer)
-    .AddBlock(processor)
-    .Connect(producer, transformer)
-    .Connect(transformer, processor)
-    .Build();
-
-var serviceProvider = new ServiceCollection().BuildServiceProvider();
-var context = new ExecutionContext(serviceProvider, CancellationToken.None);
-
-await graph.ExecuteAsync(context);
-Console.WriteLine("Pipeline completed!");
+builder.Services.AddScoped<UppercaseActor>();
 ```
+Actors are registered as scoped services, allowing them to use DI.
+
+**2. Block Registration**
+```csharp
+df.AddActorBlock<string, string, UppercaseActor>("uppercase");
+```
+The `AddActorBlock` method registers a block with a unique name. The block wraps your actor and manages its lifecycle.
+
+**3. Graph Definition**
+```csharp
+df.AddGraph("main", g =>
+{
+    g.UseBlock("input")
+     .UseBlock("uppercase")
+     .UseBlock("writer")
+     .Connect("input", "uppercase")
+     .Connect("uppercase", "writer");
+});
+```
+`UseBlock` references blocks by name, keeping the graph definition clean and readable.
+
+**4. Graph Resolution**
+```csharp
+var graph = app.Services.GetKeyedService<DataFlowGraph>("app:main");
+```
+Graphs are registered as keyed services. The key format is `"{namespace}:{graphname}"`.
+
+### Why This Approach?
+
+✅ **Production-Ready**: Uses standard .NET hosting and DI patterns  
+✅ **Testable**: All components registered with DI can be mocked  
+✅ **Maintainable**: Blocks defined by name, easy to rewire  
+✅ **Scalable**: Namespace support allows multiple independent flows
 
 ---
 
@@ -285,134 +297,160 @@ DataFlow graphs can be executed in different contexts. Here's how to use them in
 
 ### In a Console Application
 
-We already saw this above. The key pattern is:
+We already saw the recommended DI-based approach above. Here's the pattern again:
 
 ```csharp
-var serviceProvider = new ServiceCollection().BuildServiceProvider();
-var context = new ExecutionContext(serviceProvider, CancellationToken.None);
-await graph.ExecuteAsync(context);
+var app = builder.Build();
+
+var graph = app.Services.GetKeyedService<DataFlowGraph>("app:main");
+var context = new ExecutionContext(app.Services, CancellationToken.None);
+await graph!.ExecuteAsync(context);
 ```
 
-### With Dependency Injection
+**Key Points:**
+- Graph is resolved from the service provider using its keyed service registration
+- `ExecutionContext` is created with the service provider and cancellation token
+- The graph coordinates all block execution automatically
 
-The recommended approach is to register your blocks and graphs with DI:
+### In an ASP.NET Core Application
+
+You can inject graphs directly into your endpoints using keyed services:
 
 ```csharp
-using DataFlow.POC.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
+// Program.cs - Startup configuration
+var builder = WebApplication.CreateBuilder(args);
 
-var builder = Host.CreateApplicationBuilder(args);
+// Register actors
+builder.Services.AddScoped<DataProcessorActor>();
+builder.Services.AddScoped<ValidationActor>();
 
-// Register DataFlow components
-builder.Services.AddDataFlows("global", df =>
+// Register DataFlow
+builder.Services.AddDataFlows("api", df =>
 {
-    // Register blocks with names
-    df.AddBlock("producer", sp => BlockHelpers.CreateProducer<string>(
-        "input", 
-        ctx => ReadLinesAsync()));
+    df.AddActorBlock<Request, Request, ValidationActor>("validator");
+    df.AddActorBlock<Request, Response, DataProcessorActor>("processor");
     
-    df.AddActorBlock<string, string, UppercaseActor>("transformer");
-    df.AddActorBlock<string, object, ConsoleWriterActor>("writer");
-    
-    // Register a complete graph
-    df.AddGraph("main", g =>
+    df.AddGraph("process-request", g =>
     {
-        g.UseBlock("producer")
-         .UseBlock("transformer")
-         .UseBlock("writer")
-         .Connect("producer", "transformer")
-         .Connect("transformer", "writer");
+        g.UseBlock("validator")
+         .UseBlock("processor")
+         .Connect("validator", "processor");
     });
 });
 
 var app = builder.Build();
 
-// Resolve and execute
-var graph = app.Services.GetKeyedService<DataFlowGraph>("global:main");
-var context = new ExecutionContext(app.Services, CancellationToken.None);
-await graph!.ExecuteAsync(context);
-```
-
-### In an ASP.NET Core Endpoint
-
-You can inject graphs directly into your endpoints using keyed services:
-
-```csharp
-using Microsoft.AspNetCore.Mvc;
-using DataFlow.POC.Core;
-
-var builder = WebApplication.CreateBuilder(args);
-
-// Register DataFlow (same as above)
-builder.Services.AddDataFlows("global", df =>
+// Endpoint that uses the graph
+app.MapPost("/api/process", async (
+    [FromServices] IServiceProvider services,
+    [FromBody] List<Request> requests,
+    CancellationToken ct) =>
 {
-    // ... block and graph registration
-});
-
-var app = builder.Build();
-
-// Inject using [FromKeyedServices]
-app.MapPost("/process", async (
-    [FromKeyedServices("global:main")] DataFlowGraph graph,
-    HttpContext httpContext) =>
-{
-    var context = new ExecutionContext(
-        httpContext.RequestServices, 
-        httpContext.RequestAborted);
+    var graph = services.GetKeyedService<DataFlowGraph>("api:process-request");
     
-    await graph.ExecuteAsync(context);
-    return Results.Ok("Processing complete");
+    // Create a source for the requests
+    var source = new PlainSourceAdapter<Request, InMemorySource>(
+        new BlockContext("request-source"),
+        services.GetRequiredService<IServiceScopeFactory>(),
+        sourceName: "api-requests");
+    
+    var context = new ExecutionContext(services, ct);
+    await graph!.ExecuteAsync(context);
+    
+    return Results.Ok();
 });
 
 app.Run();
 ```
 
-### In a Service Class
+### In a Background Service
 
-For regular services that don't support `[FromKeyedServices]`, use `IServiceProvider`:
+For long-running background processing:
 
 ```csharp
-public class DataProcessingService
+public class DataFlowBackgroundService : BackgroundService
 {
-    private readonly IServiceProvider _serviceProvider;
+    private readonly IServiceProvider _services;
     
-    public DataProcessingService(IServiceProvider serviceProvider)
+    public DataFlowBackgroundService(IServiceProvider services)
     {
-        _serviceProvider = serviceProvider;
+        _services = services;
     }
     
-    public async Task ProcessDataAsync(CancellationToken cancellationToken)
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // Resolve the graph by key
-        var graph = _serviceProvider.GetKeyedService<DataFlowGraph>("global:main");
+        // Resolve the graph
+        var graph = _services.GetKeyedService<DataFlowGraph>("app:background-processor");
         
         if (graph == null)
-            throw new InvalidOperationException("Graph 'global:main' not found");
+        {
+            throw new InvalidOperationException("Graph 'app:background-processor' not found");
+        }
         
-        // Execute
-        var context = new ExecutionContext(_serviceProvider, cancellationToken);
-        await graph.ExecuteAsync(context);
+        // Execute with cancellation support
+        var context = new ExecutionContext(_services, stoppingToken);
+        
+        try
+        {
+            await graph.ExecuteAsync(context);
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected when service stops
+        }
     }
 }
 
-// Register the service
-builder.Services.AddScoped<DataProcessingService>();
+// Registration in Program.cs
+builder.Services.AddHostedService<DataFlowBackgroundService>();
 ```
+
+### Injecting into Regular Services
+
+For services that don't support keyed service attribute injection:
+
+```csharp
+public class MyService
+{
+    private readonly IServiceProvider _services;
+    
+    public MyService(IServiceProvider services)
+    {
+        _services = services;
+    }
+    
+    public async Task ProcessDataAsync(CancellationToken ct = default)
+    {
+        // Resolve graph by key
+        var graph = _services.GetKeyedService<DataFlowGraph>("app:data-processor");
+        
+        if (graph == null)
+        {
+            throw new InvalidOperationException("Graph not found");
+        }
+        
+        var context = new ExecutionContext(_services, ct);
+        await graph.ExecuteAsync(context);
+    }
+}
+```
+
+**Pattern**: Inject `IServiceProvider` and use `GetKeyedService<DataFlowGraph>(key)` to resolve graphs.
 
 ---
 
 ## Real-World Example
 
-Let's build a more realistic example: processing orders from a database.
+Let's build a more realistic example: processing orders from a database using Entity Framework Core.
+
+This example demonstrates:
+- Integration with EF Core
+- Scoped services in actors
+- Complete DI-based setup
 
 ```csharp
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
-using DataFlow.POC.Builder;
-using DataFlow.POC.Core;
-using DataFlow.POC.Tests.TestHelpers;
-using DataFlow.POC.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 // Domain model
 public class Order
@@ -425,13 +463,36 @@ public class Order
 // DbContext
 public class OrderDbContext : DbContext
 {
-    public DbSet<Order> Orders { get; set; }
+    public DbSet<Order> Orders { get; set; } = null!;
     
     public OrderDbContext(DbContextOptions<OrderDbContext> options) : base(options) { }
 }
 
-// Actors
-public class OrderProcessor : IStreamActor<Order, Order>
+// Source actor: Reads orders from database
+public class OrderSourceActor : IPlainSourceActor<Order>
+{
+    private readonly OrderDbContext _db;
+    
+    public OrderSourceActor(OrderDbContext db)
+    {
+        _db = db;
+    }
+    
+    public async IAsyncEnumerable<Order> ProduceAsync(IActorExecutionContext context)
+    {
+        var orders = _db.Orders
+            .Where(o => o.Status == "Pending")
+            .AsAsyncEnumerable();
+        
+        await foreach (var order in orders.WithCancellation(context.CancellationToken))
+        {
+            yield return order;
+        }
+    }
+}
+
+// Processor: Applies business logic
+public class OrderProcessorActor : IStreamActor<Order, Order>
 {
     public async IAsyncEnumerable<Order> RunAsync(
         IAsyncEnumerable<Order> input,
@@ -439,7 +500,7 @@ public class OrderProcessor : IStreamActor<Order, Order>
     {
         await foreach (var order in input.WithCancellation(context.CancellationToken))
         {
-            // Process order
+            // Apply business logic
             Console.WriteLine($"Processing order {order.Id} - Total: ${order.Total}");
             order.Status = "Processed";
             yield return order;
@@ -447,13 +508,14 @@ public class OrderProcessor : IStreamActor<Order, Order>
     }
 }
 
-public class OrderSaver : IStreamActor<Order, object>
+// Saver: Persists changes back to database
+public class OrderSaverActor : IStreamActor<Order, object>
 {
-    private readonly OrderDbContext _dbContext;
+    private readonly OrderDbContext _db;
     
-    public OrderSaver(OrderDbContext dbContext)
+    public OrderSaverActor(OrderDbContext db)
     {
-        _dbContext = dbContext;
+        _db = db;
     }
     
     public async IAsyncEnumerable<object> RunAsync(
@@ -462,64 +524,81 @@ public class OrderSaver : IStreamActor<Order, object>
     {
         await foreach (var order in input.WithCancellation(context.CancellationToken))
         {
-            _dbContext.Orders.Update(order);
-            await _dbContext.SaveChangesAsync(context.CancellationToken);
-            Console.WriteLine($"Saved order {order.Id}");
+            _db.Orders.Update(order);
+            await _db.SaveChangesAsync(context.CancellationToken);
+            // Processor doesn't yield output
         }
     }
 }
 
-// Setup
-var services = new ServiceCollection();
+// Program.cs - Complete setup
+var builder = Host.CreateApplicationBuilder(args);
 
-// Register DbContext
-services.AddDbContext<OrderDbContext>(options =>
-    options.UseInMemoryDatabase("OrdersDb"));
+// Register EF Core
+builder.Services.AddDbContext<OrderDbContext>(options =>
+    options.UseInMemoryDatabase("Orders"));
+
+// Register actors
+builder.Services.AddScoped<OrderSourceActor>();
+builder.Services.AddScoped<OrderProcessorActor>();
+builder.Services.AddScoped<OrderSaverActor>();
 
 // Register DataFlow
-services.AddDataFlows("orders", df =>
+builder.Services.AddDataFlows("orders", df =>
 {
-    // Producer: fetch orders from database
-    df.AddBlock("order-source", sp =>
-    {
-        var dbContext = sp.GetRequiredService<OrderDbContext>();
-        return BlockHelpers.CreateProducer<Order>("order-source", async ctx =>
-        {
-            var orders = await dbContext.Orders
-                .Where(o => o.Status == "Pending")
-                .ToListAsync(ctx.CancellationToken);
-            
-            foreach (var order in orders)
-                yield return order;
-        });
-    });
-    
-    // Processor and Saver
-    df.AddActorBlock<Order, Order, OrderProcessor>("processor");
-    df.AddBlock("saver", sp =>
+    // Source block
+    df.AddBlock("source", sp =>
     {
         var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
-        return BlockHelpers.CreateActor<Order, object, OrderSaver>("saver", scopeFactory);
+        return new PlainSourceAdapter<Order, OrderSourceActor>(
+            new BlockContext("order-source"),
+            scopeFactory,
+            sourceName: "database");
     });
     
-    // Graph
+    // Processing blocks
+    df.AddActorBlock<Order, Order, OrderProcessorActor>("processor");
+    df.AddActorBlock<Order, object, OrderSaverActor>("saver");
+    
+    // Define graph
     df.AddGraph("process-orders", g =>
     {
-        g.UseBlock("order-source")
+        g.UseBlock("source")
          .UseBlock("processor")
          .UseBlock("saver")
-         .Connect("order-source", "processor")
+         .Connect("source", "processor")
          .Connect("processor", "saver");
     });
 });
 
-var serviceProvider = services.BuildServiceProvider();
+var app = builder.Build();
 
-// Execute
-var graph = serviceProvider.GetKeyedService<DataFlowGraph>("orders:process-orders");
-var context = new ExecutionContext(serviceProvider, CancellationToken.None);
+// Seed some test data
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<OrderDbContext>();
+    db.Orders.AddRange(
+        new Order { Id = 1, Total = 100.00m },
+        new Order { Id = 2, Total = 200.00m },
+        new Order { Id = 3, Total = 300.00m }
+    );
+    await db.SaveChangesAsync();
+}
+
+// Execute the graph
+var graph = app.Services.GetKeyedService<DataFlowGraph>("orders:process-orders");
+var context = new ExecutionContext(app.Services, CancellationToken.None);
 await graph!.ExecuteAsync(context);
+
+Console.WriteLine("All orders processed!");
 ```
+
+**Key Takeaways:**
+- ✅ Actors receive `DbContext` via DI (scoped)
+- ✅ Source actor reads from database
+- ✅ Processor applies business logic
+- ✅ Saver persists changes
+- ✅ Everything registered and resolved through DI
 
 ---
 
@@ -530,7 +609,7 @@ Congratulations! You've built your first DataFlow pipeline. Here's where to go n
 ### Essential Reading
 
 1. **[Working with Blocks](./working-with-blocks.md)** - Deep dive into block types and patterns
-2. **[Dependency Injection Registration](./dependency-injection-registration.md)** - Master the DI system
+2. **[Dependency Injection Registration](./dependency-injection-registration.md)** - Master the DI system  
 3. **[Testing Guide](./testing-guide.md)** - Learn how to test your pipelines
 
 ### Learn About Topologies
@@ -544,132 +623,100 @@ Congratulations! You've built your first DataFlow pipeline. Here's where to go n
 7. **[Using Epochs](./using-epochs.md)** - Transaction boundaries and coordination
 8. **[Epoch Actor Block](./epoch-actor-block.md)** - Scope rotation for memory management
 9. **[Checkpointing](./checkpointing.md)** - Resume processing from where you left off
-10. **[EF Core with Epochs](./ef-core-epochs.md)** - Database transactions with DataFlow
-
-### Patterns and Best Practices
-
-11. **[Business Logic Decoupling](./business-logic-decoupling.md)** - Separate concerns
-12. **[Source Blocks](./source-blocks.md)** - Creating custom data sources
+10. **[Source Blocks](./source-blocks.md)** - Creating custom data sources
 
 ---
 
-## Common Patterns
+## Common Patterns Reference
 
-### Pattern: UseBlock for Cleaner Code
-
-**Recommended**: Register blocks with names, then use `UseBlock` when building graphs:
+### Pattern: Named Block Registration
 
 ```csharp
-services.AddDataFlows("global", df =>
+builder.Services.AddDataFlows("app", df =>
 {
-    // Register blocks with meaningful names
-    df.AddActorBlock<string, string, UppercaseActor>("uppercase");
-    df.AddActorBlock<string, object, ConsoleWriterActor>("writer");
+    // Register blocks with descriptive names
+    df.AddActorBlock<Input, Output, MyActor>("processor");
     
-    // Build graph using names
-    df.AddGraph("main", g =>
-    {
-        g.UseBlock("uppercase")
-         .UseBlock("writer")
-         .Connect("uppercase", "writer");
-    });
+    // Reuse blocks in multiple graphs
+    df.AddGraph("graph1", g => g.UseBlock("processor"));
+    df.AddGraph("graph2", g => g.UseBlock("processor"));
 });
 ```
 
-**Why?** This keeps your graph building code clean and separates block creation from topology definition.
+**Why**: Promotes reusability and keeps graph definitions clean.
 
-### Pattern: Scoped Services for Database Access
-
-Always use scoped lifetime for blocks that access databases:
+### Pattern: Namespace Organization
 
 ```csharp
-services.AddDataFlows("global", df =>
-{
-    // ✅ Good: Scoped lifetime (default)
-    df.AddBlock("db-reader", sp => 
-    {
-        var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
-        return BlockHelpers.CreateActor<int, Order, OrderReaderActor>("db-reader", scopeFactory);
-    });
-});
+// Separate concerns by namespace
+builder.Services.AddDataFlows("orders", df => { /* order processing */ });
+builder.Services.AddDataFlows("inventory", df => { /* inventory management */ });
+builder.Services.AddDataFlows("shipping", df => { /* shipping */ });
 ```
 
-### Pattern: Cancellation Token
+**Why**: Prevents naming conflicts and organizes complex applications.
 
-Always respect the cancellation token:
+### Pattern: Scoped Dependencies
 
 ```csharp
-public class MyActor : IStreamActor<int, string>
+public class MyActor : IStreamActor<Input, Output>
 {
-    public async IAsyncEnumerable<string> RunAsync(
-        IAsyncEnumerable<int> input,
-        IActorExecutionContext context)
+    private readonly DbContext _db;  // Scoped service
+    
+    public MyActor(DbContext db)
     {
-        // ✅ Good: Pass cancellation token
-        await foreach (var item in input.WithCancellation(context.CancellationToken))
-        {
-            yield return $"Item-{item}";
-        }
+        _db = db;  // Injected automatically
     }
+    
+    // ... implementation
 }
 ```
+
+**Why**: DataFlow creates new scopes for each actor, enabling safe use of scoped services like `DbContext`.
 
 ---
 
 ## Troubleshooting
 
-### "Block not found" when using UseBlock
+### Graph not found
 
-**Problem**: `InvalidOperationException: Block 'my-block' not found`
+**Problem**: `GetKeyedService<DataFlowGraph>("app:main")` returns null
 
-**Solution**: Make sure you registered the block with AddDataFlows:
-
+**Solution**: Check the key format is `"{namespace}:{graphname}"`. Verify registration:
 ```csharp
-services.AddDataFlows("global", df =>
+builder.Services.AddDataFlows("app", df =>  // namespace
 {
-    df.AddBlock("my-block", sp => new MyBlock()); // Register first!
+    df.AddGraph("main", g => { ... });      // graph name
 });
 
-// Then use it
-var builder = GraphHelpers.CreateGraphBuilder("test", serviceProvider);
-builder.UseBlock("my-block"); // Now it works
+// Resolve with: "app:main"
 ```
 
-### "No service provider" when using UseBlock
+### Block not found
 
-**Problem**: `InvalidOperationException: Cannot use UseBlock without a service provider`
+**Problem**: `UseBlock("my-block")` throws "Block not found"
 
-**Solution**: Pass the service provider when creating the builder:
-
+**Solution**: Ensure block is registered in the same namespace:
 ```csharp
-// ❌ Wrong
-var builder = new DataFlowGraphBuilder("test");
-
-// ✅ Correct
-var builder = GraphHelpers.CreateGraphBuilder("test", serviceProvider);
+df.AddActorBlock<T1, T2, MyActor>("my-block");  // Register first
+df.AddGraph("g", g => g.UseBlock("my-block"));   // Then use
 ```
 
-### Pipeline doesn't complete
+### Type mismatch errors
 
-**Problem**: Graph execution hangs and never completes
+**Problem**: "Type mismatch: source output doesn't match target input"
 
-**Solution**: Make sure your producer completes the stream:
-
+**Solution**: Verify generic type parameters match:
 ```csharp
-// ✅ Good: Producer completes
-async IAsyncEnumerable<int> ProduceData()
-{
-    for (int i = 0; i < 10; i++)
-        yield return i;
-    // Stream completes after 10 items
-}
+// ✅ Correct - types match
+df.AddActorBlock<string, int, Parser>("parser");       // string → int
+df.AddActorBlock<int, Result, Processor>("processor"); // int → Result
+g.Connect("parser", "processor");                       // string → int → Result
 
-// ❌ Bad: Infinite stream
-async IAsyncEnumerable<int> ProduceData()
-{
-    while (true) // Never completes!
-        yield return 1;
-}
+// ❌ Wrong - type mismatch
+df.AddActorBlock<string, int, Parser>("parser");        // string → int
+df.AddActorBlock<string, Result, Processor>("processor"); // string → Result
+g.Connect("parser", "processor");                       // int ≠ string
 ```
 
 ---
@@ -678,14 +725,18 @@ async IAsyncEnumerable<int> ProduceData()
 
 You've learned:
 
-- ✅ Core DataFlow concepts (blocks, edges, graphs)
-- ✅ How to build your first pipeline
-- ✅ How to execute graphs in different contexts
-- ✅ Dependency injection patterns
-- ✅ Common patterns and troubleshooting
+✅ How to install and configure DataFlow with global usings  
+✅ The three core concepts: Blocks, Edges, and Graphs  
+✅ How to define actors for your business logic  
+✅ **The idiomatic, DI-based registration pattern**  
+✅ How to execute graphs in different contexts  
+✅ Real-world integration with Entity Framework Core  
 
-**Next**: Explore [Working with Blocks](./working-with-blocks.md) to learn about different block types and advanced patterns.
+**Next**: Dive deeper into [Working with Blocks](./working-with-blocks.md) to master block patterns and advanced registration techniques.
 
 ---
 
-**Questions or Issues?** Check the [Testing Guide](./testing-guide.md) for comprehensive testing patterns, or review the [Dependency Injection Registration Guide](./dependency-injection-registration.md) for advanced DI scenarios.
+**Questions or Issues?**  
+- Check the [Troubleshooting](#troubleshooting) section above
+- Review the [Common Patterns](#common-patterns-reference)
+- Consult the advanced guides listed in [Next Steps](#next-steps)
