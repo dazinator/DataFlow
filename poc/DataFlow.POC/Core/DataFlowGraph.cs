@@ -1,6 +1,8 @@
 namespace DataFlow.POC.Core;
 
+using System.Diagnostics;
 using System.Threading.Channels;
+using DataFlow.POC.Observability;
 using Microsoft.Extensions.Logging;
 
 /// <summary>
@@ -28,11 +30,15 @@ public class DataFlowGraph
     private readonly Dictionary<BufferNode, List<IBlock>> _bufferConsumers = new();
     private EpochSourceNode? _epochSource;
     private readonly List<EpochProcessorNode> _epochProcessors = new();
+    private readonly IDataFlowMetrics? _metrics;
 
-    public DataFlowGraph(string name, ILogger<DataFlowGraph> logger)
+    private static readonly ActivitySource ActivitySource = new("DataFlow");
+
+    public DataFlowGraph(string name, ILogger<DataFlowGraph> logger, IDataFlowMetrics? metrics = null)
     {
         Name = name;
         _logger = logger;
+        _metrics = metrics;
     }
 
     /// <summary>
@@ -264,30 +270,106 @@ public class DataFlowGraph
     {
         _logger.LogInformation("Starting execution of dataflow: {FlowName}", Name);
 
-        // Build execution pipeline (adapters, routers, channels)
-        var pipeline = BuildExecutionPipeline();
+        Stopwatch? stopwatch = null;
+        var isSuccessful = false;
+        DataFlowMetricsTagsContext? flowMetrics = null;
 
-        // Collect all tasks to wait for
-        var allTasks = new List<Task>();
-        
-        // Add block execution tasks
-        var blockExecutionTask = pipeline.ExecuteBlocksAsync(_blocks, _outgoingEdges, _incomingEdges, context, _logger);
-        allTasks.Add(blockExecutionTask);
-        
-        // Add epoch processor completion tasks if epochs are configured
-        if (_epochProcessors.Count > 0)
+        // Use metrics from context if available, otherwise use graph's metrics
+        var metrics = context.Metrics ?? _metrics;
+
+        // Initialize metrics context if metrics are available
+        if (metrics != null)
         {
-            _logger.LogDebug("Including {ProcessorCount} epoch processor(s) in graph execution", _epochProcessors.Count);
-            foreach (var processor in _epochProcessors)
-            {
-                allTasks.Add(processor.CompletionTask);
-            }
+            flowMetrics = new DataFlowMetricsTagsContext(Name, context.InvocationId, metrics);
+            flowMetrics.Started();
         }
 
-        // Wait for all tasks to complete
-        await Task.WhenAll(allTasks);
+        using (var flowActivity = ActivitySource.StartActivity(ActivityNames.FlowExecute))
+        {
+            if (flowActivity is not null)
+            {
+                if (metrics != null)
+                {
+                    flowActivity.AddTags(metrics.GlobalTags);
+                }
+                flowActivity.AddTag(ActivityNames.TagNames.FlowInvocationId, context.InvocationId);
+                flowActivity.AddTag(ActivityNames.TagNames.FlowName, Name);
+                flowActivity.DisplayName = $"{ActivityNames.Flow} {Name}";
+            }
+            else
+            {
+                stopwatch = Stopwatch.StartNew();
+            }
 
-        _logger.LogInformation("Completed execution of dataflow: {FlowName}", Name);
+            try
+            {
+                // Build execution pipeline (adapters, routers, channels)
+                var pipeline = BuildExecutionPipeline();
+                
+                // Set the active channel count provider for metrics
+                if (metrics is DataFlowMetrics metricsImpl)
+                {
+                    metricsImpl.SetActiveChannelCountProvider(() => 
+                        pipeline.EdgeRuntimeModels.Count + pipeline.BufferRuntimeModels.Count);
+                }
+
+                // Collect all tasks to wait for
+                var allTasks = new List<Task>();
+        
+                // Add block execution tasks - pass graph so flow name can be accessed
+                var blockExecutionTask = pipeline.ExecuteBlocksAsync(_blocks, _outgoingEdges, _incomingEdges, context, flowActivity, this, _logger);
+                allTasks.Add(blockExecutionTask);
+        
+                // Add epoch processor completion tasks if epochs are configured
+                if (_epochProcessors.Count > 0)
+                {
+                    _logger.LogDebug("Including {ProcessorCount} epoch processor(s) in graph execution", _epochProcessors.Count);
+                    foreach (var processor in _epochProcessors)
+                    {
+                        allTasks.Add(processor.CompletionTask);
+                    }
+                }
+
+                // Wait for all tasks to complete
+                await Task.WhenAll(allTasks);
+                
+                flowActivity?.SetStatus(ActivityStatusCode.Ok);
+                isSuccessful = true;
+
+                _logger.LogInformation("Completed execution of dataflow: {FlowName}", Name);
+            }
+            catch (Exception ex)
+            {
+                if (flowActivity is not null)
+                {
+                    flowActivity.SetStatus(ActivityStatusCode.Error, ex.Message);
+                    flowActivity.SetTag(ActivityNames.TagNames.ErrorType, ex.GetType().FullName);
+                    
+                    if (ex is OperationCanceledException)
+                    {
+                        flowActivity.SetTag(ActivityNames.TagNames.Cancelled, "true");
+                    }
+                }
+                
+                throw;
+            }
+            finally
+            {
+                double flowDuration;
+                if (flowActivity != null)
+                {
+                    flowActivity.Stop();
+                    flowDuration = flowActivity.Duration.TotalMilliseconds;
+                }
+                else
+                {
+                    stopwatch?.Stop();
+                    flowDuration = stopwatch?.Elapsed.TotalMilliseconds ?? 0;
+                }
+                
+                flowMetrics?.Completed(flowDuration, isSuccessful);
+            }
+        }
     }
 
     /// <summary>
@@ -381,12 +463,14 @@ public class DataFlowGraph
             Dictionary<IBlock, List<Edge>> outgoingEdges,
             Dictionary<IBlock, List<Edge>> incomingEdges,
             IExecutionContext context,
+            Activity? flowActivity,
+            DataFlowGraph graph,
             ILogger<DataFlowGraph> logger)
         {
             var blockTasks = new List<Task>();
             foreach (var block in blocks)
             {
-                var task = StartBlockTask(block, outgoingEdges, incomingEdges, context, logger);
+                var task = StartBlockTask(block, outgoingEdges, incomingEdges, context, flowActivity, graph, logger);
                 blockTasks.Add(task);
             }
 
@@ -403,12 +487,14 @@ public class DataFlowGraph
             Dictionary<IBlock, List<Edge>> outgoingEdges,
             Dictionary<IBlock, List<Edge>> incomingEdges,
             IExecutionContext context,
+            Activity? flowActivity,
+            DataFlowGraph graph,
             ILogger<DataFlowGraph> logger)
         {
             var blockModel = BlockRuntimeModels[block];
             return Task.Run(async () =>
             {
-                await blockModel.ExecuteAsync(context, logger);
+                await blockModel.ExecuteAsync(context, flowActivity, graph, logger);
             }, context.CancellationToken);
         }
 
@@ -603,6 +689,8 @@ public class DataFlowGraph
     /// </summary>
     private class BlockRuntimeModel
     {
+        private static readonly ActivitySource ActivitySource = new("DataFlow");
+        
         private readonly IBlock _block;
         private readonly Dictionary<IBlock, List<Edge>> _outgoingEdges;
         private readonly Dictionary<IBlock, List<Edge>> _incomingEdges;
@@ -633,8 +721,43 @@ public class DataFlowGraph
         /// Executes the block with routing of its output to downstream blocks.
         /// Handles block execution, output routing, and channel completion for both success and error cases.
         /// </summary>
-        public async Task ExecuteAsync(IExecutionContext context, ILogger<DataFlowGraph> logger)
+        public async Task ExecuteAsync(IExecutionContext context, Activity? flowActivity, DataFlowGraph graph, ILogger<DataFlowGraph> logger)
         {
+            Stopwatch? stopwatch = null;
+            var isSuccessful = false;
+            BlockMetricsTagsContext? blockMetrics = null;
+
+            // Get metrics from context
+            var metrics = context.Metrics;
+
+            // Initialize block metrics context if metrics are available
+            if (metrics != null)
+            {
+                var flowMetrics = new DataFlowMetricsTagsContext(graph.Name, context.InvocationId, metrics);
+                blockMetrics = flowMetrics.CreateBlockContext(_block.Name);
+                blockMetrics.Started();
+            }
+
+            using var activity = ActivitySource.StartActivity(
+                ActivityNames.BlockExecute,
+                ActivityKind.Internal,
+                flowActivity?.Context ?? default);
+
+            if (activity is not null)
+            {
+                if (metrics != null)
+                {
+                    activity.AddTags(metrics.GlobalTags);
+                }
+                activity.AddTag(ActivityNames.TagNames.FlowName, graph.Name);
+                activity.AddTag(ActivityNames.TagNames.BlockName, _block.Name);
+                activity.DisplayName = $"{ActivityNames.Block} {_block.Name}";
+            }
+            else
+            {
+                stopwatch = Stopwatch.StartNew();
+            }
+
             try
             {
                 logger.LogDebug("Block {BlockName} starting execution (Thread: {ThreadId})", _block.Name, Environment.CurrentManagedThreadId);
@@ -712,14 +835,44 @@ public class DataFlowGraph
                 _pipeline.CompleteOutgoingChannels(_block, _outgoingEdges, _bufferProducers, logger);
 
                 logger.LogDebug("Block {BlockName} completed successfully", _block.Name);
+                
+                activity?.SetStatus(ActivityStatusCode.Ok);
+                isSuccessful = true;
             }
             catch (Exception ex)
             {
+                if (activity is not null)
+                {
+                    activity.SetStatus(ActivityStatusCode.Error, ex.Message);
+                    activity.SetTag(ActivityNames.TagNames.ErrorType, ex.GetType().FullName);
+                    
+                    if (ex is OperationCanceledException)
+                    {
+                        activity.SetTag(ActivityNames.TagNames.Cancelled, "true");
+                    }
+                }
+
                 logger.LogError(ex, "Block {BlockName} failed with error", _block.Name);
 
                 // Complete typed channel writers with exception
                 _pipeline.CompleteOutgoingChannels(_block, _outgoingEdges, _bufferProducers, logger, ex);
                 throw;
+            }
+            finally
+            {
+                double blockDuration;
+                if (activity != null)
+                {
+                    activity.Stop();
+                    blockDuration = activity.Duration.TotalMilliseconds;
+                }
+                else
+                {
+                    stopwatch?.Stop();
+                    blockDuration = stopwatch?.Elapsed.TotalMilliseconds ?? 0;
+                }
+                
+                blockMetrics?.Completed(blockDuration, isSuccessful);
             }
         }
     }

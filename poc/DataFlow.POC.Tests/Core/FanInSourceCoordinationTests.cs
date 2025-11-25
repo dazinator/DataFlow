@@ -704,6 +704,7 @@ public class FanInSourceCoordinationTests : IAsyncDisposable
         public IServiceProvider ServiceProvider => _serviceProvider;
         public Guid InvocationId { get; } = Guid.NewGuid();
         public ICheckpoint? RecoveryCheckpoint { get; } = null;
+        public POC.Observability.IDataFlowMetrics? Metrics { get; } = null;
 
         public TestExecutionContext()
         {

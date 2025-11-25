@@ -1,0 +1,55 @@
+namespace DataFlow.POC.Observability;
+
+/// <summary>
+/// Data-item specific metrics context with cached tags
+/// </summary>
+public class DataItemMetricsContext : IMetricsTagsContext
+{
+    private readonly IMetricsTagsContext _parentContext;
+    private readonly IDataFlowMetrics _metrics;
+    private KeyValuePair<string, object?>[]? _completionTags;
+
+    public KeyValuePair<string, object?>[] FlowWideTags { get; }
+    public KeyValuePair<string, object?>[]? FlowLevelCompletionTags => _completionTags;
+
+    public string Name { get; }
+
+    internal DataItemMetricsContext(string name, IMetricsTagsContext parentContext, IDataFlowMetrics metrics)
+    {
+        Name = name;
+        _parentContext = parentContext;
+        _metrics = metrics;
+        // Cache flow-level tags (global + flow info)
+        FlowWideTags = CreateDefaultTags(_parentContext, name);
+    }
+
+    private static KeyValuePair<string, object?>[] CreateDefaultTags(IMetricsTagsContext parentContext, string name)
+    {
+        // we inherit flow level tags and add data label as an additional tag
+        var dataTags = new KeyValuePair<string, object?>[parentContext.FlowWideTags.Length + 1];
+        parentContext.FlowWideTags.CopyTo(dataTags, 0);
+        dataTags[parentContext.FlowWideTags.Length] = new(DataFlowMetrics.TagNames.DataLabel, name);
+        return dataTags;
+    }
+
+    public void SetCompletionOutcome(bool successful)
+    {
+        // inherit the typical tags and add success/failure outcome tag.
+        _completionTags ??= CreateCompletionTags(FlowWideTags, successful);
+    }
+
+    public void RecordItemsProcessed(long count)
+    {
+        _metrics.ItemsProcessed(this, count);
+    }
+
+    private static KeyValuePair<string, object?>[] CreateCompletionTags(KeyValuePair<string, object?>[] dataTags, bool successful)
+    {
+        var completionTags = new KeyValuePair<string, object?>[dataTags.Length + 1];
+        dataTags.CopyTo(completionTags, 0);
+        completionTags[dataTags.Length] = successful
+            ? DataFlowMetrics.TagConstantValues.SuccessOutcomeTag
+            : DataFlowMetrics.TagConstantValues.FailureOutcomeTag;
+        return completionTags;
+    }
+}

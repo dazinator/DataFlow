@@ -318,5 +318,6 @@ public class DecoupledEpochPerformanceTests
         public IServiceProvider ServiceProvider { get; } = new ServiceCollection().BuildServiceProvider();
         public Guid InvocationId { get; } = Guid.NewGuid();
         public ICheckpoint? RecoveryCheckpoint { get; } = null;
+        public POC.Observability.IDataFlowMetrics? Metrics { get; } = null;
     }
 }

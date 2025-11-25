@@ -1,6 +1,7 @@
 namespace DataFlow.POC.Core;
 
 using DataFlow.POC.Checkpointing;
+using DataFlow.POC.Observability;
 
 /// <summary>
 /// Represents the execution context for a dataflow.
@@ -27,6 +28,12 @@ public interface IExecutionContext
     /// Blocks can use this to restore their state during execution.
     /// </summary>
     ICheckpoint? RecoveryCheckpoint { get; }
+
+    /// <summary>
+    /// Metrics collection interface for observability (optional).
+    /// Blocks can use this to emit custom metrics.
+    /// </summary>
+    IDataFlowMetrics? Metrics { get; }
 }
 
 /// <summary>
@@ -51,25 +58,37 @@ public class ExecutionContext : IExecutionContext
     }
 
     public ExecutionContext(IServiceProvider serviceProvider, CancellationToken cancellationToken)
-        : this(serviceProvider, cancellationToken, Guid.NewGuid(), null)
+        : this(serviceProvider, cancellationToken, Guid.NewGuid(), null, null)
     {
     }
 
     public ExecutionContext(IServiceProvider serviceProvider, CancellationToken cancellationToken, Guid invocationId)
-        : this(serviceProvider, cancellationToken, invocationId, null)
+        : this(serviceProvider, cancellationToken, invocationId, null, null)
     {
     }
 
     public ExecutionContext(IServiceProvider serviceProvider, CancellationToken cancellationToken, Guid invocationId, ICheckpoint? recoveryCheckpoint)
+        : this(serviceProvider, cancellationToken, invocationId, recoveryCheckpoint, null)
+    {
+    }
+
+    public ExecutionContext(
+        IServiceProvider serviceProvider, 
+        CancellationToken cancellationToken, 
+        Guid invocationId, 
+        ICheckpoint? recoveryCheckpoint,
+        IDataFlowMetrics? metrics)
     {
         ServiceProvider = serviceProvider;
         CancellationToken = cancellationToken;
         InvocationId = invocationId;
         RecoveryCheckpoint = recoveryCheckpoint;
+        Metrics = metrics;
     }
 
     public CancellationToken CancellationToken { get; }
     public IServiceProvider ServiceProvider { get; }
     public Guid InvocationId { get; }
     public ICheckpoint? RecoveryCheckpoint { get; }
+    public IDataFlowMetrics? Metrics { get; }
 }
