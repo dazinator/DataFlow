@@ -203,6 +203,15 @@ services.AddDataFlows("orders", df =>
     df.AddBlock("order-source", sp =>
         BlockHelpers.CreateProducer<Order>("order-source", GetOrdersFromDatabase));
     
+    // Register the processor
+    df.AddBlock("order-processor", sp =>
+    {
+        var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
+        return BlockHelpers.CreateActor<Order, Order, OrderProcessorActor>(
+            "order-processor", 
+            scopeFactory);
+    });
+    
     df.AddGraph("process-orders", g =>
     {
         g.UseBlock("order-source")
@@ -217,6 +226,16 @@ services.AddDataFlows("orders", df =>
          sp => new EpochCoordinator(sp.GetRequiredService<IServiceScopeFactory>()));
     });
 });
+
+// Helper function to get orders from database
+static IAsyncEnumerable<Order> GetOrdersFromDatabase(IProducerExecutionContext ctx)
+{
+    var dbContext = ctx.ServiceProvider.GetRequiredService<OrderDbContext>();
+    return dbContext.Orders
+        .Where(o => o.Status == "Pending")
+        .AsAsyncEnumerable()
+        .WithCancellation(ctx.CancellationToken);
+}
 ```
 
 ### Step 3: Execute

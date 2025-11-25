@@ -202,6 +202,7 @@ var fileSource = BlockHelpers.CreateProducer<string>("file-reader", async ctx =>
 ```csharp
 using CsvHelper;
 using CsvHelper.Configuration;
+using System.Globalization;
 
 var csvSource = BlockHelpers.CreateProducer<CustomerRecord>("csv-reader", async ctx =>
 {

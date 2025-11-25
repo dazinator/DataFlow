@@ -178,6 +178,7 @@ For simple transformations, use the built-in `TransformActor<TIn, TOut>`:
 using DataFlow.POC.Tests.TestHelpers;
 
 // Simple function-based transform
+// Note: TransformActor is a built-in helper class for simple transformations
 var multiplier = new TransformActor<int, int>(x => x * 2);
 
 var block = BlockHelpers.CreateActor<int, int, TransformActor<int, int>>(
