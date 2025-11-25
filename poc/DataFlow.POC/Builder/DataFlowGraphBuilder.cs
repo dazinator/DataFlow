@@ -62,16 +62,6 @@ public class DataFlowGraphBuilder
     }
 
     /// <summary>
-    /// Gets the service provider for DI resolution.
-    /// Used internally by extension methods to resolve dependencies.
-    /// </summary>
-    /// <returns>
-    /// The service provider if one was provided to the constructor, otherwise null.
-    /// Returns null when using the obsolete constructor that doesn't accept a service provider.
-    /// </returns>
-    internal IServiceProvider? GetServiceProvider() => _serviceProvider;
-
-    /// <summary>
     /// Add a block to the graph.
     /// </summary>
     public DataFlowGraphBuilder AddBlock(IBlock block)
