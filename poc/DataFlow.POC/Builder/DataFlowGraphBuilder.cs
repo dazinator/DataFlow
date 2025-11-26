@@ -62,6 +62,12 @@ public class DataFlowGraphBuilder
     }
 
     /// <summary>
+    /// Gets the service provider for DI resolution.
+    /// Used internally by extension methods to resolve dependencies.
+    /// </summary>
+    internal IServiceProvider? GetServiceProvider() => _serviceProvider;
+
+    /// <summary>
     /// Add a block to the graph.
     /// </summary>
     public DataFlowGraphBuilder AddBlock(IBlock block)

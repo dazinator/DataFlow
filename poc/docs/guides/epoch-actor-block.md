@@ -102,8 +102,8 @@ services.AddDataFlows("global", df =>
              
              // Processor gets new scope for each epoch
              config.AddProcessor("order-processor");
-         },
-         sp => new EpochCoordinator(sp.GetRequiredService<IServiceScopeFactory>()));
+         });
+         // Factory parameter is optional - DI handles it automatically
     });
 });
 ```
@@ -222,8 +222,8 @@ services.AddDataFlows("orders", df =>
              
              // Add the processor - gets new scope each epoch
              config.AddProcessor("order-processor");
-         },
-         sp => new EpochCoordinator(sp.GetRequiredService<IServiceScopeFactory>()));
+         });
+         // Factory parameter is optional - DI handles it automatically
     });
 });
 
@@ -381,8 +381,8 @@ services.AddDataFlows("orders", df =>
                      await db.Database.RollbackTransactionAsync(ct);
                  }
              });
-         },
-         sp => new EpochCoordinator(sp.GetRequiredService<IServiceScopeFactory>()));
+         });
+         // Factory parameter is optional - DI handles it automatically
     });
 });
 ```
@@ -423,7 +423,7 @@ df.AddGraph("multi-epoch", g =>
          config.SetPolicy(EpochPolicy.ByCount(1000)); // New epoch every 1000 items
          config.AddProcessor("processor");
      },
-     sp => coordinator);
+     sp => coordinator); // Advanced: Custom coordinator (factory parameter is optional in most cases)
 });
 
 // Stream divided into multiple epochs, each with its own scope
