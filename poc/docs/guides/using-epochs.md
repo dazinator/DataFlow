@@ -100,9 +100,64 @@ await epoch.QueueSerializedOperationAsync<DbContext>(async db =>
 
 ## Using the Formalized Epoch System
 
-### Basic Setup
+### High-Level API (Recommended)
 
-Configure epochs during graph construction:
+**For most scenarios, use the `ConfigureEpochs` extension method** which provides a clean, declarative API:
+
+```csharp
+services.AddDataFlows("global", df =>
+{
+    df.AddGraph("process-orders", g =>
+    {
+        g.UseBlock("order-source")
+         .ConfigureEpochs(config =>
+         {
+             // Define epoch policy
+             config.SetPolicy(EpochPolicy.ByCount(1000));
+             
+             // Add processors
+             config.AddProcessor("order-processor");
+             
+             // Configure lifecycle hooks
+             config.OnBeginEpoch(async (epoch, ct) =>
+             {
+                 await epoch.QueueSerializedOperationAsync<DbContext>(
+                     async db => await db.Database.BeginTransactionAsync(ct), ct);
+             });
+             
+             config.OnCommitEpoch(async (epoch, ct) =>
+             {
+                 await epoch.QueueSerializedOperationAsync<DbContext>(async db =>
+                 {
+                     await db.SaveChangesAsync(ct);
+                     await db.Database.CommitTransactionAsync(ct);
+                 }, ct);
+             });
+             
+             config.OnEpochError(async (epoch, error, ct) =>
+             {
+                 await epoch.QueueSerializedOperationAsync<DbContext>(
+                     async db => await db.Database.RollbackTransactionAsync(ct), ct);
+             });
+         });
+         // Note: Factory parameter is optional - DI handles coordinator creation automatically
+    });
+});
+```
+
+**Benefits of ConfigureEpochs API:**
+- ✅ Clean, declarative configuration
+- ✅ Automatic coordinator creation from DI
+- ✅ No manual setup of EpochSourceNode/EpochProcessorNode required
+- ✅ Integrated with DataFlow graph builder
+
+See [EF Core with Epochs](./ef-core-epochs.md) for complete examples.
+
+---
+
+### Low-Level Manual Setup (Advanced)
+
+For advanced scenarios requiring manual control, you can configure epochs at a lower level:
 
 ```csharp
 var services = new ServiceCollection();

@@ -352,8 +352,8 @@ services.AddDataFlows("global", df =>
              
              // Add processor for each epoch
              config.AddProcessor("process-batch");
-         },
-         sp => new EpochCoordinator(sp.GetRequiredService<IServiceScopeFactory>()));
+         });
+         // Factory parameter is optional - DI handles coordinator creation automatically
     });
 });
 ```
