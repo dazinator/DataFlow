@@ -88,7 +88,7 @@ Fix the architectural mismatch where edges route epoch stream CONTAINERS instead
    - Dispose scope after epoch complete
    - Provide scoped services to blocks
 
-**API Design**:
+**API Design** (Example/Pseudocode):
 ```csharp
 // Graph configuration
 graph.ConfigureEpochs(config =>
@@ -98,10 +98,12 @@ graph.ConfigureEpochs(config =>
     config.CoordinateEpochs(); // Infrastructure manages boundaries
 });
 
-// Block implementation (plain data items)
+// Block implementation (plain data items) - EXAMPLE
 public class MySourceBlock : IBlock<object, int>
 {
-    public IAsyncEnumerable<int> ExecuteAsync(
+    private readonly int[] _data = { 1, 2, 3, 4, 5 }; // Example data
+    
+    public async IAsyncEnumerable<int> ExecuteAsync(
         IAsyncEnumerable<object> input,
         IExecutionContext context)
     {
@@ -109,7 +111,7 @@ public class MySourceBlock : IBlock<object, int>
         var epochContext = context.GetEpochContext(); // Optional
         
         // Output plain data items
-        foreach (var item in data)
+        foreach (var item in _data)
         {
             yield return item; // Plain int, not IEpochStream<int>
         }
@@ -148,14 +150,16 @@ public class OldEpochSourceBlock : IBlock<object, IEpochStream<int>>
 }
 ```
 
-After (plain blocks with graph coordination):
+After (plain blocks with graph coordination) - EXAMPLE:
 ```csharp
 public class NewSourceBlock : IBlock<object, int>
 {
-    public IAsyncEnumerable<int> ExecuteAsync(...)
+    private readonly int[] _items = { 1, 2, 3, 4, 5 }; // Example data
+    
+    public async IAsyncEnumerable<int> ExecuteAsync(...)
     {
         // Just output items - graph manages epochs
-        foreach (var item in items)
+        foreach (var item in _items)
         {
             yield return item;
         }
@@ -219,8 +223,10 @@ graph.ConfigureEpochs(config =>
 
 ### Test 1: Broadcast Routing with Plain Items and Epoch Coordination
 
+**Example test specification** (for implementation team):
+
 ```csharp
-[Fact]
+[Fact]  // Will be added by implementation team
 public async Task BroadcastEdge_WithEpochCoordination_DuplicatesItemsCorrectly()
 {
     // Arrange
@@ -259,8 +265,10 @@ public async Task BroadcastEdge_WithEpochCoordination_DuplicatesItemsCorrectly()
 
 ### Test 2: Selective Routing by Item Properties
 
+**Example test specification** (for implementation team):
+
 ```csharp
-[Fact]
+[Fact]  // Will be added by implementation team
 public async Task SelectiveRouting_WithEpochCoordination_RoutesItemsByProperty()
 {
     // Arrange
@@ -289,8 +297,10 @@ public async Task SelectiveRouting_WithEpochCoordination_RoutesItemsByProperty()
 
 ### Test 3: DI Scope Per Epoch
 
+**Example test specification** (for implementation team):
+
 ```csharp
-[Fact]
+[Fact]  // Will be added by implementation team
 public async Task EpochCoordination_CreatesScopePerEpoch()
 {
     // Arrange

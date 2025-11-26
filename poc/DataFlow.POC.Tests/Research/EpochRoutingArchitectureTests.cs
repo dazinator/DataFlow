@@ -260,6 +260,7 @@ public class EpochRoutingArchitectureTests
             foreach (var item in items)
             {
                 yield return item;
+                await Task.CompletedTask; // Make properly async
             }
         }
     }
@@ -294,7 +295,7 @@ public class EpochRoutingArchitectureTests
         }
     }
 
-    private static async IAsyncEnumerable<int> CreatePlainStream(int count)
+    private static IAsyncEnumerable<int> CreatePlainStream(int count)
     {
         for (int i = 1; i <= count; i++)
         {
