@@ -98,7 +98,71 @@ public class EpochRoutingArchitectureTests
 
         // For now, document the observation without strict assertion
         // The test serves to validate the hypothesis
-        totalItems.ShouldBeGreaterThan(0, "At least one consumer should receive items");
+        totalItems.ShouldBe(sourceData.Count * 2, "Broadcast should work - async iterator allows re-enumeration");
+    }
+
+    /// <summary>
+    /// Test Case 1B: Broadcast with Channel-Based Epoch Streams
+    /// 
+    /// This tests the more realistic scenario where epoch streams use channels
+    /// (which can only be enumerated once, not re-enumerable like async iterators).
+    /// 
+    /// Expected: FAILURE - second consumer gets 0 items because channel is exhausted.
+    /// </summary>
+    [Fact]
+    public async Task BroadcastEdge_WithChannelBasedEpochStreams_FailsBecauseNotReEnumerable()
+    {
+        // Arrange: Create a source that outputs epoch streams backed by channels
+        var sourceData = new List<int> { 1, 2, 3, 4, 5 };
+        var graph = new DataFlowGraph("test-graph", NullLogger<DataFlowGraph>.Instance);
+
+        // Source block using CHANNELS for epoch stream items (not re-enumerable!)
+        var sourceBlock = new ChannelBasedEpochStreamSourceBlock(sourceData);
+        var consumerA = new EpochStreamConsumerBlock("ConsumerA");
+        var consumerB = new EpochStreamConsumerBlock("ConsumerB");
+
+        graph.AddBlock(sourceBlock);
+        graph.AddBlock(consumerA);
+        graph.AddBlock(consumerB);
+
+        // Create broadcast edge
+        var broadcastEdge = new Edge(
+            sourceBlock,
+            new[] { (IBlock)consumerA, consumerB },
+            new BroadcastEdgeStrategy());
+
+        graph.AddEdge(broadcastEdge);
+
+        // Act: Execute the graph
+        var serviceProvider = new ServiceCollection()
+            .BuildServiceProvider();
+        var context = new ExecutionContext(serviceProvider, CancellationToken.None);
+        await graph.ExecuteAsync(context);
+
+        // Assert
+        var totalItems = consumerA.ReceivedItems.Count + consumerB.ReceivedItems.Count;
+        
+        _output.WriteLine($"Consumer A received {consumerA.ReceivedItems.Count} items: [{string.Join(", ", consumerA.ReceivedItems)}]");
+        _output.WriteLine($"Consumer B received {consumerB.ReceivedItems.Count} items: [{string.Join(", ", consumerB.ReceivedItems)}]");
+        _output.WriteLine($"\nTotal items: {totalItems}");
+
+        if (totalItems == sourceData.Count)
+        {
+            _output.WriteLine("\n⚠️ ARCHITECTURAL MISMATCH CONFIRMED:");
+            _output.WriteLine("   - Channel-based epoch streams can only be enumerated ONCE");
+            _output.WriteLine("   - Only one consumer received items");
+            _output.WriteLine("   - Broadcast semantics are BROKEN for channel-based streams");
+            _output.WriteLine("\nThis demonstrates the real issue:");
+            _output.WriteLine("   - Async iterators (re-enumerable) work by accident");
+            _output.WriteLine("   - Channel-based streams (realistic case) FAIL");
+        }
+        else if (totalItems == sourceData.Count * 2)
+        {
+            _output.WriteLine("\n❓ UNEXPECTED: Channel streams were somehow duplicated");
+        }
+
+        totalItems.ShouldBe(sourceData.Count, 
+            "With channel-based streams, only one consumer should receive items (demonstrates the bug)");
     }
 
     /// <summary>
@@ -235,6 +299,40 @@ public class EpochRoutingArchitectureTests
         for (int i = 1; i <= count; i++)
         {
             yield return i;
+        }
+    }
+
+    /// <summary>
+    /// Test block that produces epoch streams backed by channels (not re-enumerable)
+    /// </summary>
+    private class ChannelBasedEpochStreamSourceBlock : BlockBase<object, IEpochStream<int>>
+    {
+        private readonly List<int> _sourceData;
+
+        public ChannelBasedEpochStreamSourceBlock(List<int> sourceData) 
+            : base(new BlockContext("ChannelBasedEpochStreamSource"))
+        {
+            _sourceData = sourceData;
+        }
+
+        public override async IAsyncEnumerable<IEpochStream<int>> ExecuteAsync(
+            IAsyncEnumerable<object> input,
+            IExecutionContext context)
+        {
+            // Produce one epoch stream backed by a channel (NOT re-enumerable!)
+            var epochVector = EpochVector.FromSingleSource("test", 1);
+            var channel = System.Threading.Channels.Channel.CreateUnbounded<int>();
+            
+            // Write items to channel
+            foreach (var item in _sourceData)
+            {
+                await channel.Writer.WriteAsync(item, context.CancellationToken);
+            }
+            channel.Writer.Complete();
+            
+            // Create epoch stream with channel reader (can only be enumerated ONCE)
+            var items = channel.Reader.ReadAllAsync(context.CancellationToken);
+            yield return new EpochStream<int>(epochVector, items);
         }
     }
 
