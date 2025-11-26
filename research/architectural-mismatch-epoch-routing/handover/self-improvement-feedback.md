@@ -2,7 +2,7 @@
 
 **Date**: 2025-11-26  
 **Duty**: Research  
-**Work Item**: Issue #[CURRENT_ISSUE] - Architectural mismatch: epoch container vs data item routing  
+**Work Item**: Research Architectural Mismatch (ref: PR #24, Issue #15)
 **Agent**: GitHub Copilot
 
 ---

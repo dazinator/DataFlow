@@ -2,7 +2,7 @@
 
 **Type**: Implementation  
 **Priority**: Critical  
-**Research Reference**: Issue #[CURRENT_ISSUE] 
+**Research Reference**: Research Architectural Mismatch (ref: PR #24, Issue #15)
 **Research Documentation**: `/research/architectural-mismatch-epoch-routing/`
 
 ---
