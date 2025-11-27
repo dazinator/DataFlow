@@ -158,11 +158,14 @@ public class EpochRoutingArchitectureTests
         }
         else if (totalItems == sourceData.Count * 2)
         {
-            _output.WriteLine("\n❓ UNEXPECTED: Channel streams were somehow duplicated");
+            _output.WriteLine("\n✅ ARCHITECTURAL ISSUE FIXED:");
+            _output.WriteLine("   - Channel-based epoch streams now work correctly with broadcast");
+            _output.WriteLine("   - Each consumer receives its own ChannelBackedEpochStream");
+            _output.WriteLine("   - Items are duplicated across backing channels");
         }
 
-        totalItems.ShouldBe(sourceData.Count, 
-            "With channel-based streams, only one consumer should receive items (demonstrates the bug)");
+        totalItems.ShouldBe(sourceData.Count * 2, 
+            "With the unified epoch model fix, broadcast should work correctly even for channel-based streams");
     }
 
     /// <summary>
@@ -295,12 +298,13 @@ public class EpochRoutingArchitectureTests
         }
     }
 
-    private static IAsyncEnumerable<int> CreatePlainStream(int count)
+    private static async IAsyncEnumerable<int> CreatePlainStream(int count)
     {
         for (int i = 1; i <= count; i++)
         {
             yield return i;
         }
+        await Task.CompletedTask;
     }
 
     /// <summary>

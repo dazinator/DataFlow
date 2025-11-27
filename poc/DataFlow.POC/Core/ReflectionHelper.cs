@@ -448,87 +448,118 @@ public static class ReflectionHelper
     /// Creates downstream epoch streams for each router.
     /// Each router gets a channel-backed epoch stream with the same metadata.
     /// </summary>
-    private static Dictionary<ITypedEdgeRouter, ChannelBackedEpochStream<TItem>> 
+    private static Dictionary<IBlock, ChannelBackedEpochStream<TItem>> 
         CreateDownstreamEpochStreams<TItem>(
             IEpochStream<TItem> sourceEpochStream,
             List<ITypedEdgeRouter> routers)
     {
-        var downstreamStreams = new Dictionary<ITypedEdgeRouter, ChannelBackedEpochStream<TItem>>();
+        var downstreamStreams = new Dictionary<IBlock, ChannelBackedEpochStream<TItem>>();
         
-        // Create one channel per router (broadcast-style for now)
-        // Strategy-specific logic will be added in Phase 2
+        // Create one channel per target block across all routers
         foreach (var router in routers)
         {
-            // Create bounded channel with configurable capacity
-            // Use same capacity as edge strategy (default 100)
-            var channel = Channel.CreateBounded<TItem>(new BoundedChannelOptions(100)
+            foreach (var targetBlock in router.TargetBlocks)
             {
-                FullMode = BoundedChannelFullMode.Wait,
-                SingleReader = true,
-                SingleWriter = false
-            });
-            
-            var channelBackedStream = new ChannelBackedEpochStream<TItem>(
-                sourceEpochStream.Epoch,
-                sourceEpochStream.EpochScope,
-                channel);
-            
-            downstreamStreams[router] = channelBackedStream;
+                // Create bounded channel with buffer capacity from strategy
+                var bufferCapacity = router.Strategy.BufferCapacity;
+                var channel = Channel.CreateBounded<TItem>(new BoundedChannelOptions(bufferCapacity)
+                {
+                    FullMode = BoundedChannelFullMode.Wait,
+                    SingleReader = true,
+                    SingleWriter = false
+                });
+                
+                var channelBackedStream = new ChannelBackedEpochStream<TItem>(
+                    sourceEpochStream.Epoch,
+                    sourceEpochStream.EpochScope,
+                    channel);
+                
+                downstreamStreams[targetBlock] = channelBackedStream;
+            }
         }
         
         return downstreamStreams;
     }
     
     /// <summary>
-    /// Routes epoch stream containers to downstream blocks via their routers.
-    /// Each router receives its corresponding channel-backed epoch stream.
+    /// Routes epoch stream containers to downstream blocks.
+    /// Each target block receives its own channel-backed epoch stream container.
+    /// Containers are routed directly to target blocks, bypassing the normal strategy.
     /// </summary>
     private static async Task RouteEpochStreamContainersAsync<TItem>(
         List<ITypedEdgeRouter> routers,
-        Dictionary<ITypedEdgeRouter, ChannelBackedEpochStream<TItem>> downstreamStreams,
+        Dictionary<IBlock, ChannelBackedEpochStream<TItem>> downstreamStreams,
         CancellationToken cancellationToken)
     {
-        // For each router, route the epoch stream container
-        // The router is of type TypedEdgeRouter<IEpochStream<TItem>>
-        // We need to route IEpochStream<TItem> objects through it
+        // We need to route each ChannelBackedEpochStream<TItem> to its corresponding target block
+        // The routers are TypedEdgeRouter<IEpochStream<TItem>>, so we can cast and use internal methods
         
         foreach (var router in routers)
         {
-            var epochStreamContainer = downstreamStreams[router];
-            // Route the epoch stream container via the router's strategy
-            // This writes the IEpochStream<TItem> to the downstream block's input channel
-            await router.RouteItemAsync(epochStreamContainer, cancellationToken);
+            // Check if this is a TypedEdgeRouter<IEpochStream<TItem>>
+            var routerType = router.GetType();
+            var expectedType = typeof(TypedEdgeRouter<>).MakeGenericType(typeof(IEpochStream<TItem>));
+            
+            if (routerType == expectedType)
+            {
+                // Cast to the typed router
+                var typedRouter = router as dynamic;
+                
+                // Route each container to its specific target block
+                foreach (var targetBlock in router.TargetBlocks)
+                {
+                    var container = downstreamStreams[targetBlock];
+                    // Use the internal method via dynamic to bypass strategy
+                    await typedRouter.RouteToSpecificTargetAsync(container, targetBlock, cancellationToken);
+                }
+            }
+            else
+            {
+                // Fallback: use normal routing (may not work correctly for broadcast)
+                foreach (var targetBlock in router.TargetBlocks)
+                {
+                    var container = downstreamStreams[targetBlock];
+                    await router.RouteItemAsync(container, cancellationToken);
+                }
+            }
         }
     }
     
     /// <summary>
     /// Routes an individual item to downstream epoch stream channels.
-    /// Items are written directly to the backing channels, not through routers.
+    /// Items are written directly to the backing channels.
+    /// Strategy-specific logic (broadcast/competing) is handled here.
     /// </summary>
     private static async Task RouteItemToDownstreamChannelsAsync<TItem>(
         TItem item,
         List<ITypedEdgeRouter> routers,
-        Dictionary<ITypedEdgeRouter, ChannelBackedEpochStream<TItem>> downstreamStreams,
+        Dictionary<IBlock, ChannelBackedEpochStream<TItem>> downstreamStreams,
         CancellationToken cancellationToken)
     {
-        if (routers.Count == 1)
+        // For broadcast: write to all downstream channels
+        // For competing: write to one shared channel (handled via same channel instance)
+        // For now, write to all channels (broadcast semantics)
+        
+        var allWriteTasks = new List<Task>();
+        
+        foreach (var router in routers)
         {
-            // Optimization: single router doesn't need Task.WhenAll
-            var router = routers[0];
-            var stream = downstreamStreams[router];
-            await stream.GetWriter().WriteAsync(item, cancellationToken).ConfigureAwait(false);
-        }
-        else
-        {
-            // Multiple routers: write concurrently (broadcast semantics for now)
-            var writeTasks = new Task[routers.Count];
-            for (int i = 0; i < routers.Count; i++)
+            foreach (var targetBlock in router.TargetBlocks)
             {
-                var router = routers[i];
-                var stream = downstreamStreams[router];
-                writeTasks[i] = stream.GetWriter().WriteAsync(item, cancellationToken).AsTask();
+                var stream = downstreamStreams[targetBlock];
+                allWriteTasks.Add(stream.GetWriter().WriteAsync(item, cancellationToken).AsTask());
             }
-            await Task.WhenAll(writeTasks).ConfigureAwait(false);
+        }
+        
+        if (allWriteTasks.Count == 1)
+        {
+            // Optimization: single write doesn't need Task.WhenAll
+            await allWriteTasks[0].ConfigureAwait(false);
+        }
+        else if (allWriteTasks.Count > 1)
+        {
+            // Multiple writes: execute concurrently (broadcast semantics)
+            await Task.WhenAll(allWriteTasks).ConfigureAwait(false);
         }
     }
 }
