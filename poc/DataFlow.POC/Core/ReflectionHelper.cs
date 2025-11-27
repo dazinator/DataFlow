@@ -456,9 +456,6 @@ public static class ReflectionHelper
     
     /// <summary>
     /// Creates downstream epoch streams based on the edge strategy type.
-    /// - Broadcast: One unique channel-backed stream per target block
-    /// - Competing: One shared channel-backed stream for all target blocks
-    /// - Routed: One unique channel-backed stream per target block (like broadcast)
     /// </summary>
     private static Dictionary<IBlock, ChannelBackedEpochStream<TItem>> 
         CreateDownstreamEpochStreams<TItem>(
@@ -470,53 +467,76 @@ public static class ReflectionHelper
         foreach (var router in routers)
         {
             var strategy = router.Strategy;
-            var bufferCapacity = strategy.BufferCapacity;
             
             if (strategy.EdgeType == EdgeType.Competing)
             {
-                // Competing: All targets share ONE channel-backed epoch stream
-                // Create a single channel that all targets will share
-                var sharedChannel = Channel.CreateBounded<TItem>(new BoundedChannelOptions(bufferCapacity)
-                {
-                    FullMode = BoundedChannelFullMode.Wait,
-                    SingleReader = false, // Multiple consumers compete
-                    SingleWriter = false
-                });
-                
-                var sharedStream = new ChannelBackedEpochStream<TItem>(
-                    sourceEpochStream.Epoch,
-                    sourceEpochStream.EpochScope,
-                    sharedChannel);
-                
-                // All target blocks share the same stream instance
-                foreach (var targetBlock in router.TargetBlocks)
-                {
-                    downstreamStreams[targetBlock] = sharedStream;
-                }
+                CreateCompetingConsumerStreams(sourceEpochStream, router, downstreamStreams);
             }
             else // Broadcast or Routed
             {
-                // Broadcast/Routed: Each target gets its own channel-backed epoch stream
-                foreach (var targetBlock in router.TargetBlocks)
-                {
-                    var channel = Channel.CreateBounded<TItem>(new BoundedChannelOptions(bufferCapacity)
-                    {
-                        FullMode = BoundedChannelFullMode.Wait,
-                        SingleReader = true,
-                        SingleWriter = false
-                    });
-                    
-                    var channelBackedStream = new ChannelBackedEpochStream<TItem>(
-                        sourceEpochStream.Epoch,
-                        sourceEpochStream.EpochScope,
-                        channel);
-                    
-                    downstreamStreams[targetBlock] = channelBackedStream;
-                }
+                CreateBroadcastOrRoutedStreams(sourceEpochStream, router, downstreamStreams);
             }
         }
         
         return downstreamStreams;
+    }
+    
+    /// <summary>
+    /// Creates a single shared channel-backed epoch stream for competing consumers.
+    /// All targets share ONE channel-backed epoch stream with a shared backing channel.
+    /// </summary>
+    private static void CreateCompetingConsumerStreams<TItem>(
+        IEpochStream<TItem> sourceEpochStream,
+        ITypedEdgeRouter router,
+        Dictionary<IBlock, ChannelBackedEpochStream<TItem>> downstreamStreams)
+    {
+        var bufferCapacity = router.Strategy.BufferCapacity;
+        var sharedChannel = Channel.CreateBounded<TItem>(new BoundedChannelOptions(bufferCapacity)
+        {
+            FullMode = BoundedChannelFullMode.Wait,
+            SingleReader = false, // Multiple consumers compete for items
+            SingleWriter = true   // Single source enumeration writes items
+        });
+        
+        var sharedStream = new ChannelBackedEpochStream<TItem>(
+            sourceEpochStream.Epoch,
+            sourceEpochStream.EpochScope,
+            sharedChannel);
+        
+        // All target blocks share the same stream instance
+        foreach (var targetBlock in router.TargetBlocks)
+        {
+            downstreamStreams[targetBlock] = sharedStream;
+        }
+    }
+    
+    /// <summary>
+    /// Creates unique channel-backed epoch streams for broadcast or routed topologies.
+    /// Each target gets its own channel-backed epoch stream.
+    /// </summary>
+    private static void CreateBroadcastOrRoutedStreams<TItem>(
+        IEpochStream<TItem> sourceEpochStream,
+        ITypedEdgeRouter router,
+        Dictionary<IBlock, ChannelBackedEpochStream<TItem>> downstreamStreams)
+    {
+        var bufferCapacity = router.Strategy.BufferCapacity;
+        
+        foreach (var targetBlock in router.TargetBlocks)
+        {
+            var channel = Channel.CreateBounded<TItem>(new BoundedChannelOptions(bufferCapacity)
+            {
+                FullMode = BoundedChannelFullMode.Wait,
+                SingleReader = true,  // Each target is the sole reader of its channel
+                SingleWriter = true   // Single source enumeration writes items
+            });
+            
+            var channelBackedStream = new ChannelBackedEpochStream<TItem>(
+                sourceEpochStream.Epoch,
+                sourceEpochStream.EpochScope,
+                channel);
+            
+            downstreamStreams[targetBlock] = channelBackedStream;
+        }
     }
     
     /// <summary>

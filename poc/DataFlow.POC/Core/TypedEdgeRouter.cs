@@ -131,8 +131,10 @@ public sealed class TypedEdgeRouter<T> : ITypedEdgeRouter
     public EdgeStrategy Strategy => _edge.Strategy;
 
     /// <summary>
-    /// Routes a single item using strongly-typed channels (no boxing).
-    /// The item is cast once from object to T, then the strategy handles the routing logic.
+    /// Routes a single item using strongly-typed channels.
+    /// The item is passed as object (boxing for value types), then cast to T (unboxing).
+    /// After that, no boxing occurs during channel writes.
+    /// For zero-boxing routing, use the internal RouteTypedItemAsync method.
     /// </summary>
     public async Task RouteItemAsync(object item, CancellationToken cancellationToken)
     {
@@ -154,7 +156,9 @@ public sealed class TypedEdgeRouter<T> : ITypedEdgeRouter
     
     /// <summary>
     /// Routes a typed item directly to a specific target block, bypassing the strategy.
-    /// Used internally for special routing scenarios like epoch stream unwrap/wrap.
+    /// Used internally for epoch stream unwrap/wrap container routing.
+    /// Note: Only called once per epoch stream container, not per data item,
+    /// so the dictionary lookup overhead is minimal.
     /// </summary>
     internal async Task RouteToSpecificTargetAsync(T item, IBlock targetBlock, CancellationToken cancellationToken)
     {
