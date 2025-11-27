@@ -87,9 +87,12 @@ Supporting documentation created during research:
    if (typeof(T).IsGenericType && 
        typeof(T).GetGenericTypeDefinition() == typeof(IEpochStream<>))
    {
-       // Extract TItem from IEpochStream<TItem>
+       // Use reflection to call generic method with extracted item type
        var itemType = typeof(T).GetGenericArguments()[0];
-       await EnumerateAndRouteEpochStreamAsync<TItem>(stream, routers, cancellationToken);
+       var method = typeof(ReflectionHelper)
+           .GetMethod(nameof(EnumerateAndRouteEpochStreamAsync), BindingFlags.NonPublic | BindingFlags.Static)
+           .MakeGenericMethod(itemType);
+       await (Task)method.Invoke(null, new object[] { stream, routers, cancellationToken });
    }
    ```
 
@@ -543,17 +546,39 @@ public abstract class EdgeStrategy
 **Consideration**: Reflection to detect `IEpochStream<T>` types may have overhead.
 
 **Mitigation**: 
-- Cache type check results in static dictionary
+- Cache type check results in static dictionary (or use HashSet for known types)
 - Perform check once per block output type, not per item
 - Use compile-time known types where possible
 
 ```csharp
+// Option 1: Concurrent dictionary (good for dynamic types)
 private static readonly ConcurrentDictionary<Type, bool> _isEpochStreamTypeCache = new();
 
 private static bool IsEpochStreamType(Type type)
 {
     return _isEpochStreamTypeCache.GetOrAdd(type, t =>
         t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IEpochStream<>));
+}
+
+// Option 2: HashSet (more efficient for known limited set of types)
+private static readonly HashSet<Type> _knownEpochStreamTypes = new();
+private static readonly object _typeCacheLock = new();
+
+private static bool IsEpochStreamType(Type type)
+{
+    if (!type.IsGenericType) return false;
+    
+    lock (_typeCacheLock)
+    {
+        if (_knownEpochStreamTypes.Contains(type)) return true;
+        
+        var isEpochStream = type.GetGenericTypeDefinition() == typeof(IEpochStream<>);
+        if (isEpochStream)
+        {
+            _knownEpochStreamTypes.Add(type);
+        }
+        return isEpochStream;
+    }
 }
 ```
 

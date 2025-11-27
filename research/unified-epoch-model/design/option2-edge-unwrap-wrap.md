@@ -214,9 +214,10 @@ public class ChannelBackedEpochStream<T> : IEpochStream<T>
         _channel = channel;
     }
     
-    public ChannelWriter<T> GetWriter() => _channel.Writer;
+    // Internal API for edge routing infrastructure only
+    internal ChannelWriter<T> GetWriter() => _channel.Writer;
     
-    public void CompleteWriting() => _channel.Writer.Complete();
+    internal void CompleteWriting() => _channel.Writer.Complete();
 }
 ```
 
