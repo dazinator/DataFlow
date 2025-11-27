@@ -445,8 +445,10 @@ public static class ReflectionHelper
     }
     
     /// <summary>
-    /// Creates downstream epoch streams for each router.
-    /// Each router gets a channel-backed epoch stream with the same metadata.
+    /// Creates downstream epoch streams based on the edge strategy type.
+    /// - Broadcast: One unique channel-backed stream per target block
+    /// - Competing: One shared channel-backed stream for all target blocks
+    /// - Routed: One unique channel-backed stream per target block (like broadcast)
     /// </summary>
     private static Dictionary<IBlock, ChannelBackedEpochStream<TItem>> 
         CreateDownstreamEpochStreams<TItem>(
@@ -455,26 +457,52 @@ public static class ReflectionHelper
     {
         var downstreamStreams = new Dictionary<IBlock, ChannelBackedEpochStream<TItem>>();
         
-        // Create one channel per target block across all routers
         foreach (var router in routers)
         {
-            foreach (var targetBlock in router.TargetBlocks)
+            var strategy = router.Strategy;
+            var bufferCapacity = strategy.BufferCapacity;
+            
+            if (strategy.EdgeType == EdgeType.Competing)
             {
-                // Create bounded channel with buffer capacity from strategy
-                var bufferCapacity = router.Strategy.BufferCapacity;
-                var channel = Channel.CreateBounded<TItem>(new BoundedChannelOptions(bufferCapacity)
+                // Competing: All targets share ONE channel-backed epoch stream
+                // Create a single channel that all targets will share
+                var sharedChannel = Channel.CreateBounded<TItem>(new BoundedChannelOptions(bufferCapacity)
                 {
                     FullMode = BoundedChannelFullMode.Wait,
-                    SingleReader = true,
+                    SingleReader = false, // Multiple consumers compete
                     SingleWriter = false
                 });
                 
-                var channelBackedStream = new ChannelBackedEpochStream<TItem>(
+                var sharedStream = new ChannelBackedEpochStream<TItem>(
                     sourceEpochStream.Epoch,
                     sourceEpochStream.EpochScope,
-                    channel);
+                    sharedChannel);
                 
-                downstreamStreams[targetBlock] = channelBackedStream;
+                // All target blocks share the same stream instance
+                foreach (var targetBlock in router.TargetBlocks)
+                {
+                    downstreamStreams[targetBlock] = sharedStream;
+                }
+            }
+            else // Broadcast or Routed
+            {
+                // Broadcast/Routed: Each target gets its own channel-backed epoch stream
+                foreach (var targetBlock in router.TargetBlocks)
+                {
+                    var channel = Channel.CreateBounded<TItem>(new BoundedChannelOptions(bufferCapacity)
+                    {
+                        FullMode = BoundedChannelFullMode.Wait,
+                        SingleReader = true,
+                        SingleWriter = false
+                    });
+                    
+                    var channelBackedStream = new ChannelBackedEpochStream<TItem>(
+                        sourceEpochStream.Epoch,
+                        sourceEpochStream.EpochScope,
+                        channel);
+                    
+                    downstreamStreams[targetBlock] = channelBackedStream;
+                }
             }
         }
         
@@ -483,39 +511,49 @@ public static class ReflectionHelper
     
     /// <summary>
     /// Routes epoch stream containers to downstream blocks.
-    /// Each target block receives its own channel-backed epoch stream container.
-    /// Containers are routed directly to target blocks, bypassing the normal strategy.
+    /// Strategy-aware routing:
+    /// - Broadcast: Each target gets its own unique container
+    /// - Competing: All targets get the same shared container
+    /// - Routed: Each target gets its own unique container
     /// </summary>
     private static async Task RouteEpochStreamContainersAsync<TItem>(
         List<ITypedEdgeRouter> routers,
         Dictionary<IBlock, ChannelBackedEpochStream<TItem>> downstreamStreams,
         CancellationToken cancellationToken)
     {
-        // We need to route each ChannelBackedEpochStream<TItem> to its corresponding target block
-        // The routers are TypedEdgeRouter<IEpochStream<TItem>>, so we can cast and use internal methods
-        
+        // Route containers to target blocks
         foreach (var router in routers)
         {
-            // Check if this is a TypedEdgeRouter<IEpochStream<TItem>>
             var routerType = router.GetType();
             var expectedType = typeof(TypedEdgeRouter<>).MakeGenericType(typeof(IEpochStream<TItem>));
             
             if (routerType == expectedType)
             {
-                // Cast to the typed router
                 var typedRouter = router as dynamic;
                 
-                // Route each container to its specific target block
-                foreach (var targetBlock in router.TargetBlocks)
+                if (router.Strategy.EdgeType == EdgeType.Competing)
                 {
-                    var container = downstreamStreams[targetBlock];
-                    // Use the internal method via dynamic to bypass strategy
-                    await typedRouter.RouteToSpecificTargetAsync(container, targetBlock, cancellationToken);
+                    // Competing: All targets share the same container
+                    // Route the shared container once to all targets
+                    var sharedContainer = downstreamStreams[router.TargetBlocks[0]];
+                    foreach (var targetBlock in router.TargetBlocks)
+                    {
+                        await typedRouter.RouteToSpecificTargetAsync(sharedContainer, targetBlock, cancellationToken);
+                    }
+                }
+                else
+                {
+                    // Broadcast/Routed: Each target gets its own unique container
+                    foreach (var targetBlock in router.TargetBlocks)
+                    {
+                        var container = downstreamStreams[targetBlock];
+                        await typedRouter.RouteToSpecificTargetAsync(container, targetBlock, cancellationToken);
+                    }
                 }
             }
             else
             {
-                // Fallback: use normal routing (may not work correctly for broadcast)
+                // Fallback for non-TypedEdgeRouter routers
                 foreach (var targetBlock in router.TargetBlocks)
                 {
                     var container = downstreamStreams[targetBlock];
@@ -527,8 +565,10 @@ public static class ReflectionHelper
     
     /// <summary>
     /// Routes an individual item to downstream epoch stream channels.
-    /// Items are written directly to the backing channels.
-    /// Strategy-specific logic (broadcast/competing) is handled here.
+    /// Strategy-specific routing logic:
+    /// - Broadcast: Write to all target channels concurrently
+    /// - Competing: Write to one shared channel (all targets have same stream instance)
+    /// - Routed/Selective: Apply routing logic to determine target channel(s)
     /// </summary>
     private static async Task RouteItemToDownstreamChannelsAsync<TItem>(
         TItem item,
@@ -536,30 +576,101 @@ public static class ReflectionHelper
         Dictionary<IBlock, ChannelBackedEpochStream<TItem>> downstreamStreams,
         CancellationToken cancellationToken)
     {
-        // For broadcast: write to all downstream channels
-        // For competing: write to one shared channel (handled via same channel instance)
-        // For now, write to all channels (broadcast semantics)
-        
-        var allWriteTasks = new List<Task>();
+        // Strategy-aware routing
+        var writeTasks = new List<Task>();
+        var processedStreams = new HashSet<ChannelBackedEpochStream<TItem>>(); // Track to avoid duplicate writes
         
         foreach (var router in routers)
         {
-            foreach (var targetBlock in router.TargetBlocks)
+            var strategy = router.Strategy;
+            
+            if (strategy.EdgeType == EdgeType.Competing)
             {
-                var stream = downstreamStreams[targetBlock];
-                allWriteTasks.Add(stream.GetWriter().WriteAsync(item, cancellationToken).AsTask());
+                // Competing: Write to shared channel once (all targets have same stream)
+                var sharedStream = downstreamStreams[router.TargetBlocks[0]];
+                if (!processedStreams.Contains(sharedStream))
+                {
+                    writeTasks.Add(sharedStream.GetWriter().WriteAsync(item, cancellationToken).AsTask());
+                    processedStreams.Add(sharedStream);
+                }
+            }
+            else if (strategy.EdgeType == EdgeType.Broadcast)
+            {
+                // Broadcast: Write to all target channels concurrently
+                foreach (var targetBlock in router.TargetBlocks)
+                {
+                    var stream = downstreamStreams[targetBlock];
+                    if (!processedStreams.Contains(stream))
+                    {
+                        writeTasks.Add(stream.GetWriter().WriteAsync(item, cancellationToken).AsTask());
+                        processedStreams.Add(stream);
+                    }
+                }
+            }
+            else if (strategy.EdgeType == EdgeType.Routed)
+            {
+                // Routed/Selective: Use strategy's routing logic to determine target
+                // For selective routing, we need to apply the route selector function
+                // The SelectiveRoutingEdgeStrategy has internal routing logic
+                // We'll use reflection to call the route selector if it's a SelectiveRoutingEdgeStrategy
+                
+                if (strategy is SelectiveRoutingEdgeStrategy<TItem> selectiveStrategy)
+                {
+                    // Access the route selector via reflection to determine the target
+                    var routeKeyToBlockField = strategy.GetType().GetProperty("RouteKeyToBlock");
+                    if (routeKeyToBlockField != null)
+                    {
+                        var routeKeyToBlock = routeKeyToBlockField.GetValue(strategy) as IReadOnlyDictionary<string, IBlock>;
+                        
+                        // Get the route selector via reflection
+                        var routeSelectorField = strategy.GetType().GetField("_routeSelector", 
+                            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                        
+                        if (routeSelectorField != null && routeKeyToBlock != null)
+                        {
+                            var routeSelector = routeSelectorField.GetValue(strategy) as Func<TItem, string>;
+                            if (routeSelector != null)
+                            {
+                                var routeKey = routeSelector(item);
+                                if (routeKeyToBlock.TryGetValue(routeKey, out var targetBlock))
+                                {
+                                    var stream = downstreamStreams[targetBlock];
+                                    if (!processedStreams.Contains(stream))
+                                    {
+                                        writeTasks.Add(stream.GetWriter().WriteAsync(item, cancellationToken).AsTask());
+                                        processedStreams.Add(stream);
+                                    }
+                                }
+                                // If route not found, item is dropped (matches strategy behavior)
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    // For other routed strategies, write to all targets (fallback)
+                    foreach (var targetBlock in router.TargetBlocks)
+                    {
+                        var stream = downstreamStreams[targetBlock];
+                        if (!processedStreams.Contains(stream))
+                        {
+                            writeTasks.Add(stream.GetWriter().WriteAsync(item, cancellationToken).AsTask());
+                            processedStreams.Add(stream);
+                        }
+                    }
+                }
             }
         }
         
-        if (allWriteTasks.Count == 1)
+        if (writeTasks.Count == 1)
         {
             // Optimization: single write doesn't need Task.WhenAll
-            await allWriteTasks[0].ConfigureAwait(false);
+            await writeTasks[0].ConfigureAwait(false);
         }
-        else if (allWriteTasks.Count > 1)
+        else if (writeTasks.Count > 1)
         {
-            // Multiple writes: execute concurrently (broadcast semantics)
-            await Task.WhenAll(allWriteTasks).ConfigureAwait(false);
+            // Multiple writes: execute concurrently
+            await Task.WhenAll(writeTasks).ConfigureAwait(false);
         }
     }
 }
