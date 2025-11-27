@@ -545,10 +545,13 @@ public static class ReflectionHelper
                 {
                     // Competing: All targets share the same container
                     // Route the shared container once to all targets
-                    var sharedContainer = downstreamStreams[router.TargetBlocks[0]];
-                    foreach (var targetBlock in router.TargetBlocks)
+                    if (router.TargetBlocks.Count > 0)
                     {
-                        await typedRouter.RouteToSpecificTargetAsync(sharedContainer, targetBlock, cancellationToken);
+                        var sharedContainer = downstreamStreams[router.TargetBlocks[0]];
+                        foreach (var targetBlock in router.TargetBlocks)
+                        {
+                            await typedRouter.RouteToSpecificTargetAsync(sharedContainer, targetBlock, cancellationToken);
+                        }
                     }
                 }
                 else
@@ -620,41 +623,24 @@ public static class ReflectionHelper
             else if (strategy.EdgeType == EdgeType.Routed)
             {
                 // Routed/Selective: Use strategy's routing logic to determine target
-                // For selective routing, we need to apply the route selector function
-                // The SelectiveRoutingEdgeStrategy has internal routing logic
-                // We'll use reflection to call the route selector if it's a SelectiveRoutingEdgeStrategy
+                // For selective routing, apply the route selector to each item
                 
                 if (strategy is SelectiveRoutingEdgeStrategy<TItem> selectiveStrategy)
                 {
-                    // Access the route selector via reflection to determine the target
-                    var routeKeyToBlockField = strategy.GetType().GetProperty("RouteKeyToBlock");
-                    if (routeKeyToBlockField != null)
+                    // Use the strategy's public method to evaluate the route key
+                    var routeKey = selectiveStrategy.EvaluateRouteKey(item);
+                    var routeKeyToBlock = selectiveStrategy.RouteKeyToBlock;
+                    
+                    if (routeKeyToBlock.TryGetValue(routeKey, out var targetBlock))
                     {
-                        var routeKeyToBlock = routeKeyToBlockField.GetValue(strategy) as IReadOnlyDictionary<string, IBlock>;
-                        
-                        // Get the route selector via reflection
-                        var routeSelectorField = strategy.GetType().GetField("_routeSelector", 
-                            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                        
-                        if (routeSelectorField != null && routeKeyToBlock != null)
+                        var stream = downstreamStreams[targetBlock];
+                        if (!processedStreams.Contains(stream))
                         {
-                            var routeSelector = routeSelectorField.GetValue(strategy) as Func<TItem, string>;
-                            if (routeSelector != null)
-                            {
-                                var routeKey = routeSelector(item);
-                                if (routeKeyToBlock.TryGetValue(routeKey, out var targetBlock))
-                                {
-                                    var stream = downstreamStreams[targetBlock];
-                                    if (!processedStreams.Contains(stream))
-                                    {
-                                        writeTasks.Add(stream.GetWriter().WriteAsync(item, cancellationToken).AsTask());
-                                        processedStreams.Add(stream);
-                                    }
-                                }
-                                // If route not found, item is dropped (matches strategy behavior)
-                            }
+                            writeTasks.Add(stream.GetWriter().WriteAsync(item, cancellationToken).AsTask());
+                            processedStreams.Add(stream);
                         }
                     }
+                    // If route not found, item is dropped (matches strategy behavior)
                 }
                 else
                 {
