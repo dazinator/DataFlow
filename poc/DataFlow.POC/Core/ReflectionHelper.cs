@@ -18,6 +18,13 @@ public static class ReflectionHelper
     private static readonly ConcurrentDictionary<Type, bool> _isEpochStreamTypeCache = new();
     
     /// <summary>
+    /// Cache for compiled epoch stream routing delegates to avoid repeated reflection.
+    /// Key is the item type (TItem), value is the compiled delegate.
+    /// </summary>
+    private static readonly ConcurrentDictionary<Type, Func<object, List<ITypedEdgeRouter>, CancellationToken, Task>> 
+        _epochStreamRoutingDelegateCache = new();
+    
+    /// <summary>
     /// Determines if a type is IEpochStream&lt;T&gt; for some T.
     /// Uses caching to minimize reflection overhead.
     /// </summary>
@@ -239,22 +246,29 @@ public static class ReflectionHelper
         {
             // T is IEpochStream<TItem> - unwrap and route items, then re-wrap
             var itemType = GetEpochStreamItemType(typeof(T));
-            var method = typeof(ReflectionHelper).GetMethod(
-                nameof(EnumerateAndRouteEpochStreamAsync),
-                BindingFlags.NonPublic | BindingFlags.Static);
             
-            if (method == null)
+            // Get or create cached routing delegate for this item type
+            // This avoids reflection overhead for every epoch stream
+            var routingDelegate = _epochStreamRoutingDelegateCache.GetOrAdd(itemType, type =>
             {
-                throw new InvalidOperationException($"Could not find method {nameof(EnumerateAndRouteEpochStreamAsync)}");
-            }
+                // Build the delegate once using reflection
+                var method = typeof(ReflectionHelper).GetMethod(
+                    nameof(EnumerateAndRouteEpochStreamAsync),
+                    BindingFlags.NonPublic | BindingFlags.Static);
+                
+                if (method == null)
+                {
+                    throw new InvalidOperationException($"Could not find method {nameof(EnumerateAndRouteEpochStreamAsync)}");
+                }
+                
+                var genericMethod = method.MakeGenericMethod(type);
+                
+                // Create a compiled delegate that wraps the method invocation
+                return (stream, rtrs, ct) => (Task)genericMethod.Invoke(null, new object[] { stream, rtrs, ct })!;
+            });
             
-            var genericMethod = method.MakeGenericMethod(itemType);
-            var task = (Task?)genericMethod.Invoke(null, new object[] { typedStream, routers, cancellationToken });
-            
-            if (task != null)
-            {
-                await task;
-            }
+            // Use the cached delegate to route the epoch stream
+            await routingDelegate(typedStream, routers, cancellationToken);
             return;
         }
         
