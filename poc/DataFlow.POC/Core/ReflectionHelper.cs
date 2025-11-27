@@ -422,17 +422,27 @@ public static class ReflectionHelper
                 }
                 
                 // Step 4: Complete all downstream channels (normal completion)
+                // Use HashSet to avoid completing the same stream multiple times (for competing consumers)
+                var completedStreams = new HashSet<ChannelBackedEpochStream<TItem>>();
                 foreach (var (_, channelStream) in downstreamStreams)
                 {
-                    channelStream.CompleteWriting();
+                    if (completedStreams.Add(channelStream))
+                    {
+                        channelStream.CompleteWriting();
+                    }
                 }
             }
             catch (Exception ex)
             {
                 // Complete all downstream channels with error
+                // Use HashSet to avoid completing the same stream multiple times (for competing consumers)
+                var completedStreams = new HashSet<ChannelBackedEpochStream<TItem>>();
                 foreach (var (_, channelStream) in downstreamStreams)
                 {
-                    channelStream.CompleteWriting(ex);
+                    if (completedStreams.Add(channelStream))
+                    {
+                        channelStream.CompleteWriting(ex);
+                    }
                 }
                 throw;
             }
