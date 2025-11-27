@@ -1,5 +1,6 @@
 namespace DataFlow.POC.Core;
 
+using System.Collections.Concurrent;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Threading.Channels;
@@ -11,6 +12,32 @@ using System.Threading.Channels;
 /// </summary>
 public static class ReflectionHelper
 {
+    /// <summary>
+    /// Cache for epoch stream type detection to avoid repeated reflection.
+    /// </summary>
+    private static readonly ConcurrentDictionary<Type, bool> _isEpochStreamTypeCache = new();
+    
+    /// <summary>
+    /// Determines if a type is IEpochStream&lt;T&gt; for some T.
+    /// Uses caching to minimize reflection overhead.
+    /// </summary>
+    private static bool IsEpochStreamType(Type type)
+    {
+        return _isEpochStreamTypeCache.GetOrAdd(type, t =>
+            t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IEpochStream<>));
+    }
+    
+    /// <summary>
+    /// Extracts the item type from IEpochStream&lt;T&gt;.
+    /// </summary>
+    private static Type GetEpochStreamItemType(Type epochStreamType)
+    {
+        if (!IsEpochStreamType(epochStreamType))
+        {
+            throw new ArgumentException($"Type {epochStreamType} is not IEpochStream<T>", nameof(epochStreamType));
+        }
+        return epochStreamType.GetGenericArguments()[0];
+    }
     /// <summary>
     /// Creates an empty typed stream for source blocks with no input.
     /// Equivalent to: return AsyncEnumerable.Empty&lt;T&gt;();
@@ -207,6 +234,31 @@ public static class ReflectionHelper
         List<ITypedEdgeRouter> routers,
         CancellationToken cancellationToken)
     {
+        // Check if T is IEpochStream<TItem> for some TItem
+        if (IsEpochStreamType(typeof(T)))
+        {
+            // T is IEpochStream<TItem> - unwrap and route items, then re-wrap
+            var itemType = GetEpochStreamItemType(typeof(T));
+            var method = typeof(ReflectionHelper).GetMethod(
+                nameof(EnumerateAndRouteEpochStreamAsync),
+                BindingFlags.NonPublic | BindingFlags.Static);
+            
+            if (method == null)
+            {
+                throw new InvalidOperationException($"Could not find method {nameof(EnumerateAndRouteEpochStreamAsync)}");
+            }
+            
+            var genericMethod = method.MakeGenericMethod(itemType);
+            var task = (Task?)genericMethod.Invoke(null, new object[] { typedStream, routers, cancellationToken });
+            
+            if (task != null)
+            {
+                await task;
+            }
+            return;
+        }
+        
+        // Standard routing for non-epoch stream types
         var stream = (IAsyncEnumerable<T>)typedStream;
         await foreach (var item in stream.WithCancellation(cancellationToken))
         {
@@ -333,5 +385,150 @@ public static class ReflectionHelper
         var lambda = Expression.Lambda<Func<object, TRouter>>(newExpr, param);
         
         return lambda.Compile();
+    }
+    
+    /// <summary>
+    /// Enumerates epoch streams, unwraps them to route individual items,
+    /// and re-wraps items into new epoch streams for each downstream consumer.
+    /// This fixes the architectural mismatch where edges route containers instead of items.
+    /// </summary>
+    /// <typeparam name="TItem">The type of items within epoch streams</typeparam>
+    private static async Task EnumerateAndRouteEpochStreamAsync<TItem>(
+        object typedStream,
+        List<ITypedEdgeRouter> routers,
+        CancellationToken cancellationToken)
+    {
+        var stream = (IAsyncEnumerable<IEpochStream<TItem>>)typedStream;
+        
+        await foreach (var epochStream in stream.WithCancellation(cancellationToken))
+        {
+            // Step 1: Create downstream epoch streams for each router
+            // Each router gets its own channel-backed epoch stream
+            var downstreamStreams = CreateDownstreamEpochStreams(
+                epochStream, routers);
+            
+            // Step 2: Route the epoch stream containers to downstream blocks
+            // This happens before we start routing items
+            await RouteEpochStreamContainersAsync(
+                routers, downstreamStreams, cancellationToken);
+            
+            try
+            {
+                // Step 3: Route items from source epoch stream to downstream channels
+                await foreach (var item in epochStream.Items.WithCancellation(cancellationToken))
+                {
+                    await RouteItemToDownstreamChannelsAsync(
+                        item, routers, downstreamStreams, cancellationToken);
+                }
+                
+                // Step 4: Complete all downstream channels (normal completion)
+                foreach (var (_, channelStream) in downstreamStreams)
+                {
+                    channelStream.CompleteWriting();
+                }
+            }
+            catch (Exception ex)
+            {
+                // Complete all downstream channels with error
+                foreach (var (_, channelStream) in downstreamStreams)
+                {
+                    channelStream.CompleteWriting(ex);
+                }
+                throw;
+            }
+            finally
+            {
+                // Dispose the source epoch stream
+                await epochStream.DisposeAsync();
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Creates downstream epoch streams for each router.
+    /// Each router gets a channel-backed epoch stream with the same metadata.
+    /// </summary>
+    private static Dictionary<ITypedEdgeRouter, ChannelBackedEpochStream<TItem>> 
+        CreateDownstreamEpochStreams<TItem>(
+            IEpochStream<TItem> sourceEpochStream,
+            List<ITypedEdgeRouter> routers)
+    {
+        var downstreamStreams = new Dictionary<ITypedEdgeRouter, ChannelBackedEpochStream<TItem>>();
+        
+        // Create one channel per router (broadcast-style for now)
+        // Strategy-specific logic will be added in Phase 2
+        foreach (var router in routers)
+        {
+            // Create bounded channel with configurable capacity
+            // Use same capacity as edge strategy (default 100)
+            var channel = Channel.CreateBounded<TItem>(new BoundedChannelOptions(100)
+            {
+                FullMode = BoundedChannelFullMode.Wait,
+                SingleReader = true,
+                SingleWriter = false
+            });
+            
+            var channelBackedStream = new ChannelBackedEpochStream<TItem>(
+                sourceEpochStream.Epoch,
+                sourceEpochStream.EpochScope,
+                channel);
+            
+            downstreamStreams[router] = channelBackedStream;
+        }
+        
+        return downstreamStreams;
+    }
+    
+    /// <summary>
+    /// Routes epoch stream containers to downstream blocks via their routers.
+    /// Each router receives its corresponding channel-backed epoch stream.
+    /// </summary>
+    private static async Task RouteEpochStreamContainersAsync<TItem>(
+        List<ITypedEdgeRouter> routers,
+        Dictionary<ITypedEdgeRouter, ChannelBackedEpochStream<TItem>> downstreamStreams,
+        CancellationToken cancellationToken)
+    {
+        // For each router, route the epoch stream container
+        // The router is of type TypedEdgeRouter<IEpochStream<TItem>>
+        // We need to route IEpochStream<TItem> objects through it
+        
+        foreach (var router in routers)
+        {
+            var epochStreamContainer = downstreamStreams[router];
+            // Route the epoch stream container via the router's strategy
+            // This writes the IEpochStream<TItem> to the downstream block's input channel
+            await router.RouteItemAsync(epochStreamContainer, cancellationToken);
+        }
+    }
+    
+    /// <summary>
+    /// Routes an individual item to downstream epoch stream channels.
+    /// Items are written directly to the backing channels, not through routers.
+    /// </summary>
+    private static async Task RouteItemToDownstreamChannelsAsync<TItem>(
+        TItem item,
+        List<ITypedEdgeRouter> routers,
+        Dictionary<ITypedEdgeRouter, ChannelBackedEpochStream<TItem>> downstreamStreams,
+        CancellationToken cancellationToken)
+    {
+        if (routers.Count == 1)
+        {
+            // Optimization: single router doesn't need Task.WhenAll
+            var router = routers[0];
+            var stream = downstreamStreams[router];
+            await stream.GetWriter().WriteAsync(item, cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            // Multiple routers: write concurrently (broadcast semantics for now)
+            var writeTasks = new Task[routers.Count];
+            for (int i = 0; i < routers.Count; i++)
+            {
+                var router = routers[i];
+                var stream = downstreamStreams[router];
+                writeTasks[i] = stream.GetWriter().WriteAsync(item, cancellationToken).AsTask();
+            }
+            await Task.WhenAll(writeTasks).ConfigureAwait(false);
+        }
     }
 }
