@@ -600,11 +600,14 @@ public static class ReflectionHelper
             if (strategy.EdgeType == EdgeType.Competing)
             {
                 // Competing: Write to shared channel once (all targets have same stream)
-                var sharedStream = downstreamStreams[router.TargetBlocks[0]];
-                if (!processedStreams.Contains(sharedStream))
+                if (router.TargetBlocks.Count > 0)
                 {
-                    writeTasks.Add(sharedStream.GetWriter().WriteAsync(item, cancellationToken).AsTask());
-                    processedStreams.Add(sharedStream);
+                    var sharedStream = downstreamStreams[router.TargetBlocks[0]];
+                    if (!processedStreams.Contains(sharedStream))
+                    {
+                        writeTasks.Add(sharedStream.GetWriter().WriteAsync(item, cancellationToken).AsTask());
+                        processedStreams.Add(sharedStream);
+                    }
                 }
             }
             else if (strategy.EdgeType == EdgeType.Broadcast)
