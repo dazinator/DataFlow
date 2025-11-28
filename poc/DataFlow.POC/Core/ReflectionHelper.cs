@@ -45,6 +45,36 @@ public static class ReflectionHelper
         }
         return epochStreamType.GetGenericArguments()[0];
     }
+    
+    /// <summary>
+    /// Creates a compiled epoch stream routing delegate for a given edge data type.
+    /// This should be called once at graph build time if the edge routes epoch streams.
+    /// Returns null if the type is not an epoch stream type.
+    /// </summary>
+    public static Func<object, List<ITypedEdgeRouter>, CancellationToken, Task>? CreateEpochStreamRoutingDelegate(Type edgeDataType)
+    {
+        if (!IsEpochStreamType(edgeDataType))
+        {
+            return null;
+        }
+        
+        var itemType = GetEpochStreamItemType(edgeDataType);
+        
+        // Build the delegate using reflection (this happens once at graph build time)
+        var method = typeof(ReflectionHelper).GetMethod(
+            nameof(EnumerateAndRouteEpochStreamAsync),
+            BindingFlags.NonPublic | BindingFlags.Static);
+        
+        if (method == null)
+        {
+            throw new InvalidOperationException($"Could not find method {nameof(EnumerateAndRouteEpochStreamAsync)}");
+        }
+        
+        var genericMethod = method.MakeGenericMethod(itemType);
+        
+        // Create a compiled delegate that wraps the method invocation
+        return (stream, rtrs, ct) => (Task)genericMethod.Invoke(null, new object[] { stream, rtrs, ct })!;
+    }
     /// <summary>
     /// Creates an empty typed stream for source blocks with no input.
     /// Equivalent to: return AsyncEnumerable.Empty&lt;T&gt;();
@@ -211,12 +241,27 @@ public static class ReflectionHelper
     ///           await ((TypedEdgeRouter&lt;T&gt;)router).RouteTypedItemAsync(item, cancellationToken);
     ///   }
     /// </summary>
+    /// <param name="typedStream">The typed stream to enumerate</param>
+    /// <param name="itemType">The type of items in the stream</param>
+    /// <param name="routers">The routers to route items through</param>
+    /// <param name="epochStreamDelegate">Pre-compiled epoch stream routing delegate (if available from graph build time)</param>
+    /// <param name="cancellationToken">Cancellation token</param>
     public static async Task EnumerateAndRouteTypedStreamAsync(
         object typedStream,
         Type itemType,
         List<ITypedEdgeRouter> routers,
+        Func<object, List<ITypedEdgeRouter>, CancellationToken, Task>? epochStreamDelegate,
         CancellationToken cancellationToken)
     {
+        // If we have a pre-compiled epoch stream delegate, use it directly
+        // This path eliminates all type checking and reflection during execution
+        if (epochStreamDelegate != null)
+        {
+            await epochStreamDelegate(typedStream, routers, cancellationToken);
+            return;
+        }
+        
+        // Fallback: compile the delegate at runtime (for backwards compatibility or buffer nodes)
         // Equivalent to: await EnumerateAndRouteTypedStreamGenericAsync<T>(typedStream, routers, cancellationToken);
         var method = typeof(ReflectionHelper).GetMethod(
             nameof(EnumerateAndRouteTypedStreamGenericAsync),
