@@ -158,11 +158,14 @@ public class EpochRoutingArchitectureTests
         }
         else if (totalItems == sourceData.Count * 2)
         {
-            _output.WriteLine("\n❓ UNEXPECTED: Channel streams were somehow duplicated");
+            _output.WriteLine("\n✅ ARCHITECTURAL ISSUE FIXED:");
+            _output.WriteLine("   - Channel-based epoch streams now work correctly with broadcast");
+            _output.WriteLine("   - Each consumer receives its own ChannelBackedEpochStream");
+            _output.WriteLine("   - Items are duplicated across backing channels");
         }
 
-        totalItems.ShouldBe(sourceData.Count, 
-            "With channel-based streams, only one consumer should receive items (demonstrates the bug)");
+        totalItems.ShouldBe(sourceData.Count * 2, 
+            "With the unified epoch model fix, broadcast should work correctly even for channel-based streams");
     }
 
     /// <summary>
@@ -295,12 +298,13 @@ public class EpochRoutingArchitectureTests
         }
     }
 
-    private static IAsyncEnumerable<int> CreatePlainStream(int count)
+    private static async IAsyncEnumerable<int> CreatePlainStream(int count)
     {
         for (int i = 1; i <= count; i++)
         {
             yield return i;
         }
+        await Task.CompletedTask;
     }
 
     /// <summary>
@@ -335,6 +339,71 @@ public class EpochRoutingArchitectureTests
             var items = channel.Reader.ReadAllAsync(context.CancellationToken);
             yield return new EpochStream<int>(epochVector, items);
         }
+    }
+    
+    /// <summary>
+    /// Test Case 4: Competing Consumers with Epoch Streams
+    /// 
+    /// With the unified epoch model fix, competing consumers should work correctly:
+    /// - All consumers share the same ChannelBackedEpochStream
+    /// - Items are distributed across consumers (load balancing)
+    /// - Each item processed exactly once
+    /// </summary>
+    [Fact]
+    public async Task CompetingEdge_WithChannelBasedEpochStreams_LoadBalancesItems()
+    {
+        // Arrange: Create a source that outputs epoch streams backed by channels
+        var sourceData = new List<int> { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+        var graph = new DataFlowGraph("test-graph", NullLogger<DataFlowGraph>.Instance);
+
+        var sourceBlock = new ChannelBasedEpochStreamSourceBlock(sourceData);
+        var consumerA = new EpochStreamConsumerBlock("ConsumerA");
+        var consumerB = new EpochStreamConsumerBlock("ConsumerB");
+        var consumerC = new EpochStreamConsumerBlock("ConsumerC");
+
+        graph.AddBlock(sourceBlock);
+        graph.AddBlock(consumerA);
+        graph.AddBlock(consumerB);
+        graph.AddBlock(consumerC);
+
+        // Create competing edge
+        var competingEdge = new Edge(
+            sourceBlock,
+            new[] { (IBlock)consumerA, consumerB, consumerC },
+            new CompetingEdgeStrategy());
+
+        graph.AddEdge(competingEdge);
+
+        // Act: Execute the graph
+        var serviceProvider = new ServiceCollection()
+            .BuildServiceProvider();
+        var context = new ExecutionContext(serviceProvider, CancellationToken.None);
+        await graph.ExecuteAsync(context);
+
+        // Assert
+        var totalItems = consumerA.ReceivedItems.Count + consumerB.ReceivedItems.Count + consumerC.ReceivedItems.Count;
+        
+        _output.WriteLine($"Consumer A received {consumerA.ReceivedItems.Count} items: [{string.Join(", ", consumerA.ReceivedItems)}]");
+        _output.WriteLine($"Consumer B received {consumerB.ReceivedItems.Count} items: [{string.Join(", ", consumerB.ReceivedItems)}]");
+        _output.WriteLine($"Consumer C received {consumerC.ReceivedItems.Count} items: [{string.Join(", ", consumerC.ReceivedItems)}]");
+        _output.WriteLine($"\nTotal items: {totalItems}");
+
+        // Each item should be processed exactly once
+        totalItems.ShouldBe(sourceData.Count, "All items should be processed exactly once");
+        
+        // Verify all items are accounted for (no duplicates or missing items)
+        var allReceivedItems = consumerA.ReceivedItems
+            .Concat(consumerB.ReceivedItems)
+            .Concat(consumerC.ReceivedItems)
+            .OrderBy(x => x)
+            .ToList();
+        
+        allReceivedItems.ShouldBe(sourceData.OrderBy(x => x).ToList(), "All items should be present without duplicates");
+        
+        _output.WriteLine("\n✅ COMPETING CONSUMERS WORKING:");
+        _output.WriteLine("   - Items distributed across consumers (load balancing)");
+        _output.WriteLine("   - Each item processed exactly once");
+        _output.WriteLine("   - No duplicates or missing items");
     }
 
     #endregion

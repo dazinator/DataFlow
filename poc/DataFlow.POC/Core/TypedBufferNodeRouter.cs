@@ -42,6 +42,7 @@ public static class TypedBufferNodeRouterFactory
 public class TypedBufferNodeRouter<T> : ITypedEdgeRouter
 {
     private readonly ChannelWriter<T> _writer;
+    private static readonly IReadOnlyList<IBlock> _emptyBlocks = Array.Empty<IBlock>();
 
     public TypedBufferNodeRouter(object writerObj)
     {
@@ -49,6 +50,16 @@ public class TypedBufferNodeRouter<T> : ITypedEdgeRouter
     }
 
     public Type ItemType => typeof(T);
+    
+    /// <summary>
+    /// Buffer nodes don't have target blocks (they are intermediate storage).
+    /// </summary>
+    public IReadOnlyList<IBlock> TargetBlocks => _emptyBlocks;
+    
+    /// <summary>
+    /// Buffer nodes don't have a strategy (they are not edges).
+    /// </summary>
+    public EdgeStrategy Strategy => throw new NotSupportedException("Buffer node routers do not have an edge strategy");
 
     /// <summary>
     /// Routes a single item to the buffer node's channel.
