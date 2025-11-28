@@ -7,6 +7,7 @@ using DataFlow.POC.Benchmarks.DeprecatedBlocks;
 using DataFlow.POC.Blocks;
 using DataFlow.POC.Checkpointing;
 using DataFlow.POC.Core;
+using DataFlow.POC.Observability;
 using Microsoft.Extensions.DependencyInjection;
 using System.Runtime.CompilerServices;
 
@@ -327,6 +328,7 @@ public class EpochAwareBlockBenchmark
         public IServiceProvider ServiceProvider { get; } = new ServiceCollection().BuildServiceProvider();
         public Guid InvocationId { get; } = Guid.NewGuid();
         public ICheckpoint? RecoveryCheckpoint { get; } = null;
+        public IDataFlowMetrics? Metrics { get; } = null;
     }
 }
 
@@ -463,5 +465,6 @@ public class EpochAwareBlockRealisticBenchmark
         public IServiceProvider ServiceProvider { get; } = new ServiceCollection().BuildServiceProvider();
         public Guid InvocationId { get; } = Guid.NewGuid();
         public ICheckpoint? RecoveryCheckpoint { get; } = null;
+        public IDataFlowMetrics? Metrics { get; } = null;
     }
 }
