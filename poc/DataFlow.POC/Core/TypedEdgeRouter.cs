@@ -132,8 +132,8 @@ public sealed class TypedEdgeRouter<T> : ITypedEdgeRouter
 
     /// <summary>
     /// Routes a single item using strongly-typed channels.
-    /// The item is passed as object (boxing for value types), then cast to T (unboxing).
-    /// After that, no boxing occurs during channel writes.
+    /// For value types: boxing occurs when passed as object parameter, then unboxing on cast to T.
+    /// Reference types incur no boxing overhead. After cast, no boxing occurs during channel writes.
     /// For zero-boxing routing, use the internal RouteTypedItemAsync method.
     /// </summary>
     public async Task RouteItemAsync(object item, CancellationToken cancellationToken)

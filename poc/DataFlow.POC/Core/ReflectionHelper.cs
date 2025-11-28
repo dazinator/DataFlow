@@ -22,7 +22,7 @@ public static class ReflectionHelper
     /// Key is the item type (TItem), value is the compiled delegate.
     /// </summary>
     private static readonly ConcurrentDictionary<Type, Func<object, List<ITypedEdgeRouter>, CancellationToken, Task>> 
-        _epochStreamRoutingDelegateCache = new();
+        _epochRoutingCache = new();
     
     /// <summary>
     /// Determines if a type is IEpochStream&lt;T&gt; for some T.
@@ -294,7 +294,7 @@ public static class ReflectionHelper
             
             // Get or create cached routing delegate for this item type
             // This avoids reflection overhead for every epoch stream
-            var routingDelegate = _epochStreamRoutingDelegateCache.GetOrAdd(itemType, type =>
+            var routingDelegate = _epochRoutingCache.GetOrAdd(itemType, type =>
             {
                 // Build the delegate once using reflection
                 var method = typeof(ReflectionHelper).GetMethod(

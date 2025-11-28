@@ -26,9 +26,11 @@ internal sealed class ChannelBackedEpochStream<T> : IEpochStream<T>
         IEpoch? epochScope,
         Channel<T> channel)
     {
-        Epoch = epochVector ?? throw new ArgumentNullException(nameof(epochVector));
+        ArgumentNullException.ThrowIfNull(epochVector);
+        ArgumentNullException.ThrowIfNull(channel);
+        Epoch = epochVector;
         EpochScope = epochScope;
-        _channel = channel ?? throw new ArgumentNullException(nameof(channel));
+        _channel = channel;
     }
     
     /// <summary>
