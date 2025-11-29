@@ -542,9 +542,10 @@ public static class ReflectionHelper
         
         await foreach (var epochStream in stream.WithCancellation(cancellationToken))
         {
-            // Step 1: Create downstream epoch streams for each router
-            // Each router gets its own channel-backed epoch stream
-            var (downstreamStreams, downstreamWriters) = CreateDownstreamEpochStreams(
+            // Step 1: Create downstream epoch streams and routing topology
+            // Topology includes pre-built dictionaries for O(1) lookups in the hot path
+            // Also returns totalMaxWriteTasks to avoid recalculating in the hot path
+            var (downstreamStreams, topologyByEdge, totalMaxWriteTasks) = CreateDownstreamEpochStreams(
                 epochStream, routers);
             
             // Step 2: Route the epoch stream containers to downstream blocks
@@ -555,10 +556,11 @@ public static class ReflectionHelper
             try
             {
                 // Step 3: Route items from source epoch stream to downstream channels
+                // Uses pre-built topology for zero-lookup routing
                 await foreach (var item in epochStream.Items.WithCancellation(cancellationToken))
                 {
                     await RouteItemToDownstreamChannelsAsync(
-                        item, routers, downstreamWriters, cancellationToken);
+                        item, topologyByEdge, totalMaxWriteTasks, cancellationToken);
                 }
                 
                 // Step 4: Complete all downstream channels (normal completion)
@@ -595,46 +597,111 @@ public static class ReflectionHelper
     }
     
     /// <summary>
+    /// Routing topology for an edge router, optimized for zero-lookup item routing.
+    /// </summary>
+    private sealed class EdgeRoutingTopology<TItem>
+    {
+        /// <summary>
+        /// All routers for this edge (for broadcast/competing routing).
+        /// </summary>
+        public List<SingleTargetRouter<TItem>> AllRouters { get; init; } = new();
+        
+        /// <summary>
+        /// Router lookup by target block (for selective routing - O(1) lookup).
+        /// Null for non-selective strategies to avoid allocation overhead.
+        /// </summary>
+        public Dictionary<IBlock, SingleTargetRouter<TItem>>? RouterByBlock { get; init; }
+        
+        /// <summary>
+        /// Maximum number of write tasks for this edge (for optimal List capacity).
+        /// </summary>
+        public int MaxWriteTasks { get; init; }
+    }
+    
+    /// <summary>
     /// Creates downstream epoch streams based on the edge strategy type.
-    /// Returns both stream and writer dictionaries to eliminate repeated GetWriter() calls
-    /// in the hot path of item routing.
+    /// Returns stream dictionary for container routing and routing topology for item routing.
+    /// Routing topology is pre-built to enable O(1) lookups in the hot path.
     /// </summary>
     private static (Dictionary<IBlock, ChannelBackedEpochStream<TItem>> streams, 
-                    Dictionary<IBlock, ChannelWriter<TItem>> writers) 
+                    Dictionary<ITypedEdgeRouter, EdgeRoutingTopology<TItem>> topologyByEdge,
+                    int totalMaxWriteTasks) 
         CreateDownstreamEpochStreams<TItem>(
             IEpochStream<TItem> sourceEpochStream,
-            List<ITypedEdgeRouter> routers)
+            List<ITypedEdgeRouter> edgeRouters)
     {
-        var downstreamStreams = new Dictionary<IBlock, ChannelBackedEpochStream<TItem>>();
-        var downstreamWriters = new Dictionary<IBlock, ChannelWriter<TItem>>();
+        // Calculate capacities during the loop to avoid double iteration
+        var totalTargetBlocks = 0;
+        var totalMaxWriteTasks = 0;
         
-        foreach (var router in routers)
+        // First pass: calculate capacities
+        foreach (var router in edgeRouters)
+        {
+            totalTargetBlocks += router.TargetBlocks.Count;
+        }
+        
+        var downstreamStreams = new Dictionary<IBlock, ChannelBackedEpochStream<TItem>>(totalTargetBlocks);
+        var topologyByEdge = new Dictionary<ITypedEdgeRouter, EdgeRoutingTopology<TItem>>(edgeRouters.Count);
+        
+        foreach (var router in edgeRouters)
         {
             var strategy = router.Strategy;
+            var singleTargetRouters = new List<SingleTargetRouter<TItem>>(router.TargetBlocks.Count);
             
             if (strategy.EdgeType == EdgeType.Competing)
             {
-                CreateCompetingConsumerStreams(sourceEpochStream, router, downstreamStreams, downstreamWriters);
+                CreateCompetingConsumerStreams(sourceEpochStream, router, downstreamStreams, singleTargetRouters);
             }
             else // Broadcast or Routed
             {
-                CreateBroadcastOrRoutedStreams(sourceEpochStream, router, downstreamStreams, downstreamWriters);
+                CreateBroadcastOrRoutedStreams(sourceEpochStream, router, downstreamStreams, singleTargetRouters);
             }
+            
+            // Build routing topology with O(1) lookup support for selective routing
+            Dictionary<IBlock, SingleTargetRouter<TItem>>? routerByBlock = null;
+            if (strategy is SelectiveRoutingEdgeStrategy<TItem>)
+            {
+                routerByBlock = new Dictionary<IBlock, SingleTargetRouter<TItem>>(singleTargetRouters.Count);
+                foreach (var r in singleTargetRouters)
+                {
+                    routerByBlock[r.TargetBlock] = r;
+                }
+            }
+            
+            // Calculate max write tasks for this edge to optimize List capacity in hot path
+            // Competing: 1 task, Broadcast: all routers, Selective: at most 1, Routed: all routers
+            int maxWriteTasks = strategy.EdgeType switch
+            {
+                EdgeType.Competing => 1,
+                EdgeType.Broadcast => singleTargetRouters.Count,
+                EdgeType.Routed => strategy is SelectiveRoutingEdgeStrategy<TItem> ? 1 : singleTargetRouters.Count,
+                _ => singleTargetRouters.Count
+            };
+            
+            var topology = new EdgeRoutingTopology<TItem>
+            {
+                AllRouters = singleTargetRouters,
+                RouterByBlock = routerByBlock,
+                MaxWriteTasks = maxWriteTasks
+            };
+            
+            topologyByEdge[router] = topology;
+            totalMaxWriteTasks += maxWriteTasks;
         }
         
-        return (downstreamStreams, downstreamWriters);
+        return (downstreamStreams, topologyByEdge, totalMaxWriteTasks);
     }
     
     /// <summary>
     /// Creates a single shared channel-backed epoch stream for competing consumers.
     /// All targets share ONE channel-backed epoch stream with a shared backing channel.
-    /// Also pre-extracts the writer to eliminate GetWriter() calls in the hot path.
+    /// Creates a single-target router with the shared writer (deduplication happens in RouteItemToDownstreamChannelsAsync).
     /// </summary>
     private static void CreateCompetingConsumerStreams<TItem>(
         IEpochStream<TItem> sourceEpochStream,
         ITypedEdgeRouter router,
         Dictionary<IBlock, ChannelBackedEpochStream<TItem>> downstreamStreams,
-        Dictionary<IBlock, ChannelWriter<TItem>> downstreamWriters)
+        List<SingleTargetRouter<TItem>> singleTargetRouters)
     {
         var bufferCapacity = router.Strategy.BufferCapacity;
         var sharedChannel = Channel.CreateBounded<TItem>(new BoundedChannelOptions(bufferCapacity)
@@ -651,24 +718,25 @@ public static class ReflectionHelper
         
         var sharedWriter = sharedStream.GetWriter();
         
-        // All target blocks share the same stream instance and writer
+        // All target blocks share the same stream instance
+        // We create one router per target, but they all share the same writer
         foreach (var targetBlock in router.TargetBlocks)
         {
             downstreamStreams[targetBlock] = sharedStream;
-            downstreamWriters[targetBlock] = sharedWriter;
+            singleTargetRouters.Add(new SingleTargetRouter<TItem>(targetBlock, sharedWriter));
         }
     }
     
     /// <summary>
     /// Creates unique channel-backed epoch streams for broadcast or routed topologies.
-    /// Each target gets its own channel-backed epoch stream.
-    /// Also pre-extracts writers to eliminate GetWriter() calls in the hot path.
+    /// Each target gets its own channel-backed epoch stream and single-target router.
+    /// Single-target routers eliminate dictionary lookups in the hot path.
     /// </summary>
     private static void CreateBroadcastOrRoutedStreams<TItem>(
         IEpochStream<TItem> sourceEpochStream,
         ITypedEdgeRouter router,
         Dictionary<IBlock, ChannelBackedEpochStream<TItem>> downstreamStreams,
-        Dictionary<IBlock, ChannelWriter<TItem>> downstreamWriters)
+        List<SingleTargetRouter<TItem>> singleTargetRouters)
     {
         var bufferCapacity = router.Strategy.BufferCapacity;
         
@@ -687,7 +755,7 @@ public static class ReflectionHelper
                 channel);
             
             downstreamStreams[targetBlock] = channelBackedStream;
-            downstreamWriters[targetBlock] = channelBackedStream.GetWriter();
+            singleTargetRouters.Add(new SingleTargetRouter<TItem>(targetBlock, channelBackedStream.GetWriter()));
         }
     }
     
@@ -786,50 +854,50 @@ public static class ReflectionHelper
     }
     
     /// <summary>
-    /// Routes an individual item to downstream epoch stream channels.
+    /// Routes an individual item to downstream epoch stream channels using pre-built routing topology.
+    /// This eliminates dictionary lookups in the hot path - topology contains pre-built lookup structures.
     /// Strategy-specific routing logic:
-    /// - Broadcast: Write to all target channels concurrently
-    /// - Competing: Write to one shared channel (all targets have same stream instance)
-    /// - Routed/Selective: Apply routing logic to determine target channel(s)
-    /// Uses pre-extracted writers to eliminate GetWriter() overhead in the hot path.
+    /// - Broadcast: Write to all routers concurrently
+    /// - Competing: Write once to shared channel (deduplication via HashSet)
+    /// - Routed/Selective: Use pre-built dictionary for O(1) target lookup
     /// </summary>
     private static async Task RouteItemToDownstreamChannelsAsync<TItem>(
         TItem item,
-        List<ITypedEdgeRouter> routers,
-        Dictionary<IBlock, ChannelWriter<TItem>> downstreamWriters,
+        Dictionary<ITypedEdgeRouter, EdgeRoutingTopology<TItem>> topologyByEdge,
+        int totalMaxWriteTasks,
         CancellationToken cancellationToken)
     {
-        // Strategy-aware routing
-        var writeTasks = new List<Task>();
-        var processedWriters = new HashSet<ChannelWriter<TItem>>(); // Track to avoid duplicate writes
+        // Use cached capacity to avoid recalculating Sum() in the hot path (per-item)
+        var writeTasks = new List<Task>(totalMaxWriteTasks);
+        var processedWriters = new HashSet<ChannelWriter<TItem>>(totalMaxWriteTasks);
         
-        foreach (var router in routers)
+        foreach (var (edgeRouter, topology) in topologyByEdge)
         {
-            var strategy = router.Strategy;
+            var strategy = edgeRouter.Strategy;
             
             if (strategy.EdgeType == EdgeType.Competing)
             {
-                // Competing: Write to shared channel once (all targets have same writer)
-                if (router.TargetBlocks.Count > 0)
+                // Competing: Write to shared channel once
+                // All routers for competing edges have the same writer
+                if (topology.AllRouters.Count > 0)
                 {
-                    var sharedWriter = downstreamWriters[router.TargetBlocks[0]];
-                    if (!processedWriters.Contains(sharedWriter))
+                    var router = topology.AllRouters[0];
+                    if (!processedWriters.Contains(router.Writer))
                     {
-                        writeTasks.Add(sharedWriter.WriteAsync(item, cancellationToken).AsTask());
-                        processedWriters.Add(sharedWriter);
+                        writeTasks.Add(router.WriteAsync(item, cancellationToken).AsTask());
+                        processedWriters.Add(router.Writer);
                     }
                 }
             }
             else if (strategy.EdgeType == EdgeType.Broadcast)
             {
                 // Broadcast: Write to all target channels concurrently
-                foreach (var targetBlock in router.TargetBlocks)
+                foreach (var router in topology.AllRouters)
                 {
-                    var writer = downstreamWriters[targetBlock];
-                    if (!processedWriters.Contains(writer))
+                    if (!processedWriters.Contains(router.Writer))
                     {
-                        writeTasks.Add(writer.WriteAsync(item, cancellationToken).AsTask());
-                        processedWriters.Add(writer);
+                        writeTasks.Add(router.WriteAsync(item, cancellationToken).AsTask());
+                        processedWriters.Add(router.Writer);
                     }
                 }
             }
@@ -846,11 +914,23 @@ public static class ReflectionHelper
                     
                     if (routeKeyToBlock.TryGetValue(routeKey, out var targetBlock))
                     {
-                        var writer = downstreamWriters[targetBlock];
-                        if (!processedWriters.Contains(writer))
+                        // Defensive: RouterByBlock must be non-null for selective routing
+                        // It's populated during topology creation for SelectiveRoutingEdgeStrategy
+                        if (topology.RouterByBlock == null)
                         {
-                            writeTasks.Add(writer.WriteAsync(item, cancellationToken).AsTask());
-                            processedWriters.Add(writer);
+                            throw new InvalidOperationException(
+                                $"RouterByBlock is null for selective routing strategy. " +
+                                $"This indicates a misconfigured topology.");
+                        }
+                        
+                        // O(1) lookup using pre-built dictionary
+                        if (topology.RouterByBlock.TryGetValue(targetBlock, out var router))
+                        {
+                            if (!processedWriters.Contains(router.Writer))
+                            {
+                                writeTasks.Add(router.WriteAsync(item, cancellationToken).AsTask());
+                                processedWriters.Add(router.Writer);
+                            }
                         }
                     }
                     // If route not found, item is dropped (matches strategy behavior)
@@ -858,13 +938,12 @@ public static class ReflectionHelper
                 else
                 {
                     // For other routed strategies, write to all targets (fallback)
-                    foreach (var targetBlock in router.TargetBlocks)
+                    foreach (var router in topology.AllRouters)
                     {
-                        var writer = downstreamWriters[targetBlock];
-                        if (!processedWriters.Contains(writer))
+                        if (!processedWriters.Contains(router.Writer))
                         {
-                            writeTasks.Add(writer.WriteAsync(item, cancellationToken).AsTask());
-                            processedWriters.Add(writer);
+                            writeTasks.Add(router.WriteAsync(item, cancellationToken).AsTask());
+                            processedWriters.Add(router.Writer);
                         }
                     }
                 }
