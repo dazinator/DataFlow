@@ -173,6 +173,12 @@ else if (args.Length > 0 && args[0] == "epoch-realistic")
     // Validates GC behavior (Gen1/Gen2 traffic) under production-like conditions
     BenchmarkRunner.Run<DataFlow.POC.Benchmarks.EpochRealisticWorkloadBenchmark>();
 }
+else if (args.Length > 0 && args[0] == "epoch-stream-routing")
+{
+    // Run epoch stream routing benchmarks
+    // Measures performance of epoch stream container routing with various strategies
+    BenchmarkRunner.Run<DataFlow.POC.Benchmarks.EpochStreamRoutingBenchmark>();
+}
 else if (args.Length > 0 && args[0] == "plain-blocks-baseline")
 {
     // ARCHIVED: Plain blocks baseline benchmarks have been moved to research/flow-composability-unification/archived-benchmarks/
