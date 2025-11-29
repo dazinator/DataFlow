@@ -844,18 +844,23 @@ public static class ReflectionHelper
                 
                 if (strategy is SelectiveRoutingEdgeStrategy<TItem> selectiveStrategy)
                 {
+                    // Build lookup dictionary for O(1) target block lookup (done once per edge)
+                    var routerByBlock = singleTargetRouters.ToDictionary(r => r.TargetBlock);
+                    
                     // Use the strategy's public method to evaluate the route key
                     var routeKey = selectiveStrategy.EvaluateRouteKey(item);
                     var routeKeyToBlock = selectiveStrategy.RouteKeyToBlock;
                     
                     if (routeKeyToBlock.TryGetValue(routeKey, out var targetBlock))
                     {
-                        // Find the router for this target block
-                        var router = singleTargetRouters.FirstOrDefault(r => r.TargetBlock == targetBlock);
-                        if (router != null && !processedWriters.Contains(router.Writer))
+                        // O(1) lookup for target router
+                        if (routerByBlock.TryGetValue(targetBlock, out var router))
                         {
-                            writeTasks.Add(router.WriteAsync(item, cancellationToken).AsTask());
-                            processedWriters.Add(router.Writer);
+                            if (!processedWriters.Contains(router.Writer))
+                            {
+                                writeTasks.Add(router.WriteAsync(item, cancellationToken).AsTask());
+                                processedWriters.Add(router.Writer);
+                            }
                         }
                     }
                     // If route not found, item is dropped (matches strategy behavior)
