@@ -127,4 +127,15 @@ public class SelectiveRoutingEdgeStrategy<TItem> : EdgeStrategy
                 $"Item type: {typeof(TItem).Name}");
         }
     }
+    
+    /// <summary>
+    /// Evaluates the route key for an item.
+    /// Exposed for epoch stream unwrap/wrap routing logic.
+    /// </summary>
+    /// <param name="item">The item to evaluate</param>
+    /// <returns>The route key for the item</returns>
+    public string EvaluateRouteKey(TItem item)
+    {
+        return _routeSelector(item);
+    }
 }

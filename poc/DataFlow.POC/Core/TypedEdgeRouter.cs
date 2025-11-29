@@ -71,6 +71,16 @@ public interface ITypedEdgeRouter
     /// Gets the item type this router handles.
     /// </summary>
     Type ItemType { get; }
+    
+    /// <summary>
+    /// Gets the target blocks for this edge.
+    /// </summary>
+    IReadOnlyList<IBlock> TargetBlocks { get; }
+    
+    /// <summary>
+    /// Gets the edge strategy used by this router.
+    /// </summary>
+    EdgeStrategy Strategy { get; }
 }
 
 /// <summary>
@@ -109,10 +119,22 @@ public sealed class TypedEdgeRouter<T> : ITypedEdgeRouter
     /// Gets the item type this router handles.
     /// </summary>
     public Type ItemType => typeof(T);
+    
+    /// <summary>
+    /// Gets the target blocks for this edge.
+    /// </summary>
+    public IReadOnlyList<IBlock> TargetBlocks => _edge.TargetBlocks;
+    
+    /// <summary>
+    /// Gets the edge strategy used by this router.
+    /// </summary>
+    public EdgeStrategy Strategy => _edge.Strategy;
 
     /// <summary>
-    /// Routes a single item using strongly-typed channels (no boxing).
-    /// The item is cast once from object to T, then the strategy handles the routing logic.
+    /// Routes a single item using strongly-typed channels.
+    /// For value types: boxing occurs when passed as object parameter, then unboxing on cast to T.
+    /// Reference types incur no boxing overhead. After cast, no boxing occurs during channel writes.
+    /// For zero-boxing routing, use the internal RouteTypedItemAsync method.
     /// </summary>
     public async Task RouteItemAsync(object item, CancellationToken cancellationToken)
     {
@@ -130,5 +152,23 @@ public sealed class TypedEdgeRouter<T> : ITypedEdgeRouter
     {
         // Delegate to strategy - NO BOXING
         await _edge.Strategy.RouteTypedItemAsync(item, _typedWriters, cancellationToken).ConfigureAwait(false);
+    }
+    
+    /// <summary>
+    /// Routes a typed item directly to a specific target block, bypassing the strategy.
+    /// Used internally for epoch stream unwrap/wrap container routing.
+    /// Note: Only called once per epoch stream container, not per data item,
+    /// so the dictionary lookup overhead is minimal.
+    /// </summary>
+    internal async Task RouteToSpecificTargetAsync(T item, IBlock targetBlock, CancellationToken cancellationToken)
+    {
+        if (_typedWriters.TryGetValue(targetBlock, out var writer))
+        {
+            await writer.WriteAsync(item, cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            throw new InvalidOperationException($"Target block {targetBlock.Name} is not a valid target for this router");
+        }
     }
 }

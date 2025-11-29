@@ -1,5 +1,6 @@
 namespace DataFlow.POC.Core;
 
+using System.Collections.Concurrent;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Threading.Channels;
@@ -11,6 +12,150 @@ using System.Threading.Channels;
 /// </summary>
 public static class ReflectionHelper
 {
+    /// <summary>
+    /// Cache for epoch stream type detection to avoid repeated reflection.
+    /// </summary>
+    private static readonly ConcurrentDictionary<Type, bool> _isEpochStreamTypeCache = new();
+    
+    /// <summary>
+    /// Cache for compiled epoch stream routing delegates to avoid repeated reflection.
+    /// Key is the item type (TItem), value is the compiled delegate.
+    /// </summary>
+    private static readonly ConcurrentDictionary<Type, Func<object, List<ITypedEdgeRouter>, CancellationToken, Task>> 
+        _epochRoutingCache = new();
+    
+    /// <summary>
+    /// Cache for compiled container routing delegates to avoid repeated reflection.
+    /// Key is the item type (TItem), value is the compiled delegate that can call RouteToSpecificTargetAsync.
+    /// </summary>
+    private static readonly ConcurrentDictionary<Type, Func<ITypedEdgeRouter, object, IBlock, CancellationToken, Task>> 
+        _containerRoutingCache = new();
+    
+    /// <summary>
+    /// Determines if a type is IEpochStream&lt;T&gt; for some T.
+    /// Uses caching to minimize reflection overhead.
+    /// </summary>
+    private static bool IsEpochStreamType(Type type)
+    {
+        return _isEpochStreamTypeCache.GetOrAdd(type, t =>
+            t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IEpochStream<>));
+    }
+    
+    /// <summary>
+    /// Extracts the item type from IEpochStream&lt;T&gt;.
+    /// </summary>
+    private static Type GetEpochStreamItemType(Type epochStreamType)
+    {
+        if (!IsEpochStreamType(epochStreamType))
+        {
+            throw new ArgumentException($"Type {epochStreamType} is not IEpochStream<T>", nameof(epochStreamType));
+        }
+        return epochStreamType.GetGenericArguments()[0];
+    }
+    
+    /// <summary>
+    /// Creates a compiled epoch stream routing delegate for a given edge data type.
+    /// This should be called once at graph build time if the edge routes epoch streams.
+    /// Returns null if the type is not an epoch stream type.
+    /// </summary>
+    public static Func<object, List<ITypedEdgeRouter>, CancellationToken, Task>? CreateEpochStreamRoutingDelegate(Type edgeDataType)
+    {
+        if (!IsEpochStreamType(edgeDataType))
+        {
+            return null;
+        }
+        
+        var itemType = GetEpochStreamItemType(edgeDataType);
+        
+        // Build the delegate using reflection (this happens once at graph build time)
+        var method = typeof(ReflectionHelper).GetMethod(
+            nameof(EnumerateAndRouteEpochStreamAsync),
+            BindingFlags.NonPublic | BindingFlags.Static);
+        
+        if (method == null)
+        {
+            throw new InvalidOperationException($"Could not find method {nameof(EnumerateAndRouteEpochStreamAsync)}");
+        }
+        
+        var genericMethod = method.MakeGenericMethod(itemType);
+        
+        // Create a compiled delegate that wraps the method invocation
+        return (stream, rtrs, ct) => (Task)genericMethod.Invoke(null, new object[] { stream, rtrs, ct })!;
+    }
+    
+    /// <summary>
+    /// Creates a compiled container routing delegate for epoch stream containers.
+    /// This eliminates dynamic casts and type checking during epoch stream routing.
+    /// Returns null if the type is not an epoch stream type.
+    /// Uses caching to avoid repeated compilation for the same item type.
+    /// 
+    /// The delegate signature is: (router, container, targetBlock, cancellationToken) => Task
+    /// This allows calling TypedEdgeRouter&lt;IEpochStream&lt;TItem&gt;&gt;.RouteToSpecificTargetAsync without dynamic casts.
+    /// </summary>
+    public static Func<ITypedEdgeRouter, object, IBlock, CancellationToken, Task>? CreateContainerRoutingDelegate(Type edgeDataType)
+    {
+        if (!IsEpochStreamType(edgeDataType))
+        {
+            return null;
+        }
+        
+        var itemType = GetEpochStreamItemType(edgeDataType);
+        
+        // Use cached delegate if available
+        return _containerRoutingCache.GetOrAdd(itemType, type =>
+        {
+            // We need to create a delegate that can call:
+            // TypedEdgeRouter<IEpochStream<TItem>>.RouteToSpecificTargetAsync(container, targetBlock, cancellationToken)
+            
+            // Build the typed method call using expression trees
+            var routerParam = Expression.Parameter(typeof(ITypedEdgeRouter), "router");
+            var containerParam = Expression.Parameter(typeof(object), "container");
+            var targetBlockParam = Expression.Parameter(typeof(IBlock), "targetBlock");
+            var cancellationTokenParam = Expression.Parameter(typeof(CancellationToken), "cancellationToken");
+            
+            // Create the specific router type: TypedEdgeRouter<IEpochStream<TItem>>
+            var epochStreamType = typeof(IEpochStream<>).MakeGenericType(type);
+            var routerType = typeof(TypedEdgeRouter<>).MakeGenericType(epochStreamType);
+            
+            // Cast router to TypedEdgeRouter<IEpochStream<TItem>>
+            var typedRouterExpr = Expression.Convert(routerParam, routerType);
+            
+            // Cast container to IEpochStream<TItem>
+            var typedContainerExpr = Expression.Convert(containerParam, epochStreamType);
+            
+            // Get the RouteToSpecificTargetAsync method
+            var methodInfo = routerType.GetMethod(
+                "RouteToSpecificTargetAsync",
+                BindingFlags.NonPublic | BindingFlags.Instance,
+                null,
+                new[] { epochStreamType, typeof(IBlock), typeof(CancellationToken) },
+                null);
+            
+            if (methodInfo == null)
+            {
+                throw new InvalidOperationException($"Could not find RouteToSpecificTargetAsync method on {routerType.Name}");
+            }
+            
+            // Build the method call: ((TypedEdgeRouter<IEpochStream<TItem>>)router).RouteToSpecificTargetAsync((IEpochStream<TItem>)container, targetBlock, cancellationToken)
+            var callExpr = Expression.Call(
+                typedRouterExpr,
+                methodInfo,
+                typedContainerExpr,
+                targetBlockParam,
+                cancellationTokenParam);
+            
+            // Compile to a delegate
+            var lambda = Expression.Lambda<Func<ITypedEdgeRouter, object, IBlock, CancellationToken, Task>>(
+                callExpr,
+                routerParam,
+                containerParam,
+                targetBlockParam,
+                cancellationTokenParam);
+            
+            return lambda.Compile();
+        });
+    }
+    
     /// <summary>
     /// Creates an empty typed stream for source blocks with no input.
     /// Equivalent to: return AsyncEnumerable.Empty&lt;T&gt;();
@@ -177,12 +322,27 @@ public static class ReflectionHelper
     ///           await ((TypedEdgeRouter&lt;T&gt;)router).RouteTypedItemAsync(item, cancellationToken);
     ///   }
     /// </summary>
+    /// <param name="typedStream">The typed stream to enumerate</param>
+    /// <param name="itemType">The type of items in the stream</param>
+    /// <param name="routers">The routers to route items through</param>
+    /// <param name="epochStreamDelegate">Pre-compiled epoch stream routing delegate (if available from graph build time)</param>
+    /// <param name="cancellationToken">Cancellation token</param>
     public static async Task EnumerateAndRouteTypedStreamAsync(
         object typedStream,
         Type itemType,
         List<ITypedEdgeRouter> routers,
+        Func<object, List<ITypedEdgeRouter>, CancellationToken, Task>? epochStreamDelegate,
         CancellationToken cancellationToken)
     {
+        // If we have a pre-compiled epoch stream delegate, use it directly
+        // This path eliminates all type checking and reflection during execution
+        if (epochStreamDelegate != null)
+        {
+            await epochStreamDelegate(typedStream, routers, cancellationToken);
+            return;
+        }
+        
+        // Fallback: compile the delegate at runtime (for backwards compatibility or buffer nodes)
         // Equivalent to: await EnumerateAndRouteTypedStreamGenericAsync<T>(typedStream, routers, cancellationToken);
         var method = typeof(ReflectionHelper).GetMethod(
             nameof(EnumerateAndRouteTypedStreamGenericAsync),
@@ -207,6 +367,38 @@ public static class ReflectionHelper
         List<ITypedEdgeRouter> routers,
         CancellationToken cancellationToken)
     {
+        // Check if T is IEpochStream<TItem> for some TItem
+        if (IsEpochStreamType(typeof(T)))
+        {
+            // T is IEpochStream<TItem> - unwrap and route items, then re-wrap
+            var itemType = GetEpochStreamItemType(typeof(T));
+            
+            // Get or create cached routing delegate for this item type
+            // This avoids reflection overhead for every epoch stream
+            var routingDelegate = _epochRoutingCache.GetOrAdd(itemType, type =>
+            {
+                // Build the delegate once using reflection
+                var method = typeof(ReflectionHelper).GetMethod(
+                    nameof(EnumerateAndRouteEpochStreamAsync),
+                    BindingFlags.NonPublic | BindingFlags.Static);
+                
+                if (method == null)
+                {
+                    throw new InvalidOperationException($"Could not find method {nameof(EnumerateAndRouteEpochStreamAsync)}");
+                }
+                
+                var genericMethod = method.MakeGenericMethod(type);
+                
+                // Create a compiled delegate that wraps the method invocation
+                return (stream, rtrs, ct) => (Task)genericMethod.Invoke(null, new object[] { stream, rtrs, ct })!;
+            });
+            
+            // Use the cached delegate to route the epoch stream
+            await routingDelegate(typedStream, routers, cancellationToken);
+            return;
+        }
+        
+        // Standard routing for non-epoch stream types
         var stream = (IAsyncEnumerable<T>)typedStream;
         await foreach (var item in stream.WithCancellation(cancellationToken))
         {
@@ -333,5 +525,440 @@ public static class ReflectionHelper
         var lambda = Expression.Lambda<Func<object, TRouter>>(newExpr, param);
         
         return lambda.Compile();
+    }
+    
+    /// <summary>
+    /// Enumerates epoch streams, unwraps them to route individual items,
+    /// and re-wraps items into new epoch streams for each downstream consumer.
+    /// This fixes the architectural mismatch where edges route containers instead of items.
+    /// </summary>
+    /// <typeparam name="TItem">The type of items within epoch streams</typeparam>
+    private static async Task EnumerateAndRouteEpochStreamAsync<TItem>(
+        object typedStream,
+        List<ITypedEdgeRouter> routers,
+        CancellationToken cancellationToken)
+    {
+        var stream = (IAsyncEnumerable<IEpochStream<TItem>>)typedStream;
+        
+        await foreach (var epochStream in stream.WithCancellation(cancellationToken))
+        {
+            // Step 1: Create downstream epoch streams and routing topology
+            // Topology includes pre-built dictionaries for O(1) lookups in the hot path
+            // Also returns totalMaxWriteTasks to avoid recalculating in the hot path
+            var (downstreamStreams, topologyByEdge, totalMaxWriteTasks) = CreateDownstreamEpochStreams(
+                epochStream, routers);
+            
+            // Step 2: Route the epoch stream containers to downstream blocks
+            // This happens before we start routing items
+            await RouteEpochStreamContainersAsync(
+                routers, downstreamStreams, cancellationToken);
+            
+            try
+            {
+                // Step 3: Route items from source epoch stream to downstream channels
+                // Uses pre-built topology for zero-lookup routing
+                await foreach (var item in epochStream.Items.WithCancellation(cancellationToken))
+                {
+                    await RouteItemToDownstreamChannelsAsync(
+                        item, topologyByEdge, totalMaxWriteTasks, cancellationToken);
+                }
+                
+                // Step 4: Complete all downstream channels (normal completion)
+                // Use HashSet to avoid completing the same stream multiple times (for competing consumers)
+                var completedStreams = new HashSet<ChannelBackedEpochStream<TItem>>();
+                foreach (var (_, channelStream) in downstreamStreams)
+                {
+                    if (completedStreams.Add(channelStream))
+                    {
+                        channelStream.CompleteWriting();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Complete all downstream channels with error
+                // Use HashSet to avoid completing the same stream multiple times (for competing consumers)
+                var completedStreams = new HashSet<ChannelBackedEpochStream<TItem>>();
+                foreach (var (_, channelStream) in downstreamStreams)
+                {
+                    if (completedStreams.Add(channelStream))
+                    {
+                        channelStream.CompleteWriting(ex);
+                    }
+                }
+                throw;
+            }
+            finally
+            {
+                // Dispose the source epoch stream
+                await epochStream.DisposeAsync();
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Routing topology for an edge router, optimized for zero-lookup item routing.
+    /// </summary>
+    private sealed class EdgeRoutingTopology<TItem>
+    {
+        /// <summary>
+        /// All routers for this edge (for broadcast/competing routing).
+        /// </summary>
+        public List<SingleTargetRouter<TItem>> AllRouters { get; init; } = new();
+        
+        /// <summary>
+        /// Router lookup by target block (for selective routing - O(1) lookup).
+        /// Null for non-selective strategies to avoid allocation overhead.
+        /// </summary>
+        public Dictionary<IBlock, SingleTargetRouter<TItem>>? RouterByBlock { get; init; }
+        
+        /// <summary>
+        /// Maximum number of write tasks for this edge (for optimal List capacity).
+        /// </summary>
+        public int MaxWriteTasks { get; init; }
+    }
+    
+    /// <summary>
+    /// Creates downstream epoch streams based on the edge strategy type.
+    /// Returns stream dictionary for container routing and routing topology for item routing.
+    /// Routing topology is pre-built to enable O(1) lookups in the hot path.
+    /// </summary>
+    private static (Dictionary<IBlock, ChannelBackedEpochStream<TItem>> streams, 
+                    Dictionary<ITypedEdgeRouter, EdgeRoutingTopology<TItem>> topologyByEdge,
+                    int totalMaxWriteTasks) 
+        CreateDownstreamEpochStreams<TItem>(
+            IEpochStream<TItem> sourceEpochStream,
+            List<ITypedEdgeRouter> edgeRouters)
+    {
+        // Calculate capacities during the loop to avoid double iteration
+        var totalTargetBlocks = 0;
+        var totalMaxWriteTasks = 0;
+        
+        // First pass: calculate capacities
+        foreach (var router in edgeRouters)
+        {
+            totalTargetBlocks += router.TargetBlocks.Count;
+        }
+        
+        var downstreamStreams = new Dictionary<IBlock, ChannelBackedEpochStream<TItem>>(totalTargetBlocks);
+        var topologyByEdge = new Dictionary<ITypedEdgeRouter, EdgeRoutingTopology<TItem>>(edgeRouters.Count);
+        
+        foreach (var router in edgeRouters)
+        {
+            var strategy = router.Strategy;
+            var singleTargetRouters = new List<SingleTargetRouter<TItem>>(router.TargetBlocks.Count);
+            
+            if (strategy.EdgeType == EdgeType.Competing)
+            {
+                CreateCompetingConsumerStreams(sourceEpochStream, router, downstreamStreams, singleTargetRouters);
+            }
+            else // Broadcast or Routed
+            {
+                CreateBroadcastOrRoutedStreams(sourceEpochStream, router, downstreamStreams, singleTargetRouters);
+            }
+            
+            // Build routing topology with O(1) lookup support for selective routing
+            Dictionary<IBlock, SingleTargetRouter<TItem>>? routerByBlock = null;
+            if (strategy is SelectiveRoutingEdgeStrategy<TItem>)
+            {
+                routerByBlock = new Dictionary<IBlock, SingleTargetRouter<TItem>>(singleTargetRouters.Count);
+                foreach (var r in singleTargetRouters)
+                {
+                    routerByBlock[r.TargetBlock] = r;
+                }
+            }
+            
+            // Calculate max write tasks for this edge to optimize List capacity in hot path
+            // Competing: 1 task, Broadcast: all routers, Selective: at most 1, Routed: all routers
+            int maxWriteTasks = strategy.EdgeType switch
+            {
+                EdgeType.Competing => 1,
+                EdgeType.Broadcast => singleTargetRouters.Count,
+                EdgeType.Routed => strategy is SelectiveRoutingEdgeStrategy<TItem> ? 1 : singleTargetRouters.Count,
+                _ => singleTargetRouters.Count
+            };
+            
+            var topology = new EdgeRoutingTopology<TItem>
+            {
+                AllRouters = singleTargetRouters,
+                RouterByBlock = routerByBlock,
+                MaxWriteTasks = maxWriteTasks
+            };
+            
+            topologyByEdge[router] = topology;
+            totalMaxWriteTasks += maxWriteTasks;
+        }
+        
+        return (downstreamStreams, topologyByEdge, totalMaxWriteTasks);
+    }
+    
+    /// <summary>
+    /// Creates a single shared channel-backed epoch stream for competing consumers.
+    /// All targets share ONE channel-backed epoch stream with a shared backing channel.
+    /// Creates a single-target router with the shared writer (deduplication happens in RouteItemToDownstreamChannelsAsync).
+    /// </summary>
+    private static void CreateCompetingConsumerStreams<TItem>(
+        IEpochStream<TItem> sourceEpochStream,
+        ITypedEdgeRouter router,
+        Dictionary<IBlock, ChannelBackedEpochStream<TItem>> downstreamStreams,
+        List<SingleTargetRouter<TItem>> singleTargetRouters)
+    {
+        var bufferCapacity = router.Strategy.BufferCapacity;
+        var sharedChannel = Channel.CreateBounded<TItem>(new BoundedChannelOptions(bufferCapacity)
+        {
+            FullMode = BoundedChannelFullMode.Wait,
+            SingleReader = false, // Multiple consumers compete for items
+            SingleWriter = true   // Single source enumeration writes items
+        });
+        
+        var sharedStream = new ChannelBackedEpochStream<TItem>(
+            sourceEpochStream.Epoch,
+            sourceEpochStream.EpochScope,
+            sharedChannel);
+        
+        var sharedWriter = sharedStream.GetWriter();
+        
+        // All target blocks share the same stream instance
+        // We create one router per target, but they all share the same writer
+        foreach (var targetBlock in router.TargetBlocks)
+        {
+            downstreamStreams[targetBlock] = sharedStream;
+            singleTargetRouters.Add(new SingleTargetRouter<TItem>(targetBlock, sharedWriter));
+        }
+    }
+    
+    /// <summary>
+    /// Creates unique channel-backed epoch streams for broadcast or routed topologies.
+    /// Each target gets its own channel-backed epoch stream and single-target router.
+    /// Single-target routers eliminate dictionary lookups in the hot path.
+    /// </summary>
+    private static void CreateBroadcastOrRoutedStreams<TItem>(
+        IEpochStream<TItem> sourceEpochStream,
+        ITypedEdgeRouter router,
+        Dictionary<IBlock, ChannelBackedEpochStream<TItem>> downstreamStreams,
+        List<SingleTargetRouter<TItem>> singleTargetRouters)
+    {
+        var bufferCapacity = router.Strategy.BufferCapacity;
+        
+        foreach (var targetBlock in router.TargetBlocks)
+        {
+            var channel = Channel.CreateBounded<TItem>(new BoundedChannelOptions(bufferCapacity)
+            {
+                FullMode = BoundedChannelFullMode.Wait,
+                SingleReader = true,  // Each target is the sole reader of its channel
+                SingleWriter = true   // Single source enumeration writes items
+            });
+            
+            var channelBackedStream = new ChannelBackedEpochStream<TItem>(
+                sourceEpochStream.Epoch,
+                sourceEpochStream.EpochScope,
+                channel);
+            
+            downstreamStreams[targetBlock] = channelBackedStream;
+            singleTargetRouters.Add(new SingleTargetRouter<TItem>(targetBlock, channelBackedStream.GetWriter()));
+        }
+    }
+    
+    /// <summary>
+    /// Routes epoch stream containers to downstream blocks.
+    /// Strategy-aware routing:
+    /// - Broadcast: Each target gets its own unique container
+    /// - Competing: All targets get the same shared container
+    /// - Routed: Each target gets its own unique container
+    /// Uses pre-compiled delegates to eliminate dynamic casts and type checking.
+    /// </summary>
+    private static async Task RouteEpochStreamContainersAsync<TItem>(
+        List<ITypedEdgeRouter> routers,
+        Dictionary<IBlock, ChannelBackedEpochStream<TItem>> downstreamStreams,
+        CancellationToken cancellationToken)
+    {
+        // Get the pre-compiled container routing delegate for this item type
+        // This eliminates dynamic casts and type checks for every router
+        var routingDelegate = _containerRoutingCache.TryGetValue(typeof(TItem), out var cached)
+            ? cached
+            : null;
+        
+        // Route containers to target blocks
+        foreach (var router in routers)
+        {
+            if (routingDelegate != null)
+            {
+                // Use pre-compiled delegate (zero overhead path)
+                if (router.Strategy.EdgeType == EdgeType.Competing)
+                {
+                    // Competing: All targets share the same container
+                    // Route the shared container once to all targets
+                    if (router.TargetBlocks.Count > 0)
+                    {
+                        var sharedContainer = downstreamStreams[router.TargetBlocks[0]];
+                        foreach (var targetBlock in router.TargetBlocks)
+                        {
+                            await routingDelegate(router, sharedContainer, targetBlock, cancellationToken);
+                        }
+                    }
+                }
+                else
+                {
+                    // Broadcast/Routed: Each target gets its own unique container
+                    foreach (var targetBlock in router.TargetBlocks)
+                    {
+                        var container = downstreamStreams[targetBlock];
+                        await routingDelegate(router, container, targetBlock, cancellationToken);
+                    }
+                }
+            }
+            else
+            {
+                // Fallback: use dynamic cast (only if delegate not available)
+                var routerType = router.GetType();
+                var expectedType = typeof(TypedEdgeRouter<>).MakeGenericType(typeof(IEpochStream<TItem>));
+                
+                if (routerType == expectedType)
+                {
+                    var typedRouter = router as dynamic;
+                    
+                    if (router.Strategy.EdgeType == EdgeType.Competing)
+                    {
+                        // Competing: All targets share the same container
+                        // Route the shared container once to all targets
+                        if (router.TargetBlocks.Count > 0)
+                        {
+                            var sharedContainer = downstreamStreams[router.TargetBlocks[0]];
+                            foreach (var targetBlock in router.TargetBlocks)
+                            {
+                                await typedRouter.RouteToSpecificTargetAsync(sharedContainer, targetBlock, cancellationToken);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // Broadcast/Routed: Each target gets its own unique container
+                        foreach (var targetBlock in router.TargetBlocks)
+                        {
+                            var container = downstreamStreams[targetBlock];
+                            await typedRouter.RouteToSpecificTargetAsync(container, targetBlock, cancellationToken);
+                        }
+                    }
+                }
+                else
+                {
+                    // Fallback for non-TypedEdgeRouter routers
+                    foreach (var targetBlock in router.TargetBlocks)
+                    {
+                        var container = downstreamStreams[targetBlock];
+                        await router.RouteItemAsync(container, cancellationToken);
+                    }
+                }
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Routes an individual item to downstream epoch stream channels using pre-built routing topology.
+    /// This eliminates dictionary lookups in the hot path - topology contains pre-built lookup structures.
+    /// Strategy-specific routing logic:
+    /// - Broadcast: Write to all routers concurrently
+    /// - Competing: Write once to shared channel (deduplication via HashSet)
+    /// - Routed/Selective: Use pre-built dictionary for O(1) target lookup
+    /// </summary>
+    private static async Task RouteItemToDownstreamChannelsAsync<TItem>(
+        TItem item,
+        Dictionary<ITypedEdgeRouter, EdgeRoutingTopology<TItem>> topologyByEdge,
+        int totalMaxWriteTasks,
+        CancellationToken cancellationToken)
+    {
+        // Use cached capacity to avoid recalculating Sum() in the hot path (per-item)
+        var writeTasks = new List<Task>(totalMaxWriteTasks);
+        var processedWriters = new HashSet<ChannelWriter<TItem>>(totalMaxWriteTasks);
+        
+        foreach (var (edgeRouter, topology) in topologyByEdge)
+        {
+            var strategy = edgeRouter.Strategy;
+            
+            if (strategy.EdgeType == EdgeType.Competing)
+            {
+                // Competing: Write to shared channel once
+                // All routers for competing edges have the same writer
+                if (topology.AllRouters.Count > 0)
+                {
+                    var router = topology.AllRouters[0];
+                    if (!processedWriters.Contains(router.Writer))
+                    {
+                        writeTasks.Add(router.WriteAsync(item, cancellationToken).AsTask());
+                        processedWriters.Add(router.Writer);
+                    }
+                }
+            }
+            else if (strategy.EdgeType == EdgeType.Broadcast)
+            {
+                // Broadcast: Write to all target channels concurrently
+                foreach (var router in topology.AllRouters)
+                {
+                    if (!processedWriters.Contains(router.Writer))
+                    {
+                        writeTasks.Add(router.WriteAsync(item, cancellationToken).AsTask());
+                        processedWriters.Add(router.Writer);
+                    }
+                }
+            }
+            else if (strategy.EdgeType == EdgeType.Routed)
+            {
+                // Routed/Selective: Use strategy's routing logic to determine target
+                // For selective routing, apply the route selector to each item
+                
+                if (strategy is SelectiveRoutingEdgeStrategy<TItem> selectiveStrategy)
+                {
+                    // Use the strategy's public method to evaluate the route key
+                    var routeKey = selectiveStrategy.EvaluateRouteKey(item);
+                    var routeKeyToBlock = selectiveStrategy.RouteKeyToBlock;
+                    
+                    if (routeKeyToBlock.TryGetValue(routeKey, out var targetBlock))
+                    {
+                        // Defensive: RouterByBlock must be non-null for selective routing
+                        // It's populated during topology creation for SelectiveRoutingEdgeStrategy
+                        if (topology.RouterByBlock == null)
+                        {
+                            throw new InvalidOperationException(
+                                $"RouterByBlock is null for selective routing strategy. " +
+                                $"This indicates a misconfigured topology.");
+                        }
+                        
+                        // O(1) lookup using pre-built dictionary
+                        if (topology.RouterByBlock.TryGetValue(targetBlock, out var router))
+                        {
+                            if (!processedWriters.Contains(router.Writer))
+                            {
+                                writeTasks.Add(router.WriteAsync(item, cancellationToken).AsTask());
+                                processedWriters.Add(router.Writer);
+                            }
+                        }
+                    }
+                    // If route not found, item is dropped (matches strategy behavior)
+                }
+                else
+                {
+                    // For other routed strategies, write to all targets (fallback)
+                    foreach (var router in topology.AllRouters)
+                    {
+                        if (!processedWriters.Contains(router.Writer))
+                        {
+                            writeTasks.Add(router.WriteAsync(item, cancellationToken).AsTask());
+                            processedWriters.Add(router.Writer);
+                        }
+                    }
+                }
+            }
+        }
+        
+        if (writeTasks.Count == 1)
+        {
+            // Optimization: single write doesn't need Task.WhenAll
+            await writeTasks[0].ConfigureAwait(false);
+        }
+        else if (writeTasks.Count > 1)
+        {
+            // Multiple writes: execute concurrently
+            await Task.WhenAll(writeTasks).ConfigureAwait(false);
+        }
     }
 }

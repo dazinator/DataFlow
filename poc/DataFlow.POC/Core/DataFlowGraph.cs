@@ -422,6 +422,24 @@ public class DataFlowGraph
             // Create typed edge router to eliminate boxing during routing
             edgeModel.Router = TypedEdgeRouterFactory.CreateTypedRouter(edge.DataType, edge, writers);
             
+            // Check if this edge routes epoch streams and pre-compile the routing delegate
+            // This eliminates type checking and reflection during execution for millions of epochs
+            edgeModel.EpochStreamRoutingDelegate = ReflectionHelper.CreateEpochStreamRoutingDelegate(edge.DataType);
+            
+            if (edgeModel.EpochStreamRoutingDelegate != null)
+            {
+                _logger.LogDebug("Created epoch stream routing delegate for edge: {Edge} with item type {ItemType}", 
+                    edge, edge.DataType.GetGenericArguments()[0].Name);
+                
+                // Also create container routing delegate to eliminate dynamic casts for container routing
+                edgeModel.ContainerRoutingDelegate = ReflectionHelper.CreateContainerRoutingDelegate(edge.DataType);
+                
+                if (edgeModel.ContainerRoutingDelegate != null)
+                {
+                    _logger.LogDebug("Created container routing delegate for edge: {Edge}", edge);
+                }
+            }
+            
             pipeline.EdgeRuntimeModels[edge] = edgeModel;
             
             _logger.LogDebug("Created typed channels for edge: {Edge} with strategy {Strategy} and type {DataType}", 
@@ -778,6 +796,7 @@ public class DataFlowGraph
 
                 // Collect output routers from edges and buffer nodes
                 var outputRouters = new List<ITypedEdgeRouter>();
+                Func<object, List<ITypedEdgeRouter>, CancellationToken, Task>? epochStreamDelegate = null;
 
                 // Add routers from regular edges
                 if (_outgoingEdges.ContainsKey(_block) && _outgoingEdges[_block].Count > 0)
@@ -788,6 +807,13 @@ public class DataFlowGraph
                         .Select(e => _pipeline.EdgeRuntimeModels[e].Router!)
                         .ToList();
                     outputRouters.AddRange(edgeRouters);
+                    
+                    // Check if any edge has a pre-compiled epoch stream routing delegate
+                    // All edges for the same block should have the same type, so we take the first non-null delegate
+                    epochStreamDelegate = edges
+                        .Where(e => _pipeline.EdgeRuntimeModels.ContainsKey(e))
+                        .Select(e => _pipeline.EdgeRuntimeModels[e].EpochStreamRoutingDelegate)
+                        .FirstOrDefault(d => d != null);
                 }
 
                 // Add routers for buffer nodes this block writes to
@@ -813,10 +839,12 @@ public class DataFlowGraph
                 {
                    logger.LogDebug("Block {BlockName} routing output to {RouterCount} routers", _block.Name, outputRouters.Count);
                     // Enumerate typed output and route without boxing
+                    // Use pre-compiled epoch stream delegate if available (eliminates type checks)
                     await ReflectionHelper.EnumerateAndRouteTypedStreamAsync(
                         typedOutput, 
                         adapter.OutputItemType, 
-                        outputRouters, 
+                        outputRouters,
+                        epochStreamDelegate,
                         context.CancellationToken);
                     
                     logger.LogDebug("Block {BlockName} completed routing output", _block.Name);
@@ -886,6 +914,21 @@ public class DataFlowGraph
         public Dictionary<IBlock, object> Writers { get; set; } = new();
         public Dictionary<IBlock, object> Readers { get; set; } = new();
         public ITypedEdgeRouter? Router { get; set; }
+        
+        /// <summary>
+        /// Pre-compiled epoch stream routing delegate.
+        /// If not null, this edge routes epoch streams and the delegate should be used
+        /// instead of generic routing logic. Compiled once at graph build time.
+        /// </summary>
+        public Func<object, List<ITypedEdgeRouter>, CancellationToken, Task>? EpochStreamRoutingDelegate { get; set; }
+        
+        /// <summary>
+        /// Pre-compiled container routing delegate for epoch streams.
+        /// If not null, this delegate routes individual epoch stream containers to a specific target block,
+        /// eliminating dynamic casts and type checks at runtime.
+        /// Signature: (router, container, targetBlock, cancellationToken) => Task
+        /// </summary>
+        public Func<ITypedEdgeRouter, object, IBlock, CancellationToken, Task>? ContainerRoutingDelegate { get; set; }
     }
 
     /// <summary>
