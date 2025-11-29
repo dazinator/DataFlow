@@ -7,21 +7,23 @@ using Shouldly;
 using Xunit;
 using DataFlow.POC.Tests.TestHelpers;
 using Microsoft.Extensions.DependencyInjection;
+using System.Collections.Concurrent;
 
 /// <summary>
-/// Tests for validating that multiple producers connecting to a single consumer
-/// without a buffer node throws a helpful error message.
+/// Tests documenting that multiple producers connecting to a single consumer
+/// IS a supported pattern (merge/join topology). Items from all producers
+/// are merged through the target block's input channel.
 /// </summary>
-public class MultiProducerValidationTests
+public class MultiProducerMergePatternTests
 {
     /// <summary>
-    /// Simple collector actor for validation tests.
+    /// Thread-safe collector actor for merge tests.
     /// </summary>
-    private class IntCollectorActor : IStreamActor<int, object>
+    private class ThreadSafeIntCollectorActor : IStreamActor<int, object>
     {
-        private readonly List<int> _collected;
+        private readonly ConcurrentBag<int> _collected;
 
-        public IntCollectorActor(List<int> collected)
+        public ThreadSafeIntCollectorActor(ConcurrentBag<int> collected)
         {
             _collected = collected;
         }
@@ -39,79 +41,90 @@ public class MultiProducerValidationTests
     }
 
     [Fact]
-    public void Connect_MultipleProducersToSingleConsumer_ThrowsInvalidOperationException()
+    public async Task Connect_MultipleProducersToSingleConsumer_MergesResults()
     {
         // Arrange
-        var processedItems = new List<int>();
+        var processedItems = new ConcurrentBag<int>();
         var processorServices = new ServiceCollection();
-        processorServices.AddScoped(_ => new IntCollectorActor(processedItems));
+        processorServices.AddScoped(_ => new ThreadSafeIntCollectorActor(processedItems));
         var processorSP = processorServices.BuildServiceProvider();
+        var commonServices = new ServiceCollection().BuildServiceProvider();
 
         var producer1 = BlockHelpers.CreateProducer<int>("producer1", ctx => ProduceIntegers(ctx, 1, 5));
-        var producer2 = BlockHelpers.CreateProducer<int>("producer2", ctx => ProduceIntegers(ctx, 6, 5));
-        var processor = BlockHelpers.CreateActor<int, object, IntCollectorActor>("processor", processorSP.GetRequiredService<IServiceScopeFactory>());
+        var producer2 = BlockHelpers.CreateProducer<int>("producer2", ctx => ProduceIntegers(ctx, 100, 5));
+        var processor = BlockHelpers.CreateActor<int, object, ThreadSafeIntCollectorActor>("processor", processorSP.GetRequiredService<IServiceScopeFactory>());
 
-        var builder = GraphHelpers.CreateGraphBuilder("multi-producer-test");
+        var builder = GraphHelpers.CreateGraphBuilder("multi-producer-merge-test");
         builder.AddBlock(producer1)
             .AddBlock(producer2)
             .AddBlock(processor)
-            .Connect(producer1, processor);
+            .Connect(producer1, processor)
+            .Connect(producer2, processor);
 
-        // Act & Assert
-        var exception = Should.Throw<InvalidOperationException>(() =>
-        {
-            builder.Connect(producer2, processor);
-        });
+        // Act
+        var graph = builder.Build();
+        var context = new ExecutionContext(commonServices, CancellationToken.None);
+        await graph.ExecuteAsync(context);
 
-        exception.Message.ShouldContain("Cannot connect block 'producer2' to 'processor'");
-        exception.Message.ShouldContain("already has an incoming connection from 'producer1'");
-        exception.Message.ShouldContain("Multiple producers to a single consumer require a buffer node");
-        exception.Message.ShouldContain("var buffer = builder.Buffer<T>(capacity: N);");
+        // Assert - Both producers' items should be collected
+        processedItems.Count.ShouldBe(10);
+        var itemsFromProducer1 = processedItems.Where(x => x < 100).OrderBy(x => x).ToList();
+        var itemsFromProducer2 = processedItems.Where(x => x >= 100).OrderBy(x => x).ToList();
+        
+        itemsFromProducer1.ShouldBe(Enumerable.Range(1, 5));
+        itemsFromProducer2.ShouldBe(Enumerable.Range(100, 5));
     }
 
     [Fact]
-    public void Connect_ByName_MultipleProducersToSingleConsumer_ThrowsInvalidOperationException()
+    public async Task Connect_ByName_MultipleProducersToSingleConsumer_MergesResults()
     {
         // Arrange
-        var processedItems = new List<int>();
+        var processedItems = new ConcurrentBag<int>();
         var processorServices = new ServiceCollection();
-        processorServices.AddScoped(_ => new IntCollectorActor(processedItems));
+        processorServices.AddScoped(_ => new ThreadSafeIntCollectorActor(processedItems));
         var processorSP = processorServices.BuildServiceProvider();
+        var commonServices = new ServiceCollection().BuildServiceProvider();
 
         var producer1 = BlockHelpers.CreateProducer<int>("producer1", ctx => ProduceIntegers(ctx, 1, 5));
-        var producer2 = BlockHelpers.CreateProducer<int>("producer2", ctx => ProduceIntegers(ctx, 6, 5));
-        var processor = BlockHelpers.CreateActor<int, object, IntCollectorActor>("processor", processorSP.GetRequiredService<IServiceScopeFactory>());
+        var producer2 = BlockHelpers.CreateProducer<int>("producer2", ctx => ProduceIntegers(ctx, 100, 5));
+        var processor = BlockHelpers.CreateActor<int, object, ThreadSafeIntCollectorActor>("processor", processorSP.GetRequiredService<IServiceScopeFactory>());
 
-        var builder = GraphHelpers.CreateGraphBuilder("multi-producer-test");
+        var builder = GraphHelpers.CreateGraphBuilder("multi-producer-merge-test");
         builder.AddBlock(producer1)
             .AddBlock(producer2)
             .AddBlock(processor)
-            .Connect("producer1", "processor");
+            .Connect("producer1", "processor")
+            .Connect("producer2", "processor");
 
-        // Act & Assert
-        var exception = Should.Throw<InvalidOperationException>(() =>
-        {
-            builder.Connect("producer2", "processor");
-        });
+        // Act
+        var graph = builder.Build();
+        var context = new ExecutionContext(commonServices, CancellationToken.None);
+        await graph.ExecuteAsync(context);
 
-        exception.Message.ShouldContain("Cannot connect block 'producer2' to 'processor'");
-        exception.Message.ShouldContain("already has an incoming connection from 'producer1'");
+        // Assert - Both producers' items should be collected
+        processedItems.Count.ShouldBe(10);
+        var itemsFromProducer1 = processedItems.Where(x => x < 100).OrderBy(x => x).ToList();
+        var itemsFromProducer2 = processedItems.Where(x => x >= 100).OrderBy(x => x).ToList();
+        
+        itemsFromProducer1.ShouldBe(Enumerable.Range(1, 5));
+        itemsFromProducer2.ShouldBe(Enumerable.Range(100, 5));
     }
 
     [Fact]
-    public void AddEdge_MultipleProducersToSingleConsumer_ThrowsInvalidOperationException()
+    public async Task AddEdge_MultipleProducersToSingleConsumer_MergesResults()
     {
         // Arrange
-        var processedItems = new List<int>();
+        var processedItems = new ConcurrentBag<int>();
         var processorServices = new ServiceCollection();
-        processorServices.AddScoped(_ => new IntCollectorActor(processedItems));
+        processorServices.AddScoped(_ => new ThreadSafeIntCollectorActor(processedItems));
         var processorSP = processorServices.BuildServiceProvider();
+        var commonServices = new ServiceCollection().BuildServiceProvider();
 
         var producer1 = BlockHelpers.CreateProducer<int>("producer1", ctx => ProduceIntegers(ctx, 1, 5));
-        var producer2 = BlockHelpers.CreateProducer<int>("producer2", ctx => ProduceIntegers(ctx, 6, 5));
-        var processor = BlockHelpers.CreateActor<int, object, IntCollectorActor>("processor", processorSP.GetRequiredService<IServiceScopeFactory>());
+        var producer2 = BlockHelpers.CreateProducer<int>("producer2", ctx => ProduceIntegers(ctx, 100, 5));
+        var processor = BlockHelpers.CreateActor<int, object, ThreadSafeIntCollectorActor>("processor", processorSP.GetRequiredService<IServiceScopeFactory>());
 
-        var builder = GraphHelpers.CreateGraphBuilder("multi-producer-test");
+        var builder = GraphHelpers.CreateGraphBuilder("multi-producer-merge-test");
         builder.AddBlock(producer1)
             .AddBlock(producer2)
             .AddBlock(processor);
@@ -120,34 +133,40 @@ public class MultiProducerValidationTests
         builder.AddEdge(edge1);
 
         var edge2 = new Edge(producer2, processor);
+        builder.AddEdge(edge2);
 
-        // Act & Assert
-        var exception = Should.Throw<InvalidOperationException>(() =>
-        {
-            builder.AddEdge(edge2);
-        });
+        // Act
+        var graph = builder.Build();
+        var context = new ExecutionContext(commonServices, CancellationToken.None);
+        await graph.ExecuteAsync(context);
 
-        exception.Message.ShouldContain("Cannot connect block 'producer2' to 'processor'");
-        exception.Message.ShouldContain("already has an incoming connection from 'producer1'");
+        // Assert - Both producers' items should be collected
+        processedItems.Count.ShouldBe(10);
+        var itemsFromProducer1 = processedItems.Where(x => x < 100).OrderBy(x => x).ToList();
+        var itemsFromProducer2 = processedItems.Where(x => x >= 100).OrderBy(x => x).ToList();
+        
+        itemsFromProducer1.ShouldBe(Enumerable.Range(1, 5));
+        itemsFromProducer2.ShouldBe(Enumerable.Range(100, 5));
     }
 
     [Fact]
-    public void Connect_WithBufferNode_MultipleProducersAllowed()
+    public async Task Connect_WithBufferNode_MultipleProducersAllowed()
     {
-        // Arrange
-        var processedItems = new List<int>();
+        // Arrange - Buffer nodes are another way to merge multiple producers
+        var processedItems = new ConcurrentBag<int>();
         var processorServices = new ServiceCollection();
-        processorServices.AddScoped(_ => new IntCollectorActor(processedItems));
+        processorServices.AddScoped(_ => new ThreadSafeIntCollectorActor(processedItems));
         var processorSP = processorServices.BuildServiceProvider();
+        var commonServices = new ServiceCollection().BuildServiceProvider();
 
         var producer1 = BlockHelpers.CreateProducer<int>("producer1", ctx => ProduceIntegers(ctx, 1, 5));
-        var producer2 = BlockHelpers.CreateProducer<int>("producer2", ctx => ProduceIntegers(ctx, 6, 5));
-        var processor = BlockHelpers.CreateActor<int, object, IntCollectorActor>("processor", processorSP.GetRequiredService<IServiceScopeFactory>());
+        var producer2 = BlockHelpers.CreateProducer<int>("producer2", ctx => ProduceIntegers(ctx, 100, 5));
+        var processor = BlockHelpers.CreateActor<int, object, ThreadSafeIntCollectorActor>("processor", processorSP.GetRequiredService<IServiceScopeFactory>());
 
         var builder = GraphHelpers.CreateGraphBuilder("multi-producer-with-buffer-test");
         var buffer = builder.Buffer<int>(capacity: 10);
         
-        // Act - This should NOT throw because we're using a buffer node
+        // Act - Buffer node provides explicit coordination point in the graph
         builder.AddBlock(producer1)
             .AddBlock(producer2)
             .AddBlock(processor)
@@ -155,33 +174,46 @@ public class MultiProducerValidationTests
             .Connect(producer2, buffer)
             .Connect(buffer, processor);
 
-        // Assert - Building the graph should succeed
+        // Assert - Building and executing the graph should succeed
         var graph = Should.NotThrow(() => builder.Build());
         graph.ShouldNotBeNull();
+        
+        var context = new ExecutionContext(commonServices, CancellationToken.None);
+        await graph.ExecuteAsync(context);
+        
+        // Both producers' items should be collected
+        processedItems.Count.ShouldBe(10);
+        var itemsFromProducer1 = processedItems.Where(x => x < 100).OrderBy(x => x).ToList();
+        var itemsFromProducer2 = processedItems.Where(x => x >= 100).OrderBy(x => x).ToList();
+        
+        itemsFromProducer1.ShouldBe(Enumerable.Range(1, 5));
+        itemsFromProducer2.ShouldBe(Enumerable.Range(100, 5));
     }
 
     [Fact]
-    public void Connect_SingleProducerToMultipleConsumers_Allowed()
+    public async Task Connect_SingleProducerToMultipleConsumers_Allowed()
     {
-        // Arrange - this should be allowed (broadcast pattern)
-        var processor1Items = new List<int>();
-        var processor2Items = new List<int>();
+        // Arrange - this is the broadcast pattern (one-to-many)
+        var processor1Items = new ConcurrentBag<int>();
+        var processor2Items = new ConcurrentBag<int>();
         
         var processor1Services = new ServiceCollection();
-        processor1Services.AddScoped(_ => new IntCollectorActor(processor1Items));
+        processor1Services.AddScoped(_ => new ThreadSafeIntCollectorActor(processor1Items));
         var processor1SP = processor1Services.BuildServiceProvider();
 
         var processor2Services = new ServiceCollection();
-        processor2Services.AddScoped(_ => new IntCollectorActor(processor2Items));
+        processor2Services.AddScoped(_ => new ThreadSafeIntCollectorActor(processor2Items));
         var processor2SP = processor2Services.BuildServiceProvider();
+        
+        var commonServices = new ServiceCollection().BuildServiceProvider();
 
         var producer = BlockHelpers.CreateProducer<int>("producer", ctx => ProduceIntegers(ctx, 1, 10));
-        var processor1 = BlockHelpers.CreateActor<int, object, IntCollectorActor>("processor1", processor1SP.GetRequiredService<IServiceScopeFactory>());
-        var processor2 = BlockHelpers.CreateActor<int, object, IntCollectorActor>("processor2", processor2SP.GetRequiredService<IServiceScopeFactory>());
+        var processor1 = BlockHelpers.CreateActor<int, object, ThreadSafeIntCollectorActor>("processor1", processor1SP.GetRequiredService<IServiceScopeFactory>());
+        var processor2 = BlockHelpers.CreateActor<int, object, ThreadSafeIntCollectorActor>("processor2", processor2SP.GetRequiredService<IServiceScopeFactory>());
 
         var builder = GraphHelpers.CreateGraphBuilder("broadcast-test");
         
-        // Act - This should NOT throw - one producer to many consumers is allowed
+        // Act - One producer to many consumers is allowed (broadcast)
         builder.AddBlock(producer)
             .AddBlock(processor1)
             .AddBlock(processor2)
@@ -191,6 +223,13 @@ public class MultiProducerValidationTests
         // Assert
         var graph = Should.NotThrow(() => builder.Build());
         graph.ShouldNotBeNull();
+        
+        var context = new ExecutionContext(commonServices, CancellationToken.None);
+        await graph.ExecuteAsync(context);
+        
+        // Both processors should receive all items (broadcast)
+        processor1Items.OrderBy(x => x).ShouldBe(Enumerable.Range(1, 10));
+        processor2Items.OrderBy(x => x).ShouldBe(Enumerable.Range(1, 10));
     }
 
     private static async IAsyncEnumerable<int> ProduceIntegers(IExecutionContext context, int start, int count)
