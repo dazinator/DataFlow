@@ -542,9 +542,9 @@ public static class ReflectionHelper
         
         await foreach (var epochStream in stream.WithCancellation(cancellationToken))
         {
-            // Step 1: Create downstream epoch streams and single-target routers
-            // Single-target routers eliminate dictionary lookups in the hot path
-            var (downstreamStreams, routersByEdge) = CreateDownstreamEpochStreams(
+            // Step 1: Create downstream epoch streams and routing topology
+            // Topology includes pre-built dictionaries for O(1) lookups in the hot path
+            var (downstreamStreams, topologyByEdge) = CreateDownstreamEpochStreams(
                 epochStream, routers);
             
             // Step 2: Route the epoch stream containers to downstream blocks
@@ -555,11 +555,11 @@ public static class ReflectionHelper
             try
             {
                 // Step 3: Route items from source epoch stream to downstream channels
-                // Uses single-target routers for zero-lookup routing
+                // Uses pre-built topology for zero-lookup routing
                 await foreach (var item in epochStream.Items.WithCancellation(cancellationToken))
                 {
                     await RouteItemToDownstreamChannelsAsync(
-                        item, routersByEdge, cancellationToken);
+                        item, topologyByEdge, cancellationToken);
                 }
                 
                 // Step 4: Complete all downstream channels (normal completion)
@@ -596,18 +596,35 @@ public static class ReflectionHelper
     }
     
     /// <summary>
+    /// Routing topology for an edge router, optimized for zero-lookup item routing.
+    /// </summary>
+    private sealed class EdgeRoutingTopology<TItem>
+    {
+        /// <summary>
+        /// All routers for this edge (for broadcast/competing routing).
+        /// </summary>
+        public List<SingleTargetRouter<TItem>> AllRouters { get; init; } = new();
+        
+        /// <summary>
+        /// Router lookup by target block (for selective routing - O(1) lookup).
+        /// Null for non-selective strategies to avoid allocation overhead.
+        /// </summary>
+        public Dictionary<IBlock, SingleTargetRouter<TItem>>? RouterByBlock { get; init; }
+    }
+    
+    /// <summary>
     /// Creates downstream epoch streams based on the edge strategy type.
-    /// Returns stream dictionary for container routing and a mapping from edge router to single-target routers.
-    /// Single-target routers eliminate dictionary lookups in the hot path.
+    /// Returns stream dictionary for container routing and routing topology for item routing.
+    /// Routing topology is pre-built to enable O(1) lookups in the hot path.
     /// </summary>
     private static (Dictionary<IBlock, ChannelBackedEpochStream<TItem>> streams, 
-                    Dictionary<ITypedEdgeRouter, List<SingleTargetRouter<TItem>>> routersByEdge) 
+                    Dictionary<ITypedEdgeRouter, EdgeRoutingTopology<TItem>> topologyByEdge) 
         CreateDownstreamEpochStreams<TItem>(
             IEpochStream<TItem> sourceEpochStream,
             List<ITypedEdgeRouter> edgeRouters)
     {
         var downstreamStreams = new Dictionary<IBlock, ChannelBackedEpochStream<TItem>>();
-        var routersByEdge = new Dictionary<ITypedEdgeRouter, List<SingleTargetRouter<TItem>>>();
+        var topologyByEdge = new Dictionary<ITypedEdgeRouter, EdgeRoutingTopology<TItem>>();
         
         foreach (var router in edgeRouters)
         {
@@ -623,10 +640,19 @@ public static class ReflectionHelper
                 CreateBroadcastOrRoutedStreams(sourceEpochStream, router, downstreamStreams, singleTargetRouters);
             }
             
-            routersByEdge[router] = singleTargetRouters;
+            // Build routing topology with O(1) lookup support for selective routing
+            var topology = new EdgeRoutingTopology<TItem>
+            {
+                AllRouters = singleTargetRouters,
+                RouterByBlock = strategy is SelectiveRoutingEdgeStrategy<TItem>
+                    ? singleTargetRouters.ToDictionary(r => r.TargetBlock)
+                    : null  // Avoid allocation for non-selective strategies
+            };
+            
+            topologyByEdge[router] = topology;
         }
         
-        return (downstreamStreams, routersByEdge);
+        return (downstreamStreams, topologyByEdge);
     }
     
     /// <summary>
@@ -791,23 +817,23 @@ public static class ReflectionHelper
     }
     
     /// <summary>
-    /// Routes an individual item to downstream epoch stream channels using single-target routers.
-    /// This eliminates dictionary lookups in the hot path - each router has a direct reference to its writer.
+    /// Routes an individual item to downstream epoch stream channels using pre-built routing topology.
+    /// This eliminates dictionary lookups in the hot path - topology contains pre-built lookup structures.
     /// Strategy-specific routing logic:
     /// - Broadcast: Write to all routers concurrently
     /// - Competing: Write once to shared channel (deduplication via HashSet)
-    /// - Routed/Selective: Apply routing logic to determine target router(s)
+    /// - Routed/Selective: Use pre-built dictionary for O(1) target lookup
     /// </summary>
     private static async Task RouteItemToDownstreamChannelsAsync<TItem>(
         TItem item,
-        Dictionary<ITypedEdgeRouter, List<SingleTargetRouter<TItem>>> routersByEdge,
+        Dictionary<ITypedEdgeRouter, EdgeRoutingTopology<TItem>> topologyByEdge,
         CancellationToken cancellationToken)
     {
         // Strategy-aware routing
         var writeTasks = new List<Task>();
         var processedWriters = new HashSet<ChannelWriter<TItem>>(); // Track to avoid duplicate writes
         
-        foreach (var (edgeRouter, singleTargetRouters) in routersByEdge)
+        foreach (var (edgeRouter, topology) in topologyByEdge)
         {
             var strategy = edgeRouter.Strategy;
             
@@ -815,9 +841,9 @@ public static class ReflectionHelper
             {
                 // Competing: Write to shared channel once
                 // All routers for competing edges have the same writer
-                if (singleTargetRouters.Count > 0)
+                if (topology.AllRouters.Count > 0)
                 {
-                    var router = singleTargetRouters[0];
+                    var router = topology.AllRouters[0];
                     if (!processedWriters.Contains(router.Writer))
                     {
                         writeTasks.Add(router.WriteAsync(item, cancellationToken).AsTask());
@@ -828,7 +854,7 @@ public static class ReflectionHelper
             else if (strategy.EdgeType == EdgeType.Broadcast)
             {
                 // Broadcast: Write to all target channels concurrently
-                foreach (var router in singleTargetRouters)
+                foreach (var router in topology.AllRouters)
                 {
                     if (!processedWriters.Contains(router.Writer))
                     {
@@ -844,17 +870,15 @@ public static class ReflectionHelper
                 
                 if (strategy is SelectiveRoutingEdgeStrategy<TItem> selectiveStrategy)
                 {
-                    // Build lookup dictionary for O(1) target block lookup (done once per edge)
-                    var routerByBlock = singleTargetRouters.ToDictionary(r => r.TargetBlock);
-                    
                     // Use the strategy's public method to evaluate the route key
                     var routeKey = selectiveStrategy.EvaluateRouteKey(item);
                     var routeKeyToBlock = selectiveStrategy.RouteKeyToBlock;
                     
                     if (routeKeyToBlock.TryGetValue(routeKey, out var targetBlock))
                     {
-                        // O(1) lookup for target router
-                        if (routerByBlock.TryGetValue(targetBlock, out var router))
+                        // O(1) lookup using pre-built dictionary
+                        if (topology.RouterByBlock != null && 
+                            topology.RouterByBlock.TryGetValue(targetBlock, out var router))
                         {
                             if (!processedWriters.Contains(router.Writer))
                             {
@@ -868,7 +892,7 @@ public static class ReflectionHelper
                 else
                 {
                     // For other routed strategies, write to all targets (fallback)
-                    foreach (var router in singleTargetRouters)
+                    foreach (var router in topology.AllRouters)
                     {
                         if (!processedWriters.Contains(router.Writer))
                         {
