@@ -234,7 +234,6 @@ internal class EpochStreamSourceBlock : BlockBase<object, IEpochStream<int>>
         {
             yield return startValue + i;
         }
-        await Task.CompletedTask;
     }
 }
 
