@@ -25,6 +25,13 @@ public static class ReflectionHelper
         _epochRoutingCache = new();
     
     /// <summary>
+    /// Cache for compiled container routing delegates to avoid repeated reflection.
+    /// Key is the item type (TItem), value is the compiled delegate that can call RouteToSpecificTargetAsync.
+    /// </summary>
+    private static readonly ConcurrentDictionary<Type, Func<ITypedEdgeRouter, object, IBlock, CancellationToken, Task>> 
+        _containerRoutingCache = new();
+    
+    /// <summary>
     /// Determines if a type is IEpochStream&lt;T&gt; for some T.
     /// Uses caching to minimize reflection overhead.
     /// </summary>
@@ -75,6 +82,80 @@ public static class ReflectionHelper
         // Create a compiled delegate that wraps the method invocation
         return (stream, rtrs, ct) => (Task)genericMethod.Invoke(null, new object[] { stream, rtrs, ct })!;
     }
+    
+    /// <summary>
+    /// Creates a compiled container routing delegate for epoch stream containers.
+    /// This eliminates dynamic casts and type checking during epoch stream routing.
+    /// Returns null if the type is not an epoch stream type.
+    /// Uses caching to avoid repeated compilation for the same item type.
+    /// 
+    /// The delegate signature is: (router, container, targetBlock, cancellationToken) => Task
+    /// This allows calling TypedEdgeRouter&lt;IEpochStream&lt;TItem&gt;&gt;.RouteToSpecificTargetAsync without dynamic casts.
+    /// </summary>
+    public static Func<ITypedEdgeRouter, object, IBlock, CancellationToken, Task>? CreateContainerRoutingDelegate(Type edgeDataType)
+    {
+        if (!IsEpochStreamType(edgeDataType))
+        {
+            return null;
+        }
+        
+        var itemType = GetEpochStreamItemType(edgeDataType);
+        
+        // Use cached delegate if available
+        return _containerRoutingCache.GetOrAdd(itemType, type =>
+        {
+            // We need to create a delegate that can call:
+            // TypedEdgeRouter<IEpochStream<TItem>>.RouteToSpecificTargetAsync(container, targetBlock, cancellationToken)
+            
+            // Build the typed method call using expression trees
+            var routerParam = Expression.Parameter(typeof(ITypedEdgeRouter), "router");
+            var containerParam = Expression.Parameter(typeof(object), "container");
+            var targetBlockParam = Expression.Parameter(typeof(IBlock), "targetBlock");
+            var cancellationTokenParam = Expression.Parameter(typeof(CancellationToken), "cancellationToken");
+            
+            // Create the specific router type: TypedEdgeRouter<IEpochStream<TItem>>
+            var epochStreamType = typeof(IEpochStream<>).MakeGenericType(type);
+            var routerType = typeof(TypedEdgeRouter<>).MakeGenericType(epochStreamType);
+            
+            // Cast router to TypedEdgeRouter<IEpochStream<TItem>>
+            var typedRouterExpr = Expression.Convert(routerParam, routerType);
+            
+            // Cast container to IEpochStream<TItem>
+            var typedContainerExpr = Expression.Convert(containerParam, epochStreamType);
+            
+            // Get the RouteToSpecificTargetAsync method
+            var methodInfo = routerType.GetMethod(
+                "RouteToSpecificTargetAsync",
+                BindingFlags.NonPublic | BindingFlags.Instance,
+                null,
+                new[] { epochStreamType, typeof(IBlock), typeof(CancellationToken) },
+                null);
+            
+            if (methodInfo == null)
+            {
+                throw new InvalidOperationException($"Could not find RouteToSpecificTargetAsync method on {routerType.Name}");
+            }
+            
+            // Build the method call: ((TypedEdgeRouter<IEpochStream<TItem>>)router).RouteToSpecificTargetAsync((IEpochStream<TItem>)container, targetBlock, cancellationToken)
+            var callExpr = Expression.Call(
+                typedRouterExpr,
+                methodInfo,
+                typedContainerExpr,
+                targetBlockParam,
+                cancellationTokenParam);
+            
+            // Compile to a delegate
+            var lambda = Expression.Lambda<Func<ITypedEdgeRouter, object, IBlock, CancellationToken, Task>>(
+                callExpr,
+                routerParam,
+                containerParam,
+                targetBlockParam,
+                cancellationTokenParam);
+            
+            return lambda.Compile();
+        });
+    }
+    
     /// <summary>
     /// Creates an empty typed stream for source blocks with no input.
     /// Equivalent to: return AsyncEnumerable.Empty&lt;T&gt;();
@@ -604,22 +685,25 @@ public static class ReflectionHelper
     /// - Broadcast: Each target gets its own unique container
     /// - Competing: All targets get the same shared container
     /// - Routed: Each target gets its own unique container
+    /// Uses pre-compiled delegates to eliminate dynamic casts and type checking.
     /// </summary>
     private static async Task RouteEpochStreamContainersAsync<TItem>(
         List<ITypedEdgeRouter> routers,
         Dictionary<IBlock, ChannelBackedEpochStream<TItem>> downstreamStreams,
         CancellationToken cancellationToken)
     {
+        // Get the pre-compiled container routing delegate for this item type
+        // This eliminates dynamic casts and type checks for every router
+        var routingDelegate = _containerRoutingCache.TryGetValue(typeof(TItem), out var cached)
+            ? cached
+            : null;
+        
         // Route containers to target blocks
         foreach (var router in routers)
         {
-            var routerType = router.GetType();
-            var expectedType = typeof(TypedEdgeRouter<>).MakeGenericType(typeof(IEpochStream<TItem>));
-            
-            if (routerType == expectedType)
+            if (routingDelegate != null)
             {
-                var typedRouter = router as dynamic;
-                
+                // Use pre-compiled delegate (zero overhead path)
                 if (router.Strategy.EdgeType == EdgeType.Competing)
                 {
                     // Competing: All targets share the same container
@@ -629,7 +713,7 @@ public static class ReflectionHelper
                         var sharedContainer = downstreamStreams[router.TargetBlocks[0]];
                         foreach (var targetBlock in router.TargetBlocks)
                         {
-                            await typedRouter.RouteToSpecificTargetAsync(sharedContainer, targetBlock, cancellationToken);
+                            await routingDelegate(router, sharedContainer, targetBlock, cancellationToken);
                         }
                     }
                 }
@@ -639,17 +723,51 @@ public static class ReflectionHelper
                     foreach (var targetBlock in router.TargetBlocks)
                     {
                         var container = downstreamStreams[targetBlock];
-                        await typedRouter.RouteToSpecificTargetAsync(container, targetBlock, cancellationToken);
+                        await routingDelegate(router, container, targetBlock, cancellationToken);
                     }
                 }
             }
             else
             {
-                // Fallback for non-TypedEdgeRouter routers
-                foreach (var targetBlock in router.TargetBlocks)
+                // Fallback: use dynamic cast (only if delegate not available)
+                var routerType = router.GetType();
+                var expectedType = typeof(TypedEdgeRouter<>).MakeGenericType(typeof(IEpochStream<TItem>));
+                
+                if (routerType == expectedType)
                 {
-                    var container = downstreamStreams[targetBlock];
-                    await router.RouteItemAsync(container, cancellationToken);
+                    var typedRouter = router as dynamic;
+                    
+                    if (router.Strategy.EdgeType == EdgeType.Competing)
+                    {
+                        // Competing: All targets share the same container
+                        // Route the shared container once to all targets
+                        if (router.TargetBlocks.Count > 0)
+                        {
+                            var sharedContainer = downstreamStreams[router.TargetBlocks[0]];
+                            foreach (var targetBlock in router.TargetBlocks)
+                            {
+                                await typedRouter.RouteToSpecificTargetAsync(sharedContainer, targetBlock, cancellationToken);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // Broadcast/Routed: Each target gets its own unique container
+                        foreach (var targetBlock in router.TargetBlocks)
+                        {
+                            var container = downstreamStreams[targetBlock];
+                            await typedRouter.RouteToSpecificTargetAsync(container, targetBlock, cancellationToken);
+                        }
+                    }
+                }
+                else
+                {
+                    // Fallback for non-TypedEdgeRouter routers
+                    foreach (var targetBlock in router.TargetBlocks)
+                    {
+                        var container = downstreamStreams[targetBlock];
+                        await router.RouteItemAsync(container, cancellationToken);
+                    }
                 }
             }
         }

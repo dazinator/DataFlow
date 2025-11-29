@@ -430,6 +430,14 @@ public class DataFlowGraph
             {
                 _logger.LogDebug("Created epoch stream routing delegate for edge: {Edge} with item type {ItemType}", 
                     edge, edge.DataType.GetGenericArguments()[0].Name);
+                
+                // Also create container routing delegate to eliminate dynamic casts for container routing
+                edgeModel.ContainerRoutingDelegate = ReflectionHelper.CreateContainerRoutingDelegate(edge.DataType);
+                
+                if (edgeModel.ContainerRoutingDelegate != null)
+                {
+                    _logger.LogDebug("Created container routing delegate for edge: {Edge}", edge);
+                }
             }
             
             pipeline.EdgeRuntimeModels[edge] = edgeModel;
@@ -913,6 +921,14 @@ public class DataFlowGraph
         /// instead of generic routing logic. Compiled once at graph build time.
         /// </summary>
         public Func<object, List<ITypedEdgeRouter>, CancellationToken, Task>? EpochStreamRoutingDelegate { get; set; }
+        
+        /// <summary>
+        /// Pre-compiled container routing delegate for epoch streams.
+        /// If not null, this delegate routes individual epoch stream containers to a specific target block,
+        /// eliminating dynamic casts and type checks at runtime.
+        /// Signature: (router, container, targetBlock, cancellationToken) => Task
+        /// </summary>
+        public Func<ITypedEdgeRouter, object, IBlock, CancellationToken, Task>? ContainerRoutingDelegate { get; set; }
     }
 
     /// <summary>
