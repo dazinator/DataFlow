@@ -610,6 +610,11 @@ public static class ReflectionHelper
         /// Null for non-selective strategies to avoid allocation overhead.
         /// </summary>
         public Dictionary<IBlock, SingleTargetRouter<TItem>>? RouterByBlock { get; init; }
+        
+        /// <summary>
+        /// Maximum number of write tasks for this edge (for optimal List capacity).
+        /// </summary>
+        public int MaxWriteTasks { get; init; }
     }
     
     /// <summary>
@@ -623,13 +628,16 @@ public static class ReflectionHelper
             IEpochStream<TItem> sourceEpochStream,
             List<ITypedEdgeRouter> edgeRouters)
     {
-        var downstreamStreams = new Dictionary<IBlock, ChannelBackedEpochStream<TItem>>();
-        var topologyByEdge = new Dictionary<ITypedEdgeRouter, EdgeRoutingTopology<TItem>>();
+        // Pre-calculate total target blocks across all routers for optimal dictionary capacity
+        var totalTargetBlocks = edgeRouters.Sum(r => r.TargetBlocks.Count);
+        
+        var downstreamStreams = new Dictionary<IBlock, ChannelBackedEpochStream<TItem>>(totalTargetBlocks);
+        var topologyByEdge = new Dictionary<ITypedEdgeRouter, EdgeRoutingTopology<TItem>>(edgeRouters.Count);
         
         foreach (var router in edgeRouters)
         {
             var strategy = router.Strategy;
-            var singleTargetRouters = new List<SingleTargetRouter<TItem>>();
+            var singleTargetRouters = new List<SingleTargetRouter<TItem>>(router.TargetBlocks.Count);
             
             if (strategy.EdgeType == EdgeType.Competing)
             {
@@ -641,12 +649,31 @@ public static class ReflectionHelper
             }
             
             // Build routing topology with O(1) lookup support for selective routing
+            Dictionary<IBlock, SingleTargetRouter<TItem>>? routerByBlock = null;
+            if (strategy is SelectiveRoutingEdgeStrategy<TItem>)
+            {
+                routerByBlock = new Dictionary<IBlock, SingleTargetRouter<TItem>>(singleTargetRouters.Count);
+                foreach (var r in singleTargetRouters)
+                {
+                    routerByBlock[r.TargetBlock] = r;
+                }
+            }
+            
+            // Calculate max write tasks for this edge to optimize List capacity in hot path
+            // Competing: 1 task, Broadcast: all routers, Selective: at most 1, Routed: all routers
+            int maxWriteTasks = strategy.EdgeType switch
+            {
+                EdgeType.Competing => 1,
+                EdgeType.Broadcast => singleTargetRouters.Count,
+                EdgeType.Routed => strategy is SelectiveRoutingEdgeStrategy<TItem> ? 1 : singleTargetRouters.Count,
+                _ => singleTargetRouters.Count
+            };
+            
             var topology = new EdgeRoutingTopology<TItem>
             {
                 AllRouters = singleTargetRouters,
-                RouterByBlock = strategy is SelectiveRoutingEdgeStrategy<TItem>
-                    ? singleTargetRouters.ToDictionary(r => r.TargetBlock)
-                    : null  // Avoid allocation for non-selective strategies
+                RouterByBlock = routerByBlock,
+                MaxWriteTasks = maxWriteTasks
             };
             
             topologyByEdge[router] = topology;
@@ -829,9 +856,12 @@ public static class ReflectionHelper
         Dictionary<ITypedEdgeRouter, EdgeRoutingTopology<TItem>> topologyByEdge,
         CancellationToken cancellationToken)
     {
-        // Strategy-aware routing
-        var writeTasks = new List<Task>();
-        var processedWriters = new HashSet<ChannelWriter<TItem>>(); // Track to avoid duplicate writes
+        // Pre-calculate capacities to avoid resizing during item routing
+        var totalMaxWriteTasks = topologyByEdge.Values.Sum(t => t.MaxWriteTasks);
+        
+        // Strategy-aware routing with pre-sized collections
+        var writeTasks = new List<Task>(totalMaxWriteTasks);
+        var processedWriters = new HashSet<ChannelWriter<TItem>>(totalMaxWriteTasks);
         
         foreach (var (edgeRouter, topology) in topologyByEdge)
         {
