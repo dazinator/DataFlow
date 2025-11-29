@@ -544,7 +544,7 @@ public static class ReflectionHelper
         {
             // Step 1: Create downstream epoch streams for each router
             // Each router gets its own channel-backed epoch stream
-            var downstreamStreams = CreateDownstreamEpochStreams(
+            var (downstreamStreams, downstreamWriters) = CreateDownstreamEpochStreams(
                 epochStream, routers);
             
             // Step 2: Route the epoch stream containers to downstream blocks
@@ -558,7 +558,7 @@ public static class ReflectionHelper
                 await foreach (var item in epochStream.Items.WithCancellation(cancellationToken))
                 {
                     await RouteItemToDownstreamChannelsAsync(
-                        item, routers, downstreamStreams, cancellationToken);
+                        item, routers, downstreamWriters, cancellationToken);
                 }
                 
                 // Step 4: Complete all downstream channels (normal completion)
@@ -596,13 +596,17 @@ public static class ReflectionHelper
     
     /// <summary>
     /// Creates downstream epoch streams based on the edge strategy type.
+    /// Returns both stream and writer dictionaries to eliminate repeated GetWriter() calls
+    /// in the hot path of item routing.
     /// </summary>
-    private static Dictionary<IBlock, ChannelBackedEpochStream<TItem>> 
+    private static (Dictionary<IBlock, ChannelBackedEpochStream<TItem>> streams, 
+                    Dictionary<IBlock, ChannelWriter<TItem>> writers) 
         CreateDownstreamEpochStreams<TItem>(
             IEpochStream<TItem> sourceEpochStream,
             List<ITypedEdgeRouter> routers)
     {
         var downstreamStreams = new Dictionary<IBlock, ChannelBackedEpochStream<TItem>>();
+        var downstreamWriters = new Dictionary<IBlock, ChannelWriter<TItem>>();
         
         foreach (var router in routers)
         {
@@ -610,25 +614,27 @@ public static class ReflectionHelper
             
             if (strategy.EdgeType == EdgeType.Competing)
             {
-                CreateCompetingConsumerStreams(sourceEpochStream, router, downstreamStreams);
+                CreateCompetingConsumerStreams(sourceEpochStream, router, downstreamStreams, downstreamWriters);
             }
             else // Broadcast or Routed
             {
-                CreateBroadcastOrRoutedStreams(sourceEpochStream, router, downstreamStreams);
+                CreateBroadcastOrRoutedStreams(sourceEpochStream, router, downstreamStreams, downstreamWriters);
             }
         }
         
-        return downstreamStreams;
+        return (downstreamStreams, downstreamWriters);
     }
     
     /// <summary>
     /// Creates a single shared channel-backed epoch stream for competing consumers.
     /// All targets share ONE channel-backed epoch stream with a shared backing channel.
+    /// Also pre-extracts the writer to eliminate GetWriter() calls in the hot path.
     /// </summary>
     private static void CreateCompetingConsumerStreams<TItem>(
         IEpochStream<TItem> sourceEpochStream,
         ITypedEdgeRouter router,
-        Dictionary<IBlock, ChannelBackedEpochStream<TItem>> downstreamStreams)
+        Dictionary<IBlock, ChannelBackedEpochStream<TItem>> downstreamStreams,
+        Dictionary<IBlock, ChannelWriter<TItem>> downstreamWriters)
     {
         var bufferCapacity = router.Strategy.BufferCapacity;
         var sharedChannel = Channel.CreateBounded<TItem>(new BoundedChannelOptions(bufferCapacity)
@@ -643,21 +649,26 @@ public static class ReflectionHelper
             sourceEpochStream.EpochScope,
             sharedChannel);
         
-        // All target blocks share the same stream instance
+        var sharedWriter = sharedStream.GetWriter();
+        
+        // All target blocks share the same stream instance and writer
         foreach (var targetBlock in router.TargetBlocks)
         {
             downstreamStreams[targetBlock] = sharedStream;
+            downstreamWriters[targetBlock] = sharedWriter;
         }
     }
     
     /// <summary>
     /// Creates unique channel-backed epoch streams for broadcast or routed topologies.
     /// Each target gets its own channel-backed epoch stream.
+    /// Also pre-extracts writers to eliminate GetWriter() calls in the hot path.
     /// </summary>
     private static void CreateBroadcastOrRoutedStreams<TItem>(
         IEpochStream<TItem> sourceEpochStream,
         ITypedEdgeRouter router,
-        Dictionary<IBlock, ChannelBackedEpochStream<TItem>> downstreamStreams)
+        Dictionary<IBlock, ChannelBackedEpochStream<TItem>> downstreamStreams,
+        Dictionary<IBlock, ChannelWriter<TItem>> downstreamWriters)
     {
         var bufferCapacity = router.Strategy.BufferCapacity;
         
@@ -676,6 +687,7 @@ public static class ReflectionHelper
                 channel);
             
             downstreamStreams[targetBlock] = channelBackedStream;
+            downstreamWriters[targetBlock] = channelBackedStream.GetWriter();
         }
     }
     
@@ -779,16 +791,17 @@ public static class ReflectionHelper
     /// - Broadcast: Write to all target channels concurrently
     /// - Competing: Write to one shared channel (all targets have same stream instance)
     /// - Routed/Selective: Apply routing logic to determine target channel(s)
+    /// Uses pre-extracted writers to eliminate GetWriter() overhead in the hot path.
     /// </summary>
     private static async Task RouteItemToDownstreamChannelsAsync<TItem>(
         TItem item,
         List<ITypedEdgeRouter> routers,
-        Dictionary<IBlock, ChannelBackedEpochStream<TItem>> downstreamStreams,
+        Dictionary<IBlock, ChannelWriter<TItem>> downstreamWriters,
         CancellationToken cancellationToken)
     {
         // Strategy-aware routing
         var writeTasks = new List<Task>();
-        var processedStreams = new HashSet<ChannelBackedEpochStream<TItem>>(); // Track to avoid duplicate writes
+        var processedWriters = new HashSet<ChannelWriter<TItem>>(); // Track to avoid duplicate writes
         
         foreach (var router in routers)
         {
@@ -796,14 +809,14 @@ public static class ReflectionHelper
             
             if (strategy.EdgeType == EdgeType.Competing)
             {
-                // Competing: Write to shared channel once (all targets have same stream)
+                // Competing: Write to shared channel once (all targets have same writer)
                 if (router.TargetBlocks.Count > 0)
                 {
-                    var sharedStream = downstreamStreams[router.TargetBlocks[0]];
-                    if (!processedStreams.Contains(sharedStream))
+                    var sharedWriter = downstreamWriters[router.TargetBlocks[0]];
+                    if (!processedWriters.Contains(sharedWriter))
                     {
-                        writeTasks.Add(sharedStream.GetWriter().WriteAsync(item, cancellationToken).AsTask());
-                        processedStreams.Add(sharedStream);
+                        writeTasks.Add(sharedWriter.WriteAsync(item, cancellationToken).AsTask());
+                        processedWriters.Add(sharedWriter);
                     }
                 }
             }
@@ -812,11 +825,11 @@ public static class ReflectionHelper
                 // Broadcast: Write to all target channels concurrently
                 foreach (var targetBlock in router.TargetBlocks)
                 {
-                    var stream = downstreamStreams[targetBlock];
-                    if (!processedStreams.Contains(stream))
+                    var writer = downstreamWriters[targetBlock];
+                    if (!processedWriters.Contains(writer))
                     {
-                        writeTasks.Add(stream.GetWriter().WriteAsync(item, cancellationToken).AsTask());
-                        processedStreams.Add(stream);
+                        writeTasks.Add(writer.WriteAsync(item, cancellationToken).AsTask());
+                        processedWriters.Add(writer);
                     }
                 }
             }
@@ -833,11 +846,11 @@ public static class ReflectionHelper
                     
                     if (routeKeyToBlock.TryGetValue(routeKey, out var targetBlock))
                     {
-                        var stream = downstreamStreams[targetBlock];
-                        if (!processedStreams.Contains(stream))
+                        var writer = downstreamWriters[targetBlock];
+                        if (!processedWriters.Contains(writer))
                         {
-                            writeTasks.Add(stream.GetWriter().WriteAsync(item, cancellationToken).AsTask());
-                            processedStreams.Add(stream);
+                            writeTasks.Add(writer.WriteAsync(item, cancellationToken).AsTask());
+                            processedWriters.Add(writer);
                         }
                     }
                     // If route not found, item is dropped (matches strategy behavior)
@@ -847,11 +860,11 @@ public static class ReflectionHelper
                     // For other routed strategies, write to all targets (fallback)
                     foreach (var targetBlock in router.TargetBlocks)
                     {
-                        var stream = downstreamStreams[targetBlock];
-                        if (!processedStreams.Contains(stream))
+                        var writer = downstreamWriters[targetBlock];
+                        if (!processedWriters.Contains(writer))
                         {
-                            writeTasks.Add(stream.GetWriter().WriteAsync(item, cancellationToken).AsTask());
-                            processedStreams.Add(stream);
+                            writeTasks.Add(writer.WriteAsync(item, cancellationToken).AsTask());
+                            processedWriters.Add(writer);
                         }
                     }
                 }
