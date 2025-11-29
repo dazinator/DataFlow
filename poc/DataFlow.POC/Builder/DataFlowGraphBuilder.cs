@@ -20,6 +20,7 @@ public class DataFlowGraphBuilder
     private readonly Dictionary<string, IBlock> _blocksByName = new(); // Track blocks by their registration name
     private readonly List<BufferNode> _bufferNodes = new();
     private readonly List<Edge> _edges = new();
+    private readonly Dictionary<IBlock, List<Edge>> _incomingEdges = new(); // Track incoming edges per block
     private readonly List<(IBlock source, BufferNode target)> _blockToBufferConnections = new();
     private readonly List<(BufferNode source, IBlock target)> _bufferToBlockConnections = new();
     private EpochSourceNode? _epochSource;
@@ -179,8 +180,33 @@ public class DataFlowGraphBuilder
         BufferMode bufferMode,
         int bufferCapacity)
     {
+        // Validate that target block doesn't already have incoming edges
+        // Multiple producers to a single consumer require a buffer node
+        if (_incomingEdges.TryGetValue(target, out var existingEdges) && existingEdges.Count > 0)
+        {
+            var existingSource = existingEdges[0].SourceBlock;
+            throw new InvalidOperationException(
+                $"Cannot connect block '{source.Name}' to '{target.Name}': " +
+                $"Target block already has an incoming connection from '{existingSource.Name}'.\n\n" +
+                $"Multiple producers to a single consumer require a buffer node to coordinate them.\n\n" +
+                $"Use this pattern:\n" +
+                $"  var buffer = builder.Buffer<T>(capacity: N);\n" +
+                $"  builder.Connect(source1, buffer);\n" +
+                $"  builder.Connect(source2, buffer);\n" +
+                $"  builder.Connect(buffer, target);\n\n" +
+                $"Where T is your data type and N is the buffer capacity.");
+        }
+
         var edge = new Edge(source, target, bufferMode, bufferCapacity);
         _edges.Add(edge);
+        
+        // Track incoming edges for this target
+        if (!_incomingEdges.ContainsKey(target))
+        {
+            _incomingEdges[target] = new List<Edge>();
+        }
+        _incomingEdges[target].Add(edge);
+        
         return this;
     }
 
@@ -190,7 +216,37 @@ public class DataFlowGraphBuilder
     /// </summary>
     public DataFlowGraphBuilder AddEdge(Edge edge)
     {
+        // Validate each target in the edge
+        foreach (var target in edge.TargetBlocks)
+        {
+            if (_incomingEdges.TryGetValue(target, out var existingEdges) && existingEdges.Count > 0)
+            {
+                var existingSource = existingEdges[0].SourceBlock;
+                throw new InvalidOperationException(
+                    $"Cannot connect block '{edge.SourceBlock.Name}' to '{target.Name}': " +
+                    $"Target block already has an incoming connection from '{existingSource.Name}'.\n\n" +
+                    $"Multiple producers to a single consumer require a buffer node to coordinate them.\n\n" +
+                    $"Use this pattern:\n" +
+                    $"  var buffer = builder.Buffer<T>(capacity: N);\n" +
+                    $"  builder.Connect(source1, buffer);\n" +
+                    $"  builder.Connect(source2, buffer);\n" +
+                    $"  builder.Connect(buffer, target);\n\n" +
+                    $"Where T is your data type and N is the buffer capacity.");
+            }
+        }
+
         _edges.Add(edge);
+        
+        // Track incoming edges for all targets in the edge
+        foreach (var target in edge.TargetBlocks)
+        {
+            if (!_incomingEdges.ContainsKey(target))
+            {
+                _incomingEdges[target] = new List<Edge>();
+            }
+            _incomingEdges[target].Add(edge);
+        }
+        
         return this;
     }
 
