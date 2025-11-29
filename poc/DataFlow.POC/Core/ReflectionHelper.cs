@@ -544,7 +544,8 @@ public static class ReflectionHelper
         {
             // Step 1: Create downstream epoch streams and routing topology
             // Topology includes pre-built dictionaries for O(1) lookups in the hot path
-            var (downstreamStreams, topologyByEdge) = CreateDownstreamEpochStreams(
+            // Also returns totalMaxWriteTasks to avoid recalculating in the hot path
+            var (downstreamStreams, topologyByEdge, totalMaxWriteTasks) = CreateDownstreamEpochStreams(
                 epochStream, routers);
             
             // Step 2: Route the epoch stream containers to downstream blocks
@@ -559,7 +560,7 @@ public static class ReflectionHelper
                 await foreach (var item in epochStream.Items.WithCancellation(cancellationToken))
                 {
                     await RouteItemToDownstreamChannelsAsync(
-                        item, topologyByEdge, cancellationToken);
+                        item, topologyByEdge, totalMaxWriteTasks, cancellationToken);
                 }
                 
                 // Step 4: Complete all downstream channels (normal completion)
@@ -623,13 +624,21 @@ public static class ReflectionHelper
     /// Routing topology is pre-built to enable O(1) lookups in the hot path.
     /// </summary>
     private static (Dictionary<IBlock, ChannelBackedEpochStream<TItem>> streams, 
-                    Dictionary<ITypedEdgeRouter, EdgeRoutingTopology<TItem>> topologyByEdge) 
+                    Dictionary<ITypedEdgeRouter, EdgeRoutingTopology<TItem>> topologyByEdge,
+                    int totalMaxWriteTasks) 
         CreateDownstreamEpochStreams<TItem>(
             IEpochStream<TItem> sourceEpochStream,
             List<ITypedEdgeRouter> edgeRouters)
     {
-        // Pre-calculate total target blocks across all routers for optimal dictionary capacity
-        var totalTargetBlocks = edgeRouters.Sum(r => r.TargetBlocks.Count);
+        // Calculate capacities during the loop to avoid double iteration
+        var totalTargetBlocks = 0;
+        var totalMaxWriteTasks = 0;
+        
+        // First pass: calculate capacities
+        foreach (var router in edgeRouters)
+        {
+            totalTargetBlocks += router.TargetBlocks.Count;
+        }
         
         var downstreamStreams = new Dictionary<IBlock, ChannelBackedEpochStream<TItem>>(totalTargetBlocks);
         var topologyByEdge = new Dictionary<ITypedEdgeRouter, EdgeRoutingTopology<TItem>>(edgeRouters.Count);
@@ -677,9 +686,10 @@ public static class ReflectionHelper
             };
             
             topologyByEdge[router] = topology;
+            totalMaxWriteTasks += maxWriteTasks;
         }
         
-        return (downstreamStreams, topologyByEdge);
+        return (downstreamStreams, topologyByEdge, totalMaxWriteTasks);
     }
     
     /// <summary>
@@ -854,12 +864,10 @@ public static class ReflectionHelper
     private static async Task RouteItemToDownstreamChannelsAsync<TItem>(
         TItem item,
         Dictionary<ITypedEdgeRouter, EdgeRoutingTopology<TItem>> topologyByEdge,
+        int totalMaxWriteTasks,
         CancellationToken cancellationToken)
     {
-        // Pre-calculate capacities to avoid resizing during item routing
-        var totalMaxWriteTasks = topologyByEdge.Values.Sum(t => t.MaxWriteTasks);
-        
-        // Strategy-aware routing with pre-sized collections
+        // Use cached capacity to avoid recalculating Sum() in the hot path (per-item)
         var writeTasks = new List<Task>(totalMaxWriteTasks);
         var processedWriters = new HashSet<ChannelWriter<TItem>>(totalMaxWriteTasks);
         
@@ -906,9 +914,17 @@ public static class ReflectionHelper
                     
                     if (routeKeyToBlock.TryGetValue(routeKey, out var targetBlock))
                     {
+                        // Defensive: RouterByBlock must be non-null for selective routing
+                        // It's populated during topology creation for SelectiveRoutingEdgeStrategy
+                        if (topology.RouterByBlock == null)
+                        {
+                            throw new InvalidOperationException(
+                                $"RouterByBlock is null for selective routing strategy. " +
+                                $"This indicates a misconfigured topology.");
+                        }
+                        
                         // O(1) lookup using pre-built dictionary
-                        if (topology.RouterByBlock != null && 
-                            topology.RouterByBlock.TryGetValue(targetBlock, out var router))
+                        if (topology.RouterByBlock.TryGetValue(targetBlock, out var router))
                         {
                             if (!processedWriters.Contains(router.Writer))
                             {

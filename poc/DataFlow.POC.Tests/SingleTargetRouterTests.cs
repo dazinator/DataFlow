@@ -25,7 +25,6 @@ public class SingleTargetRouterTests
             IAsyncEnumerable<object> input,
             IExecutionContext context)
         {
-            await Task.CompletedTask;
             yield break;
         }
     }
