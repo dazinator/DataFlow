@@ -11,9 +11,9 @@ Analyzed buffer node compatibility with the epoch-only architecture. Found that 
 
 The following issues have been created for product team prioritization:
 
-1. **[To be created]** - Documentation: Buffer node usage patterns and limitations
-2. **[To be created]** - Validation: Multi-producer connection validation  
-3. **[To be created]** - Design: Epoch-aware buffer nodes
+1. **#48** - Documentation: Buffer node usage patterns and limitations (Severity: Medium, Effort: Small)
+2. **#49** - Validation: Multi-producer connection validation (Severity: High, Effort: Small)
+3. **#50** - Design: Epoch-aware buffer nodes (Severity: Medium, Effort: Large)
 
 ## Key Findings
 
