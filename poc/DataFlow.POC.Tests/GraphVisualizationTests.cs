@@ -47,35 +47,7 @@ public class GraphVisualizationTests
             .UseFileName("SimpleFlow_Graphviz");
     }
 
-    [Fact]
-    public Task Should_RenderFlowWithBufferNode_AsMermaid()
-    {
-        // Arrange
-        var graph = CreateFlowWithBufferNode();
 
-        // Act
-        var mermaid = graph.ToMermaidDiagram();
-
-        // Assert
-        return Verify(mermaid)
-            .UseDirectory("Snapshots/GraphVisualizationTests")
-            .UseFileName("BufferNodeFlow_Mermaid");
-    }
-
-    [Fact]
-    public Task Should_RenderFlowWithBufferNode_AsGraphviz()
-    {
-        // Arrange
-        var graph = CreateFlowWithBufferNode();
-
-        // Act
-        var dot = graph.ToGraphviz();
-
-        // Assert
-        return Verify(dot)
-            .UseDirectory("Snapshots/GraphVisualizationTests")
-            .UseFileName("BufferNodeFlow_Graphviz");
-    }
 
     [Fact]
     public Task Should_RenderBroadcastFlow_AsMermaid()
@@ -162,24 +134,7 @@ public class GraphVisualizationTests
             .UseFileName("NoTypeInfo_Mermaid");
     }
 
-    [Fact]
-    public Task Should_RenderWithoutBufferNodes_WhenOptionSet()
-    {
-        // Arrange
-        var graph = CreateFlowWithBufferNode();
-        var options = new GraphRenderOptions
-        {
-            ShowBufferNodes = false
-        };
 
-        // Act
-        var mermaid = graph.ToMermaidDiagram(options: options);
-
-        // Assert
-        return Verify(mermaid)
-            .UseDirectory("Snapshots/GraphVisualizationTests")
-            .UseFileName("NoBufferNodes_Mermaid");
-    }
 
     [Fact]
     public Task Should_GenerateTextSummary()
@@ -248,23 +203,7 @@ public class GraphVisualizationTests
         return builder.Build();
     }
 
-    private DataFlowGraph CreateFlowWithBufferNode()
-    {
-        var producer = BlockHelpers.CreateProducer("producer", TestStreams.Integers(5));
-        var consumer = BlockHelpers.CreateActor<int, object, CollectorActor<int>>(
-            "consumer",
-            new CollectorActor<int>(new List<int>()));
 
-        var builder = GraphHelpers.CreateGraphBuilder("BufferFlow");
-        var buffer = builder.Buffer<int>(capacity: 10, name: "shared-buffer");
-        
-        builder.AddBlock(producer)
-            .AddBlock(consumer)
-            .Connect(producer, buffer)
-            .Connect(buffer, consumer);
-
-        return builder.Build();
-    }
 
     private DataFlowGraph CreateBroadcastFlowGraph()
     {
@@ -305,17 +244,18 @@ public class GraphVisualizationTests
 
         var builder = GraphHelpers.CreateGraphBuilder("ComplexFlow");
         
-        // Add buffer for merging
-        var mergeBuffer = builder.Buffer<int>(capacity: 10, name: "merge-buffer");
+        // Use competing edge strategy to merge multiple producers
+        var mergeEdge = new Edge(
+            new[] { producer1, producer2 },
+            new[] { transformer },
+            new CompetingEdgeStrategy(BufferMode.Bounded, 100));
         
         builder.AddBlock(producer1)
             .AddBlock(producer2)
             .AddBlock(transformer)
             .AddBlock(processor1)
             .AddBlock(processor2)
-            .Connect(producer1, mergeBuffer)
-            .Connect(producer2, mergeBuffer)
-            .Connect(mergeBuffer, transformer)
+            .AddEdge(mergeEdge)
             .Connect(transformer, processor1)
             .Connect(transformer, processor2);
 

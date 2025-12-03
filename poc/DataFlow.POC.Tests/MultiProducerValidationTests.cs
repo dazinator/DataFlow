@@ -149,46 +149,7 @@ public class MultiProducerMergePatternTests
         itemsFromProducer2.ShouldBe(Enumerable.Range(100, 5));
     }
 
-    [Fact]
-    public async Task Connect_WithBufferNode_MultipleProducersAllowed()
-    {
-        // Arrange - Buffer nodes are another way to merge multiple producers
-        var processedItems = new ConcurrentBag<int>();
-        var processorServices = new ServiceCollection();
-        processorServices.AddScoped(_ => new ThreadSafeIntCollectorActor(processedItems));
-        var processorSP = processorServices.BuildServiceProvider();
-        var commonServices = new ServiceCollection().BuildServiceProvider();
 
-        var producer1 = BlockHelpers.CreateProducer<int>("producer1", ctx => ProduceIntegers(ctx, 1, 5));
-        var producer2 = BlockHelpers.CreateProducer<int>("producer2", ctx => ProduceIntegers(ctx, 100, 5));
-        var processor = BlockHelpers.CreateActor<int, object, ThreadSafeIntCollectorActor>("processor", processorSP.GetRequiredService<IServiceScopeFactory>());
-
-        var builder = GraphHelpers.CreateGraphBuilder("multi-producer-with-buffer-test");
-        var buffer = builder.Buffer<int>(capacity: 10);
-        
-        // Act - Buffer node provides explicit coordination point in the graph
-        builder.AddBlock(producer1)
-            .AddBlock(producer2)
-            .AddBlock(processor)
-            .Connect(producer1, buffer)
-            .Connect(producer2, buffer)
-            .Connect(buffer, processor);
-
-        // Assert - Building and executing the graph should succeed
-        var graph = Should.NotThrow(() => builder.Build());
-        graph.ShouldNotBeNull();
-        
-        var context = new ExecutionContext(commonServices, CancellationToken.None);
-        await graph.ExecuteAsync(context);
-        
-        // Both producers' items should be collected
-        processedItems.Count.ShouldBe(10);
-        var itemsFromProducer1 = processedItems.Where(x => x < 100).OrderBy(x => x).ToList();
-        var itemsFromProducer2 = processedItems.Where(x => x >= 100).OrderBy(x => x).ToList();
-        
-        itemsFromProducer1.ShouldBe(Enumerable.Range(1, 5));
-        itemsFromProducer2.ShouldBe(Enumerable.Range(100, 5));
-    }
 
     [Fact]
     public async Task Connect_SingleProducerToMultipleConsumers_Allowed()
