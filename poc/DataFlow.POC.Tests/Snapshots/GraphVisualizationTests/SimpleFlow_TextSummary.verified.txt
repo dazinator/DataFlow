@@ -1,7 +1,6 @@
 ﻿DataFlow: SimpleFlow
 Blocks: 3
 Edges: 2
-Buffer Nodes: 0
 
 Block List:
   - source

@@ -6,10 +6,8 @@
     transform[/"transform<br/><small>int → string</small>"/]
     target1["target1<br/><small>string →</small>"]
     target2["target2<br/><small>string →</small>"]
-    merge_buffer[("merge-buffer")]
 
+    source1 -.->|Int32| transform
+    source2 -.->|Int32| transform
     transform -->|String| target1
     transform -->|String| target2
-    source1 -->|Int32| merge_buffer
-    source2 -->|Int32| merge_buffer
-    merge_buffer -->|Int32| transform
