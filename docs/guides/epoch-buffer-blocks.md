@@ -20,10 +20,6 @@ Use `EpochBufferBlock<T>` when:
 - ✅ You want to smooth out rate differences between producer and consumer
 - ✅ You need to decouple producer from consumer processing
 
-**Do not use** for:
-- ❌ Plain types (use `BufferNode<T>` instead)
-- ❌ Side channels (`IDataEnvelope` - use `BufferNode<T>`)
-
 ## Basic Usage
 
 ### Simple Buffer
@@ -31,16 +27,7 @@ Use `EpochBufferBlock<T>` when:
 The most common usage is adding a buffer between two blocks:
 
 ```csharp
-using DataFlow.POC.Builder;
-using DataFlow.POC.Registry;
-
-var services = new ServiceCollection();
-var provider = services.BuildServiceProvider();
-var registry = new BlockTypeRegistry();
-
-var builder = new DataFlowGraphBuilder("my-flow", provider, registry);
-
-// Add buffer with capacity of 100 items per epoch
+// Assuming you have a DataFlowGraphBuilder instance
 builder.AddEpochBuffer<int>("buffer", capacity: 100);
 ```
 
@@ -49,24 +36,11 @@ builder.AddEpochBuffer<int>("buffer", capacity: 100);
 Here's a complete example with source, buffer, and consumer:
 
 ```csharp
-// 1. Configure services
-var services = new ServiceCollection();
-services.AddTransient<MyEpochSource>();
-services.AddTransient<MyEpochProcessor>();
-var provider = services.BuildServiceProvider();
-
-// 2. Build graph
-var registry = new BlockTypeRegistry();
-var builder = new DataFlowGraphBuilder("example", provider, registry);
-
-// Register blocks (implementation depends on your DI setup)
-// ... register MyEpochSource as "source"
-// ... register MyEpochProcessor as "processor"
-
-// 3. Add buffer between source and processor
+// Assuming builder is already configured with service provider and registry
+// Add buffer between source and processor
 builder.AddEpochBuffer<int>("buffer", capacity: 100);
 
-// 4. Build and execute
+// Build and execute
 var graph = builder.Build();
 await graph.ExecuteAsync(cancellationToken);
 ```
@@ -78,8 +52,7 @@ await graph.ExecuteAsync(cancellationToken);
 When multiple sources need to send data to a single consumer:
 
 ```csharp
-var builder = new DataFlowGraphBuilder("fan-in", provider, registry);
-
+// Assuming builder is configured
 // Multiple sources produce epoch streams
 // ... register "source1"
 // ... register "source2"
@@ -89,9 +62,6 @@ builder.AddEpochBuffer<int>("buffer", capacity: 200);
 
 // Single consumer processes buffered data
 // ... register "processor"
-
-// Note: BufferNode would be used to connect multiple producers to one consumer
-// in the traditional sense, but for epoch streams, the routing handles this
 ```
 
 ### Pattern 2: Rate Smoothing
@@ -99,8 +69,7 @@ builder.AddEpochBuffer<int>("buffer", capacity: 200);
 When producer is faster than consumer:
 
 ```csharp
-var builder = new DataFlowGraphBuilder("rate-smoothing", provider, registry);
-
+// Assuming builder is configured
 // Fast producer
 // ... register "fast-producer"
 
@@ -123,8 +92,7 @@ builder.AddEpochBuffer<int>("buffer", capacity: 500);
 Decouple processing stages:
 
 ```csharp
-var builder = new DataFlowGraphBuilder("decoupled", provider, registry);
-
+// Assuming builder is configured
 // Source produces data
 // ... register "source"
 
@@ -307,21 +275,6 @@ builder.AddEpochBuffer<int>("buffer", capacity: 50);
 // 3. Use larger buffer (but this only delays the problem)
 ```
 
-### Issue: Wrong Buffer Type
-
-**Symptom**: Compiler error when using `BufferNode<IEpochStream<T>>`.
-
-**Cause**: `BufferNode` is for plain types only.
-
-**Solution**:
-```csharp
-// ❌ Wrong - BufferNode doesn't support epoch streams
-var buffer = new BufferNode<IEpochStream<int>>(capacity: 100);
-
-// ✅ Correct - Use EpochBufferBlock
-builder.AddEpochBuffer<int>("buffer", capacity: 100);
-```
-
 ## Advanced Topics
 
 ### Understanding Epoch Boundaries
@@ -370,8 +323,7 @@ Write(4) ──────────────> Channel: [2,3,4]          |
 ### Example 1: Order Processing
 
 ```csharp
-var builder = new DataFlowGraphBuilder("order-processing", provider, registry);
-
+// Assuming builder is configured
 // Receive orders in epochs
 // ... register "order-source"
 
@@ -391,8 +343,7 @@ builder.AddEpochBuffer<ValidatedOrder>("validated-buffer", capacity: 100);
 ### Example 2: Data Import Pipeline
 
 ```csharp
-var builder = new DataFlowGraphBuilder("data-import", provider, registry);
-
+// Assuming builder is configured
 // Read records from file (in epochs)
 // ... register "file-reader"
 
