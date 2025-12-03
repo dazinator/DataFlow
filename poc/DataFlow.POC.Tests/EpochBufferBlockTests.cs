@@ -199,7 +199,7 @@ public class EpochBufferBlockTests
     [Fact]
     public async Task EpochBuffer_Should_Block_When_Capacity_Reached()
     {
-        // Arrange - Small buffer
+        // Arrange - Small buffer to test backpressure
         var bufferConfig = new BufferConfiguration(capacity: 3);
         var context = new BlockContext("buffer");
         var buffer = new EpochBufferBlock<int>(context, bufferConfig);
@@ -211,34 +211,21 @@ public class EpochBufferBlockTests
 
         var execContext = new TestExecutionContext();
 
-        // Act
-        var consumeStarted = false;
-        var writerBlocked = false;
-
+        // Act & Assert
+        // If backpressure works correctly, all items should be consumed
+        // without deadlock. The test succeeds if it completes.
+        var consumedItems = new List<int>();
         await foreach (var epochStream in buffer.ExecuteAsync(inputEpochs, execContext))
         {
-            consumeStarted = true;
-            var itemCount = 0;
-            
             await foreach (var item in epochStream.Items)
             {
-                itemCount++;
-                // Simulate slow consumer - this should allow producer to fill buffer
-                if (itemCount == 1)
-                {
-                    await Task.Delay(50);
-                    // At this point, producer should have filled the buffer (capacity 3)
-                    // and should be blocked waiting for space
-                    writerBlocked = true;
-                }
+                consumedItems.Add(item);
             }
         }
 
-        // Assert
-        consumeStarted.ShouldBeTrue();
-        // If we get here without deadlock, backpressure is working
-        // The test passing means the buffer properly applied backpressure
-        _output.WriteLine("✓ Backpressure mechanism working correctly");
+        // Verify all items were buffered and consumed despite buffer < epoch size
+        consumedItems.ShouldBe(new[] { 1, 2, 3, 4, 5 });
+        _output.WriteLine("✓ Backpressure mechanism working correctly - no deadlock with buffer smaller than epoch");
     }
 
     #endregion

@@ -76,8 +76,8 @@ public sealed class EpochBufferBlock<T> : BlockBase<IEpochStream<T>, IEpochStrea
             var channel = Channel.CreateBounded<T>(new BoundedChannelOptions(_capacity)
             {
                 FullMode = BoundedChannelFullMode.Wait,
-                SingleReader = false, // Multiple downstream consumers may read
-                SingleWriter = true   // Single epoch stream writes items to this channel
+                SingleReader = false, // Supports multiple downstream consumers via edge strategies
+                SingleWriter = true   // Single upstream producer writes to this channel
             });
 
             // Start background task to write epoch items to channel (unwrap)
@@ -95,7 +95,9 @@ public sealed class EpochBufferBlock<T> : BlockBase<IEpochStream<T>, IEpochStrea
             yield return outputStream;
 
             // Wait for writer to complete before processing next epoch
-            // This ensures epoch boundaries are strictly preserved
+            // This ensures strict epoch boundary preservation.
+            // Sequential processing provides predictable behavior and simplifies reasoning.
+            // Future optimization: Could allow concurrent epoch processing if needed.
             await writerTask.ConfigureAwait(false);
         }
     }
