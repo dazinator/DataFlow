@@ -46,38 +46,31 @@ This research evaluated three design options for making buffer nodes compatible 
 
 ## Implementation Specification
 
-### Phase 1: Update Buffer Node Documentation
+### Phase 1: Mark Buffer Node as Obsolete
 
-**Goal**: Document that `BufferNode<T>` is for plain types only.
+**Goal**: Mark `BufferNode<T>` as obsolete and prevent epoch stream usage.
 
 **Changes required**:
 
-1. **Update XML documentation** in `/poc/DataFlow.POC/Core/BufferNode.cs`:
+1. **Add `[Obsolete]` attribute** to `/poc/DataFlow.POC/Core/BufferNode.cs`:
    ```csharp
    /// <summary>
    /// Represents a first-class buffer node in the dataflow graph.
-   /// A buffer node is backed by a Channel&lt;T&gt; and serves as a connection point
-   /// between multiple producers and multiple consumers.
    /// 
    /// <para>
-   /// <strong>Supported Use Cases:</strong>
+   /// <strong>⚠️ OBSOLETE:</strong> This class is obsolete and will be removed.
+   /// Use <see cref="EpochBufferBlock{T}"/> for epoch stream buffering.
+   /// See issue #55 for migration details.
    /// </para>
-   /// <list type="bullet">
-   /// <item>Plain types (int, string, custom types)</item>
-   /// <item>Side channel envelopes (IDataEnvelope)</item>
-   /// </list>
-   /// 
-   /// <para>
-   /// <strong>Not Supported:</strong>
-   /// </para>
-   /// <list type="bullet">
-   /// <item>Epoch streams (IEpochStream&lt;T&gt;) - use EpochBufferBlock instead</item>
-   /// </list>
    /// </summary>
-   public class BufferNode
+   [Obsolete("BufferNode<T> is obsolete and will be removed. Use EpochBufferBlock<T> for epoch stream buffering. See issue #55 for migration details.", error: false)]
+   public class BufferNode<T> : BufferNode
+   {
+       // ...
+   }
    ```
 
-2. **Optional: Add runtime validation**:
+2. **Add runtime validation**:
    ```csharp
    public BufferNode(Type dataType, int capacity, string? name = null)
    {
@@ -88,7 +81,8 @@ This research evaluated three design options for making buffer nodes compatible 
        {
            throw new ArgumentException(
                $"Buffer nodes do not support epoch streams (IEpochStream<T>). " +
-               $"Use EpochBufferBlock for epoch stream buffering instead.",
+               $"Use EpochBufferBlock<T> for epoch stream buffering instead. " +
+               $"See issue #55 for migration details.",
                nameof(dataType));
        }
        
@@ -107,10 +101,10 @@ This research evaluated three design options for making buffer nodes compatible 
 - `/poc/DataFlow.POC/Core/BufferNode.cs`
 
 **Testing**:
-- Existing tests should pass unchanged
-- If validation added, test that `BufferNode<IEpochStream<int>>` throws
+- Existing tests should pass (with obsolete warnings)
+- Add test that `BufferNode<IEpochStream<int>>` throws `ArgumentException`
 
-**Effort**: 1-2 hours
+**Effort**: 2 hours
 
 ### Phase 2: Implement EpochBufferBlock
 
@@ -221,11 +215,11 @@ This research evaluated three design options for making buffer nodes compatible 
 
 | Phase | Effort | Risk |
 |-------|--------|------|
-| Phase 1: Buffer Node Docs | 1-2 hours | Minimal |
+| Phase 1: Mark BufferNode Obsolete | 2 hours | Minimal |
 | Phase 2: EpochBufferBlock Implementation | 4-6 hours | Low |
 | Phase 3: Comprehensive Tests | 6-8 hours | Low |
 | Phase 4: Documentation | 4-6 hours | Minimal |
-| **Total** | **15-22 hours (2-3 days)** | **Low** |
+| **Total** | **16-22 hours (2-3 days)** | **Low** |
 
 ## Key Design Decisions
 

@@ -14,54 +14,70 @@ Implement epoch-aware buffer blocks based on completed research. The design has 
 
 Buffer nodes were designed before the epoch-only architecture and are not compatible with epoch streams. Research has determined the best approach is:
 
-1. Keep existing `BufferNode<T>` for plain types only (document limitation)
-2. Implement new `EpochBufferBlock<T>` for epoch streams (new capability)
+1. Mark existing `BufferNode<T>` as obsolete with clear migration path
+2. Implement new `EpochBufferBlock<T>` for epoch streams (replacement)
 
 This approach provides:
-- ✅ No breaking changes
-- ✅ Clear separation of concerns
+- ✅ Clear deprecation signal via `[Obsolete]` attribute
+- ✅ Clear migration path to `EpochBufferBlock<T>`
 - ✅ Optimized routing for epoch streams
 - ✅ Natural epoch boundary preservation
+
+**Note**: `BufferNode<T>` will be completely removed in Issue #55 after `EpochBufferBlock<T>` is stable.
 
 ## Scope
 
 ### In Scope
-- Update `BufferNode<T>` documentation (plain types only)
-- Optional: Add runtime validation to reject epoch streams
+- Mark `BufferNode<T>` as obsolete with `[Obsolete]` attribute
+- Add runtime validation to reject epoch streams in `BufferNode<T>`
 - Implement `EpochBufferBlock<T>` and `IBufferConfiguration`
 - Implement graph builder extensions (`AddEpochBuffer<T>()`)
 - Comprehensive test suite
 - Documentation and examples
 
 ### Out of Scope
-- Changes to existing `BufferNode<T>` implementation
+- Removal of `BufferNode<T>` code (handled in Issue #55)
 - Changes to routing system (already supports the pattern)
 - Performance optimizations beyond basic implementation
-- Migration tools (not needed - additive change)
+- Migration of existing `BufferNode<T>` usage (handled in Issue #55)
 
 ## Implementation Phases
 
-### Phase 1: Update Buffer Node Documentation (2 hours)
+### Phase 1: Mark Buffer Node as Obsolete (2 hours)
 
-**Goal**: Document that `BufferNode<T>` is for plain types only.
+**Goal**: Mark `BufferNode<T>` as obsolete and document that it will be removed.
 
 **Tasks**:
+- [ ] Add `[Obsolete]` attribute to `BufferNode<T>` class
+  - Use message: "BufferNode<T> is obsolete and will be removed. Use EpochBufferBlock<T> for epoch stream buffering. See issue #55 for migration details."
+  - Set `error: false` to allow compilation with warnings
 - [ ] Update XML documentation in `BufferNode.cs`
-  - Add "Supported Use Cases" section
-  - Add "Not Supported" section with pointer to `EpochBufferBlock`
-- [ ] Optional: Add runtime validation
+  - Add obsolescence notice
+  - Add pointer to `EpochBufferBlock<T>` as replacement
+- [ ] Add runtime validation
   - Detect `IEpochStream<T>` in constructor
-  - Throw `ArgumentException` with helpful message
+  - Throw `ArgumentException` with helpful message pointing to `EpochBufferBlock<T>`
   - Add test for validation
 
 **Files**:
 - `/poc/DataFlow.POC/Core/BufferNode.cs`
-- `/poc/DataFlow.POC.Tests/BufferNodeTests.cs` (if validation added)
+- `/poc/DataFlow.POC.Tests/BufferNodeTests.cs` (add validation test)
+
+**Example**:
+```csharp
+[Obsolete("BufferNode<T> is obsolete and will be removed. Use EpochBufferBlock<T> for epoch stream buffering. See issue #55 for migration details.", error: false)]
+public class BufferNode<T> : BufferNode
+{
+    // ...
+}
+```
 
 **Acceptance Criteria**:
-- Documentation clearly states supported types
-- If validation added, test verifies exception thrown
-- Existing tests still pass
+- `[Obsolete]` attribute added with clear migration message
+- Documentation clearly states obsolescence and replacement
+- Runtime validation prevents epoch stream usage
+- Test verifies exception thrown for epoch streams
+- Existing tests still pass (with obsolete warnings)
 
 ### Phase 2: Implement EpochBufferBlock (6 hours)
 
@@ -220,10 +236,11 @@ This approach provides:
 ## Acceptance Criteria
 
 - [ ] All implementation phases complete
+- [ ] `BufferNode<T>` marked with `[Obsolete]` attribute
+- [ ] Runtime validation prevents epoch stream usage in `BufferNode<T>`
 - [ ] All tests pass (existing + new)
 - [ ] Code review approved
 - [ ] Documentation complete
-- [ ] No breaking changes
 - [ ] Performance acceptable (<10% overhead)
 - [ ] Self-improvement feedback submitted
 
@@ -231,7 +248,7 @@ This approach provides:
 
 | Phase | Estimate | Risk |
 |-------|----------|------|
-| Phase 1: Buffer Node Docs | 2 hours | Minimal |
+| Phase 1: Mark BufferNode Obsolete | 2 hours | Minimal |
 | Phase 2: EpochBufferBlock | 6 hours | Low |
 | Phase 3: Testing | 8 hours | Low |
 | Phase 4: Documentation | 6 hours | Minimal |
