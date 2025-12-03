@@ -23,11 +23,11 @@ public class EpochBufferBlock<T> : BlockBase<IEpochStream<T>, IEpochStream<T>>
 
 ### Behavior
 
-For each input epoch stream:
-1. **Unwrap**: Extract items from `IEpochStream<T>.Items`
-2. **Buffer**: Write items to `Channel<T>` (bounded, configured capacity)
-3. **Re-wrap**: Create output `IEpochStream<T>` with same epoch metadata
-4. **Yield**: Output epoch stream with buffered items
+For each input epoch stream (per-epoch processing):
+1. **Unwrap**: Extract items from `IEpochStream<T>.Items` for this specific epoch
+2. **Buffer**: Write items to a dedicated `Channel<T>` for this epoch (bounded, configured capacity)
+3. **Re-wrap**: Create output `IEpochStream<T>` with same epoch metadata, backed by the channel
+4. **Yield**: Output epoch stream with buffered items, preserving the epoch boundary
 
 ### Key Implementation Details
 

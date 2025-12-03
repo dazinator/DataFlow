@@ -38,7 +38,7 @@ public class EpochBufferBlock<T> : BlockBase<IEpochStream<T>, IEpochStream<T>>
             {
                 FullMode = BoundedChannelFullMode.Wait,
                 SingleReader = false, // Multiple downstream consumers may read
-                SingleWriter = true   // Single epoch enumeration writes
+                SingleWriter = true   // Single epoch stream writes items to this channel
             });
 
             // Start background task to write epoch items to channel (unwrap)
