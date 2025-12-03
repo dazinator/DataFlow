@@ -227,13 +227,17 @@ public class GraphVisualizationTests
 
     private DataFlowGraph CreateComplexFlowGraph()
     {
-        // Create a complex graph with multiple sources, transformations, and targets
-        var producer1 = BlockHelpers.CreateProducer("source1", TestStreams.Integers(3));
-        var producer2 = BlockHelpers.CreateProducer("source2", TestStreams.Integers(3));
+        // Create a complex graph with chained transformations and broadcast
+        // This tests visualization of complex topologies without requiring BufferNode
+        var producer = BlockHelpers.CreateProducer("source", TestStreams.Integers(10));
         
-        var transformer = BlockHelpers.CreateActor<int, string, TransformActor<int, string>>(
-            "transform",
-            new TransformActor<int, string>(i => $"Item-{i}"));
+        var transformer1 = BlockHelpers.CreateActor<int, string, TransformActor<int, string>>(
+            "transform1",
+            new TransformActor<int, string>(i => $"T1-{i}"));
+        
+        var transformer2 = BlockHelpers.CreateActor<string, string, TransformActor<string, string>>(
+            "transform2",
+            new TransformActor<string, string>(s => s.ToUpper()));
         
         var processor1 = BlockHelpers.CreateActor<string, object, CollectorActor<string>>(
             "target1",
@@ -244,21 +248,16 @@ public class GraphVisualizationTests
 
         var builder = GraphHelpers.CreateGraphBuilder("ComplexFlow");
         
-        // Connect multiple producers to single transformer using competing edges
-        // Note: Without BufferNode, we create separate competing edges from each producer
-        builder.AddBlock(producer1)
-            .AddBlock(producer2)
-            .AddBlock(transformer)
+        // Create a pipeline with broadcasting at the end
+        builder.AddBlock(producer)
+            .AddBlock(transformer1)
+            .AddBlock(transformer2)
             .AddBlock(processor1)
-            .AddBlock(processor2);
-        
-        // Add competing edges from producers to transformer
-        builder.AddEdge(new Edge(producer1, transformer, new CompetingEdgeStrategy(BufferMode.Bounded, 100)));
-        builder.AddEdge(new Edge(producer2, transformer, new CompetingEdgeStrategy(BufferMode.Bounded, 100)));
-        
-        // Connect transformer to processors (broadcast)
-        builder.Connect(transformer, processor1)
-            .Connect(transformer, processor2);
+            .AddBlock(processor2)
+            .Connect(producer, transformer1)
+            .Connect(transformer1, transformer2)
+            .Connect(transformer2, processor1)
+            .Connect(transformer2, processor2);
 
         return builder.Build();
     }
