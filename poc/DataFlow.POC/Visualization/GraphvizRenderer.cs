@@ -43,15 +43,6 @@ public class GraphvizRenderer : IGraphRenderer
             RenderBlock(sb, block, options);
         }
 
-        // Render buffer nodes if enabled
-        if (options.ShowBufferNodes)
-        {
-            foreach (var buffer in graph.BufferNodes)
-            {
-                RenderBufferNode(sb, buffer, options);
-            }
-        }
-
         // Render epoch processor nodes if present
         if (options.ShowEpochNodes && graph.EpochProcessors.Count > 0)
         {
@@ -67,27 +58,6 @@ public class GraphvizRenderer : IGraphRenderer
         foreach (var edge in graph.Edges)
         {
             RenderEdge(sb, edge, options);
-        }
-
-        // Render buffer connections
-        if (options.ShowBufferNodes)
-        {
-            foreach (var buffer in graph.BufferNodes)
-            {
-                var bufferId = GetBufferNodeId(buffer);
-
-                // Render producer -> buffer connections
-                foreach (var producer in graph.GetBufferProducers(buffer))
-                {
-                    RenderBufferConnection(sb, producer.Name, bufferId, buffer.DataType, options);
-                }
-
-                // Render buffer -> consumer connections
-                foreach (var consumer in graph.GetBufferConsumers(buffer))
-                {
-                    RenderBufferConnection(sb, bufferId, consumer.Name, buffer.DataType, options);
-                }
-            }
         }
 
         // Render epoch connections if present
@@ -113,15 +83,6 @@ public class GraphvizRenderer : IGraphRenderer
         sb.AppendLine($"    {id} [shape={shape}, label=\"{EscapeQuotes(label)}\"];");
     }
 
-    private void RenderBufferNode(StringBuilder sb, BufferNode buffer, GraphRenderOptions options)
-    {
-        var id = SanitizeId(GetBufferNodeId(buffer));
-        var label = GetBufferLabel(buffer, options);
-
-        // Use cylinder shape for buffer nodes
-        sb.AppendLine($"    {id} [shape=cylinder, label=\"{EscapeQuotes(label)}\", style=filled, fillcolor=\"#e8f4f8\"];");
-    }
-
     private void RenderEdge(StringBuilder sb, Edge edge, GraphRenderOptions options)
     {
         var sourceId = SanitizeId(edge.SourceBlock.Name);
@@ -144,13 +105,6 @@ public class GraphvizRenderer : IGraphRenderer
             EdgeType.Routed => ", style=bold",                 // Bold line (routing)
             _ => ""
         };
-    }
-
-    private void RenderBufferConnection(StringBuilder sb, string sourceId, string targetId, 
-        Type dataType, GraphRenderOptions options)
-    {
-        var label = dataType.Name;
-        sb.AppendLine($"    {SanitizeId(sourceId)} -> {SanitizeId(targetId)} [label=\"{EscapeQuotes(label)}\"];");
     }
 
     private string GetBlockShape(IBlock block)
@@ -204,21 +158,6 @@ public class GraphvizRenderer : IGraphRenderer
         }
 
         return string.Join("", parts);
-    }
-
-    private string GetBufferLabel(BufferNode buffer, GraphRenderOptions options)
-    {
-        var name = buffer.Name ?? "Buffer";
-        if (options.ShowBufferCapacity)
-        {
-            return $"{name}\\n[{buffer.Capacity}]";
-        }
-        return name;
-    }
-
-    private string GetBufferNodeId(BufferNode buffer)
-    {
-        return buffer.Name ?? $"buffer_{buffer.DataType.Name}";
     }
 
     private string GetEdgeLabel(Edge edge, GraphRenderOptions options)

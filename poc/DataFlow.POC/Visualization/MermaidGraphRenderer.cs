@@ -57,15 +57,6 @@ public class MermaidGraphRenderer : IGraphRenderer
             }
         }
 
-        // Render buffer nodes if enabled
-        if (options.ShowBufferNodes)
-        {
-            foreach (var buffer in graph.BufferNodes)
-            {
-                RenderBufferNode(sb, buffer, options);
-            }
-        }
-
         // Render epoch processor nodes if present
         if (options.ShowEpochNodes && graph.EpochProcessors.Count > 0)
         {
@@ -82,27 +73,6 @@ public class MermaidGraphRenderer : IGraphRenderer
         foreach (var edge in graph.Edges)
         {
             RenderEdge(sb, edge, options);
-        }
-
-        // Render buffer connections
-        if (options.ShowBufferNodes)
-        {
-            foreach (var buffer in graph.BufferNodes)
-            {
-                // Render producer -> buffer connections
-                foreach (var producer in graph.GetBufferProducers(buffer))
-                {
-                    RenderBufferConnection(sb, producer.Name, GetBufferNodeId(buffer), 
-                        buffer.DataType, options);
-                }
-
-                // Render buffer -> consumer connections
-                foreach (var consumer in graph.GetBufferConsumers(buffer))
-                {
-                    RenderBufferConnection(sb, GetBufferNodeId(buffer), consumer.Name, 
-                        buffer.DataType, options);
-                }
-            }
         }
 
         // Render epoch connections if present
@@ -122,14 +92,6 @@ public class MermaidGraphRenderer : IGraphRenderer
         var (open, close) = GetBlockShape(block);
         var label = GetBlockLabel(block, options);
         sb.AppendLine($"    {SanitizeId(block.Name)}{open}\"{label}\"{close}");
-    }
-
-    private void RenderBufferNode(StringBuilder sb, BufferNode buffer, GraphRenderOptions options)
-    {
-        var nodeId = GetBufferNodeId(buffer);
-        var label = GetBufferLabel(buffer, options);
-        // Use cylinder shape for buffer nodes [(name)]
-        sb.AppendLine($"    {SanitizeId(nodeId)}[(\"{label}\")]");
     }
 
     private void RenderEdge(StringBuilder sb, Edge edge, GraphRenderOptions options)
@@ -225,13 +187,6 @@ public class MermaidGraphRenderer : IGraphRenderer
         };
     }
 
-    private void RenderBufferConnection(StringBuilder sb, string sourceId, string targetId, 
-        Type dataType, GraphRenderOptions options)
-    {
-        var dataTypeLabel = SanitizeTypeLabel(dataType.Name);
-        sb.AppendLine($"    {SanitizeId(sourceId)} -->|{dataTypeLabel}| {SanitizeId(targetId)}");
-    }
-
     private (string open, string close) GetBlockShape(IBlock block)
     {
         // Source blocks (object input, has typed output)
@@ -283,21 +238,6 @@ public class MermaidGraphRenderer : IGraphRenderer
         }
 
         return string.Join("", parts);
-    }
-
-    private string GetBufferLabel(BufferNode buffer, GraphRenderOptions options)
-    {
-        var name = buffer.Name ?? "Buffer";
-        if (options.ShowBufferCapacity)
-        {
-            return $"{name}<br/><small>[{buffer.Capacity}]</small>";
-        }
-        return name;
-    }
-
-    private string GetBufferNodeId(BufferNode buffer)
-    {
-        return buffer.Name ?? $"buffer_{buffer.DataType.Name}";
     }
 
     private string GetEdgeLabel(Edge edge, string dataTypeLabel, GraphRenderOptions options)

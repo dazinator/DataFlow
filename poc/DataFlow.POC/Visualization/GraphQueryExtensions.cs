@@ -9,7 +9,7 @@ using DataFlow.POC.Core;
 public static class GraphQueryExtensions
 {
     /// <summary>
-    /// Gets all source blocks (blocks with no incoming edges and don't consume from buffers).
+    /// Gets all source blocks (blocks with no incoming edges).
     /// </summary>
     public static IEnumerable<IBlock> GetSourceBlocks(this DataFlowGraph graph)
     {
@@ -24,20 +24,11 @@ public static class GraphQueryExtensions
             }
         }
 
-        // Add blocks that consume from buffers
-        foreach (var buffer in graph.BufferNodes)
-        {
-            foreach (var consumer in graph.GetBufferConsumers(buffer))
-            {
-                blocksWithIncoming.Add(consumer);
-            }
-        }
-
         return graph.Blocks.Where(b => !blocksWithIncoming.Contains(b));
     }
 
     /// <summary>
-    /// Gets all target blocks (blocks with no outgoing edges and don't produce to buffers).
+    /// Gets all target blocks (blocks with no outgoing edges).
     /// </summary>
     public static IEnumerable<IBlock> GetTargetBlocks(this DataFlowGraph graph)
     {
@@ -49,15 +40,6 @@ public static class GraphQueryExtensions
             if (graph.GetOutgoingEdges(block).Any())
             {
                 blocksWithOutgoing.Add(block);
-            }
-        }
-
-        // Add blocks that produce to buffers
-        foreach (var buffer in graph.BufferNodes)
-        {
-            foreach (var producer in graph.GetBufferProducers(buffer))
-            {
-                blocksWithOutgoing.Add(producer);
             }
         }
 
@@ -110,18 +92,6 @@ public static class GraphQueryExtensions
             foreach (var target in edge.TargetBlocks)
             {
                 VisitBlock(target, visited, result, graph);
-            }
-        }
-
-        // Visit downstream blocks (via buffer nodes that this block produces to)
-        foreach (var buffer in graph.BufferNodes)
-        {
-            if (graph.GetBufferProducers(buffer).Contains(block))
-            {
-                foreach (var consumer in graph.GetBufferConsumers(buffer))
-                {
-                    VisitBlock(consumer, visited, result, graph);
-                }
             }
         }
     }

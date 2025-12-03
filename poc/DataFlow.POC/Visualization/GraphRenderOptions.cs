@@ -19,12 +19,6 @@ public class GraphRenderOptions
     public bool IncludeTypeInfo { get; set; } = true;
 
     /// <summary>
-    /// Whether to show buffer nodes as explicit nodes in the diagram.
-    /// Default: true.
-    /// </summary>
-    public bool ShowBufferNodes { get; set; } = true;
-
-    /// <summary>
     /// Whether to include edge capacity information in edge labels.
     /// Default: false (to keep diagrams clean).
     /// </summary>

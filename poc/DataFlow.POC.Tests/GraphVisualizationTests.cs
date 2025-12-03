@@ -244,19 +244,20 @@ public class GraphVisualizationTests
 
         var builder = GraphHelpers.CreateGraphBuilder("ComplexFlow");
         
-        // Use competing edge strategy to merge multiple producers
-        var mergeEdge = new Edge(
-            new[] { producer1, producer2 },
-            new[] { transformer },
-            new CompetingEdgeStrategy(BufferMode.Bounded, 100));
-        
+        // Connect multiple producers to single transformer (competing consumers pattern)
+        // Note: Without BufferNode, we create separate competing edges from each producer
         builder.AddBlock(producer1)
             .AddBlock(producer2)
             .AddBlock(transformer)
             .AddBlock(processor1)
-            .AddBlock(processor2)
-            .AddEdge(mergeEdge)
-            .Connect(transformer, processor1)
+            .AddBlock(processor2);
+        
+        // Add competing edges from producers to transformer
+        builder.AddEdge(new Edge(producer1, transformer, new CompetingEdgeStrategy(BufferMode.Bounded, 100)));
+        builder.AddEdge(new Edge(producer2, transformer, new CompetingEdgeStrategy(BufferMode.Bounded, 100)));
+        
+        // Connect transformer to processors (broadcast)
+        builder.Connect(transformer, processor1)
             .Connect(transformer, processor2);
 
         return builder.Build();

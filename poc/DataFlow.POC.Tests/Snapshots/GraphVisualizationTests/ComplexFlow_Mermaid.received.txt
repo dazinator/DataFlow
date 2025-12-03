@@ -1,0 +1,13 @@
+﻿flowchart LR
+    %% DataFlow: ComplexFlow
+
+    source1(["source1<br/><small>→ int</small>"])
+    source2(["source2<br/><small>→ int</small>"])
+    transform[/"transform<br/><small>int → string</small>"/]
+    target1["target1<br/><small>string →</small>"]
+    target2["target2<br/><small>string →</small>"]
+
+    source1 -.->|Int32| transform
+    source2 -.->|Int32| transform
+    transform -->|String| target1
+    transform -->|String| target2
