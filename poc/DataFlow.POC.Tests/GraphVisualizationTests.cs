@@ -244,7 +244,7 @@ public class GraphVisualizationTests
 
         var builder = GraphHelpers.CreateGraphBuilder("ComplexFlow");
         
-        // Connect multiple producers to single transformer (competing consumers pattern)
+        // Connect multiple producers to single transformer using competing edges
         // Note: Without BufferNode, we create separate competing edges from each producer
         builder.AddBlock(producer1)
             .AddBlock(producer2)
