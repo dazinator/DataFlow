@@ -7,6 +7,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using DataFlow.POC.Benchmarks.DeprecatedBlocks;
+using DataFlow.POC.Blocks;
 using DataFlow.POC.Builder;
 using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
@@ -155,6 +156,7 @@ public static class ComplexEtlPOC
     /// <summary>
     /// Builds the complete ETL dataflow using POC DataFlowGraphBuilder.
     /// Uses POC architecture pattern: concurrency via multiple block instances + CompetingEdgeStrategy.
+    /// CONVERTED: Now uses full epoch-based architecture with EpochBufferBlock and EpochActorBlock.
     /// </summary>
     public static DataFlowGraph BuildDataFlow(
         IServiceProvider serviceProvider,
@@ -164,12 +166,19 @@ public static class ComplexEtlPOC
     {
         var builder = GraphHelpers.CreateGraphBuilder("ComplexEtlBenchmark-POC");
 
-        // Source: Generate raw data records
+        // Source: Generate raw data records using deprecated PlainSourceBlock
         var dataSource = new ProducerBlock<RawRecord>("data-source",
             ctx => ProduceRawRecords(recordCount, ctx.CancellationToken));
 
+        // Segmenter: Convert plain stream to epoch streams
+        var segmenter = new EpochSegmenterBlock<RawRecord>(
+            new BlockContext("segmenter"),
+            EpochSegmentationPolicy.ByCount(100, "source"));
+
         // Buffer: Fan out from single source to multiple validators (competing consumers)
-        var sourceBuffer = builder.Buffer<RawRecord>(capacity: 100, name: "source-buffer");
+        var sourceBuffer = new EpochBufferBlock<RawRecord>(
+            new BlockContext("source-buffer"),
+            new BufferConfiguration(100));
 
         // Transform: Parse and validate records - use multiple instances for concurrency
         var validatorServices = new ServiceCollection();
@@ -179,13 +188,15 @@ public static class ComplexEtlPOC
         var validators = new List<IBlock>();
         for (int i = 0; i < maxConcurrency; i++)
         {
-            validators.Add(new ActorBlock<RawRecord, ValidatedRecord, ValidatorActor>(
-                $"validator-{i}",
+            validators.Add(new EpochActorBlock<RawRecord, ValidatedRecord, ValidatorActor>(
+                new BlockContext($"validator-{i}"),
                 validatorServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
         // Buffer: Merge validator outputs into single competing channel for enrichers
-        var validatorBuffer = builder.Buffer<ValidatedRecord>(capacity: 100, name: "validator-buffer");
+        var validatorBuffer = new EpochBufferBlock<ValidatedRecord>(
+            new BlockContext("validator-buffer"),
+            new BufferConfiguration(100));
 
         // Transform: Enrich with additional data - use multiple instances for concurrency
         var enricherServices = new ServiceCollection();
@@ -195,13 +206,15 @@ public static class ComplexEtlPOC
         var enrichers = new List<IBlock>();
         for (int i = 0; i < maxConcurrency; i++)
         {
-            enrichers.Add(new ActorBlock<ValidatedRecord, EnrichedRecord, EnricherActor>(
-                $"enricher-{i}",
+            enrichers.Add(new EpochActorBlock<ValidatedRecord, EnrichedRecord, EnricherActor>(
+                new BlockContext($"enricher-{i}"),
                 enricherServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
         // Buffer: Merge enricher outputs into single channel before broadcast
-        var enricherBuffer = builder.Buffer<EnrichedRecord>(capacity: 100, name: "enricher-buffer");
+        var enricherBuffer = new EpochBufferBlock<EnrichedRecord>(
+            new BlockContext("enricher-buffer"),
+            new BufferConfiguration(100));
 
         // Broadcast: Fan out enriched records for parallel processing
         var broadcast = new DataFlow.POC.Blocks.BroadcastBlock<EnrichedRecord>(new BlockContext("broadcast"));
@@ -210,19 +223,19 @@ public static class ComplexEtlPOC
         var metricsServices = new ServiceCollection();
         metricsServices.AddScoped<MetricsCollectorActor>();
         var metricsServiceProvider = metricsServices.BuildServiceProvider();
-        var metricsCollector = new ActorBlock<EnrichedRecord, object, MetricsCollectorActor>(
-            "metrics-collector",
+        var metricsCollector = new EpochActorBlock<EnrichedRecord, object, MetricsCollectorActor>(
+            new BlockContext("metrics-collector"),
             metricsServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         // Broadcast Fan-out Path 2: Audit logger
         var auditServices = new ServiceCollection();
         auditServices.AddScoped<AuditLoggerActor>();
         var auditServiceProvider = auditServices.BuildServiceProvider();
-        var auditLogger = new ActorBlock<EnrichedRecord, object, AuditLoggerActor>(
-            "audit-logger",
+        var auditLogger = new EpochActorBlock<EnrichedRecord, object, AuditLoggerActor>(
+            new BlockContext("audit-logger"),
             auditServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
-        // Routing: Route enriched records by category
+        // Routing: Route enriched records by category (using deprecated plain-type router for now)
         var router = new RouterBlock<EnrichedRecord>("router", record => record.Category);
 
         // TypeA route: Process individual records - use multiple instances for concurrency
@@ -234,12 +247,14 @@ public static class ComplexEtlPOC
         var typeAProcessors = new List<IBlock>();
         for (int i = 0; i < maxConcurrency; i++)
         {
-            typeAProcessors.Add(new ActorBlock<EnrichedRecord, ProcessedRecord, TypeAProcessorActor>(
-                $"typeA-processor-{i}",
+            typeAProcessors.Add(new EpochActorBlock<EnrichedRecord, ProcessedRecord, TypeAProcessorActor>(
+                new BlockContext($"typeA-processor-{i}"),
                 typeAProcessorServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
         // Buffer: Merge processor outputs into single competing channel for writers
-        var typeAProcessorBuffer = builder.Buffer<ProcessedRecord>(capacity: 100, name: "typeA-processor-buffer");
+        var typeAProcessorBuffer = new EpochBufferBlock<ProcessedRecord>(
+            new BlockContext("typeA-processor-buffer"),
+            new BufferConfiguration(100));
         
         var typeAWriterServices = new ServiceCollection();
         typeAWriterServices.AddScoped<TypeAWriterActor>();
@@ -248,31 +263,38 @@ public static class ComplexEtlPOC
         var typeAWriters = new List<IBlock>();
         for (int i = 0; i < maxConcurrency; i++)
         {
-            typeAWriters.Add(new ActorBlock<ProcessedRecord, object, TypeAWriterActor>(
-                $"typeA-writer-{i}",
+            typeAWriters.Add(new EpochActorBlock<ProcessedRecord, object, TypeAWriterActor>(
+                new BlockContext($"typeA-writer-{i}"),
                 typeAWriterServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
         // TypeB route: Batch and aggregate records
         var typeBFilter = new RouteFilterBlock<EnrichedRecord>("typeB-filter", "TypeB");
-        var typeBFilterBuffer = builder.Buffer<EnrichedRecord>(capacity: 100, name: "typeB-filter-buffer");
-        var typeBBatcher = new DeprecatedBlocks.BatchBlock<EnrichedRecord>("typeB-batcher", batchSize, TimeSpan.FromMilliseconds(100));
+        var typeBFilterBuffer = new EpochBufferBlock<EnrichedRecord>(
+            new BlockContext("typeB-filter-buffer"),
+            new BufferConfiguration(100));
+        var typeBBatcher = new EpochBatchBlock<EnrichedRecord>(
+            new BlockContext("typeB-batcher"),
+            batchSize,
+            TimeSpan.FromMilliseconds(100));
         
         var typeBServices = new ServiceCollection();
         typeBServices.AddScoped<TypeBAggregatorActor>();
         typeBServices.AddScoped<TypeBWriterActor>();
         var typeBServiceProvider = typeBServices.BuildServiceProvider();
         
-        var typeBAggregator = new ActorBlock<EnrichedRecord[], AggregatedBatch, TypeBAggregatorActor>(
-            "typeB-aggregator",
+        var typeBAggregator = new EpochActorBlock<EnrichedRecord[], AggregatedBatch, TypeBAggregatorActor>(
+            new BlockContext("typeB-aggregator"),
             typeBServiceProvider.GetRequiredService<IServiceScopeFactory>());
-        var typeBWriter = new ActorBlock<AggregatedBatch, object, TypeBWriterActor>(
-            "typeB-writer",
+        var typeBWriter = new EpochActorBlock<AggregatedBatch, object, TypeBWriterActor>(
+            new BlockContext("typeB-writer"),
             typeBServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         // TypeC route: Store directly - use multiple writers for concurrency
         var typeCFilter = new RouteFilterBlock<EnrichedRecord>("typeC-filter", "TypeC");
-        var typeCFilterBuffer = builder.Buffer<EnrichedRecord>(capacity: 100, name: "typeC-filter-buffer");
+        var typeCFilterBuffer = new EpochBufferBlock<EnrichedRecord>(
+            new BlockContext("typeC-filter-buffer"),
+            new BufferConfiguration(100));
         var typeCWriterServices = new ServiceCollection();
         typeCWriterServices.AddScoped<TypeCWriterActor>();
         var typeCWriterServiceProvider = typeCWriterServices.BuildServiceProvider();
@@ -280,21 +302,26 @@ public static class ComplexEtlPOC
         var typeCWriters = new List<IBlock>();
         for (int i = 0; i < maxConcurrency; i++)
         {
-            typeCWriters.Add(new ActorBlock<EnrichedRecord, object, TypeCWriterActor>(
-                $"typeC-writer-{i}",
+            typeCWriters.Add(new EpochActorBlock<EnrichedRecord, object, TypeCWriterActor>(
+                new BlockContext($"typeC-writer-{i}"),
                 typeCWriterServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
         // Add all blocks to the graph
         builder.AddBlock(dataSource);
+        builder.AddBlock(segmenter);
+        builder.AddBlock(sourceBuffer);
         
         foreach (var validator in validators)
             builder.AddBlock(validator);
+        
+        builder.AddBlock(validatorBuffer);
         
         foreach (var enricher in enrichers)
             builder.AddBlock(enricher);
         
         builder
+            .AddBlock(enricherBuffer)
             .AddBlock(broadcast)
             .AddBlock(metricsCollector)
             .AddBlock(auditLogger)
@@ -305,24 +332,31 @@ public static class ComplexEtlPOC
         foreach (var processor in typeAProcessors)
             builder.AddBlock(processor);
         
+        builder.AddBlock(typeAProcessorBuffer);
+        
         foreach (var writer in typeAWriters)
             builder.AddBlock(writer);
         
         // TypeB route
         builder
             .AddBlock(typeBFilter)
+            .AddBlock(typeBFilterBuffer)
             .AddBlock(typeBBatcher)
             .AddBlock(typeBAggregator)
             .AddBlock(typeBWriter)
             // TypeC route
-            .AddBlock(typeCFilter);
+            .AddBlock(typeCFilter)
+            .AddBlock(typeCFilterBuffer);
         
         foreach (var writer in typeCWriters)
             builder.AddBlock(writer);
 
         // Connect blocks using CompetingEdgeStrategy for concurrent processing
-        // Source to buffer - single producer to shared buffer
-        builder.Connect(dataSource, sourceBuffer);
+        // Source to segmenter - convert plain to epoch streams
+        builder.Connect(dataSource, segmenter);
+        
+        // Segmenter to buffer - single producer to shared buffer
+        builder.Connect(segmenter, sourceBuffer);
 
         // Buffer to validators - all validators compete from shared buffer
         foreach (var validator in validators)

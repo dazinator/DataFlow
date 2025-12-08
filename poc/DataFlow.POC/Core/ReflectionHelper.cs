@@ -506,7 +506,7 @@ public static class ReflectionHelper
     /// This consolidates the expression-tree-based factory creation pattern used by router factories.
     /// </summary>
     /// <typeparam name="TRouter">The router interface type</typeparam>
-    /// <param name="genericRouterType">The generic router type (e.g., typeof(TypedBufferNodeRouter&lt;&gt;))</param>
+    /// <param name="genericRouterType">The generic router type (e.g., typeof(TypedEdgeRouter&lt;&gt;))</param>
     /// <param name="itemType">The specific type parameter (e.g., int, string)</param>
     /// <param name="constructorParamTypes">The parameter types for the router constructor</param>
     /// <returns>A factory function that creates router instances</returns>

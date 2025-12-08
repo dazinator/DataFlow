@@ -51,7 +51,6 @@ public static class DataFlowGraphExtensions
         sb.AppendLine($"DataFlow: {graph.Name}");
         sb.AppendLine($"Blocks: {graph.Blocks.Count}");
         sb.AppendLine($"Edges: {graph.Edges.Count}");
-        sb.AppendLine($"Buffer Nodes: {graph.BufferNodes.Count}");
         sb.AppendLine();
 
         sb.AppendLine("Block List:");
@@ -60,18 +59,6 @@ public static class DataFlowGraphExtensions
             sb.AppendLine($"  - {block.Name}");
             sb.AppendLine($"      Input: {block.InputType.Name}");
             sb.AppendLine($"      Output: {block.OutputType.Name}");
-        }
-
-        if (graph.BufferNodes.Count > 0)
-        {
-            sb.AppendLine();
-            sb.AppendLine("Buffer Nodes:");
-            foreach (var buffer in graph.BufferNodes)
-            {
-                sb.AppendLine($"  - {buffer.Name ?? buffer.DataType.Name}");
-                sb.AppendLine($"      Type: {buffer.DataType.Name}");
-                sb.AppendLine($"      Capacity: {buffer.Capacity}");
-            }
         }
 
         sb.AppendLine();

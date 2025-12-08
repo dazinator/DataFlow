@@ -47,35 +47,7 @@ public class GraphVisualizationTests
             .UseFileName("SimpleFlow_Graphviz");
     }
 
-    [Fact]
-    public Task Should_RenderFlowWithBufferNode_AsMermaid()
-    {
-        // Arrange
-        var graph = CreateFlowWithBufferNode();
 
-        // Act
-        var mermaid = graph.ToMermaidDiagram();
-
-        // Assert
-        return Verify(mermaid)
-            .UseDirectory("Snapshots/GraphVisualizationTests")
-            .UseFileName("BufferNodeFlow_Mermaid");
-    }
-
-    [Fact]
-    public Task Should_RenderFlowWithBufferNode_AsGraphviz()
-    {
-        // Arrange
-        var graph = CreateFlowWithBufferNode();
-
-        // Act
-        var dot = graph.ToGraphviz();
-
-        // Assert
-        return Verify(dot)
-            .UseDirectory("Snapshots/GraphVisualizationTests")
-            .UseFileName("BufferNodeFlow_Graphviz");
-    }
 
     [Fact]
     public Task Should_RenderBroadcastFlow_AsMermaid()
@@ -162,24 +134,7 @@ public class GraphVisualizationTests
             .UseFileName("NoTypeInfo_Mermaid");
     }
 
-    [Fact]
-    public Task Should_RenderWithoutBufferNodes_WhenOptionSet()
-    {
-        // Arrange
-        var graph = CreateFlowWithBufferNode();
-        var options = new GraphRenderOptions
-        {
-            ShowBufferNodes = false
-        };
 
-        // Act
-        var mermaid = graph.ToMermaidDiagram(options: options);
-
-        // Assert
-        return Verify(mermaid)
-            .UseDirectory("Snapshots/GraphVisualizationTests")
-            .UseFileName("NoBufferNodes_Mermaid");
-    }
 
     [Fact]
     public Task Should_GenerateTextSummary()
@@ -248,23 +203,7 @@ public class GraphVisualizationTests
         return builder.Build();
     }
 
-    private DataFlowGraph CreateFlowWithBufferNode()
-    {
-        var producer = BlockHelpers.CreateProducer("producer", TestStreams.Integers(5));
-        var consumer = BlockHelpers.CreateActor<int, object, CollectorActor<int>>(
-            "consumer",
-            new CollectorActor<int>(new List<int>()));
 
-        var builder = GraphHelpers.CreateGraphBuilder("BufferFlow");
-        var buffer = builder.Buffer<int>(capacity: 10, name: "shared-buffer");
-        
-        builder.AddBlock(producer)
-            .AddBlock(consumer)
-            .Connect(producer, buffer)
-            .Connect(buffer, consumer);
-
-        return builder.Build();
-    }
 
     private DataFlowGraph CreateBroadcastFlowGraph()
     {
@@ -288,13 +227,17 @@ public class GraphVisualizationTests
 
     private DataFlowGraph CreateComplexFlowGraph()
     {
-        // Create a complex graph with multiple sources, transformations, and targets
-        var producer1 = BlockHelpers.CreateProducer("source1", TestStreams.Integers(3));
-        var producer2 = BlockHelpers.CreateProducer("source2", TestStreams.Integers(3));
+        // Create a complex graph with chained transformations and broadcast
+        // This tests visualization of complex topologies without requiring BufferNode
+        var producer = BlockHelpers.CreateProducer("source", TestStreams.Integers(10));
         
-        var transformer = BlockHelpers.CreateActor<int, string, TransformActor<int, string>>(
-            "transform",
-            new TransformActor<int, string>(i => $"Item-{i}"));
+        var transformer1 = BlockHelpers.CreateActor<int, string, TransformActor<int, string>>(
+            "transform1",
+            new TransformActor<int, string>(i => $"T1-{i}"));
+        
+        var transformer2 = BlockHelpers.CreateActor<string, string, TransformActor<string, string>>(
+            "transform2",
+            new TransformActor<string, string>(s => s.ToUpper()));
         
         var processor1 = BlockHelpers.CreateActor<string, object, CollectorActor<string>>(
             "target1",
@@ -305,19 +248,16 @@ public class GraphVisualizationTests
 
         var builder = GraphHelpers.CreateGraphBuilder("ComplexFlow");
         
-        // Add buffer for merging
-        var mergeBuffer = builder.Buffer<int>(capacity: 10, name: "merge-buffer");
-        
-        builder.AddBlock(producer1)
-            .AddBlock(producer2)
-            .AddBlock(transformer)
+        // Create a pipeline with broadcasting at the end
+        builder.AddBlock(producer)
+            .AddBlock(transformer1)
+            .AddBlock(transformer2)
             .AddBlock(processor1)
             .AddBlock(processor2)
-            .Connect(producer1, mergeBuffer)
-            .Connect(producer2, mergeBuffer)
-            .Connect(mergeBuffer, transformer)
-            .Connect(transformer, processor1)
-            .Connect(transformer, processor2);
+            .Connect(producer, transformer1)
+            .Connect(transformer1, transformer2)
+            .Connect(transformer2, processor1)
+            .Connect(transformer2, processor2);
 
         return builder.Build();
     }
