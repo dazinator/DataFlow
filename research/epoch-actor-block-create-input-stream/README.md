@@ -61,12 +61,12 @@ When an actor requests rotation:
 The challenge is that multiple actor instances need to share progress through the input stream:
 
 ```csharp
-// Line 62: Create enumerator ONCE outside the loop
+// Create enumerator ONCE outside the loop
 await using var inputEnumerator = epochStream.Items.GetAsyncEnumerator(cancellationToken);
 
 while (!cancellationToken.IsCancellationRequested)
 {
-    // Line 68-81: Create NEW actor instance in NEW scope (potentially multiple times)
+    // Create NEW actor instance in NEW scope (potentially multiple times)
     await using (var scope = _scopeFactory.CreateAsyncScope())
     {
         var actor = scope.ServiceProvider.GetRequiredService<TActor>();
@@ -163,10 +163,10 @@ Created test `EpochActorBlockAlt_Without_CreateActorInputStream_Should_Fail_With
 
 Understanding the distinction is critical:
 
-| Type | Purpose | State | Reusability |
-|------|---------|-------|-------------|
-| `IAsyncEnumerable<T>` | Factory for enumerators | Stateless | Can call `GetAsyncEnumerator()` multiple times |
-| `IAsyncEnumerator<T>` | Iterator with position | Stateful | Single-use, maintains current position |
+| Type                      | Purpose                  | State     | Reusability                                      |
+|---------------------------|--------------------------|-----------|--------------------------------------------------|
+| `IAsyncEnumerable<T>`     | Factory for enumerators  | Stateless | Can call `GetAsyncEnumerator()` multiple times   |
+| `IAsyncEnumerator<T>`     | Iterator with position   | Stateful  | Single-use, maintains current position           |
 
 **Key insight**: 
 - Calling `GetAsyncEnumerator()` on an `IAsyncEnumerable` creates a FRESH enumerator
@@ -248,9 +248,10 @@ Existing test coverage is adequate:
 
 ## Related Patterns
 
-This pattern is similar to:
-- **Iterator chaining** in LINQ
-- **Stream decorators** in Java streams
-- **Generator composition** in Python
+This pattern is similar to several well-known patterns in other languages and frameworks:
 
-The key is that you can't re-enumerate an `IAsyncEnumerable` and expect to continue from the same position - you need to share the underlying enumerator.
+- **Iterator chaining in LINQ**: Multiple LINQ operators can be chained on the same underlying enumerator
+- **Stream decorators in Java**: Java's `BufferedReader` wraps an underlying `Reader` while maintaining its state
+- **Generator composition in Python**: Python generators can be composed while sharing the same iteration state
+
+The key principle across all these patterns: you can't re-enumerate a stateful iterator and expect to continue from the same position - you need to share the underlying state.
