@@ -14,6 +14,7 @@
     <Description>Build data flows using an actor based block model.</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/uniun-technology/dataflow</RepositoryUrl>
   </PropertyGroup>
 
   <ItemGroup>
