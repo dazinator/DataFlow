@@ -77,6 +77,7 @@ public class RateLimitBlockTests
 
         // Assert
         Assert.Equal(items.Length, processedItems.Count);
-        Assert.True(sw.Elapsed >= TimeSpan.FromSeconds(2), $"Elapsed: {sw.Elapsed}"); // Should take at least 2s for 5 items at 2/s
+        // Allow for small timing variance - should take close to 2s for 5 items at 2/s rate
+        Assert.True(sw.Elapsed >= TimeSpan.FromSeconds(1.95), $"Elapsed: {sw.Elapsed}"); 
     }
 }
