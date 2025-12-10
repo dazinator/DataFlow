@@ -69,7 +69,8 @@ while (!cancellationToken.IsCancellationRequested)
     // Create NEW actor instance in NEW scope (potentially multiple times)
     await using (var scope = _scopeFactory.CreateAsyncScope())
     {
-        var actor = scope.ServiceProvider.GetRequiredService<TActor>();
+        InitializeActorContext(context, () => rotationRequested = true, cancellationToken);
+        var actor = scope.ServiceProvider.GetRequiredService<TActor>();  // NEW actor instance
         
         // CRITICAL: Wrap the SHARED enumerator
         var actorInput = CreateActorInputStream(inputEnumerator, cancellationToken);
@@ -153,7 +154,7 @@ Created `EpochActorBlockAlt` which passes `epochStream.Items` directly instead o
 
 Created test `EpochActorBlockAlt_Without_CreateActorInputStream_Should_Fail_With_Rotation` to validate the failure.
 
-**Result**: Test **hangs** (as expected) because each actor restarts enumeration from the beginning, creating an infinite loop.
+**Result**: Test hangs (as expected) because each actor restarts enumeration from the beginning, creating an infinite loop.
 
 ---
 
