@@ -112,15 +112,18 @@ Understand the architecture and migration:
     - Actor design principles
     - Domain-driven design with DataFlow
 
-15. **[Migrating from Current Design](./migrating-from-current-design.md)** - Migration guide
+15. **[Migrating from Current Design](./migrating-from-current-design.md)** - General migration guide
     - Breaking changes
     - Migration strategies
     - Before/after examples
 
-13. **[Migrating from Current Design](./migrating-from-current-design.md)** - Upgrade guide
-    - Breaking changes
-    - Migration strategies
-    - Before/after examples
+16. **[Migration Case Study: Invoice Reprocessing](./migration-case-study-invoice-reprocessing.md)** - Complete migration example
+    - Real-world legacy dataflow analysis
+    - Side-by-side package strategy
+    - Pattern mapping (AddProducer, AddBatch, AddTransform, etc.)
+    - Business logic decoupling for migration
+    - Complete POC implementation
+    - Comprehensive testing strategy
 
 ---
 
@@ -143,6 +146,12 @@ Understand the architecture and migration:
 10. Epoch Actor Block
 11. EF Core with Epochs
 12. Checkpointing *(when available)*
+
+### Migration Path (Upgrading from Legacy DataFlow)
+1. Migrating from Current Design *(overview)*
+2. Migration Case Study: Invoice Reprocessing *(complete hands-on example)*
+3. Business Logic Decoupling *(critical for testability)*
+4. Testing Guide *(validating migrated flows)*
 
 ---
 
