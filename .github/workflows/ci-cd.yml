@@ -119,9 +119,17 @@ jobs:
     - name: Pack Uniun.DataFlow.OpenTelemetry
       run: dotnet pack src/DataFlow.OpenTelemetry/DataFlow.OpenTelemetry.csproj --configuration Release --no-build --output ./packages /p:PackageVersion=${{ steps.gitversion.outputs.fullSemVer }}
     
+    - name: Configure NuGet source
+      run: |
+        dotnet nuget add source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
+          --name github \
+          --username ${{ github.repository_owner }} \
+          --password ${{ secrets.GITHUB_TOKEN }} \
+          --store-password-in-clear-text
+    
     - name: Publish packages to GitHub
       run: |
         dotnet nuget push "./packages/*.nupkg" \
-          --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
+          --source github \
           --api-key ${{ secrets.GITHUB_TOKEN }} \
           --skip-duplicate
