@@ -11,12 +11,9 @@ This guide provides best practices for updating NuGet package dependencies, espe
 - Resolving NuGet package dependency conflicts
 - Maintaining package compatibility across related dependencies
 
-**Related Guide**: For adding new packages or understanding the centralized package management system, see [Central Package Management Guide](/.team/CENTRAL_PACKAGE_MANAGEMENT.md).
+**Related Guide**: For adding new packages or understanding the centralized package management system, see [Central Package Management Guide](./central_package_management.md).
 
-**Note**: This guide covers **NuGet package dependencies** only. For guidance on external runtime dependencies (databases, message queues, OTLP endpoints, etc.) required by sample applications, see:
-- Implementation Duty: `.team/duties/IMPLEMENTATION_DUTY.md` (Step 0, Step 7)
-- Research Duty: `.team/duties/RESEARCH_DUTY.md` (Phase 5)
-- GitHub issue format for backlog items (issues with `workflow:product-backlog` label)
+**Note**: This guide covers **NuGet package dependencies** only. Not for external runtime dependencies (databases, message queues, OTLP endpoints, etc.) required by applications at runtime.
 
 ---
 
@@ -82,7 +79,7 @@ dotnet list package --outdated
   ```bash
   curl -s "https://api.nuget.org/v3-flatcontainer/<package-name>/index.json" | grep -o '"[0-9]\+\.[0-9]\+\.[0-9]\+"'
   ```
-- If handover document specifies minimum patched version, verify if latest is significantly different
+- If current work item specifies a minimum patched version, verify if latest is significantly different
 - **Prefer latest stable** that is compatible with current .NET version
 
 ### For General Updates
@@ -151,7 +148,7 @@ dotnet build
 3. **Warning check** - Verify security warnings (e.g., NU1903) are resolved
 
 **Test Suite Decisions:**
-- **Sample/dev-only dependencies**: Build verification sufficient, full test suite optional
+- **Sample/dev-only dependencies**: Build verification sufficient, full test suite optional, consider targeted tests in test suite.
 - **Production dependencies**: Full test suite required
 - **Pre-existing test failures**: Document them to avoid confusion
 
@@ -173,11 +170,6 @@ dotnet test
 ### When External Services Required
 
 Some samples may require external services (databases, OTLP endpoints, message brokers) for runtime validation.
-
-**For guidance on documenting external service requirements:**
-- See Implementation Workflow Step 0 for handover review checklist
-- See Product Backlog Template for external dependency documentation section
-- See Research Workflow Phase 5 for handover creation guidance
 
 **For validation when external services unavailable:**
 - Build verification confirms NuGet package compatibility even without runtime validation
@@ -329,25 +321,3 @@ curl -s "https://api.nuget.org/v3-flatcontainer/<package-name>/index.json" | gre
 ```
 
 ---
-
-## Related Documentation
-
-- **Implementation Duty**: `.team/duties/IMPLEMENTATION_DUTY.md`
-  - Step 0: Handover review checklist for dependency updates
-  - Step 6: Quick reference to this guide for NuGet updates
-  - Step 7: Testing and validation guidance
-- **Research Duty**: `.team/duties/RESEARCH_DUTY.md`
-  - Phase 5: Documenting external dependencies in handovers
-- **GitHub Issues**: Backlog items use `workflow:product-backlog` label for dependencies documentation
-- **Copilot Instructions**: `.github/copilot-instructions.md`
-  - Overall coding standards and practices
-- **Security Tools**: See `gh-advisory-database` tool documentation in Copilot workspace
-
----
-
-## Examples
-
-See the following PRs for examples of dependency updates:
-- Security vulnerability fixes in sample applications
-- Multi-package family updates
-- Handling package downgrade conflicts

@@ -1,6 +1,6 @@
 # Central Package Management Guide
 
-DataFlow uses **centralized package version management** via `Directory.Packages.props` to ensure consistent dependency versions across all projects.
+This solution uses **centralized package version management** via `Directory.Packages.props` to ensure consistent dependency versions across all projects.
 
 ---
 
@@ -12,7 +12,7 @@ Use this guide when:
 - Resolving package version conflicts
 - Understanding why builds fail with "PackageVersion" errors
 
-**Related Guide**: For updating packages (especially security fixes), also see [NuGet Dependency Updates Guide](/.team/NUGET_DEPENDENCY_UPDATES.md).
+**Related Guide**: For updating packages (especially security fixes), also see [NuGet Dependency Updates Guide](./nuget_dependency_updates.md).
 
 ---
 
@@ -109,7 +109,6 @@ Edit `src/Directory.Packages.props`:
 **Version Selection Guidance**:
 - Use latest stable version compatible with target framework (.NET 8)
 - Check release notes for breaking changes
-- For security updates, see [NuGet Dependency Updates Guide](/.team/NUGET_DEPENDENCY_UPDATES.md)
 - **⚠️ CRITICAL**: Verify package supports .NET 8 - do not add packages requiring .NET 9+
 
 **Alphabetical Ordering**:
@@ -211,7 +210,7 @@ Keep related package families at consistent versions:
 
 ### For Security Updates
 
-See [NuGet Dependency Updates Guide](/.team/NUGET_DEPENDENCY_UPDATES.md) for complete security update workflow, including:
+See [NuGet Dependency Updates Guide](./nuget_dependency_updates.md) for complete security update workflow, including:
 - Checking for vulnerable packages
 - Selecting patched versions
 - Resolving dependency conflicts
@@ -311,8 +310,6 @@ warning NU1605: Detected package downgrade: Package.Name from x.y.z to x.y.w
 <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.12.0" />
 <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.12.0" />
 ```
-
-See [NuGet Dependency Updates Guide](/.team/NUGET_DEPENDENCY_UPDATES.md) for complete conflict resolution guidance.
 
 ---
 
@@ -500,14 +497,6 @@ curl -s "https://api.nuget.org/v3-flatcontainer/{package}/{version}/{package}.nu
 ❌ Use pre-release versions in production code
 ❌ Skip testing after version updates
 ❌ Create duplicate `PackageVersion` entries
-
----
-
-## Related Documentation
-
-- [NuGet Dependency Updates Guide](/.team/NUGET_DEPENDENCY_UPDATES.md) - Updating packages for security
-- [Implementation Duty](/.team/duties/IMPLEMENTATION_DUTY.md) - General implementation guidance
-- [Research Duty](/.team/duties/RESEARCH_DUTY.md) - Exploring new dependencies
 
 ---
 
