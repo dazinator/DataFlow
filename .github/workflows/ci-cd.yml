@@ -57,6 +57,16 @@ jobs:
       timeout-minutes: 15
       run: dotnet test ${{ env.SOLUTION_PATH }} --configuration Release --no-build --filter "Category=UnitTest|Category=IntegrationTest" --logger "trx;LogFileName=test-results.trx"
     
+    - name: Restore POC test dependencies
+      run: dotnet restore poc/DataFlow.POC.Tests/DataFlow.POC.Tests.csproj
+    
+    - name: Build POC tests
+      run: dotnet build poc/DataFlow.POC.Tests/DataFlow.POC.Tests.csproj --configuration Release --no-restore
+    
+    - name: Run POC tests
+      timeout-minutes: 15
+      run: dotnet test poc/DataFlow.POC.Tests/DataFlow.POC.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=poc-test-results.trx"
+    
     - name: Publish test results
       uses: dorny/test-reporter@v1
       if: always()
