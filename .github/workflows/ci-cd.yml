@@ -132,4 +132,5 @@ jobs:
         dotnet nuget push "./packages/*.nupkg" \
           --source github \
           --api-key ${{ secrets.GITHUB_TOKEN }} \
-          --skip-duplicate
+          --skip-duplicate \
+          --no-service-endpoint
