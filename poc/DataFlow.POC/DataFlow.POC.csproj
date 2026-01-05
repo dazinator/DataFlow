@@ -5,6 +5,16 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
+    <PackageId>DataFlow</PackageId>
+    <RootNamespace>DataFlow.POC</RootNamespace>
+    <Title>DataFlow POC</Title>
+    <Authors>Darrell Tunnell</Authors>
+    <Company>Uniun Technology Ltd</Company>
+    <Product>DataFlow</Product>
+    <Description>DataFlow v2 POC - New edge-first design with epoch-based architecture. This package enables side-by-side migration from Uniun.DataFlow v1 to DataFlow v2.</Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/uniun-technology/dataflow</RepositoryUrl>
   </PropertyGroup>
 
   <ItemGroup>
@@ -17,6 +27,13 @@
   <ItemGroup>
     <InternalsVisibleTo Include="DataFlow.POC.Tests" />
     <InternalsVisibleTo Include="DataFlow.POC.Benchmarks" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\poc\README.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
   </ItemGroup>
 
 </Project>
