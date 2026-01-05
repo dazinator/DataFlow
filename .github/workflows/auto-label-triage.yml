@@ -10,7 +10,7 @@ permissions:
 jobs:
   auto-label:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Add triage workflow label
         uses: actions/github-script@v7
@@ -22,40 +22,11 @@ jobs:
               issue_number: context.issue.number,
               labels: ['workflow:triage']
             });
-            
+
             // Optional: Post a comment explaining the label
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: `🏷️ This issue has been automatically labeled with \`workflow:triage\` and is awaiting initial assessment.
-
-## Which Workflow?
-
-The triage workflow will determine the appropriate next step. To help speed this along, consider these questions:
-
-### Quick Self-Assessment
-
-**Is this a bug or feature with clear requirements and no unknowns?**
-→ Likely: \`workflow:implementation\` ⚙️
-
-**Does this need investigation, prototyping, or validation?**
-→ Likely: \`workflow:research\` 🔍
-
-**Is this about code quality, refactoring, or architecture improvements?**
-→ Likely: \`workflow:tech-debt\` 🔧
-
-**Is this one of multiple competing priorities needing business value assessment?**
-→ Likely: \`workflow:product-backlog\` 📊
-
-**Is this about improving team workflows or processes (not code)?**
-→ Likely: \`workflow:process-modeling\` 📋
-
-### Need Help Deciding?
-
-See the [Triage Decision Tree](/.team/prompts/TRIAGE_WORKFLOW.md#decision-tree) and [Triage Examples](/.team/prompts/TRIAGE_EXAMPLES.md) for detailed guidance.
-
----
-
-*The triage process will officially route this issue based on a full assessment. This is just a preview to help you understand what to expect.*`
+              body: '🏷️ This issue has been automatically labeled with `workflow:triage` and is awaiting initial assessment.\n\n## Which Workflow?\n\nThe triage workflow will determine the appropriate next step. To help speed this along, consider these questions:\n\n### Quick Self-Assessment\n\n**Is this a bug or feature with clear requirements and no unknowns?**\n→ Likely: `workflow:implementation` ⚙️\n\n**Does this need investigation, prototyping, or validation?**\n→ Likely: `workflow:research` 🔍\n\n**Is this about code quality, refactoring, or architecture improvements?**\n→ Likely: `workflow:tech-debt` 🔧\n\n**Is this one of multiple competing priorities needing business value assessment?**\n→ Likely: `workflow:product-backlog` 📊\n\n**Is this about improving team workflows or processes (not code)?**\n→ Likely: `workflow:process-modeling` 📋\n\n### Need Help Deciding?\n\nSee the [Triage Decision Tree](/.team/prompts/TRIAGE_WORKFLOW.md#decision-tree) and [Triage Examples](/.team/prompts/TRIAGE_EXAMPLES.md) for detailed guidance.\n\n---\n\n*The triage process will officially route this issue based on a full assessment. This is just a preview to help you understand what to expect.*'
             });
