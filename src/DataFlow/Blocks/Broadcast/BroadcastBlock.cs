@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Uniun.DataFlow;
 using Uniun.DataFlow.Blocks;
+using Uniun.DataFlow.Builder.Graph;
 
 /// <summary>
 /// A broadcast block that takes input items and fans them out to multiple downstream blocks concurrently.
@@ -22,14 +23,17 @@ using Uniun.DataFlow.Blocks;
 /// Per-target clone functions can be configured using ConfigureTarget() for fine-grained control.
 /// </summary>
 /// <typeparam name="T">The type of items to broadcast</typeparam>
-public class BroadcastBlock<T> : BlockBase, ITargetBlock<T>, ISourceBlock<T>
+public class BroadcastBlock<T> : BlockBase, ITargetBlock<T>, ISourceBlock<T>, IDataFlowInitializable
 {
     private readonly ILogger<BroadcastBlock<T>> _logger;
     private readonly Func<T, T>? _defaultCloneFunc;
     private readonly Dictionary<string, Func<T, T>?> _targetCloneFuncs = new();
     private readonly Dictionary<ITargetBlock<T>, BroadcastTarget<T>> _connectedTargets = new();
     private readonly object _connectionLock = new();
+    private readonly TaskCompletionSource<bool> _allTargetsConnectedTcs = new();
     private ISourceBlock<T>? _source;
+    private int _expectedTargetCount;
+    private int _connectedTargetCount;
 
     public BroadcastBlock(
         string name,
@@ -71,6 +75,28 @@ public class BroadcastBlock<T> : BlockBase, ITargetBlock<T>, ISourceBlock<T>
         if (_source is null)
         {
             throw new InvalidOperationException($"No source block configured for BroadcastBlock '{Name}'");
+        }
+    }
+
+    /// <summary>
+    /// Called during dataflow initialization to discover the expected number of downstream targets.
+    /// This prevents the race condition where broadcasting starts before all targets have connected.
+    /// </summary>
+    public override void OnDataFlowInitialized(IDataFlowRuntimeGraph runtimeGraph, CancellationToken cancellationToken)
+    {
+        // Count how many blocks are expecting to receive from this broadcast block
+        _expectedTargetCount = runtimeGraph.Graph.Connections
+            .Count(c => c.SourceBlockName == Name);
+
+        _logger.LogDebug(
+            "BroadcastBlock '{BlockName}' initialized. Expected target count: {ExpectedTargetCount}",
+            Name,
+            _expectedTargetCount);
+
+        // If no targets are expected, complete immediately
+        if (_expectedTargetCount == 0)
+        {
+            _allTargetsConnectedTcs.TrySetResult(true);
         }
     }
 
@@ -124,11 +150,23 @@ public class BroadcastBlock<T> : BlockBase, ITargetBlock<T>, ISourceBlock<T>
                 };
 
                 _connectedTargets[target] = broadcastTarget;
+                _connectedTargetCount++;
+
                 _logger.LogDebug(
-                    "Connected new target '{TargetName}' to broadcast block '{BlockName}'. Total targets: {TargetCount}",
+                    "Connected new target '{TargetName}' to broadcast block '{BlockName}'. Total targets: {TargetCount}/{ExpectedCount}",
                     broadcastTarget.TargetName,
                     Name,
-                    _connectedTargets.Count);
+                    _connectedTargets.Count,
+                    _expectedTargetCount);
+
+                // Signal if all expected targets have connected
+                if (_connectedTargetCount >= _expectedTargetCount && _expectedTargetCount > 0)
+                {
+                    _allTargetsConnectedTcs.TrySetResult(true);
+                    _logger.LogDebug(
+                        "All expected targets connected to broadcast block '{BlockName}'",
+                        Name);
+                }
             }
         }
 
@@ -148,6 +186,23 @@ public class BroadcastBlock<T> : BlockBase, ITargetBlock<T>, ISourceBlock<T>
     protected override async Task CoreExecuteAsync(IDataFlowContext context)
     {
         EnsureSource();
+
+        // Wait for all expected targets to connect before starting to broadcast
+        // This prevents the race condition where items are broadcast before all targets are ready
+        if (_expectedTargetCount > 0)
+        {
+            _logger.LogDebug(
+                "BroadcastBlock '{BlockName}' waiting for {ExpectedCount} targets to connect...",
+                Name,
+                _expectedTargetCount);
+
+            await _allTargetsConnectedTcs.Task;
+
+            _logger.LogDebug(
+                "BroadcastBlock '{BlockName}' starting broadcast with {TargetCount} connected targets",
+                Name,
+                _connectedTargets.Count);
+        }
 
         // If no targets connected, log warning but don't fail
         if (_connectedTargets.Count == 0)
