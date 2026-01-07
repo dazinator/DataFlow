@@ -231,7 +231,7 @@ public class DecoupledEpochTests
         // Act
         var epochs = new List<EpochVector>();
         
-        var plainItems = ProducePlainItems();
+        var plainItems = ProducePlainItems(0); // Empty stream
         var epochStreams = segmenterBlock.ExecuteAsync(plainItems, context);
         
         await foreach (var epochStream in epochStreams)
