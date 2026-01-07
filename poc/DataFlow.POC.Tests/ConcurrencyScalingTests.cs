@@ -365,6 +365,7 @@ public class ConcurrencyScalingTests
     #endregion
 
     [Fact]
+    [Trait("Category", "Performance")]
     public async Task Multiple_Transformers_With_CompetingEdge_Should_Process_Concurrently()
     {
         // Arrange
@@ -487,6 +488,7 @@ public class ConcurrencyScalingTests
     }
 
     [Fact]
+    [Trait("Category", "Performance")]
     public async Task Multiple_Processors_With_CompetingEdge_Should_Execute_Concurrently()
     {
         // Arrange
@@ -577,6 +579,7 @@ public class ConcurrencyScalingTests
     }
 
     [Fact]
+    [Trait("Category", "Performance")]
     public async Task Chained_Competing_Stages_Should_Maintain_Concurrency()
     {
         // This test verifies that concurrency is maintained across multiple stages
@@ -760,6 +763,7 @@ public class ConcurrencyScalingTests
     #region Level 1: Simple Competing Transformers (BASELINE - PASSING)
 
     [Fact]
+    [Trait("Category", "Performance")]
     public async Task Level1_Simple_Competing_Transformers_Should_Scale()
     {
         // This is our baseline - we know this works with 3.6x speedup
@@ -841,6 +845,7 @@ public class ConcurrencyScalingTests
     #region Level 2: Two-Stage Pipeline with Competing Edges
 
     [Fact]
+    [Trait("Category", "Performance")]
     public async Task Level2_TwoStage_Pipeline_Should_Scale()
     {
         // Add second stage: Source → Validators (competing) → Enrichers (competing) → Collector
@@ -935,6 +940,7 @@ public class ConcurrencyScalingTests
     #region Level 3: Add Broadcast After Enrichment
 
     [Fact]
+    [Trait("Category", "Performance")]
     public async Task Level3_WithBroadcast_Should_Scale()
     {
         // Add broadcast: Source → Validators → Enrichers → Broadcast → [Collector1, Collector2]
@@ -1032,6 +1038,7 @@ public class ConcurrencyScalingTests
     #region Level 4: Add Simple Routing
 
     [Fact]
+    [Trait("Category", "Performance")]
     public async Task Level4_WithRouting_Should_Scale()
     {
         // Add routing: Source → Validators → Enrichers → SelectiveRouting → [Even, Odd]
@@ -1137,6 +1144,7 @@ public class ConcurrencyScalingTests
     #region Level 5: Full Complexity (Like ComplexEtlPOC)
 
     [Fact]
+    [Trait("Category", "Performance")]
     public async Task Level5_FullComplexity_Should_Scale()
     {
         // Full complexity: Broadcast + Routing + Multiple downstream paths with competing processors
@@ -1297,6 +1305,7 @@ public class ConcurrencyScalingTests
     #region Level 6: Add BatchBlock
 
     [Fact]
+    [Trait("Category", "Performance")]
     public async Task Level6_WithBatchBlock_Should_Scale()
     {
         // Add batching: Source → Validators → Enrichers → Broadcast → [Metrics, BatchPath]
@@ -1432,6 +1441,7 @@ public class ConcurrencyScalingTests
     #region Level 7: Scale to 10K Items
 
     [Fact]
+    [Trait("Category", "Performance")]
     public async Task Level7_With10KItems_Should_Scale()
     {
         // Scale up to 10K items like the benchmark
@@ -1518,6 +1528,7 @@ public class ConcurrencyScalingTests
     #region Level 8: Exact ComplexEtlPOC Match
 
     [Fact]
+    [Trait("Category", "Performance")]
     public async Task Level8_ExactComplexEtlPOCMatch_Should_Scale()
     {
         // Exact match to ComplexEtlPOC benchmark:

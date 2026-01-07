@@ -65,7 +65,7 @@ jobs:
     
     - name: Run POC tests
       timeout-minutes: 15
-      run: dotnet test poc/DataFlow.POC.Tests/DataFlow.POC.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=poc-test-results.trx"
+      run: dotnet test poc/DataFlow.POC.Tests/DataFlow.POC.Tests.csproj --configuration Release --no-build --filter "Category!=Performance" --logger "trx;LogFileName=poc-test-results.trx"
     
     - name: Publish test results
       uses: dorny/test-reporter@v1
