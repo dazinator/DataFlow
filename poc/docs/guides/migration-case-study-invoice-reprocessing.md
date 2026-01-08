@@ -248,20 +248,31 @@ To migrate effectively, we need to identify the **topology patterns** used in th
 
 **POC Equivalent:**
 ```csharp
-df.AddSourceBlock<T, ProducerType>("producer");
+// Register source block with DI
+df.AddBlock("producer", sp =>
+{
+    var factory = sp.GetRequiredService<IServiceScopeFactory>();
+    return new PlainSourceAdapter<T, ProducerType>(
+        new BlockContext("namespace:producer"),
+        factory,
+        sourceName: "my-source");
+});
+
+// Register transformer actor
 df.AddActorBlock<TIn, TOut, TransformerActor>("transformer");
 
 df.AddGraph("graph", g =>
 {
-    g.UseBlock("producer")
-     .ProcessWith("transformer");
+    g.UseBlock("producer");
+    g.UseBlock("transformer");
+    g.Connect("producer", "transformer");
 });
 ```
 
 **Mapping:**
-- `AddProducer` → `AddSourceBlock` (with epoch wrapping)
+- `AddProducer` → Register with `AddBlock` using `PlainSourceAdapter`
 - `AddTransform` → `AddActorBlock` (EpochActorBlock)
-- `.ReceiveFrom()` → `.ProcessWith()` or edge connections
+- `.ReceiveFrom()` → Use `g.Connect(source, target)` for graph connections
 
 ---
 
@@ -280,23 +291,27 @@ df.AddGraph("graph", g =>
 
 **POC Equivalent:**
 ```csharp
-df.AddBatchBlock<T>("batcher", new EpochBatchBlockConfig
+// Register batch block with DI
+df.AddBlock("batcher", sp =>
 {
-    MaxBatchSize = 10000,
-    WindowPeriod = TimeSpan.FromSeconds(10)
+    return new EpochBatchBlock<T>(
+        new BlockContext("namespace:batcher"),
+        maxBatchSize: 10000,
+        windowPeriod: TimeSpan.FromSeconds(10));
 });
 
 df.AddGraph("graph", g =>
 {
-    g.UseBlock("source")
-     .ProcessWith("batcher");
+    g.UseBlock("source");
+    g.UseBlock("batcher");
+    g.Connect("source", "batcher");
 });
 ```
 
 **Mapping:**
-- `AddBatch<T>` → `AddBatchBlock<T>` (uses EpochBatchBlock internally in POC)
-- Window period and max batch size configured similarly
-- Capacity is now edge-level configuration
+- `AddBatch<T>` → Register with `AddBlock` using `EpochBatchBlock`
+- Window period and max batch size configured in constructor
+- Capacity is now edge-level configuration via `Connect()`
 
 ---
 
@@ -319,12 +334,18 @@ Rate limiting in POC is typically achieved through:
 
 ```csharp
 // Option 1: Use buffer block for memory control
-df.AddBufferBlock<T>("rate-limited-buffer", capacity: 2);
+df.AddBlock("rate-limited-buffer", sp =>
+{
+    return new EpochBufferBlock<T>(
+        new BlockContext("namespace:rate-limited-buffer"),
+        new BufferConfiguration(capacity: 2));
+});
 
 df.AddGraph("graph", g =>
 {
-    g.UseBlock("source")
-     .ProcessWith("rate-limited-buffer");
+    g.UseBlock("source");
+    g.UseBlock("rate-limited-buffer");
+    g.Connect("source", "rate-limited-buffer");
 });
 
 // Option 2: Custom throttling actor
@@ -381,7 +402,13 @@ In the legacy model, blocks could do internal concurrency. In POC, concurrency i
 // Legacy: 1 block with MaxConcurrency = 4
 // POC: 1 buffer + 4 competing actor blocks
 
-df.AddBufferBlock<TIn>("work-buffer", capacity: 100);
+df.AddBlock("work-buffer", sp =>
+{
+    return new EpochBufferBlock<TIn>(
+        new BlockContext("namespace:work-buffer"),
+        new BufferConfiguration(capacity: 100));
+});
+
 df.AddActorBlock<TIn, TOut, TransformerActor>("worker-1");
 df.AddActorBlock<TIn, TOut, TransformerActor>("worker-2");
 df.AddActorBlock<TIn, TOut, TransformerActor>("worker-3");
@@ -389,9 +416,23 @@ df.AddActorBlock<TIn, TOut, TransformerActor>("worker-4");
 
 df.AddGraph("graph", g =>
 {
-    g.UseBlock("source")
-     .ProcessWith("work-buffer")
-     .CompeteWith(new[] { "worker-1", "worker-2", "worker-3", "worker-4" });
+    g.UseBlock("source");
+    g.UseBlock("work-buffer");
+    g.UseBlock("worker-1");
+    g.UseBlock("worker-2");
+    g.UseBlock("worker-3");
+    g.UseBlock("worker-4");
+    
+    g.Connect("source", "work-buffer");
+    g.ConnectCompeting(
+        g.FindBlockByName("work-buffer"), 
+        new[] { 
+            g.FindBlockByName("worker-1"),
+            g.FindBlockByName("worker-2"),
+            g.FindBlockByName("worker-3"),
+            g.FindBlockByName("worker-4")
+        },
+        bufferCapacity: 100);
 });
 ```
 
@@ -447,13 +488,13 @@ public class ChangesProducerActor : IStreamActor<InvoiceEnrichmentContext[], Cas
 
 | Legacy Pattern | POC Equivalent | Notes |
 |----------------|---------------|-------|
-| `AddProducer<T, P>` | `AddSourceBlock<T, P>` | Use `PlainSourceAdapter` or epoch-aware source |
-| `AddBatch<T>` | `AddBatchBlock<T>` | EpochBatchBlock - similar config |
-| `AddRateLimit<T>` | `AddBufferBlock<T>` or custom actor | Use bounded buffer for memory control |
+| `AddProducer<T, P>` | `AddBlock` with `PlainSourceAdapter` | Wrap plain source actors with PlainSourceAdapter |
+| `AddBatch<T>` | `AddBlock` with `EpochBatchBlock` | Pass maxBatchSize and windowPeriod to constructor |
+| `AddRateLimit<T>` | `AddBlock` with `EpochBufferBlock` + `BufferConfiguration` | Use bounded buffer for memory control |
 | `AddTransform<TIn, TOut, T>` | `AddActorBlock<TIn, TOut, T>` | EpochActorBlock - unified block type |
 | `AddProcess<T, P>` | `AddActorBlock<T, object, P>` | Processor returns empty/dummy output |
 | `MaxConcurrency = N` | Buffer + N competing actors | Topology-level concurrency pattern |
-| `.ReceiveFrom(name)` | `.ProcessWith(name)` or `.Connect()` | Graph building API |
+| `.ReceiveFrom(name)` | `g.Connect(source, target)` | Use Connect() method for graph connections |
 
 ---
 
@@ -885,27 +926,32 @@ builder.Services.AddScoped<ReallocationProcessorActor>();
 ```csharp
 builder.Services.AddDataFlows("invoice-reprocessing", df =>
 {
-    var scopeFactory = df.ServiceProvider.GetRequiredService<IServiceScopeFactory>();
-    
     // === STAGE 1: Invoice Source ===
     df.AddBlock("invoice-source", sp =>
     {
         var factory = sp.GetRequiredService<IServiceScopeFactory>();
         return new PlainSourceAdapter<InvoiceEnrichmentContext, InvoiceSource>(
-            new BlockContext("invoice-source"),
+            new BlockContext("invoice-reprocessing:invoice-source"),
             factory,
             sourceName: "database");
     });
     
     // === STAGE 2: Batching ===
-    df.AddBatchBlock<InvoiceEnrichmentContext>("batch-invoices", new EpochBatchBlockConfig
+    df.AddBlock("batch-invoices", sp =>
     {
-        MaxBatchSize = 10000,
-        WindowPeriod = TimeSpan.FromSeconds(10)
+        return new EpochBatchBlock<InvoiceEnrichmentContext>(
+            new BlockContext("invoice-reprocessing:batch-invoices"),
+            maxBatchSize: 10000,
+            windowPeriod: TimeSpan.FromSeconds(10));
     });
     
     // === STAGE 3: Rate Limiting (using buffer with small capacity) ===
-    df.AddBufferBlock<InvoiceEnrichmentContext[]>("rate-limit-buffer", capacity: 2);
+    df.AddBlock("rate-limit-buffer", sp =>
+    {
+        return new EpochBufferBlock<InvoiceEnrichmentContext[]>(
+            new BlockContext("invoice-reprocessing:rate-limit-buffer"),
+            new BufferConfiguration(capacity: 2));
+    });
     
     // === STAGE 4: Enrichment Pipeline ===
     df.AddActorBlock<InvoiceEnrichmentContext[], InvoiceEnrichmentContext[], CounterpartyInfoLoaderActor>(
@@ -920,10 +966,12 @@ builder.Services.AddDataFlows("invoice-reprocessing", df =>
     // === STAGE 5: Cashflow Reallocation ===
     df.AddActorBlock<InvoiceEnrichmentContext[], CashflowReallocationChange, CashflowChangesProducerActor>(
         "identify-changes");
-    df.AddBatchBlock<CashflowReallocationChange>("batch-changes", new EpochBatchBlockConfig
+    df.AddBlock("batch-changes", sp =>
     {
-        MaxBatchSize = 10000,
-        WindowPeriod = TimeSpan.FromSeconds(2)
+        return new EpochBatchBlock<CashflowReallocationChange>(
+            new BlockContext("invoice-reprocessing:batch-changes"),
+            maxBatchSize: 10000,
+            windowPeriod: TimeSpan.FromSeconds(2));
     });
     df.AddActorBlock<CashflowReallocationChange[], CashflowReallocationGroup[], ReallocationTransformerActor>(
         "reallocate-to-cashflows");
@@ -933,17 +981,30 @@ builder.Services.AddDataFlows("invoice-reprocessing", df =>
     // === GRAPH DEFINITION ===
     df.AddGraph("main", g =>
     {
-        g.UseBlock("invoice-source")
-         .ProcessWith("batch-invoices")
-         .ProcessWith("rate-limit-buffer")
-         .ProcessWith("load-counterparty")
-         .ProcessWith("enrich-invoices")
-         .ProcessWith("update-invoices")
-         .ProcessWith("notify")
-         .ProcessWith("identify-changes")
-         .ProcessWith("batch-changes")
-         .ProcessWith("reallocate-to-cashflows")
-         .ProcessWith("process-reallocations");
+        // Add blocks to graph
+        g.UseBlock("invoice-source");
+        g.UseBlock("batch-invoices");
+        g.UseBlock("rate-limit-buffer");
+        g.UseBlock("load-counterparty");
+        g.UseBlock("enrich-invoices");
+        g.UseBlock("update-invoices");
+        g.UseBlock("notify");
+        g.UseBlock("identify-changes");
+        g.UseBlock("batch-changes");
+        g.UseBlock("reallocate-to-cashflows");
+        g.UseBlock("process-reallocations");
+        
+        // Connect blocks in sequence
+        g.Connect("invoice-source", "batch-invoices");
+        g.Connect("batch-invoices", "rate-limit-buffer");
+        g.Connect("rate-limit-buffer", "load-counterparty");
+        g.Connect("load-counterparty", "enrich-invoices");
+        g.Connect("enrich-invoices", "update-invoices");
+        g.Connect("update-invoices", "notify");
+        g.Connect("notify", "identify-changes");
+        g.Connect("identify-changes", "batch-changes");
+        g.Connect("batch-changes", "reallocate-to-cashflows");
+        g.Connect("reallocate-to-cashflows", "process-reallocations");
     });
 });
 ```
@@ -1144,21 +1205,21 @@ public class InvoiceReprocessingDataFlowIntegrationTests
         // Register DataFlow (simplified version for test)
         services.AddDataFlows("test-invoice-reprocessing", df =>
         {
-            var scopeFactory = df.ServiceProvider.GetRequiredService<IServiceScopeFactory>();
-            
             df.AddBlock("invoice-source", sp =>
             {
                 var factory = sp.GetRequiredService<IServiceScopeFactory>();
                 return new PlainSourceAdapter<InvoiceEnrichmentContext, InvoiceSource>(
-                    new BlockContext("invoice-source"),
+                    new BlockContext("test-invoice-reprocessing:invoice-source"),
                     factory,
                     sourceName: "database");
             });
             
-            df.AddBatchBlock<InvoiceEnrichmentContext>("batch-invoices", new EpochBatchBlockConfig
+            df.AddBlock("batch-invoices", sp =>
             {
-                MaxBatchSize = 2,  // Small batch for testing
-                WindowPeriod = TimeSpan.FromSeconds(1)
+                return new EpochBatchBlock<InvoiceEnrichmentContext>(
+                    new BlockContext("test-invoice-reprocessing:batch-invoices"),
+                    maxBatchSize: 2,  // Small batch for testing
+                    windowPeriod: TimeSpan.FromSeconds(1));
             });
             
             df.AddActorBlock<InvoiceEnrichmentContext[], InvoiceEnrichmentContext[], CounterpartyInfoLoaderActor>(
@@ -1170,11 +1231,16 @@ public class InvoiceReprocessingDataFlowIntegrationTests
             
             df.AddGraph("main", g =>
             {
-                g.UseBlock("invoice-source")
-                 .ProcessWith("batch-invoices")
-                 .ProcessWith("load-counterparty")
-                 .ProcessWith("enrich-invoices")
-                 .ProcessWith("update-invoices");
+                g.UseBlock("invoice-source");
+                g.UseBlock("batch-invoices");
+                g.UseBlock("load-counterparty");
+                g.UseBlock("enrich-invoices");
+                g.UseBlock("update-invoices");
+                
+                g.Connect("invoice-source", "batch-invoices");
+                g.Connect("batch-invoices", "load-counterparty");
+                g.Connect("load-counterparty", "enrich-invoices");
+                g.Connect("enrich-invoices", "update-invoices");
             });
         });
         
