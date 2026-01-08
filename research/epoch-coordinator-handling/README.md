@@ -279,6 +279,58 @@ public void Test()
 
 ---
 
+## 🆕 Final Recommendation: Execution Context Approach
+
+**Date**: 2026-01-08 (Based on PR comment feedback)
+
+Following PR discussion, the **best approach** combines all feedback:
+
+### The Solution
+
+1. **Keyed Services**: Register coordinator per-graph (consistent with DataFlow patterns)
+2. **Execution Context**: Pass coordinator through `IActorExecutionContext` 
+3. **Deferred Initialization**: Coordinator doesn't require DI at construction
+
+### Why This Is Best
+
+- ✅ Uses keyed services (consistent with `DataFlowBuilder`)
+- ✅ No new containers (respects DI architecture)
+- ✅ Simplified actor constructors (no coordinator parameter)
+- ✅ Natural flow (context already passed to actors)
+- ✅ Per-graph isolation (keyed services)
+- ✅ Backward compatible (non-epoch actors ignore coordinator in context)
+
+### Key Changes
+
+**IActorExecutionContext gets coordinator property**:
+```csharp
+public interface IActorExecutionContext
+{
+    IEpochCoordinator? EpochCoordinator { get; }
+    // ... existing members
+}
+```
+
+**EpochSourceBlock resolves coordinator via keyed services**:
+```csharp
+var coordinator = scope.ServiceProvider
+    .GetRequiredKeyedService<IEpochCoordinator>(graphId);
+_context.Reset(..., coordinator);
+```
+
+**SourceActorBase simplified**:
+```csharp
+// Before: protected SourceActorBase(IEpochCoordinator coordinator, string sourceId)
+// After: protected SourceActorBase(string sourceId)
+
+// Gets coordinator from context instead:
+var coordinator = context.EpochCoordinator ?? throw ...
+```
+
+**See**: `/research/epoch-coordinator-handling/notes/04-execution-context-approach.md` for complete details
+
+---
+
 ## Remaining Work
 
 ### 1. Fix Failing Tests ✅ (Simple)

@@ -3,13 +3,48 @@
 **Research Reference**: Research work in `/research/epoch-coordinator-handling/`  
 **Issue Type**: Implementation  
 **Estimated Effort**: Medium (3-5 days)  
-**Updated**: 2026-01-08 (Based on PR feedback)
+**Updated**: 2026-01-08 (Based on PR feedback - Execution Context Approach)
 
 ---
 
-## ⚠️ PR Feedback - Important Updates
+## ⚠️ FINAL RECOMMENDATION: Execution Context Approach
 
-**Key insights from PR review (2026-01-08)**:
+**Based on PR feedback discussion (2026-01-08)**:
+
+The **best approach** uses execution context to pass coordinator to actors:
+
+1. **Keyed Services**: Register per-graph coordinator (consistent with DataFlow patterns)
+2. **Execution Context**: Add `EpochCoordinator` property to `IActorExecutionContext`
+3. **Block Resolution**: `EpochSourceBlock` resolves coordinator via keyed service
+4. **Actor Access**: Actors get coordinator from `context.EpochCoordinator`
+5. **Deferred Init**: Coordinator doesn't need DI at construction time
+
+**See**: `/research/epoch-coordinator-handling/notes/04-execution-context-approach.md` for complete implementation details.
+
+### Key Changes
+
+| Component | Change |
+|-----------|--------|
+| `IActorExecutionContext` | Add `IEpochCoordinator? EpochCoordinator { get; }` property |
+| `ActorExecutionContext` | Store coordinator, provide via property |
+| `EpochSourceBlock` | Resolve coordinator via `GetRequiredKeyedService<IEpochCoordinator>(graphId)` |
+| `SourceActorBase` | Constructor no longer needs coordinator parameter |
+| Helper methods | Take `IActorExecutionContext context` parameter, get coordinator from it |
+
+### Benefits
+
+- ✅ Keyed services (consistent with DataFlow patterns)
+- ✅ No new containers (respects DI architecture)
+- ✅ Simplified actor constructors
+- ✅ Natural coordinator flow via context
+- ✅ Per-graph isolation
+- ✅ Backward compatible
+
+---
+
+## ⚠️ Previous PR Feedback - Important Context
+
+**Key insights from earlier PR review**:
 
 1. **Deferred Initialization Pattern**: Consider changing `EpochCoordinator` so it doesn't require `IServiceScopeFactory` in constructor. Instead, provide it during `Build()`. This:
    - Simplifies construction (no service provider needed upfront)
