@@ -1,8 +1,9 @@
 namespace DataFlow.POC.Blocks;
 
+using System;
+using System.Runtime.CompilerServices;
 using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
-using System.Runtime.CompilerServices;
 
 /// <summary>
 /// Epoch-aware actor block that hosts a scoped actor with DI scope rotation capability.
@@ -61,6 +62,13 @@ public sealed class EpochActorBlock<TIn, TOut, TActor> : BlockBase<IEpochStream<
         // Actor runs in its own DI scope with rotation capability
         await using var inputEnumerator = epochStream.Items.GetAsyncEnumerator(cancellationToken);
 
+
+        // Note: This logic maintains an input stream enumerator - and allows an actor instance to process items from it.
+        //       If: the actor returns early signaling rotation, then we iterate in the while loop creating a new actor instance
+        //       but continuing from the same enumerator. This means that position in the input stream is preserved across actor instance rotations.
+        //       actor rotation allows a new DI scope to be created for further procesing, which is useful for refreshing scoped dependencies - allowing memory to be collected
+        //       or resetting stateful services that the actor might be accruing over time whilst processing from the stream (not recommended but sometimes unavoidable).
+        //       If: the actor finishes without requesting rotation, then we exit the while loop and complete processing of this epoch stream.
         while (!cancellationToken.IsCancellationRequested)
         {
             bool rotationRequested = false;
@@ -82,7 +90,9 @@ public sealed class EpochActorBlock<TIn, TOut, TActor> : BlockBase<IEpochStream<
 
             // After actor completes, check if rotation was requested
             if (!rotationRequested)
+            {
                 yield break;
+            }
         }
     }
 
@@ -97,6 +107,22 @@ public sealed class EpochActorBlock<TIn, TOut, TActor> : BlockBase<IEpochStream<
             onRotationRequested);
     }
 
+
+
+
+
+
+    /// <summary>
+    /// CreateActorInputStream IS NECESSARY for correctness.    ///
+    /// Reason: The DI scope rotation feature requires multiple actor instances to share progress through the input stream.The wrapper:
+    ///         Maintains a single shared enumerator across actor instances
+    ///         Allows each new actor to continue from where the previous one left off
+    ///         Prevents infinite loops or duplicate processing
+    ///         Without the wrapper: Each actor would call GetAsyncEnumerator() on epochStream.Items, creating a fresh enumerator that starts from the beginning.
+    /// </summary>
+    /// <param name="enumerator"></param>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
     private static async IAsyncEnumerable<TIn> CreateActorInputStream(
         IAsyncEnumerator<TIn> enumerator,
         [EnumeratorCancellation] CancellationToken cancellationToken)

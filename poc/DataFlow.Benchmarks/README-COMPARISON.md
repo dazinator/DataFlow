@@ -24,11 +24,11 @@ Compare POC and Non-POC dataflow implementations with continuous metrics collect
 
 ```bash
 # Simple pipeline comparison
-dotnet run --project poc/DataFlow.POC.Benchmarks/DataFlow.POC.Benchmarks.csproj \
+dotnet run --project poc/DataFlow.Benchmarks/DataFlow.Benchmarks.csproj \
     -c Release -- direct-simple 10000 4 3
 
 # Extended pipeline comparison
-dotnet run --project poc/DataFlow.POC.Benchmarks/DataFlow.POC.Benchmarks.csproj \
+dotnet run --project poc/DataFlow.Benchmarks/DataFlow.Benchmarks.csproj \
     -c Release -- direct-extended 10000 4 100 3
 ```
 
@@ -36,7 +36,7 @@ dotnet run --project poc/DataFlow.POC.Benchmarks/DataFlow.POC.Benchmarks.csproj 
 
 **Linux/macOS:**
 ```bash
-cd poc/DataFlow.POC.Benchmarks
+cd poc/DataFlow.Benchmarks
 ./profile-comparison.sh 10000 4 3 simple
 ```
 
@@ -92,7 +92,7 @@ Tests complete pipeline including category-based routing, fan-out, and batch agg
 **profile-comparison.sh / .ps1**
 - Automates dotnet-counters collection
 - Builds project, runs benchmark, collects CSV metrics
-- Location: `poc/DataFlow.POC.Benchmarks/`
+- Location: `poc/DataFlow.Benchmarks/`
 
 **visualize-counters.py**
 - Generates 6-panel comparison charts from CSV
@@ -127,7 +127,7 @@ Tests complete pipeline including category-based routing, fan-out, and batch agg
 
 Running with visualization generates:
 ```
-poc/DataFlow.POC.Benchmarks/benchmark-results/
+poc/DataFlow.Benchmarks/benchmark-results/
 ├── simple_10000rec_2025-10-31_12-00-00.csv     # Time-series data
 ├── charts_10000rec/
 │   ├── comparison_metrics.png                   # 6-panel chart
