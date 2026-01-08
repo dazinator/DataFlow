@@ -51,8 +51,8 @@ public class ConcurrencyScalingTests
             {
                 var timestamp = Stopwatch.GetTimestamp() / (Stopwatch.Frequency / 1000);
                 _log.Add((_blockName, item, timestamp));
-                
-                await Task.Delay(_delayMs, context.CancellationToken);
+
+                await Task.Delay(_delayMs, context.CancellationToken).ConfigureAwait(false);
                 yield return $"{_blockName}:{item}";
             }
         }
@@ -84,7 +84,7 @@ public class ConcurrencyScalingTests
             await foreach (var item in input.WithCancellation(context.CancellationToken))
             {
                 var start = Stopwatch.GetTimestamp() / (Stopwatch.Frequency / 1000);
-                await Task.Delay(_delayMs, context.CancellationToken);
+                await Task.Delay(_delayMs, context.CancellationToken).ConfigureAwait(false);
                 var end = Stopwatch.GetTimestamp() / (Stopwatch.Frequency / 1000);
                 
                 _log.Add((_processorName, item, start, end));
@@ -116,7 +116,7 @@ public class ConcurrencyScalingTests
             await foreach (var item in input.WithCancellation(context.CancellationToken))
             {
                 _log.Add($"{_name}:{item}");
-                await Task.Delay(_delayMs, context.CancellationToken);
+                await Task.Delay(_delayMs, context.CancellationToken).ConfigureAwait(false);
                 yield return item;
             }
         }
@@ -145,7 +145,7 @@ public class ConcurrencyScalingTests
             await foreach (var item in input.WithCancellation(context.CancellationToken))
             {
                 _log.Add($"{_name}:{item}");
-                await Task.Delay(_delayMs, context.CancellationToken);
+                await Task.Delay(_delayMs, context.CancellationToken).ConfigureAwait(false);
                 yield return $"enriched-{item}";
             }
         }
@@ -169,7 +169,7 @@ public class ConcurrencyScalingTests
         {
             await foreach (var item in input.WithCancellation(context.CancellationToken))
             {
-                await Task.Delay(_delayMs, context.CancellationToken);
+                await Task.Delay(_delayMs, context.CancellationToken).ConfigureAwait(false);
                 yield return $"item-{item}";
             }
         }
@@ -193,7 +193,7 @@ public class ConcurrencyScalingTests
         {
             await foreach (var item in input.WithCancellation(context.CancellationToken))
             {
-                await Task.Delay(_delayMs, context.CancellationToken);
+                await Task.Delay(_delayMs, context.CancellationToken).ConfigureAwait(false);
                 var prefix = item % 2 == 0 ? "even" : "odd";
                 yield return $"{prefix}-{item}";
             }
@@ -218,7 +218,7 @@ public class ConcurrencyScalingTests
         {
             await foreach (var item in input.WithCancellation(context.CancellationToken))
             {
-                await Task.Delay(_delayMs, context.CancellationToken);
+                await Task.Delay(_delayMs, context.CancellationToken).ConfigureAwait(false);
                 yield return item;
             }
         }
@@ -259,7 +259,7 @@ public class ConcurrencyScalingTests
         {
             await foreach (var item in input.WithCancellation(context.CancellationToken))
             {
-                await Task.Delay(_delayMs, context.CancellationToken);
+                await Task.Delay(_delayMs, context.CancellationToken).ConfigureAwait(false);
                 var type = item % 3 == 0 ? "TypeA" : (item % 3 == 1 ? "TypeB" : "TypeC");
                 yield return $"{type}-{item}";
             }
@@ -284,7 +284,7 @@ public class ConcurrencyScalingTests
         {
             await foreach (var item in input.WithCancellation(context.CancellationToken))
             {
-                await Task.Delay(_delayMs, context.CancellationToken);
+                await Task.Delay(_delayMs, context.CancellationToken).ConfigureAwait(false);
                 yield return $"processed-{item}";
             }
         }
@@ -308,7 +308,7 @@ public class ConcurrencyScalingTests
         {
             await foreach (var batch in input.WithCancellation(context.CancellationToken))
             {
-                await Task.Delay(_delayMs, context.CancellationToken);
+                await Task.Delay(_delayMs, context.CancellationToken).ConfigureAwait(false);
                 yield return $"batch-{batch.Length}";
             }
         }
@@ -356,7 +356,7 @@ public class ConcurrencyScalingTests
         {
             await foreach (var item in input.WithCancellation(context.CancellationToken))
             {
-                await Task.Delay(_delayMs, context.CancellationToken);
+                await Task.Delay(_delayMs, context.CancellationToken).ConfigureAwait(false);
             }
             yield break;
         }
@@ -1507,6 +1507,7 @@ public class ConcurrencyScalingTests
         _output.WriteLine($"  Total time: {sw.ElapsedMilliseconds}ms");
         _output.WriteLine($"  Expected sequential: {sequentialEstimate}ms");
         _output.WriteLine($"  Items: {itemCount}");
+        _output.WriteLine($"  System processors: {Environment.ProcessorCount}");
 
         // Should still scale with high volume
         ((double)sw.ElapsedMilliseconds).ShouldBeLessThan(sequentialEstimate * 0.6, 
@@ -1712,6 +1713,7 @@ public class ConcurrencyScalingTests
         _output.WriteLine($"  Total time: {sw.ElapsedMilliseconds}ms");
         _output.WriteLine($"  Expected sequential: {sequentialEstimate}ms");
         _output.WriteLine($"  Items: {itemCount}, Concurrency: {concurrency}, BatchSize: {batchSize}");
+        _output.WriteLine($"  System processors: {Environment.ProcessorCount}");
         _output.WriteLine($"  This should match the actual benchmark behavior");
 
         // THIS is the critical test - if this fails to scale, we've reproduced the issue
