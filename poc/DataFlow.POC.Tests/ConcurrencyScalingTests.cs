@@ -1646,6 +1646,27 @@ public class ConcurrencyScalingTests
         // Allow generous margin since we can't precisely estimate sequential CPU time
         ((double)sw.ElapsedMilliseconds).ShouldBeLessThan(sequentialEstimate * 1.5, 
             "High-volume pipeline with CPU-bound work should scale with concurrency");
+        
+        // NOTE: This test demonstrates sequential round-robin behavior which is EXPECTED 
+        // when using edge routing alone for many-to-many connections.
+        //
+        // The timestamp analysis confirms:
+        // - Validators: <50% concurrency score = sequential round-robin distribution
+        // - Enrichers: >50% concurrency score = true concurrent competition
+        //
+        // This is by design to avoid race conditions when merging multiple producers
+        // without a central buffer point.
+        //
+        // TO ACHIEVE TRUE CONCURRENT COMPETITION:
+        // Use Producer → EpochBufferBlock → CompetingEdge → Consumers pattern
+        //
+        // However, the current test uses plain integer producers which aren't epoch-aware.
+        // To demonstrate the correct pattern, we would need to:
+        // 1. Migrate to epoch-aware source actors (ISourceActor)
+        // 2. Insert EpochBufferBlock between producer and validators
+        // 3. This provides a central buffer point for true concurrent competition
+        //
+        // See analysis document: /docs/analysis/concurrency-scaling-test-failures/README.md
     }
     
     /// <summary>
