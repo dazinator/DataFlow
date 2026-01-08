@@ -1449,7 +1449,7 @@ public class ConcurrencyScalingTests
         
         const int itemCount = 10000;
         const int concurrency = 4;
-        const int delayMs = 1; // Match benchmark delay
+        const int delayMs = 5; // Use 5ms to avoid Windows timer resolution issues (15.6ms granularity makes 1ms unreliable)
         
         var services = new ServiceCollection().BuildServiceProvider();
         var producer = BlockHelpers.CreateProducer<int>("producer", ProduceIntegers(itemCount));
@@ -1542,7 +1542,7 @@ public class ConcurrencyScalingTests
         
         const int itemCount = 10000;
         const int concurrency = 4;
-        const int delayMs = 1;
+        const int delayMs = 5; // Use 5ms to avoid Windows timer resolution issues (15.6ms granularity makes 1ms unreliable)
         const int batchSize = 100;
         
         var services = new ServiceCollection().BuildServiceProvider();
