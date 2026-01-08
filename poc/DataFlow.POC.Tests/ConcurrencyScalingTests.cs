@@ -362,6 +362,64 @@ public class ConcurrencyScalingTests
         }
     }
 
+    /// <summary>
+    /// Tracked actor for diagnostics - processes items with delay and logs which actor handled which item.
+    /// </summary>
+    private class TrackedProcessActor : IStreamActor<int, int>
+    {
+        private readonly string _name;
+        private readonly int _delayMs;
+        private readonly ConcurrentBag<(string, int)> _log;
+
+        public TrackedProcessActor(string name, int delayMs, ConcurrentBag<(string, int)> log)
+        {
+            _name = name;
+            _delayMs = delayMs;
+            _log = log;
+        }
+
+        public async IAsyncEnumerable<int> RunAsync(
+            IAsyncEnumerable<int> input,
+            IActorExecutionContext context)
+        {
+            await foreach (var item in input.WithCancellation(context.CancellationToken))
+            {
+                _log.Add((_name, item));
+                await Task.Delay(_delayMs, context.CancellationToken).ConfigureAwait(false);
+                yield return item;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Tracked actor for diagnostics - transforms items with delay and logs which actor handled which item.
+    /// </summary>
+    private class TrackedTransformActor : IStreamActor<int, string>
+    {
+        private readonly string _name;
+        private readonly int _delayMs;
+        private readonly ConcurrentBag<(string, int)> _log;
+
+        public TrackedTransformActor(string name, int delayMs, ConcurrentBag<(string, int)> log)
+        {
+            _name = name;
+            _delayMs = delayMs;
+            _log = log;
+        }
+
+        public async IAsyncEnumerable<string> RunAsync(
+            IAsyncEnumerable<int> input,
+            IActorExecutionContext context)
+        {
+            await foreach (var item in input.WithCancellation(context.CancellationToken))
+            {
+                _log.Add((_name, item));
+                await Task.Delay(_delayMs, context.CancellationToken).ConfigureAwait(false);
+                yield return $"item-{item}";
+            }
+        }
+    }
+
     #endregion
 
     [Fact]
@@ -1454,27 +1512,33 @@ public class ConcurrencyScalingTests
         var services = new ServiceCollection().BuildServiceProvider();
         var producer = BlockHelpers.CreateProducer<int>("producer", ProduceIntegers(itemCount));
 
+        // Track distribution for diagnostics
+        var validatorLog = new ConcurrentBag<(string, int)>();
+        var enricherLog = new ConcurrentBag<(string, int)>();
+
         var validators = new List<IBlock<int, int>>();
         for (int i = 0; i < concurrency; i++)
         {
+            var validatorName = $"validator-{i}";
             var validatorServices = new ServiceCollection();
-            validatorServices.AddScoped(_ => new ProcessWithDelayActor(delayMs));
+            validatorServices.AddScoped(_ => new TrackedProcessActor(validatorName, delayMs, validatorLog));
             var validatorServiceProvider = validatorServices.BuildServiceProvider();
             
-            validators.Add(BlockHelpers.CreateActor<int, int, ProcessWithDelayActor>(
-                $"validator-{i}",
+            validators.Add(BlockHelpers.CreateActor<int, int, TrackedProcessActor>(
+                validatorName,
                 validatorServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
         var enrichers = new List<IBlock<int, string>>();
         for (int i = 0; i < concurrency; i++)
         {
+            var enricherName = $"enricher-{i}";
             var enricherServices = new ServiceCollection();
-            enricherServices.AddScoped(_ => new TransformWithDelayActor(delayMs));
+            enricherServices.AddScoped(_ => new TrackedTransformActor(enricherName, delayMs, enricherLog));
             var enricherServiceProvider = enricherServices.BuildServiceProvider();
             
-            enrichers.Add(BlockHelpers.CreateActor<int, string, TransformWithDelayActor>(
-                $"enricher-{i}",
+            enrichers.Add(BlockHelpers.CreateActor<int, string, TrackedTransformActor>(
+                enricherName,
                 enricherServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
@@ -1518,6 +1582,21 @@ public class ConcurrencyScalingTests
         _output.WriteLine($"  Expected sequential: {sequentialEstimate}ms");
         _output.WriteLine($"  Items: {itemCount}");
         _output.WriteLine($"  System processors: {Environment.ProcessorCount}");
+        
+        // Output distribution diagnostics
+        var validatorGroups = validatorLog.GroupBy(x => x.Item1).OrderBy(x => x.Key);
+        _output.WriteLine($"  Validator distribution:");
+        foreach (var group in validatorGroups)
+        {
+            _output.WriteLine($"    {group.Key}: {group.Count()} items");
+        }
+        
+        var enricherGroups = enricherLog.GroupBy(x => x.Item1).OrderBy(x => x.Key);
+        _output.WriteLine($"  Enricher distribution:");
+        foreach (var group in enricherGroups)
+        {
+            _output.WriteLine($"    {group.Key}: {group.Count()} items");
+        }
 
         // Relaxed threshold from 0.6 to 0.8 to handle slower/constrained environments
         // Still validates concurrency works (sequential would be 1.0x)
