@@ -86,22 +86,24 @@ public class MigrationGuideApiValidationTests
 
     #region Test Actors (from migration guide)
 
-    public class InvoiceSource : IPlainSourceActor<InvoiceEnrichmentContext>
+    public class InvoiceSource : SourceActorBase<InvoiceEnrichmentContext>
     {
         private readonly IInvoiceRepository _repository;
 
-        public InvoiceSource(IInvoiceRepository repository)
+        public InvoiceSource(IEpochCoordinator coordinator, IInvoiceRepository repository)
+            : base(coordinator, "invoice-source")
         {
             _repository = repository;
         }
 
-        public async IAsyncEnumerable<InvoiceEnrichmentContext> ProduceAsync(
+        public override async IAsyncEnumerable<IEpochStream<InvoiceEnrichmentContext>> ProduceEpochsAsync(
             IActorExecutionContext context)
         {
-            await foreach (var invoice in _repository.GetInvoicesForReprocessingAsync(context.CancellationToken))
-            {
-                yield return invoice;
-            }
+            // Produce a single epoch with all invoices
+            yield return await CreateEpochStreamAsync(
+                sequence: 1,
+                items: _repository.GetInvoicesForReprocessingAsync(context.CancellationToken),
+                context.CancellationToken);
         }
     }
 
@@ -287,8 +289,12 @@ public class MigrationGuideApiValidationTests
         // This tests the complete registration code from the migration guide - Step 3
         var services = new ServiceCollection();
 
+        // Register epoch coordinator (singleton)
+        services.AddSingleton<IEpochCoordinator>(sp =>
+            new EpochCoordinator(sp.GetRequiredService<IServiceScopeFactory>()));
+
         // Register actors
-        services.AddScoped<InvoiceSource>();
+        services.AddTransient<InvoiceSource>();  // Transient for source actors
         services.AddScoped<CounterpartyInfoLoaderActor>();
         services.AddScoped<InvoiceEnrichmentActor>();
         services.AddScoped<InvoiceBulkUpdateActor>();
@@ -301,18 +307,16 @@ public class MigrationGuideApiValidationTests
         services.AddDataFlows("invoice-reprocessing", df =>
         {
             // === STAGE 1: Invoice Source ===
+            // Using SourceActorBase + EpochSourceBlock (not PlainSourceAdapter)
             df.AddBlock("invoice-source", sp =>
             {
                 var factory = sp.GetRequiredService<IServiceScopeFactory>();
-                return new PlainSourceAdapter<InvoiceEnrichmentContext, InvoiceSource>(
+                return new EpochSourceBlock<InvoiceEnrichmentContext, InvoiceSource>(
                     new BlockContext("invoice-reprocessing:invoice-source"),
-                    factory,
-                    sourceName: "database");
+                    factory);
             });
 
             // === STAGE 2: Batching ===
-            // Note: Migration guide needs correction - AddBatchBlock doesn't exist
-            // Actual API uses AddBlock with EpochBatchBlock
             df.AddBlock("batch-invoices", sp =>
             {
                 return new EpochBatchBlock<InvoiceEnrichmentContext>(
@@ -322,8 +326,6 @@ public class MigrationGuideApiValidationTests
             });
 
             // === STAGE 3: Rate Limiting (using buffer with small capacity) ===
-            // Note: Migration guide needs correction - AddBufferBlock doesn't exist
-            // Actual API uses AddBlock with EpochBufferBlock and BufferConfiguration
             df.AddBlock("rate-limit-buffer", sp =>
             {
                 return new EpochBufferBlock<InvoiceEnrichmentContext[]>(
@@ -332,7 +334,6 @@ public class MigrationGuideApiValidationTests
             });
 
             // === STAGE 4: Enrichment Pipeline ===
-            // Note: Migration guide uses AddActorBlock which exists
             df.AddActorBlock<InvoiceEnrichmentContext[], InvoiceEnrichmentContext[], CounterpartyInfoLoaderActor>(
                 "load-counterparty");
             df.AddActorBlock<InvoiceEnrichmentContext[], InvoiceEnrichmentContext[], InvoiceEnrichmentActor>(

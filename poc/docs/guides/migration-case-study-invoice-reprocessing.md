@@ -248,19 +248,46 @@ To migrate effectively, we need to identify the **topology patterns** used in th
 
 **POC Equivalent:**
 ```csharp
-// Register source block with DI
+// Step 1: Create a source actor using SourceActorBase
+public class ProducerSourceActor : SourceActorBase<T>
+{
+    private readonly IProducerLogic _logic;
+    
+    public ProducerSourceActor(IEpochCoordinator coordinator, IProducerLogic logic)
+        : base(coordinator, "my-source")
+    {
+        _logic = logic;
+    }
+    
+    public override async IAsyncEnumerable<IEpochStream<T>> ProduceEpochsAsync(
+        IActorExecutionContext context)
+    {
+        // Produce a single epoch with all items
+        yield return await CreateEpochStreamAsync(
+            sequence: 1,
+            items: _logic.ProduceItemsAsync(context.CancellationToken),
+            context.CancellationToken);
+    }
+}
+
+// Step 2: Register IEpochCoordinator and source actor with DI
+services.AddSingleton<IEpochCoordinator>(sp =>
+    new EpochCoordinator(sp.GetRequiredService<IServiceScopeFactory>()));
+services.AddTransient<ProducerSourceActor>();
+
+// Step 3: Register source block using EpochSourceBlock
 df.AddBlock("producer", sp =>
 {
     var factory = sp.GetRequiredService<IServiceScopeFactory>();
-    return new PlainSourceAdapter<T, ProducerType>(
+    return new EpochSourceBlock<T, ProducerSourceActor>(
         new BlockContext("namespace:producer"),
-        factory,
-        sourceName: "my-source");
+        factory);
 });
 
-// Register transformer actor
+// Step 4: Register transformer actor
 df.AddActorBlock<TIn, TOut, TransformerActor>("transformer");
 
+// Step 5: Build graph
 df.AddGraph("graph", g =>
 {
     g.UseBlock("producer");
@@ -270,9 +297,15 @@ df.AddGraph("graph", g =>
 ```
 
 **Mapping:**
-- `AddProducer` → Register with `AddBlock` using `PlainSourceAdapter`
+- `AddProducer` → Create source actor inheriting `SourceActorBase<T>`, register with DI, use `EpochSourceBlock<T, TActor>`
 - `AddTransform` → `AddActorBlock` (EpochActorBlock)
 - `.ReceiveFrom()` → Use `g.Connect(source, target)` for graph connections
+
+**Key Points:**
+- Source actors inherit from `SourceActorBase<T>` and use `IEpochCoordinator`
+- `CreateEpochStreamAsync()` helper creates properly coordinated epoch streams
+- `EpochSourceBlock<T, TActor>` hosts the source actor
+- `IEpochCoordinator` must be registered as singleton in DI
 
 ---
 
@@ -488,7 +521,7 @@ public class ChangesProducerActor : IStreamActor<InvoiceEnrichmentContext[], Cas
 
 | Legacy Pattern | POC Equivalent | Notes |
 |----------------|---------------|-------|
-| `AddProducer<T, P>` | `AddBlock` with `PlainSourceAdapter` | Wrap plain source actors with PlainSourceAdapter |
+| `AddProducer<T, P>` | `SourceActorBase<T>` + `EpochSourceBlock<T, TActor>` | Inherit from SourceActorBase, use IEpochCoordinator |
 | `AddBatch<T>` | `AddBlock` with `EpochBatchBlock` | Pass maxBatchSize and windowPeriod to constructor |
 | `AddRateLimit<T>` | `AddBlock` with `EpochBufferBlock` + `BufferConfiguration` | Use bounded buffer for memory control |
 | `AddTransform<TIn, TOut, T>` | `AddActorBlock<TIn, TOut, T>` | EpochActorBlock - unified block type |
@@ -690,22 +723,24 @@ Create actors for each block in the pipeline. Each actor delegates to a service.
 ```csharp
 using DataFlow.POC.Core;
 
-public class InvoiceSource : IPlainSourceActor<InvoiceEnrichmentContext>
+public class InvoiceSource : SourceActorBase<InvoiceEnrichmentContext>
 {
     private readonly IInvoiceRepository _repository;
     
-    public InvoiceSource(IInvoiceRepository repository)
+    public InvoiceSource(IEpochCoordinator coordinator, IInvoiceRepository repository)
+        : base(coordinator, "invoice-source")
     {
         _repository = repository;
     }
     
-    public async IAsyncEnumerable<InvoiceEnrichmentContext> ProduceAsync(
+    public override async IAsyncEnumerable<IEpochStream<InvoiceEnrichmentContext>> ProduceEpochsAsync(
         IActorExecutionContext context)
     {
-        await foreach (var invoice in _repository.GetInvoicesForReprocessingAsync(context.CancellationToken))
-        {
-            yield return invoice;
-        }
+        // Produce a single epoch with all invoices
+        yield return await CreateEpochStreamAsync(
+            sequence: 1,
+            items: _repository.GetInvoicesForReprocessingAsync(context.CancellationToken),
+            context.CancellationToken);
     }
 }
 ```
@@ -901,6 +936,10 @@ using DataFlow.POC.Builder;
 using DataFlow.POC.Blocks;
 using DataFlow.POC.Core;
 
+// Register epoch coordinator (singleton - shared across all sources)
+builder.Services.AddSingleton<IEpochCoordinator>(sp =>
+    new EpochCoordinator(sp.GetRequiredService<IServiceScopeFactory>()));
+
 // Register business logic services
 builder.Services.AddScoped<IInvoiceRepository, InvoiceRepository>();
 builder.Services.AddScoped<ICounterpartyInfoLoader, CounterpartyInfoLoader>();
@@ -911,7 +950,7 @@ builder.Services.AddScoped<IReallocationTransformer, ReallocationTransformer>();
 builder.Services.AddScoped<IReallocationProcessor, ReallocationProcessor>();
 
 // Register actors
-builder.Services.AddScoped<InvoiceSource>();
+builder.Services.AddTransient<InvoiceSource>();  // Transient for source actors
 builder.Services.AddScoped<CounterpartyInfoLoaderActor>();
 builder.Services.AddScoped<InvoiceEnrichmentActor>();
 builder.Services.AddScoped<InvoiceBulkUpdateActor>();
@@ -930,10 +969,9 @@ builder.Services.AddDataFlows("invoice-reprocessing", df =>
     df.AddBlock("invoice-source", sp =>
     {
         var factory = sp.GetRequiredService<IServiceScopeFactory>();
-        return new PlainSourceAdapter<InvoiceEnrichmentContext, InvoiceSource>(
+        return new EpochSourceBlock<InvoiceEnrichmentContext, InvoiceSource>(
             new BlockContext("invoice-reprocessing:invoice-source"),
-            factory,
-            sourceName: "database");
+            factory);
     });
     
     // === STAGE 2: Batching ===
@@ -1194,8 +1232,12 @@ public class InvoiceReprocessingDataFlowIntegrationTests
         services.AddScoped<INotificationService>(_ => mockNotification);
         services.AddScoped<ICashflowChangeIdentifier>(_ => mockChangeIdentifier);
         
+        // Register epoch coordinator
+        services.AddSingleton<IEpochCoordinator>(sp =>
+            new EpochCoordinator(sp.GetRequiredService<IServiceScopeFactory>()));
+        
         // Register actors
-        services.AddScoped<InvoiceSource>();
+        services.AddTransient<InvoiceSource>();
         services.AddScoped<CounterpartyInfoLoaderActor>();
         services.AddScoped<InvoiceEnrichmentActor>();
         services.AddScoped<InvoiceBulkUpdateActor>();
@@ -1208,10 +1250,9 @@ public class InvoiceReprocessingDataFlowIntegrationTests
             df.AddBlock("invoice-source", sp =>
             {
                 var factory = sp.GetRequiredService<IServiceScopeFactory>();
-                return new PlainSourceAdapter<InvoiceEnrichmentContext, InvoiceSource>(
+                return new EpochSourceBlock<InvoiceEnrichmentContext, InvoiceSource>(
                     new BlockContext("test-invoice-reprocessing:invoice-source"),
-                    factory,
-                    sourceName: "database");
+                    factory);
             });
             
             df.AddBlock("batch-invoices", sp =>
