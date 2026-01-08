@@ -21,7 +21,6 @@ public class DataFlowGraphBuilder
     private readonly List<Edge> _edges = new();
     private EpochSourceNode? _epochSource;
     private readonly List<EpochProcessorNode> _epochProcessors = new();
-    private IEpochCoordinator? _epochCoordinator;
 
     /// <summary>
     /// Legacy constructor for inline graph building.
@@ -288,19 +287,6 @@ public class DataFlowGraphBuilder
     }
     
     /// <summary>
-    /// Sets the epoch coordinator for the graph (internal use by ConfigureEpochs).
-    /// </summary>
-    internal void SetEpochCoordinator(IEpochCoordinator coordinator)
-    {
-        ArgumentNullException.ThrowIfNull(coordinator);
-        if (_epochCoordinator != null)
-        {
-            throw new InvalidOperationException("Epoch coordinator has already been configured");
-        }
-        _epochCoordinator = coordinator;
-    }
-    
-    /// <summary>
     /// Adds an epoch processor node to the graph (internal use by ConfigureEpochs).
     /// </summary>
     internal void AddEpochProcessor(EpochProcessorNode processor)
@@ -334,12 +320,6 @@ public class DataFlowGraphBuilder
             {
                 graph.AddEpochProcessor(processor);
             }
-        }
-        
-        // Set epoch coordinator if configured
-        if (_epochCoordinator != null)
-        {
-            graph.SetEpochCoordinator(_epochCoordinator);
         }
 
         return graph;

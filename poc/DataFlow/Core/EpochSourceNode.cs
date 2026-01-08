@@ -4,23 +4,22 @@ using System.Threading.Channels;
 
 /// <summary>
 /// Node that manages epoch stream channel and publishes epochs for processing.
-/// Acts as the source in the epoch processing pipeline, providing a channel
-/// for epoch publishing that processor nodes can consume from.
+/// Acts as the source in the epoch processing pipeline, creating epochs via the coordinator
+/// and publishing them to a stream that processor nodes can consume from.
 /// </summary>
-/// <remarks>
-/// This node is purely a channel wrapper for epoch streaming. It does not create
-/// or manage epochs - that responsibility belongs to source actors via IEpochCoordinator.
-/// The coordinator is owned by the DataFlowGraph and injected into source actors.
-/// </remarks>
 public sealed class EpochSourceNode
 {
     private readonly Channel<IEpoch> _epochStream;
+    private readonly IEpochCoordinator _coordinator;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="EpochSourceNode"/> class.
     /// </summary>
-    public EpochSourceNode()
+    /// <param name="coordinator">The epoch coordinator for creating epochs.</param>
+    public EpochSourceNode(IEpochCoordinator coordinator)
     {
+        _coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
+        
         _epochStream = Channel.CreateUnbounded<IEpoch>(new UnboundedChannelOptions
         {
             SingleReader = false, // Multiple processors can read
@@ -55,4 +54,9 @@ public sealed class EpochSourceNode
     {
         _epochStream.Writer.Complete();
     }
+
+    /// <summary>
+    /// Gets the underlying epoch coordinator.
+    /// </summary>
+    public IEpochCoordinator Coordinator => _coordinator;
 }

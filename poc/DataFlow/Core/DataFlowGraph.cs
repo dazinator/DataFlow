@@ -28,7 +28,6 @@ public class DataFlowGraph
     private EpochSourceNode? _epochSource;
     private readonly List<EpochProcessorNode> _epochProcessors = new();
     private readonly IDataFlowMetrics? _metrics;
-    private IEpochCoordinator? _epochCoordinator;
 
     private static readonly ActivitySource ActivitySource = new("DataFlow");
 
@@ -60,13 +59,6 @@ public class DataFlowGraph
     public EpochSourceNode? EpochSource => _epochSource;
 
     /// <summary>
-    /// Gets the epoch coordinator for this graph, if epochs are configured.
-    /// Each graph has its own coordinator instance to ensure epoch coordination
-    /// is isolated to the graph instance.
-    /// </summary>
-    public IEpochCoordinator? EpochCoordinator => _epochCoordinator;
-
-    /// <summary>
     /// All epoch processor nodes in the graph.
     /// </summary>
     public IReadOnlyList<EpochProcessorNode> EpochProcessors => _epochProcessors;
@@ -96,21 +88,6 @@ public class DataFlowGraph
         }
         _epochSource = source;
         _logger.LogDebug("Set epoch source node");
-    }
-    
-    /// <summary>
-    /// Sets the epoch coordinator for the graph.
-    /// Each graph has its own coordinator to ensure isolation between graph instances.
-    /// </summary>
-    internal void SetEpochCoordinator(IEpochCoordinator coordinator)
-    {
-        ArgumentNullException.ThrowIfNull(coordinator);
-        if (_epochCoordinator != null)
-        {
-            throw new InvalidOperationException("Epoch coordinator has already been set");
-        }
-        _epochCoordinator = coordinator;
-        _logger.LogDebug("Set epoch coordinator");
     }
     
     /// <summary>

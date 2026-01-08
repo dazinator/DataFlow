@@ -58,11 +58,8 @@ public static class EpochConfigurationExtensions
         
         var coordinator = coordinatorFactory(config.CheckpointStrategy);
         
-        // Store coordinator in builder (will be passed to graph)
-        builder.SetEpochCoordinator(coordinator);
-        
-        // Create epoch source node (no coordinator parameter needed)
-        var sourceNode = new EpochSourceNode();
+        // Create epoch source node
+        var sourceNode = new EpochSourceNode(coordinator);
         builder.SetEpochSource(sourceNode);
         
         // Create epoch processor nodes based on configuration
