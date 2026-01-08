@@ -2,7 +2,26 @@
 
 **Research Reference**: Research work in `/research/epoch-coordinator-handling/`  
 **Issue Type**: Implementation  
-**Estimated Effort**: Medium (3-5 days)
+**Estimated Effort**: Medium (3-5 days)  
+**Updated**: 2026-01-08 (Based on PR feedback)
+
+---
+
+## ⚠️ PR Feedback - Important Updates
+
+**Key insights from PR review (2026-01-08)**:
+
+1. **Deferred Initialization Pattern**: Consider changing `EpochCoordinator` so it doesn't require `IServiceScopeFactory` in constructor. Instead, provide it during `Build()`. This:
+   - Simplifies construction (no service provider needed upfront)
+   - Makes it more flexible (container provided nearer to execution)
+   - Separates construction phase from execution phase
+
+2. **Keyed Services Preferred**: Do NOT create separate service collections/containers. Instead:
+   - Use keyed services pattern (consistent with existing `DataFlowBuilder`)
+   - Actors should leverage application dependencies via application container
+   - Creating separate containers undermines DI and breaks dependency chains
+
+See `/research/epoch-coordinator-handling/notes/02-di-scoping-analysis.md` for detailed analysis.
 
 ---
 
@@ -237,10 +256,28 @@ A working prototype exists in `/research/epoch-coordinator-handling/handover/pro
 
 ### Open Questions
 
-**Actor DI Scoping** (Future Work):
-- How do actors resolve the graph's coordinator from DI?
-- Options: Augmented service provider, graph injection, keyed services
-- Recommendation: Defer to separate research/implementation
+**Actor DI Scoping** (Future Work - Updated based on PR feedback):
+
+**Question**: How do actors resolve the graph's coordinator from DI?
+
+**Options Evaluated**:
+- ~~**Option A**: Augmented service provider~~ ❌ Creates separate container (not acceptable per PR feedback)
+- **Option B**: Actors resolve from graph ⚠️ Couples actors to graph interface
+- **Option C**: Use keyed services ✅ **RECOMMENDED** - Consistent with existing `DataFlowBuilder` patterns
+
+**PR Feedback Recommendation**: 
+- Use keyed services (already used in `DataFlowBuilder` for block isolation)
+- Register coordinator with graph-specific key
+- Actors resolve using keyed service lookup
+- Maintains application DI chain and dependencies
+
+**Additional Consideration from PR Feedback**:
+- Deferred initialization pattern for `EpochCoordinator`
+- Don't require `IServiceScopeFactory` in constructor
+- Initialize coordinator during `Build()` when scope factory is available
+- This simplifies construction and provides more flexibility
+
+**Decision Needed**: Implementation team should prototype keyed services approach with deferred initialization.
 
 ---
 

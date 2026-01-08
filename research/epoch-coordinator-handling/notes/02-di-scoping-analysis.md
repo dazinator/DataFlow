@@ -1,7 +1,8 @@
 # DI Scoping and Coordinator Lifetime Analysis
 
 **Date**: 2026-01-08  
-**Phase**: 1 - Code Analysis
+**Phase**: 1 - Code Analysis  
+**Updated**: 2026-01-08 (Based on PR feedback)
 
 ## Current Actor Instantiation Pattern
 
@@ -111,43 +112,37 @@ public class DataFlowGraph
 ```
 
 **How actors get it**:
+
+**⚠️ PR FEEDBACK (2026-01-08)**: The original approach of creating a new service collection is NOT acceptable because:
+- Actors should be registered with application services to leverage application dependencies
+- Creating a separate container undermines allowing users to register actors with the application container for DI
+- This breaks the DI chain and prevents proper dependency injection
+
+**Updated Approach - Using Existing Container with Keyed Services**:
+
+Since `DataFlowBuilder` already uses keyed services for isolation (see example in PR comments), we should use the same pattern:
+
 ```csharp
-public sealed class EpochSourceBlock<T, TActor> : BlockBase<object, IEpochStream<T>>
-{
-    private readonly IServiceScopeFactory _scopeFactory;
-    private readonly IEpochCoordinator _coordinator;  // ← Injected from graph
-    
-    public EpochSourceBlock(IBlockContext context, IServiceScopeFactory scopeFactory, IEpochCoordinator coordinator)
-        : base(context)
-    {
-        _scopeFactory = scopeFactory;
-        _coordinator = coordinator;  // ← From graph
-    }
-    
-    public override async IAsyncEnumerable<IEpochStream<T>> ExecuteAsync(...)
-    {
-        await using var scope = _scopeFactory.CreateAsyncScope();
-        
-        // Register coordinator in this scope so actor can resolve it
-        var services = new ServiceCollection();
-        services.AddSingleton(_coordinator);  // ← Add graph's coordinator to scope
-        var scopedProvider = services.BuildServiceProvider();
-        
-        var actor = scopedProvider.GetRequiredService<TActor>();
-        // ...
-    }
-}
+// During graph building - register coordinator with graph-specific key
+services.AddKeyedSingleton<IEpochCoordinator>(
+    graphId,  // ← Key by graph ID
+    (sp, key) => new EpochCoordinator(sp.GetRequiredService<IServiceScopeFactory>())
+);
+
+// In actor resolution - use graph ID to resolve correct coordinator
+var coordinator = scope.ServiceProvider.GetRequiredKeyedService<IEpochCoordinator>(graphId);
 ```
 
 **Pros**:
 - ✅ Per-graph coordinator (perfect isolation)
 - ✅ Shared across all source blocks in the graph
 - ✅ Clear ownership (graph owns coordinator)
+- ✅ Uses existing application container (no separate DI context)
+- ✅ Consistent with existing `DataFlowBuilder` patterns
 
 **Cons**:
-- ⚠️ Requires passing coordinator through block constructors
-- ⚠️ Actors can't just resolve `IEpochCoordinator` from standard DI
-- ⚠️ Need to augment scope with graph-scoped services
+- ⚠️ Requires .NET 8+ keyed services
+- ⚠️ Actors/blocks need to know graph ID to resolve coordinator
 
 ### Approach B: Keyed Services (DI Extension)
 
@@ -255,7 +250,97 @@ public static class DataFlowGraphBuilderExtensions
 
 ## Recommended Approach
 
-**Approach A (Graph-Owned Coordinator)** seems most pragmatic because:
+**⚠️ UPDATED BASED ON PR FEEDBACK (2026-01-08)**
+
+The recommended approach should combine:
+1. **Graph-Owned Coordinator** (per-graph isolation)
+2. **Keyed Services** (consistent with existing patterns)
+3. **Deferred Initialization** (simplify construction)
+
+### Deferred Initialization Pattern
+
+**PR Feedback Insight**: Instead of requiring `IServiceScopeFactory` in the coordinator constructor, defer it until Build() or first use.
+
+**Benefits**:
+- ✅ Simplifies coordinator construction (no service provider needed upfront)
+- ✅ More flexible - container provided nearer to execution
+- ✅ Separates construction phase from execution phase
+
+**Example**:
+```csharp
+public sealed class EpochCoordinator : IEpochCoordinator
+{
+    private IServiceScopeFactory? _scopeFactory;
+    private readonly int _operationsQueueCapacity;
+    private readonly ICheckpointStrategy? _checkpointStrategy;
+    
+    // Simplified constructor - no scope factory required
+    public EpochCoordinator(int operationsQueueCapacity = 100, ICheckpointStrategy? checkpointStrategy = null)
+    {
+        _operationsQueueCapacity = operationsQueueCapacity;
+        _checkpointStrategy = checkpointStrategy;
+    }
+    
+    // Initialize before use (called during Build() or first epoch creation)
+    public void Initialize(IServiceScopeFactory scopeFactory)
+    {
+        _scopeFactory = scopeFactory ?? throw new ArgumentNullException(nameof(scopeFactory));
+    }
+    
+    public async ValueTask<IEpoch> GetOrCreateEpochAsync(...)
+    {
+        if (_scopeFactory == null)
+            throw new InvalidOperationException("Coordinator not initialized. Call Initialize() first.");
+        // ... rest of implementation
+    }
+}
+```
+
+**Usage in ConfigureEpochs**:
+```csharp
+public static DataFlowGraphBuilder ConfigureEpochs(...)
+{
+    // Create coordinator without needing service provider
+    var coordinator = new EpochCoordinator(
+        operationsQueueCapacity: 100,
+        checkpointStrategy: config.CheckpointStrategy
+    );
+    
+    builder.SetEpochCoordinator(coordinator);
+    // ... rest of setup
+}
+
+// In DataFlowGraphBuilder.Build():
+public DataFlowGraph Build()
+{
+    // Initialize coordinator with scope factory at build time
+    if (_epochCoordinator != null && _serviceProvider != null)
+    {
+        var scopeFactory = _serviceProvider.GetRequiredService<IServiceScopeFactory>();
+        _epochCoordinator.Initialize(scopeFactory);
+    }
+    // ... rest of build
+}
+```
+
+### Combined Recommendation: Keyed Services + Deferred Initialization
+
+**Best approach combining PR feedback**:
+
+1. **Use Keyed Services** (consistent with `DataFlowBuilder` patterns)
+2. **Defer Initialization** (simpler construction)  
+3. **Graph Ownership** (per-graph isolation)
+
+This provides:
+- ✅ No service provider needed during `ConfigureEpochs`
+- ✅ Per-graph coordinator isolation via keyed services
+- ✅ Uses existing application container (no separate DI)
+- ✅ Consistent with existing codebase patterns
+- ✅ Flexible - container provided at Build() time
+
+## Previous Approach A Details (Preserved for Context)
+
+**Note**: The original Approach A included creating a new ServiceCollection, which is NOT acceptable per PR feedback.
 
 1. **Clear Ownership**: Graph explicitly owns its coordinator
 2. **Explicit Dependencies**: Blocks that need coordinator explicitly request it

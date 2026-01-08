@@ -6,6 +6,23 @@ using Microsoft.Extensions.DependencyInjection;
 
 /// <summary>
 /// Extension methods for configuring epoch management in a dataflow graph.
+/// 
+/// PR FEEDBACK NOTE (2026-01-08):
+/// Consider deferred initialization pattern where EpochCoordinator doesn't require
+/// IServiceScopeFactory in constructor, but instead receives it during Build().
+/// This would simplify construction and make the API more flexible.
+/// 
+/// Example:
+/// <code>
+/// // Construction phase - no service provider needed
+/// var coordinator = new EpochCoordinator(
+///     operationsQueueCapacity: 100,
+///     checkpointStrategy: config.CheckpointStrategy
+/// );
+/// 
+/// // Build phase - initialize with scope factory
+/// coordinator.Initialize(scopeFactory);
+/// </code>
 /// </summary>
 public static class EpochConfigurationExtensions
 {
