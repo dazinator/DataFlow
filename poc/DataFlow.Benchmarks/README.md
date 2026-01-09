@@ -1,6 +1,6 @@
 # DataFlow POC Benchmarks
 
-Performance benchmarks for comparing POC and Non-POC dataflow implementations.
+Performance benchmarks for dataflow.
 
 ## Overview
 
@@ -45,6 +45,7 @@ Go to **Actions** → **Benchmarks** → Select:
 - `poc-comparison-extended` - Extended pipeline with time-series metrics
 - `poc-simple` - Legacy BenchmarkDotNet comparison (simple)
 - `poc-extended` - Legacy BenchmarkDotNet comparison (extended)
+- more...
 
 Results uploaded as artifacts with CSV data and visualizations.
 
@@ -257,7 +258,7 @@ Located in: `poc/DataFlow.POC.Benchmarks/`
 
 | Document | Description |
 |----------|-------------|
-| **README-COMPARISON.md** | Quick start guide for comparison benchmarks |
+| **docs/README-COMPARISON.md** | Quick start guide for comparison benchmarks |
 | **POC_COMPARISON_IMPLEMENTATION.md** | Detailed implementation notes for time-series approach |
 | **BENCHMARK_MEMORY_ANALYSIS.md** | Analysis of memory measurement issues with legacy approach |
 | **BENCHMARK_SUMMARY.md** | Historical benchmark results summary |
@@ -340,10 +341,10 @@ Results are saved to `BenchmarkDotNet.Artifacts/results/`
 
 The benchmarks compare:
 
-**POC Implementation** (`DataFlow.POC`)
+**POC Implementation** (`DataFlow`)
 - Pull-based architecture using typed channels
 - Actor-based execution model
-- Located in: `poc/DataFlow.POC/`
+- Located in: `poc/DataFlow/`
 
 **Non-POC Implementation** (`Uniun.DataFlow`)
 - Production dataflow library
@@ -402,5 +403,3 @@ When adding new benchmarks:
 5. Test via GitHub Actions workflow
 
 ---
-
-**Status:** Active development - POC comparison benchmarks with time-series measurement recommended for all memory and concurrency analysis.
