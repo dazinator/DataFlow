@@ -39,16 +39,16 @@ public class SourceCoordinationTests : IAsyncDisposable
         // Arrange - create custom service provider for this test
         var services = new ServiceCollection();
         services.AddScoped<SharedTestService>();
-        services.AddSingleton<IEpochCoordinator>(sp => 
-            new EpochCoordinator(sp.GetRequiredService<IServiceScopeFactory>()));
-        services.AddTransient(sp => new SingleEpochSourceActor(
-            sp.GetRequiredService<IEpochCoordinator>(), 
-            "source1"));
+        var coordinator = new EpochCoordinator(
+            sp => services.BuildServiceProvider().CreateAsyncScope());
+        services.AddSingleton<IEpochCoordinator>(coordinator);
+        services.AddTransient(sp => new SingleEpochSourceActor("source1"));
         var testServiceProvider = services.BuildServiceProvider();
 
         var sourceBlock = new EpochSourceBlock<int, SingleEpochSourceActor>(
             new BlockContext("source1"),
-            testServiceProvider.GetRequiredService<IServiceScopeFactory>());
+            testServiceProvider.GetRequiredService<IServiceScopeFactory>(),
+            coordinator);
 
         var context = new TestExecutionContext();
         
@@ -279,8 +279,8 @@ public class SourceCoordinationTests : IAsyncDisposable
 
     private class SingleEpochSourceActor : SourceActorBase<int>
     {
-        public SingleEpochSourceActor(IEpochCoordinator coordinator, string sourceId)
-            : base(coordinator, sourceId)
+        public SingleEpochSourceActor(string sourceId)
+            : base(sourceId)
         {
         }
 
@@ -288,6 +288,7 @@ public class SourceCoordinationTests : IAsyncDisposable
             IActorExecutionContext context)
         {
             yield return await CreateEpochStreamAsync(
+                context,
                 1,
                 ProduceItems(context.CancellationToken),
                 context.CancellationToken);
@@ -306,8 +307,8 @@ public class SourceCoordinationTests : IAsyncDisposable
 
     private class MultiEpochSourceActor : SourceActorBase<int>
     {
-        public MultiEpochSourceActor(IEpochCoordinator coordinator, string sourceId)
-            : base(coordinator, sourceId)
+        public MultiEpochSourceActor(string sourceId)
+            : base(sourceId)
         {
         }
 
@@ -318,10 +319,11 @@ public class SourceCoordinationTests : IAsyncDisposable
             {
                 if (epoch > 1)
                 {
-                    SignalReadyForNext(epoch - 1, epoch);
+                    SignalReadyForNext(context, epoch - 1, epoch);
                 }
                 
                 yield return await CreateEpochStreamAsync(
+                    context,
                     epoch,
                     ProduceEpochItems(epoch, context.CancellationToken),
                     context.CancellationToken);
