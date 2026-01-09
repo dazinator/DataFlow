@@ -63,8 +63,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\DataFlow\DataFlow.csproj" />
     <ProjectReference Include="..\Benchmarks\Benchmarks.csproj" />
+    <ProjectReference Include="..\DataFlow\DataFlow.Legacy.csproj" />
     <ProjectReference Include="..\Tests.Shared\Tests.Shared.csproj" />
   </ItemGroup>
 

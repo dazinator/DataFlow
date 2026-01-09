@@ -88,11 +88,12 @@ public sealed class DatabaseSourceActor : SourceActorBase<DataRecord>
         long currentSequence = 1;
 
         await using var dbContext = new DemoDbContext(_dbOptions);
-        
+
+        dbContext.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
         // Query based on domain anchor (lastProcessedId), not on Processed flag
         // This is the proper resumption pattern: WHERE Id > lastProcessedId
         var query = dbContext.DataRecords
-            .AsNoTracking()
+            //.AsNoTracking()
             .Where(r => r.Id > _lastProcessedId)
             .OrderBy(r => r.Id);
 

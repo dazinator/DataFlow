@@ -29,7 +29,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\EpochAnchoringDemo\EpochAnchoringDemo.csproj" />
-    <ProjectReference Include="..\DataFlow.POC\DataFlow.POC.csproj" />
+    <ProjectReference Include="..\DataFlow\DataFlow.csproj" />
   </ItemGroup>
 
 </Project>

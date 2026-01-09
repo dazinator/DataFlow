@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -8,14 +8,15 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.0" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
+    <PackageReference Include="System.Diagnostics.DiagnosticSource" Version="8.0.0" />
+    <PackageReference Include="OpenTelemetry" Version="1.6.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\DataFlow\DataFlow.csproj" />
+    <InternalsVisibleTo Include="DataFlow.Tests" />
+    <InternalsVisibleTo Include="DataFlow.Benchmarks" />
   </ItemGroup>
 
 </Project>

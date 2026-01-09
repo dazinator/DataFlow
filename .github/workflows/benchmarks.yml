@@ -33,9 +33,9 @@ on:
 env:
   DOTNET_VERSION: '8.0.x'
   BENCHMARK_PROJECT: 'src/Benchmarks/Benchmarks.csproj'
-  POC_BENCHMARK_PROJECT: 'poc/DataFlow.POC.Benchmarks/DataFlow.POC.Benchmarks.csproj'
+  POC_BENCHMARK_PROJECT: 'poc/DataFlow.Benchmarks/DataFlow.Benchmarks.csproj'
   RESULTS_DIR: 'docs/benchmarks'
-  POC_RESULTS_DIR: 'poc/DataFlow.POC.Benchmarks/benchmark-results'
+  POC_RESULTS_DIR: 'poc/DataFlow.Benchmarks/benchmark-results'
 
 jobs:
   run-benchmarks:
@@ -99,9 +99,9 @@ jobs:
           ${{ env.POC_RESULTS_DIR }}/*.png
           ${{ env.POC_RESULTS_DIR }}/*.csv
           ${{ env.POC_RESULTS_DIR }}/charts_*/**
-          poc/DataFlow.POC.Benchmarks/BenchmarkDotNet.Artifacts/results/*.md
-          poc/DataFlow.POC.Benchmarks/BenchmarkDotNet.Artifacts/results/*.csv
-          poc/DataFlow.POC.Benchmarks/BenchmarkDotNet.Artifacts/results/*.html
+          poc/DataFlow.Benchmarks/BenchmarkDotNet.Artifacts/results/*.md
+          poc/DataFlow.Benchmarks/BenchmarkDotNet.Artifacts/results/*.csv
+          poc/DataFlow.Benchmarks/BenchmarkDotNet.Artifacts/results/*.html
         retention-days: 90
         if-no-files-found: warn
     
