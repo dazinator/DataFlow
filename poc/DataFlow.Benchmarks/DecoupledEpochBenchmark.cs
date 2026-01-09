@@ -21,18 +21,18 @@ public class DecoupledEpochBenchmark
     private const int TotalItems = 1000;
     private const int ItemsPerEpoch = 100;
     private IServiceProvider _serviceProvider = null!;
+    private IEpochCoordinator _coordinator = null!;
 
     [GlobalSetup]
     public void Setup()
     {
         var services = new ServiceCollection();
         services.AddTransient<BenchmarkPlainSource>();
-        services.AddSingleton<IEpochCoordinator>(sp => 
-            new EpochCoordinator(sp.GetRequiredService<IServiceScopeFactory>()));
-        services.AddTransient(sp => new BenchmarkSourceCentricSource(
-            sp.GetRequiredService<IEpochCoordinator>(),
-            "source"));
+        services.AddTransient(sp => new BenchmarkSourceCentricSource("source"));
         _serviceProvider = services.BuildServiceProvider();
+        
+        _coordinator = new EpochCoordinator(
+            _serviceProvider.GetRequiredService<IServiceScopeFactory>());
     }
 
     [Benchmark(Baseline = true)]
@@ -41,7 +41,8 @@ public class DecoupledEpochBenchmark
         // Current approach: Source emits epoch streams directly
         var sourceBlock = new EpochSourceBlock<int, BenchmarkSourceCentricSource>(
             new BlockContext("source"),
-            _serviceProvider.GetRequiredService<IServiceScopeFactory>());
+            _serviceProvider.GetRequiredService<IServiceScopeFactory>(),
+            _coordinator);
 
         var context = new BenchmarkExecutionContext();
         var count = 0;
@@ -92,7 +93,8 @@ public class DecoupledEpochBenchmark
         // Current approach with realistic processing work (30ms per item)
         var sourceBlock = new EpochSourceBlock<int, BenchmarkSourceCentricSource>(
             new BlockContext("source"),
-            _serviceProvider.GetRequiredService<IServiceScopeFactory>());
+            _serviceProvider.GetRequiredService<IServiceScopeFactory>(),
+            _coordinator);
 
         var context = new BenchmarkExecutionContext();
         var count = 0;
@@ -182,8 +184,8 @@ public class DecoupledEpochBenchmark
     // Source-centric source for current approach
     private class BenchmarkSourceCentricSource : SourceActorBase<int>
     {
-        public BenchmarkSourceCentricSource(IEpochCoordinator coordinator, string sourceId)
-            : base(coordinator, sourceId)
+        public BenchmarkSourceCentricSource(string sourceId)
+            : base(sourceId)
         {
         }
 
@@ -195,13 +197,14 @@ public class DecoupledEpochBenchmark
             {
                 if (epochIndex > 0)
                 {
-                    SignalReadyForNext(epochIndex, epochIndex + 1);
+                    SignalReadyForNext(context, epochIndex, epochIndex + 1);
                 }
                 
                 var startIdx = epochIndex * ItemsPerEpoch;
                 var endIdx = Math.Min(startIdx + ItemsPerEpoch, TotalItems);
                 
                 yield return await CreateEpochStreamAsync(
+                    context,
                     epochIndex + 1,
                     ProduceEpochItems(startIdx, endIdx),
                     context.CancellationToken);

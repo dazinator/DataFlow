@@ -58,7 +58,7 @@ public class EpochRealisticWorkloadBenchmark : IDisposable
     public async Task RealisticWorkloadWithEfCore()
     {
         var coordinator = new EpochCoordinator(_scopeFactory!);
-        var source = new EpochSourceNode(coordinator);
+        var source = new EpochSourceNode();
         
         var hooks = new EpochHooks
         {
@@ -135,7 +135,7 @@ public class EpochRealisticWorkloadBenchmark : IDisposable
         }
 
         var coordinator = new EpochCoordinator(_scopeFactory!);
-        var source = new EpochSourceNode(coordinator);
+        var source = new EpochSourceNode();
         
         var hooks = new EpochHooks
         {
@@ -193,7 +193,7 @@ public class EpochRealisticWorkloadBenchmark : IDisposable
     public async Task SingleProcessorBaseline()
     {
         var coordinator = new EpochCoordinator(_scopeFactory!);
-        var source = new EpochSourceNode(coordinator);
+        var source = new EpochSourceNode();
         
         var hooks = new EpochHooks
         {

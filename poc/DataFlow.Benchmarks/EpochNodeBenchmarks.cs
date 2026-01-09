@@ -85,7 +85,7 @@ public class EpochNodeBenchmarks : IDisposable
     public async Task QueueOperations()
     {
         var coordinator = new EpochCoordinator(_scopeFactory!);
-        var source = new EpochSourceNode(coordinator);
+        var source = new EpochSourceNode();
         var processor = new EpochProcessorNode(source);
 
         var vector = EpochVector.FromSingleSource("test", 1);
@@ -117,7 +117,7 @@ public class EpochNodeBenchmarks : IDisposable
     public async Task ProcessEpochsWithProcessors()
     {
         var coordinator = new EpochCoordinator(_scopeFactory!);
-        var source = new EpochSourceNode(coordinator);
+        var source = new EpochSourceNode();
         
         // Create N processors
         var processors = new List<EpochProcessorNode>();
@@ -167,7 +167,7 @@ public class EpochNodeBenchmarks : IDisposable
     public async Task ProcessEpochsWithHooks()
     {
         var coordinator = new EpochCoordinator(_scopeFactory!);
-        var source = new EpochSourceNode(coordinator);
+        var source = new EpochSourceNode();
         
         var hooks = new EpochHooks
         {
@@ -228,7 +228,7 @@ public class EpochNodeBenchmarks : IDisposable
     public async Task EpochStreamOverhead()
     {
         var coordinator = new EpochCoordinator(_scopeFactory!);
-        var source = new EpochSourceNode(coordinator);
+        var source = new EpochSourceNode();
         var processor = new EpochProcessorNode(source);
 
         const int epochCount = 100;
