@@ -23,7 +23,7 @@ public class SourceActorTests
         var provider = services.BuildServiceProvider();
         
         var coordinator = new EpochCoordinator(
-            sp => provider.CreateAsyncScope());
+            provider.GetRequiredService<IServiceScopeFactory>());
 
         var block = BlockHelpers.CreateEpochSource<int, TestSourceActor>(
             "testSource",
@@ -72,16 +72,16 @@ public class SourceActorTests
     {
         // Arrange
         var services = new ServiceCollection();
-        services.AddSingleton<IEpochCoordinator>(sp => 
-            new EpochCoordinator(sp.GetRequiredService<IServiceScopeFactory>()));
-        services.AddTransient(sp => new LongRunningSourceActor(
-            sp.GetRequiredService<IEpochCoordinator>(),
-            "test-source"));
+        services.AddTransient(sp => new LongRunningSourceActor("test-source"));
         var provider = services.BuildServiceProvider();
+        
+        var coordinator = new EpochCoordinator(
+            provider.GetRequiredService<IServiceScopeFactory>());
 
         var block = BlockHelpers.CreateEpochSource<int, LongRunningSourceActor>(
             "testSource",
-            provider.GetRequiredService<IServiceScopeFactory>());
+            provider.GetRequiredService<IServiceScopeFactory>(),
+            coordinator);
 
         var cts = new CancellationTokenSource();
         var context = new TestExecutionContext { CancellationToken = cts.Token };
@@ -130,16 +130,16 @@ public class SourceActorTests
 
         // Arrange
         var services = new ServiceCollection();
-        services.AddSingleton<IEpochCoordinator>(sp => 
-            new EpochCoordinator(sp.GetRequiredService<IServiceScopeFactory>()));
-        services.AddTransient(sp => new ContinuousSourceActor(
-            sp.GetRequiredService<IEpochCoordinator>(),
-            "continuous-source"));
+        services.AddTransient(sp => new ContinuousSourceActor("continuous-source"));
         var provider = services.BuildServiceProvider();
+        
+        var coordinator = new EpochCoordinator(
+            provider.GetRequiredService<IServiceScopeFactory>());
 
         var block = BlockHelpers.CreateEpochSource<int, ContinuousSourceActor>(
             "continuousSource",
-            provider.GetRequiredService<IServiceScopeFactory>());
+            provider.GetRequiredService<IServiceScopeFactory>(),
+            coordinator);
 
         var context = new TestExecutionContext();
         
@@ -174,16 +174,16 @@ public class SourceActorTests
 
         // Arrange
         var services = new ServiceCollection();
-        services.AddSingleton<IEpochCoordinator>(sp => 
-            new EpochCoordinator(sp.GetRequiredService<IServiceScopeFactory>()));
-        services.AddTransient(sp => new DelayedSourceActor(
-            sp.GetRequiredService<IEpochCoordinator>(),
-            "delayed-source"));
+        services.AddTransient(sp => new DelayedSourceActor("delayed-source"));
         var provider = services.BuildServiceProvider();
+        
+        var coordinator = new EpochCoordinator(
+            provider.GetRequiredService<IServiceScopeFactory>());
 
         var block = BlockHelpers.CreateEpochSource<int, DelayedSourceActor>(
             "delayedSource",
-            provider.GetRequiredService<IServiceScopeFactory>());
+            provider.GetRequiredService<IServiceScopeFactory>(),
+            coordinator);
 
         var context = new TestExecutionContext();
         

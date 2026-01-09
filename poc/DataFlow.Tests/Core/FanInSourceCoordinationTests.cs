@@ -55,26 +55,21 @@ public class FanInSourceCoordinationTests : IAsyncDisposable
         rootServices.AddSingleton<IEpochCoordinator>(sp => 
             new EpochCoordinator(sp.GetRequiredService<IServiceScopeFactory>()));
         var rootServiceProvider = rootServices.BuildServiceProvider();
+        var coordinator = rootServiceProvider.GetRequiredService<IEpochCoordinator>();
 
         var services1 = new ServiceCollection();
-        services1.AddTransient(sp => new TestSourceActor(
-            rootServiceProvider.GetRequiredService<IEpochCoordinator>(), 
-            "source1", 
-            new[] { 1, 2, 3 }));
+        services1.AddTransient(sp => new TestSourceActor("source1", new[] { 1, 2, 3 }));
         var sp1 = services1.BuildServiceProvider();
 
         var services2 = new ServiceCollection();
-        services2.AddTransient(sp => new TestSourceActor(
-            rootServiceProvider.GetRequiredService<IEpochCoordinator>(), 
-            "source2", 
-            new[] { 4, 5, 6 }));
+        services2.AddTransient(sp => new TestSourceActor("source2", new[] { 4, 5, 6 }));
         var sp2 = services2.BuildServiceProvider();
 
         var source1Block = new EpochSourceBlock<int, TestSourceActor>(new BlockContext("source1"),
-            sp1.GetRequiredService<IServiceScopeFactory>());
+            sp1.GetRequiredService<IServiceScopeFactory>(), coordinator);
 
         var source2Block = new EpochSourceBlock<int, TestSourceActor>(new BlockContext("source2"),
-            sp2.GetRequiredService<IServiceScopeFactory>());
+            sp2.GetRequiredService<IServiceScopeFactory>(), coordinator);
 
         var context = new TestExecutionContext();
         
@@ -155,24 +150,18 @@ public class FanInSourceCoordinationTests : IAsyncDisposable
         var rootServiceProvider = rootServices.BuildServiceProvider();
 
         var services1 = new ServiceCollection();
-        services1.AddTransient(sp => new TestSourceActor(
-            rootServiceProvider.GetRequiredService<IEpochCoordinator>(), 
-            "source1", 
-            new[] { 10, 20 }));
+        services1.AddTransient(sp => new TestSourceActor("source1", new[] { 10, 20 }));
         var sp1 = services1.BuildServiceProvider();
 
         var services2 = new ServiceCollection();
-        services2.AddTransient(sp => new TestSourceActor(
-            rootServiceProvider.GetRequiredService<IEpochCoordinator>(), 
-            "source2", 
-            new[] { 30, 40 }));
+        services2.AddTransient(sp => new TestSourceActor("source2", new[] { 30, 40 }));
         var sp2 = services2.BuildServiceProvider();
 
         var source1Block = new EpochSourceBlock<int, TestSourceActor>(new BlockContext("source1"),
-            sp1.GetRequiredService<IServiceScopeFactory>());
+            sp1.GetRequiredService<IServiceScopeFactory>(), coordinator);
 
         var source2Block = new EpochSourceBlock<int, TestSourceActor>(new BlockContext("source2"),
-            sp2.GetRequiredService<IServiceScopeFactory>());
+            sp2.GetRequiredService<IServiceScopeFactory>(), coordinator);
 
         var context = new TestExecutionContext();
         
@@ -238,15 +227,11 @@ public class FanInSourceCoordinationTests : IAsyncDisposable
 
         // Start with source1
         var services1 = new ServiceCollection();
-        services1.AddTransient(sp => new SlowSourceActor(
-            rootServiceProvider.GetRequiredService<IEpochCoordinator>(), 
-            "source1", 
-            new[] { 1, 2, 3 },
-            delayMs: 50));
+        services1.AddTransient(sp => new SlowSourceActor("source1", new[] { 1, 2, 3 }, delayMs: 50));
         var sp1 = services1.BuildServiceProvider();
 
         var source1Block = new EpochSourceBlock<int, SlowSourceActor>(new BlockContext("source1"),
-            sp1.GetRequiredService<IServiceScopeFactory>());
+            sp1.GetRequiredService<IServiceScopeFactory>(), coordinator);
 
         var context = new TestExecutionContext();
         
@@ -278,14 +263,11 @@ public class FanInSourceCoordinationTests : IAsyncDisposable
 
         // Now add source2 dynamically (joins mid-flow)
         var services2 = new ServiceCollection();
-        services2.AddTransient(sp => new TestSourceActor(
-            rootServiceProvider.GetRequiredService<IEpochCoordinator>(), 
-            "source2", 
-            new[] { 100, 200 }));
+        services2.AddTransient(sp => new TestSourceActor("source2", new[] { 100, 200 }));
         var sp2 = services2.BuildServiceProvider();
 
         var source2Block = new EpochSourceBlock<int, TestSourceActor>(new BlockContext("source2"),
-            sp2.GetRequiredService<IServiceScopeFactory>());
+            sp2.GetRequiredService<IServiceScopeFactory>(), coordinator);
 
         var task2 = Task.Run(async () =>
         {
@@ -351,21 +333,18 @@ public class FanInSourceCoordinationTests : IAsyncDisposable
         var sp2 = services2.BuildServiceProvider();
 
         var services3 = new ServiceCollection();
-        services3.AddTransient(sp => new TestSourceActor(
-            rootServiceProvider.GetRequiredService<IEpochCoordinator>(), 
-            "source3", 
-            new[] { 5, 6 }));
+        services3.AddTransient(sp => new TestSourceActor("source3", new[] { 5, 6 }));
         var sp3 = services3.BuildServiceProvider();
 
         var source1Block = new EpochSourceBlock<int, TestSourceActor>(new BlockContext("source1"),
-            sp1.GetRequiredService<IServiceScopeFactory>());
+            sp1.GetRequiredService<IServiceScopeFactory>(), coordinator);
 
         var source2Block = new EpochSourceBlock<int, TestSourceActor>(new BlockContext("source2"),
-            sp2.GetRequiredService<IServiceScopeFactory>());
+            sp2.GetRequiredService<IServiceScopeFactory>(), coordinator);
 
         var source3Block = new EpochSourceBlock<int, TestSourceActor>(
             new BlockContext("source3"),
-            sp3.GetRequiredService<IServiceScopeFactory>());
+            sp3.GetRequiredService<IServiceScopeFactory>(), coordinator);
 
         var context = new TestExecutionContext();
         
@@ -450,26 +429,19 @@ public class FanInSourceCoordinationTests : IAsyncDisposable
 
         // Fast source - produces quickly
         var services1 = new ServiceCollection();
-        services1.AddTransient(sp => new TestSourceActor(
-            rootServiceProvider.GetRequiredService<IEpochCoordinator>(), 
-            "fast-source", 
-            new[] { 1, 2, 3, 4, 5 }));
+        services1.AddTransient(sp => new TestSourceActor("fast-source", new[] { 1, 2, 3, 4, 5 }));
         var sp1 = services1.BuildServiceProvider();
 
         // Slow source - produces slowly
         var services2 = new ServiceCollection();
-        services2.AddTransient(sp => new SlowSourceActor(
-            rootServiceProvider.GetRequiredService<IEpochCoordinator>(), 
-            "slow-source", 
-            new[] { 10, 20 },
-            delayMs: 100));
+        services2.AddTransient(sp => new SlowSourceActor("slow-source", new[] { 10, 20 }, delayMs: 100));
         var sp2 = services2.BuildServiceProvider();
 
         var fastBlock = new EpochSourceBlock<int, TestSourceActor>(new BlockContext("fast-source"),
-            sp1.GetRequiredService<IServiceScopeFactory>());
+            sp1.GetRequiredService<IServiceScopeFactory>(), coordinator);
 
         var slowBlock = new EpochSourceBlock<int, SlowSourceActor>(new BlockContext("slow-source"),
-            sp2.GetRequiredService<IServiceScopeFactory>());
+            sp2.GetRequiredService<IServiceScopeFactory>(), coordinator);
 
         var context = new TestExecutionContext();
         
@@ -549,17 +521,14 @@ public class FanInSourceCoordinationTests : IAsyncDisposable
         var sp1 = services1.BuildServiceProvider();
 
         var services2 = new ServiceCollection();
-        services2.AddTransient(sp => new TestSourceActor(
-            rootServiceProvider.GetRequiredService<IEpochCoordinator>(), 
-            "source2", 
-            new[] { 2 }));
+        services2.AddTransient(sp => new TestSourceActor("source2", new[] { 2 }));
         var sp2 = services2.BuildServiceProvider();
 
         var source1Block = new EpochSourceBlock<int, TestSourceActor>(new BlockContext("source1"),
-            sp1.GetRequiredService<IServiceScopeFactory>());
+            sp1.GetRequiredService<IServiceScopeFactory>(), coordinator);
 
         var source2Block = new EpochSourceBlock<int, TestSourceActor>(new BlockContext("source2"),
-            sp2.GetRequiredService<IServiceScopeFactory>());
+            sp2.GetRequiredService<IServiceScopeFactory>(), coordinator);
 
         var context = new TestExecutionContext();
         
@@ -623,8 +592,8 @@ public class FanInSourceCoordinationTests : IAsyncDisposable
     {
         private readonly int[] _items;
 
-        public TestSourceActor(IEpochCoordinator coordinator, string sourceId, int[] items)
-            : base(coordinator, sourceId)
+        public TestSourceActor(string sourceId, int[] items)
+            : base(sourceId)
         {
             _items = items;
         }
@@ -633,6 +602,7 @@ public class FanInSourceCoordinationTests : IAsyncDisposable
             IActorExecutionContext context)
         {
             yield return await CreateEpochStreamAsync(
+                context,
                 1,
                 ProduceItems(context.CancellationToken),
                 context.CancellationToken);
@@ -654,11 +624,10 @@ public class FanInSourceCoordinationTests : IAsyncDisposable
         private readonly int _delayMs;
 
         public SlowSourceActor(
-            IEpochCoordinator coordinator, 
             string sourceId, 
             int[] items,
             int delayMs)
-            : base(coordinator, sourceId)
+            : base(sourceId)
         {
             _items = items;
             _delayMs = delayMs;
@@ -668,6 +637,7 @@ public class FanInSourceCoordinationTests : IAsyncDisposable
             IActorExecutionContext context)
         {
             yield return await CreateEpochStreamAsync(
+                context,
                 1,
                 ProduceItemsSlowly(context.CancellationToken),
                 context.CancellationToken);
