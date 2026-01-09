@@ -39,11 +39,11 @@ public class SourceCoordinationTests : IAsyncDisposable
         // Arrange - create custom service provider for this test
         var services = new ServiceCollection();
         services.AddScoped<SharedTestService>();
-        var coordinator = new EpochCoordinator(
-            sp => services.BuildServiceProvider().CreateAsyncScope());
-        services.AddSingleton<IEpochCoordinator>(coordinator);
         services.AddTransient(sp => new SingleEpochSourceActor("source1"));
         var testServiceProvider = services.BuildServiceProvider();
+        
+        var coordinator = new EpochCoordinator(
+            sp => testServiceProvider.CreateAsyncScope());
 
         var sourceBlock = new EpochSourceBlock<int, SingleEpochSourceActor>(
             new BlockContext("source1"),

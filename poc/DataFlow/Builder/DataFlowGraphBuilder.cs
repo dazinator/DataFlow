@@ -64,7 +64,7 @@ public class DataFlowGraphBuilder
 
     /// <summary>
     /// Gets the unique identifier for the graph being built.
-    /// Used for keyed service resolution (e.g., per-graph coordinators).
+    /// Each graph instance has a unique ID for identification and tracking.
     /// </summary>
     public string GraphId => _graphId;
 

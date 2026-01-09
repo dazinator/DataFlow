@@ -19,11 +19,11 @@ public class SourceActorTests
     {
         // Arrange
         var services = new ServiceCollection();
-        var coordinator = new EpochCoordinator(
-            sp => services.BuildServiceProvider().CreateAsyncScope());
-        services.AddSingleton<IEpochCoordinator>(coordinator);
         services.AddTransient(sp => new TestSourceActor("test-source"));
         var provider = services.BuildServiceProvider();
+        
+        var coordinator = new EpochCoordinator(
+            sp => provider.CreateAsyncScope());
 
         var block = BlockHelpers.CreateEpochSource<int, TestSourceActor>(
             "testSource",
