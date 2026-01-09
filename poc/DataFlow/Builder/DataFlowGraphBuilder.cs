@@ -16,6 +16,7 @@ public class DataFlowGraphBuilder
     private readonly IServiceProvider? _serviceProvider;
     private readonly IBlockTypeRegistry? _registry;
     private readonly string _namespace;
+    private readonly string _graphId; // Generated once at builder creation
     private readonly List<IBlock> _blocks = new();
     private readonly Dictionary<string, IBlock> _blocksByName = new(); // Track blocks by their registration name
     private readonly List<Edge> _edges = new();
@@ -31,6 +32,7 @@ public class DataFlowGraphBuilder
     public DataFlowGraphBuilder(string name, ILogger<DataFlowGraph>? logger = null)
     {
         _name = name ?? throw new ArgumentNullException(nameof(name));
+        _graphId = Guid.NewGuid().ToString();
         _logger = logger ?? NullLogger<DataFlowGraph>.Instance;
         _serviceProvider = null;
         _registry = null;
@@ -53,11 +55,18 @@ public class DataFlowGraphBuilder
         ILogger<DataFlowGraph>? logger = null)
     {
         _name = name ?? throw new ArgumentNullException(nameof(name));
+        _graphId = Guid.NewGuid().ToString();
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         _namespace = namespacePrefix ?? "global";
         _logger = logger ?? NullLogger<DataFlowGraph>.Instance;
     }
+
+    /// <summary>
+    /// Gets the unique identifier for the graph being built.
+    /// Used for keyed service resolution (e.g., per-graph coordinators).
+    /// </summary>
+    public string GraphId => _graphId;
 
     /// <summary>
     /// Gets the service provider for DI resolution.
@@ -314,7 +323,7 @@ public class DataFlowGraphBuilder
     /// </summary>
     public DataFlowGraph Build()
     {
-        var graph = new DataFlowGraph(_name, _logger);
+        var graph = new DataFlowGraph(_name, _graphId, _logger);
 
         foreach (var block in _blocks)
         {

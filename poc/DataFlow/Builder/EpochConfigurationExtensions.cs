@@ -58,8 +58,22 @@ public static class EpochConfigurationExtensions
         
         var coordinator = coordinatorFactory(config.CheckpointStrategy);
         
-        // Create epoch source node
-        var sourceNode = new EpochSourceNode(coordinator);
+        // Register coordinator with keyed service using graph ID
+        var graphId = builder.GraphId;
+        var serviceProvider2 = builder.GetServiceProvider();
+        if (serviceProvider2 != null)
+        {
+            // For DI-based builders, register the coordinator as a keyed service
+            // Note: This requires the service collection to be accessible, which it's not in the current architecture
+            // For now, we'll store the coordinator in the builder and it will be set on the graph
+            // The EpochSourceBlock will need to resolve it differently (see below)
+        }
+        
+        // Store coordinator in builder to be set on graph during Build()
+        builder.SetEpochCoordinator(coordinator);
+        
+        // Create epoch source node (no longer needs coordinator)
+        var sourceNode = new EpochSourceNode();
         builder.SetEpochSource(sourceNode);
         
         // Create epoch processor nodes based on configuration

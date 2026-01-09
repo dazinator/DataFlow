@@ -40,6 +40,14 @@ public class DataFlowGraph
         _metrics = metrics;
     }
 
+    internal DataFlowGraph(string name, string graphId, ILogger<DataFlowGraph> logger, IDataFlowMetrics? metrics = null)
+    {
+        Name = name;
+        GraphId = graphId ?? throw new ArgumentNullException(nameof(graphId));
+        _logger = logger;
+        _metrics = metrics;
+    }
+
     /// <summary>
     /// The name of this dataflow graph.
     /// </summary>

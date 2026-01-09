@@ -20,21 +20,18 @@ public interface ISourceActor<T>
 
 /// <summary>
 /// Base class for coordinator-aware source actors that provides helper methods for epoch management.
-/// All source actors now require IEpochCoordinator for epoch creation.
+/// All source actors now require IEpochCoordinator for epoch creation, accessed via execution context.
 /// </summary>
 public abstract class SourceActorBase<T> : ISourceActor<T>
 {
-    private readonly IEpochCoordinator _coordinator;
     private readonly string _sourceId;
 
     /// <summary>
     /// Creates a new source actor with epoch coordination.
     /// </summary>
-    /// <param name="coordinator">Epoch coordinator for managing epochs</param>
     /// <param name="sourceId">Unique identifier for this source</param>
-    protected SourceActorBase(IEpochCoordinator coordinator, string sourceId)
+    protected SourceActorBase(string sourceId)
     {
-        _coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
         _sourceId = sourceId ?? throw new ArgumentNullException(nameof(sourceId));
     }
 
@@ -46,19 +43,26 @@ public abstract class SourceActorBase<T> : ISourceActor<T>
     /// <summary>
     /// Requests an epoch from the coordinator and creates an epoch stream.
     /// </summary>
+    /// <param name="context">Execution context containing the epoch coordinator</param>
     /// <param name="sequence">Sequence number for this source</param>
     /// <param name="items">Data items for this epoch</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Coordinator-managed epoch stream</returns>
     protected async ValueTask<IEpochStream<T>> CreateEpochStreamAsync(
+        IActorExecutionContext context,
         long sequence,
         IAsyncEnumerable<T> items,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(items);
 
+        var coordinator = context.EpochCoordinator 
+            ?? throw new InvalidOperationException(
+                "Epoch coordinator not available in execution context. Ensure graph has epochs configured.");
+
         var vector = EpochVector.FromSingleSource(_sourceId, sequence);
-        var epoch = await _coordinator.GetOrCreateEpochAsync(_sourceId, vector, cancellationToken);
+        var epoch = await coordinator.GetOrCreateEpochAsync(_sourceId, vector, cancellationToken);
         
         return new EpochStream<T>(epoch, items);
     }
@@ -67,12 +71,19 @@ public abstract class SourceActorBase<T> : ISourceActor<T>
     /// Signals readiness to advance to the next epoch.
     /// Call this before creating the next epoch stream.
     /// </summary>
+    /// <param name="context">Execution context containing the epoch coordinator</param>
     /// <param name="currentSequence">Current sequence number</param>
     /// <param name="nextSequence">Next sequence number</param>
-    protected void SignalReadyForNext(long currentSequence, long nextSequence)
+    protected void SignalReadyForNext(IActorExecutionContext context, long currentSequence, long nextSequence)
     {
+        ArgumentNullException.ThrowIfNull(context);
+
+        var coordinator = context.EpochCoordinator 
+            ?? throw new InvalidOperationException(
+                "Epoch coordinator not available in execution context. Ensure graph has epochs configured.");
+
         var currentVector = EpochVector.FromSingleSource(_sourceId, currentSequence);
         var nextVector = EpochVector.FromSingleSource(_sourceId, nextSequence);
-        _coordinator.SignalReadyForNext(_sourceId, currentVector, nextVector);
+        coordinator.SignalReadyForNext(_sourceId, currentVector, nextVector);
     }
 }
