@@ -93,7 +93,7 @@ public class CheckpointIntegrationTests
         });
 
         // Process the operation
-        var source = new EpochSourceNode(coordinator);
+        var source = new EpochSourceNode();
         var processor = new EpochProcessorNode(source);
         
         // Publish the epoch
@@ -157,7 +157,7 @@ public class CheckpointIntegrationTests
         });
 
         // Process the operations
-        var source = new EpochSourceNode(coordinator);
+        var source = new EpochSourceNode();
         var processor = new EpochProcessorNode(source);
         
         // Publish the epoch
@@ -202,7 +202,7 @@ public class CheckpointIntegrationTests
         });
 
         // Process the operation
-        var source = new EpochSourceNode(coordinator);
+        var source = new EpochSourceNode();
         var processor = new EpochProcessorNode(source);
         
         // Publish the epoch
@@ -243,7 +243,7 @@ public class CheckpointIntegrationTests
         });
 
         // Process the operation
-        var source = new EpochSourceNode(coordinator);
+        var source = new EpochSourceNode();
         var processor = new EpochProcessorNode(source);
         
         // Publish the epoch
