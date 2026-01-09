@@ -182,16 +182,16 @@ public class DecoupledEpochPerformanceTests
     private async Task<int> RunSourceCentric()
     {
         var services = new ServiceCollection();
-        services.AddSingleton<IEpochCoordinator>(sp => 
-            new EpochCoordinator(sp.GetRequiredService<IServiceScopeFactory>()));
-        services.AddTransient(sp => new PerfSourceCentricSource(
-            sp.GetRequiredService<IEpochCoordinator>(),
-            "source"));
+        services.AddTransient(sp => new PerfSourceCentricSource("source"));
         var provider = services.BuildServiceProvider();
+        
+        var coordinator = new EpochCoordinator(
+            provider.GetRequiredService<IServiceScopeFactory>());
 
         var sourceBlock = new EpochSourceBlock<int, PerfSourceCentricSource>(
             new BlockContext("source"),
-            provider.GetRequiredService<IServiceScopeFactory>());
+            provider.GetRequiredService<IServiceScopeFactory>(),
+            coordinator);
 
         var context = new TestExecutionContext();
         var count = 0;
@@ -278,8 +278,8 @@ public class DecoupledEpochPerformanceTests
 
     private class PerfSourceCentricSource : SourceActorBase<int>
     {
-        public PerfSourceCentricSource(IEpochCoordinator coordinator, string sourceId)
-            : base(coordinator, sourceId)
+        public PerfSourceCentricSource(string sourceId)
+            : base(sourceId)
         {
         }
 
@@ -290,13 +290,14 @@ public class DecoupledEpochPerformanceTests
             {
                 if (epochIndex > 0)
                 {
-                    SignalReadyForNext(epochIndex, epochIndex + 1);
+                    SignalReadyForNext(context, epochIndex, epochIndex + 1);
                 }
                 
                 var startIdx = epochIndex * ItemsPerEpoch;
                 var endIdx = Math.Min(startIdx + ItemsPerEpoch, TotalItems);
                 
                 yield return await CreateEpochStreamAsync(
+                    context,
                     epochIndex + 1,
                     ProduceEpochItems(startIdx, endIdx),
                     context.CancellationToken);
