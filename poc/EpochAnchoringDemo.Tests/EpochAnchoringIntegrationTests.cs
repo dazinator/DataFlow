@@ -93,7 +93,7 @@ public class EpochAnchoringIntegrationTests : IDisposable
             epochSize,
             sourceId);
 
-        var context2 = new TestActorContext();
+        var context2 = new TestActorContext(coordinator);
 
         // Act
         var epochs = new List<EpochVector>();
@@ -159,7 +159,7 @@ public class EpochAnchoringIntegrationTests : IDisposable
                 epochSize,
                 sourceId);
 
-            var context = new TestActorContext();
+            var context = new TestActorContext(coordinator);
 
             var epochCount = 0;
             await foreach (var epochStream in actor.ProduceEpochsAsync(context))
@@ -192,7 +192,7 @@ public class EpochAnchoringIntegrationTests : IDisposable
                 sourceId,
                 initialLastProcessedId: anchorAfterThreeEpochs); // Resume from anchor
 
-            var context = new TestActorContext();
+            var context = new TestActorContext(coordinator);
 
             // Act
             var epochs = new List<EpochVector>();
@@ -341,7 +341,7 @@ public class EpochAnchoringIntegrationTests : IDisposable
             sourceId);
 
         var writeBlock = new Blocks.WriteContextBlock();
-        var context2 = new TestActorContext();
+        var context2 = new TestActorContext(coordinator);
 
         // Act
         var processedCount = 0;
@@ -397,7 +397,7 @@ public class EpochAnchoringIntegrationTests : IDisposable
                 sourceId);
 
             var writeBlock = new Blocks.WriteContextBlock();
-            var context = new TestActorContext();
+            var context = new TestActorContext(coordinator);
 
             var epochCount = 0;
             await foreach (var epochStream in writeBlock.ProcessAsync(actor.ProduceEpochsAsync(context)))
@@ -438,7 +438,7 @@ public class EpochAnchoringIntegrationTests : IDisposable
                 initialLastProcessedId: savedAnchor); // Resume from checkpoint
 
             var writeBlock = new Blocks.WriteContextBlock();
-            var context = new TestActorContext();
+            var context = new TestActorContext(coordinator);
 
             var resumeProcessedCount = 0;
             await foreach (var epochStream in writeBlock.ProcessAsync(actor.ProduceEpochsAsync(context)))
@@ -490,9 +490,14 @@ public class EpochAnchoringIntegrationTests : IDisposable
 
     private class TestActorContext : IActorExecutionContext
     {
+        public TestActorContext(IEpochCoordinator? coordinator = null)
+        {
+            EpochCoordinator = coordinator;
+        }
+        
         public CancellationToken CancellationToken => CancellationToken.None;
         public Guid InvocationId { get; } = Guid.NewGuid();
-        public IEpochCoordinator? EpochCoordinator => null;
+        public IEpochCoordinator? EpochCoordinator { get; }
         public void RequestRotation() { }
     }
     
