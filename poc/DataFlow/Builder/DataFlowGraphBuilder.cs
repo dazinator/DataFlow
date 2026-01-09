@@ -16,7 +16,7 @@ public class DataFlowGraphBuilder
     private readonly IServiceProvider? _serviceProvider;
     private readonly IBlockTypeRegistry? _registry;
     private readonly string _namespace;
-    private readonly string _graphId; // Generated once at builder creation
+    private readonly string _graphId = Guid.NewGuid().ToString(); // Generated once at builder creation
     private readonly List<IBlock> _blocks = new();
     private readonly Dictionary<string, IBlock> _blocksByName = new(); // Track blocks by their registration name
     private readonly List<Edge> _edges = new();
@@ -32,7 +32,6 @@ public class DataFlowGraphBuilder
     public DataFlowGraphBuilder(string name, ILogger<DataFlowGraph>? logger = null)
     {
         _name = name ?? throw new ArgumentNullException(nameof(name));
-        _graphId = Guid.NewGuid().ToString();
         _logger = logger ?? NullLogger<DataFlowGraph>.Instance;
         _serviceProvider = null;
         _registry = null;
@@ -55,7 +54,6 @@ public class DataFlowGraphBuilder
         ILogger<DataFlowGraph>? logger = null)
     {
         _name = name ?? throw new ArgumentNullException(nameof(name));
-        _graphId = Guid.NewGuid().ToString();
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         _namespace = namespacePrefix ?? "global";

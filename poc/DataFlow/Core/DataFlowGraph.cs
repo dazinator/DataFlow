@@ -32,10 +32,12 @@ public class DataFlowGraph
 
     private static readonly ActivitySource ActivitySource = new("DataFlow");
 
+    private static string CreateNewGraphId() => Guid.NewGuid().ToString();
+
     public DataFlowGraph(string name, ILogger<DataFlowGraph> logger, IDataFlowMetrics? metrics = null)
     {
         Name = name;
-        GraphId = Guid.NewGuid().ToString();
+        GraphId = CreateNewGraphId();
         _logger = logger;
         _metrics = metrics;
     }
