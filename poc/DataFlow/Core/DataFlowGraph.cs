@@ -28,12 +28,14 @@ public class DataFlowGraph
     private EpochSourceNode? _epochSource;
     private readonly List<EpochProcessorNode> _epochProcessors = new();
     private readonly IDataFlowMetrics? _metrics;
+    private IEpochCoordinator? _epochCoordinator;
 
     private static readonly ActivitySource ActivitySource = new("DataFlow");
 
     public DataFlowGraph(string name, ILogger<DataFlowGraph> logger, IDataFlowMetrics? metrics = null)
     {
         Name = name;
+        GraphId = Guid.NewGuid().ToString();
         _logger = logger;
         _metrics = metrics;
     }
@@ -42,6 +44,17 @@ public class DataFlowGraph
     /// The name of this dataflow graph.
     /// </summary>
     public string Name { get; }
+
+    /// <summary>
+    /// Unique identifier for this graph instance.
+    /// Used for keyed service resolution (e.g., per-graph coordinators).
+    /// </summary>
+    public string GraphId { get; }
+
+    /// <summary>
+    /// The epoch coordinator for this graph, if configured.
+    /// </summary>
+    public IEpochCoordinator? EpochCoordinator => _epochCoordinator;
 
     /// <summary>
     /// All blocks in the graph.
@@ -88,6 +101,20 @@ public class DataFlowGraph
         }
         _epochSource = source;
         _logger.LogDebug("Set epoch source node");
+    }
+    
+    /// <summary>
+    /// Sets the epoch coordinator for the graph.
+    /// </summary>
+    internal void SetEpochCoordinator(IEpochCoordinator coordinator)
+    {
+        ArgumentNullException.ThrowIfNull(coordinator);
+        if (_epochCoordinator != null)
+        {
+            throw new InvalidOperationException("Epoch coordinator has already been set");
+        }
+        _epochCoordinator = coordinator;
+        _logger.LogDebug("Set epoch coordinator");
     }
     
     /// <summary>

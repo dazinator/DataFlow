@@ -10,16 +10,12 @@ using System.Threading.Channels;
 public sealed class EpochSourceNode
 {
     private readonly Channel<IEpoch> _epochStream;
-    private readonly IEpochCoordinator _coordinator;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="EpochSourceNode"/> class.
     /// </summary>
-    /// <param name="coordinator">The epoch coordinator for creating epochs.</param>
-    public EpochSourceNode(IEpochCoordinator coordinator)
+    public EpochSourceNode()
     {
-        _coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
-        
         _epochStream = Channel.CreateUnbounded<IEpoch>(new UnboundedChannelOptions
         {
             SingleReader = false, // Multiple processors can read
@@ -54,9 +50,4 @@ public sealed class EpochSourceNode
     {
         _epochStream.Writer.Complete();
     }
-
-    /// <summary>
-    /// Gets the underlying epoch coordinator.
-    /// </summary>
-    public IEpochCoordinator Coordinator => _coordinator;
 }
