@@ -148,6 +148,7 @@ public class FanInSourceCoordinationTests : IAsyncDisposable
         rootServices.AddSingleton<IEpochCoordinator>(sp => 
             new EpochCoordinator(sp.GetRequiredService<IServiceScopeFactory>()));
         var rootServiceProvider = rootServices.BuildServiceProvider();
+        var coordinator = rootServiceProvider.GetRequiredService<IEpochCoordinator>();
 
         var services1 = new ServiceCollection();
         services1.AddTransient(sp => new TestSourceActor("source1", new[] { 10, 20 }));
@@ -224,6 +225,7 @@ public class FanInSourceCoordinationTests : IAsyncDisposable
         rootServices.AddSingleton<IEpochCoordinator>(sp => 
             new EpochCoordinator(sp.GetRequiredService<IServiceScopeFactory>()));
         var rootServiceProvider = rootServices.BuildServiceProvider();
+        var coordinator = rootServiceProvider.GetRequiredService<IEpochCoordinator>();
 
         // Start with source1
         var services1 = new ServiceCollection();
@@ -317,19 +319,14 @@ public class FanInSourceCoordinationTests : IAsyncDisposable
         rootServices.AddSingleton<IEpochCoordinator>(sp => 
             new EpochCoordinator(sp.GetRequiredService<IServiceScopeFactory>()));
         var rootServiceProvider = rootServices.BuildServiceProvider();
+        var coordinator = rootServiceProvider.GetRequiredService<IEpochCoordinator>();
 
         var services1 = new ServiceCollection();
-        services1.AddTransient(sp => new TestSourceActor(
-            rootServiceProvider.GetRequiredService<IEpochCoordinator>(), 
-            "source1", 
-            new[] { 1, 2 }));
+        services1.AddTransient(sp => new TestSourceActor("source1", new[] { 1, 2 }));
         var sp1 = services1.BuildServiceProvider();
 
         var services2 = new ServiceCollection();
-        services2.AddTransient(sp => new TestSourceActor(
-            rootServiceProvider.GetRequiredService<IEpochCoordinator>(), 
-            "source2", 
-            new[] { 3, 4 }));
+        services2.AddTransient(sp => new TestSourceActor("source2", new[] { 3, 4 }));
         var sp2 = services2.BuildServiceProvider();
 
         var services3 = new ServiceCollection();
@@ -426,6 +423,7 @@ public class FanInSourceCoordinationTests : IAsyncDisposable
         rootServices.AddSingleton<IEpochCoordinator>(sp => 
             new EpochCoordinator(sp.GetRequiredService<IServiceScopeFactory>()));
         var rootServiceProvider = rootServices.BuildServiceProvider();
+        var coordinator = rootServiceProvider.GetRequiredService<IEpochCoordinator>();
 
         // Fast source - produces quickly
         var services1 = new ServiceCollection();
@@ -512,12 +510,10 @@ public class FanInSourceCoordinationTests : IAsyncDisposable
         rootServices.AddSingleton<IEpochCoordinator>(sp => 
             new EpochCoordinator(sp.GetRequiredService<IServiceScopeFactory>()));
         var rootServiceProvider = rootServices.BuildServiceProvider();
+        var coordinator = rootServiceProvider.GetRequiredService<IEpochCoordinator>();
 
         var services1 = new ServiceCollection();
-        services1.AddTransient(sp => new TestSourceActor(
-            rootServiceProvider.GetRequiredService<IEpochCoordinator>(), 
-            "source1", 
-            new[] { 1 }));
+        services1.AddTransient(sp => new TestSourceActor("source1", new[] { 1 }));
         var sp1 = services1.BuildServiceProvider();
 
         var services2 = new ServiceCollection();
