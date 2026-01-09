@@ -68,7 +68,7 @@ public sealed class DatabaseSourceActor : SourceActorBase<DataRecord>
         string sourceId = "database-source",
         int initialLastProcessedId = 0,
         ILogger<DatabaseSourceActor>? logger = null)
-        : base(coordinator, sourceId)
+        : base(sourceId)
     {
         _dbOptions = dbOptions ?? throw new ArgumentNullException(nameof(dbOptions));
         _epochSize = epochSize > 0 ? epochSize : throw new ArgumentOutOfRangeException(nameof(epochSize));
@@ -107,7 +107,7 @@ public sealed class DatabaseSourceActor : SourceActorBase<DataRecord>
             {
                 if (currentSequence > 1)
                 {
-                    SignalReadyForNext(currentSequence - 1, currentSequence);
+                    SignalReadyForNext(context, currentSequence - 1, currentSequence);
                 }
                 
                 _logger?.LogDebug("Yielding epoch {Sequence} starting from Id > {LastId}", currentSequence, _lastProcessedId);
@@ -115,6 +115,7 @@ public sealed class DatabaseSourceActor : SourceActorBase<DataRecord>
                 int epochStartId = _lastProcessedId;
                 
                 yield return await CreateEpochStreamAsync(
+                    context,
                     currentSequence,
                     StreamEpochItems(),
                     context.CancellationToken);

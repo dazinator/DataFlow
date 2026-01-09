@@ -46,6 +46,7 @@ public static class TestContext
 
         public CancellationToken CancellationToken { get; }
         public Guid InvocationId { get; }
+        public IEpochCoordinator? EpochCoordinator => null;
         public void RequestRotation() { }
     }
 }

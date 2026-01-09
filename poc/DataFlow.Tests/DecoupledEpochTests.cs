@@ -250,16 +250,16 @@ public class DecoupledEpochTests
         
         // Arrange - Source-centric approach
         var services1 = new ServiceCollection();
-        services1.AddSingleton<IEpochCoordinator>(sp => 
-            new EpochCoordinator(sp.GetRequiredService<IServiceScopeFactory>()));
-        services1.AddTransient(sp => new SourceCentricNumberProducer(
-            sp.GetRequiredService<IEpochCoordinator>(),
-            "test-source"));
+        services1.AddTransient(sp => new SourceCentricNumberProducer("test-source"));
         var provider1 = services1.BuildServiceProvider();
+        
+        var coordinator = new EpochCoordinator(
+            provider1.GetRequiredService<IServiceScopeFactory>());
 
         var sourceCentricBlock = new EpochSourceBlock<int, SourceCentricNumberProducer>(
             new BlockContext("source-centric"),
-            provider1.GetRequiredService<IServiceScopeFactory>());
+            provider1.GetRequiredService<IServiceScopeFactory>(),
+            coordinator);
 
         // Arrange - Decoupled approach
         var services2 = new ServiceCollection();
@@ -367,8 +367,8 @@ public class DecoupledEpochTests
 
     private class SourceCentricNumberProducer : SourceActorBase<int>
     {
-        public SourceCentricNumberProducer(IEpochCoordinator coordinator, string sourceId)
-            : base(coordinator, sourceId)
+        public SourceCentricNumberProducer(string sourceId)
+            : base(sourceId)
         {
         }
 
@@ -382,11 +382,12 @@ public class DecoupledEpochTests
             {
                 if (epochIndex > 0)
                 {
-                    SignalReadyForNext(epochIndex, epochIndex + 1);
+                    SignalReadyForNext(context, epochIndex, epochIndex + 1);
                 }
                 
                 var epochData = data.Skip(epochIndex * 3).Take(3).ToList();
                 yield return await CreateEpochStreamAsync(
+                    context,
                     epochIndex + 1,
                     epochData.ToAsyncEnumerable(),
                     context.CancellationToken);

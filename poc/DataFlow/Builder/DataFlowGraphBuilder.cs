@@ -16,11 +16,13 @@ public class DataFlowGraphBuilder
     private readonly IServiceProvider? _serviceProvider;
     private readonly IBlockTypeRegistry? _registry;
     private readonly string _namespace;
+    private readonly string _graphId = Guid.NewGuid().ToString(); // Generated once at builder creation
     private readonly List<IBlock> _blocks = new();
     private readonly Dictionary<string, IBlock> _blocksByName = new(); // Track blocks by their registration name
     private readonly List<Edge> _edges = new();
     private EpochSourceNode? _epochSource;
     private readonly List<EpochProcessorNode> _epochProcessors = new();
+    private IEpochCoordinator? _epochCoordinator;
 
     /// <summary>
     /// Legacy constructor for inline graph building.
@@ -57,6 +59,12 @@ public class DataFlowGraphBuilder
         _namespace = namespacePrefix ?? "global";
         _logger = logger ?? NullLogger<DataFlowGraph>.Instance;
     }
+
+    /// <summary>
+    /// Gets the unique identifier for the graph being built.
+    /// Each graph instance has a unique ID for identification and tracking.
+    /// </summary>
+    public string GraphId => _graphId;
 
     /// <summary>
     /// Gets the service provider for DI resolution.
@@ -287,6 +295,19 @@ public class DataFlowGraphBuilder
     }
     
     /// <summary>
+    /// Sets the epoch coordinator for the graph (internal use by ConfigureEpochs).
+    /// </summary>
+    internal void SetEpochCoordinator(IEpochCoordinator coordinator)
+    {
+        ArgumentNullException.ThrowIfNull(coordinator);
+        if (_epochCoordinator != null)
+        {
+            throw new InvalidOperationException("Epoch coordinator has already been configured");
+        }
+        _epochCoordinator = coordinator;
+    }
+    
+    /// <summary>
     /// Adds an epoch processor node to the graph (internal use by ConfigureEpochs).
     /// </summary>
     internal void AddEpochProcessor(EpochProcessorNode processor)
@@ -300,7 +321,7 @@ public class DataFlowGraphBuilder
     /// </summary>
     public DataFlowGraph Build()
     {
-        var graph = new DataFlowGraph(_name, _logger);
+        var graph = new DataFlowGraph(_name, _graphId, _logger);
 
         foreach (var block in _blocks)
         {
@@ -320,6 +341,12 @@ public class DataFlowGraphBuilder
             {
                 graph.AddEpochProcessor(processor);
             }
+        }
+        
+        // Set epoch coordinator if configured
+        if (_epochCoordinator != null)
+        {
+            graph.SetEpochCoordinator(_epochCoordinator);
         }
 
         return graph;

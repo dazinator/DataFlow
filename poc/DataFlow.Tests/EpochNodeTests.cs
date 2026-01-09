@@ -38,7 +38,7 @@ public class EpochNodeTests : IAsyncDisposable
     public async Task EpochSourceNode_PublishesEpochToStream()
     {
         // Arrange
-        var source = new EpochSourceNode(_coordinator);
+        var source = new EpochSourceNode();
         var vector = EpochVector.FromSingleSource("test", 1);
         var epoch = await _coordinator.GetOrCreateEpochAsync("test", vector);
 
@@ -58,7 +58,7 @@ public class EpochNodeTests : IAsyncDisposable
     public async Task EpochProcessorNode_DrainsOperationQueue()
     {
         // Arrange
-        var source = new EpochSourceNode(_coordinator);
+        var source = new EpochSourceNode();
         var processor = new EpochProcessorNode(source);
         _disposables.Add(processor);
 
@@ -99,7 +99,7 @@ public class EpochNodeTests : IAsyncDisposable
     public async Task EpochProcessorNode_ExecutesHooks_InCorrectOrder()
     {
         // Arrange
-        var source = new EpochSourceNode(_coordinator);
+        var source = new EpochSourceNode();
         var executionLog = new List<string>();
         
         var hooks = new EpochHooks
@@ -147,7 +147,7 @@ public class EpochNodeTests : IAsyncDisposable
     public async Task EpochProcessorNode_ErrorHook_CalledOnFailure()
     {
         // Arrange
-        var source = new EpochSourceNode(_coordinator);
+        var source = new EpochSourceNode();
         Exception? capturedError = null;
         
         var hooks = new EpochHooks
@@ -193,7 +193,7 @@ public class EpochNodeTests : IAsyncDisposable
     public async Task MultipleProcessors_ConsumeFromSameSource()
     {
         // Arrange
-        var source = new EpochSourceNode(_coordinator);
+        var source = new EpochSourceNode();
         
         var processor1Log = new List<int>();
         var processor2Log = new List<int>();
@@ -247,7 +247,7 @@ public class EpochNodeTests : IAsyncDisposable
     public async Task EpochOperations_ExecuteSerially()
     {
         // Arrange
-        var source = new EpochSourceNode(_coordinator);
+        var source = new EpochSourceNode();
         var processor = new EpochProcessorNode(source);
         _disposables.Add(processor);
 
@@ -295,7 +295,7 @@ public class EpochNodeTests : IAsyncDisposable
     public async Task Epoch_CompletionTask_WaitsForAllOperations()
     {
         // Arrange
-        var source = new EpochSourceNode(_coordinator);
+        var source = new EpochSourceNode();
         var processor = new EpochProcessorNode(source);
         _disposables.Add(processor);
 
@@ -325,7 +325,7 @@ public class EpochNodeTests : IAsyncDisposable
     public async Task EpochHooks_CanQueueOperations()
     {
         // Arrange
-        var source = new EpochSourceNode(_coordinator);
+        var source = new EpochSourceNode();
         var executionLog = new List<string>();
         
         var hooks = new EpochHooks

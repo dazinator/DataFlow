@@ -402,14 +402,15 @@ public static class BlockHelpers
     #region Epoch Blocks
 
     /// <summary>
-    /// Creates an EpochSourceBlock with a service scope factory.
+    /// Creates an EpochSourceBlock with a service scope factory and coordinator.
     /// </summary>
     public static EpochSourceBlock<T, TActor> CreateEpochSource<T, TActor>(
         string name,
-        IServiceScopeFactory scopeFactory)
+        IServiceScopeFactory scopeFactory,
+        IEpochCoordinator coordinator)
         where TActor : ISourceActor<T>
     {
-        return new EpochSourceBlock<T, TActor>(new BlockContext(name), scopeFactory);
+        return new EpochSourceBlock<T, TActor>(new BlockContext(name), scopeFactory, coordinator);
     }
 
     /// <summary>
@@ -417,13 +418,14 @@ public static class BlockHelpers
     /// </summary>
     public static EpochSourceBlock<T, TActor> CreateEpochSource<T, TActor>(
         string name,
-        TActor actor)
+        TActor actor,
+        IEpochCoordinator coordinator)
         where TActor : class, ISourceActor<T>
     {
         var scopeFactory = TestServiceBuilder.Create()
             .WithScoped(actor)
             .BuildScopeFactory();
-        return new EpochSourceBlock<T, TActor>(new BlockContext(name), scopeFactory);
+        return new EpochSourceBlock<T, TActor>(new BlockContext(name), scopeFactory, coordinator);
     }
 
     /// <summary>

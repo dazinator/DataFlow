@@ -21,4 +21,11 @@ public interface IActorExecutionContext
     /// The actor will be disposed and a new instance will be created in a new scope.
     /// </summary>
     void RequestRotation();
+
+    /// <summary>
+    /// Epoch coordinator for this execution context.
+    /// Available for epoch-aware source actors.
+    /// Null for non-epoch contexts.
+    /// </summary>
+    IEpochCoordinator? EpochCoordinator { get; }
 }

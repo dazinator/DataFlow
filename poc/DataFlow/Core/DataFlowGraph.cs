@@ -28,12 +28,24 @@ public class DataFlowGraph
     private EpochSourceNode? _epochSource;
     private readonly List<EpochProcessorNode> _epochProcessors = new();
     private readonly IDataFlowMetrics? _metrics;
+    private IEpochCoordinator? _epochCoordinator;
 
     private static readonly ActivitySource ActivitySource = new("DataFlow");
+
+    private static string CreateNewGraphId() => Guid.NewGuid().ToString();
 
     public DataFlowGraph(string name, ILogger<DataFlowGraph> logger, IDataFlowMetrics? metrics = null)
     {
         Name = name;
+        GraphId = CreateNewGraphId();
+        _logger = logger;
+        _metrics = metrics;
+    }
+
+    internal DataFlowGraph(string name, string graphId, ILogger<DataFlowGraph> logger, IDataFlowMetrics? metrics = null)
+    {
+        Name = name;
+        GraphId = graphId ?? throw new ArgumentNullException(nameof(graphId));
         _logger = logger;
         _metrics = metrics;
     }
@@ -42,6 +54,17 @@ public class DataFlowGraph
     /// The name of this dataflow graph.
     /// </summary>
     public string Name { get; }
+
+    /// <summary>
+    /// Unique identifier for this graph instance.
+    /// Each graph instance has a unique ID for identification and tracking.
+    /// </summary>
+    public string GraphId { get; }
+
+    /// <summary>
+    /// The epoch coordinator for this graph, if configured.
+    /// </summary>
+    public IEpochCoordinator? EpochCoordinator => _epochCoordinator;
 
     /// <summary>
     /// All blocks in the graph.
@@ -88,6 +111,20 @@ public class DataFlowGraph
         }
         _epochSource = source;
         _logger.LogDebug("Set epoch source node");
+    }
+    
+    /// <summary>
+    /// Sets the epoch coordinator for the graph.
+    /// </summary>
+    internal void SetEpochCoordinator(IEpochCoordinator coordinator)
+    {
+        ArgumentNullException.ThrowIfNull(coordinator);
+        if (_epochCoordinator != null)
+        {
+            throw new InvalidOperationException("Epoch coordinator has already been set");
+        }
+        _epochCoordinator = coordinator;
+        _logger.LogDebug("Set epoch coordinator");
     }
     
     /// <summary>

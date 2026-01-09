@@ -41,7 +41,7 @@ public class EpochProcessorConcurrencyTests : IAsyncDisposable
         var coordinator = new EpochCoordinator(_serviceProvider.GetRequiredService<IServiceScopeFactory>());
         _disposables.Add(coordinator);
         
-        var source = new EpochSourceNode(coordinator);
+        var source = new EpochSourceNode();
         var completionOrder = new List<int>();
         var lockObject = new object();
 
@@ -86,7 +86,7 @@ public class EpochProcessorConcurrencyTests : IAsyncDisposable
         var coordinator = new EpochCoordinator(_serviceProvider.GetRequiredService<IServiceScopeFactory>());
         _disposables.Add(coordinator);
         
-        var source = new EpochSourceNode(coordinator);
+        var source = new EpochSourceNode();
         var completionOrder = new ConcurrentBag<int>();
         var completionLock = new object();
         var processor1Epochs = new List<int>();
@@ -158,7 +158,7 @@ public class EpochProcessorConcurrencyTests : IAsyncDisposable
         var coordinator = new EpochCoordinator(_serviceProvider.GetRequiredService<IServiceScopeFactory>());
         _disposables.Add(coordinator);
         
-        var source = new EpochSourceNode(coordinator);
+        var source = new EpochSourceNode();
         var completionOrder = new ConcurrentBag<int>();
         var processorLogs = new ConcurrentDictionary<int, List<int>>();
         
@@ -220,7 +220,7 @@ public class EpochProcessorConcurrencyTests : IAsyncDisposable
         var coordinator = new EpochCoordinator(_serviceProvider.GetRequiredService<IServiceScopeFactory>());
         _disposables.Add(coordinator);
         
-        var source = new EpochSourceNode(coordinator);
+        var source = new EpochSourceNode();
         var executionLog = new ConcurrentBag<string>();
 
         var hooks = new EpochHooks
@@ -283,7 +283,7 @@ public class EpochProcessorConcurrencyTests : IAsyncDisposable
         var coordinator = new EpochCoordinator(_serviceProvider.GetRequiredService<IServiceScopeFactory>());
         _disposables.Add(coordinator);
         
-        var source = new EpochSourceNode(coordinator);
+        var source = new EpochSourceNode();
         var errorsCaught = new ConcurrentBag<int>();
 
         var hooks = new EpochHooks
@@ -349,7 +349,7 @@ public class EpochProcessorConcurrencyTests : IAsyncDisposable
         var coordinator = new EpochCoordinator(_serviceProvider.GetRequiredService<IServiceScopeFactory>());
         _disposables.Add(coordinator);
         
-        var source = new EpochSourceNode(coordinator);
+        var source = new EpochSourceNode();
         var transactionStates = new ConcurrentDictionary<int, bool>();
 
         var hooks = new EpochHooks

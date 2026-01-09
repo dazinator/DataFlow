@@ -39,16 +39,16 @@ public class SourceCoordinationTests : IAsyncDisposable
         // Arrange - create custom service provider for this test
         var services = new ServiceCollection();
         services.AddScoped<SharedTestService>();
-        services.AddSingleton<IEpochCoordinator>(sp => 
-            new EpochCoordinator(sp.GetRequiredService<IServiceScopeFactory>()));
-        services.AddTransient(sp => new SingleEpochSourceActor(
-            sp.GetRequiredService<IEpochCoordinator>(), 
-            "source1"));
+        services.AddTransient(sp => new SingleEpochSourceActor("source1"));
         var testServiceProvider = services.BuildServiceProvider();
+        
+        var coordinator = new EpochCoordinator(
+            testServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var sourceBlock = new EpochSourceBlock<int, SingleEpochSourceActor>(
             new BlockContext("source1"),
-            testServiceProvider.GetRequiredService<IServiceScopeFactory>());
+            testServiceProvider.GetRequiredService<IServiceScopeFactory>(),
+            coordinator);
 
         var context = new TestExecutionContext();
         
@@ -91,16 +91,16 @@ public class SourceCoordinationTests : IAsyncDisposable
         // Arrange - create custom service provider for this test
         var services = new ServiceCollection();
         services.AddScoped<SharedTestService>();
-        services.AddSingleton<IEpochCoordinator>(sp => 
-            new EpochCoordinator(sp.GetRequiredService<IServiceScopeFactory>()));
-        services.AddTransient(sp => new MultiEpochSourceActor(
-            sp.GetRequiredService<IEpochCoordinator>(), 
-            "source1"));
+        services.AddTransient(sp => new MultiEpochSourceActor("source1"));
         var testServiceProvider = services.BuildServiceProvider();
+        
+        var coordinator = new EpochCoordinator(
+            testServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var sourceBlock = new EpochSourceBlock<int, MultiEpochSourceActor>(
             new BlockContext("source1"),
-            testServiceProvider.GetRequiredService<IServiceScopeFactory>());
+            testServiceProvider.GetRequiredService<IServiceScopeFactory>(),
+            coordinator);
 
         var context = new TestExecutionContext();
         
@@ -141,27 +141,26 @@ public class SourceCoordinationTests : IAsyncDisposable
         rootServices.AddSingleton<IEpochCoordinator>(sp => 
             new EpochCoordinator(sp.GetRequiredService<IServiceScopeFactory>()));
         var rootServiceProvider = rootServices.BuildServiceProvider();
+        var coordinator = rootServiceProvider.GetRequiredService<IEpochCoordinator>();
 
         // Create service providers for each source actor with coordinator resolved from root
         var services1 = new ServiceCollection();
-        services1.AddTransient(sp => new SingleEpochSourceActor(
-            rootServiceProvider.GetRequiredService<IEpochCoordinator>(), 
-            "source1"));
+        services1.AddTransient(sp => new SingleEpochSourceActor("source1"));
         var sp1 = services1.BuildServiceProvider();
 
         var services2 = new ServiceCollection();
-        services2.AddTransient(sp => new SingleEpochSourceActor(
-            rootServiceProvider.GetRequiredService<IEpochCoordinator>(), 
-            "source2"));
+        services2.AddTransient(sp => new SingleEpochSourceActor("source2"));
         var sp2 = services2.BuildServiceProvider();
 
         var source1Block = new EpochSourceBlock<int, SingleEpochSourceActor>(
             new BlockContext("source1"),
-            sp1.GetRequiredService<IServiceScopeFactory>());
+            sp1.GetRequiredService<IServiceScopeFactory>(),
+            coordinator);
 
         var source2Block = new EpochSourceBlock<int, SingleEpochSourceActor>(
             new BlockContext("source2"),
-            sp2.GetRequiredService<IServiceScopeFactory>());
+            sp2.GetRequiredService<IServiceScopeFactory>(),
+            coordinator);
 
         var context = new TestExecutionContext();
         
@@ -229,16 +228,16 @@ public class SourceCoordinationTests : IAsyncDisposable
         // Arrange - use single source to verify signaling without coordination complexity
         var services = new ServiceCollection();
         services.AddScoped<SharedTestService>();
-        services.AddSingleton<IEpochCoordinator>(sp => 
-            new EpochCoordinator(sp.GetRequiredService<IServiceScopeFactory>()));
-        services.AddTransient(sp => new MultiEpochSourceActor(
-            sp.GetRequiredService<IEpochCoordinator>(), 
-            "source1"));
+        services.AddTransient(sp => new MultiEpochSourceActor("source1"));
         var testServiceProvider = services.BuildServiceProvider();
+        
+        var coordinator = new EpochCoordinator(
+            testServiceProvider.GetRequiredService<IServiceScopeFactory>());
 
         var sourceBlock = new EpochSourceBlock<int, MultiEpochSourceActor>(
             new BlockContext("source1"),
-            testServiceProvider.GetRequiredService<IServiceScopeFactory>());
+            testServiceProvider.GetRequiredService<IServiceScopeFactory>(),
+            coordinator);
 
         var context = new TestExecutionContext();
         
@@ -279,8 +278,8 @@ public class SourceCoordinationTests : IAsyncDisposable
 
     private class SingleEpochSourceActor : SourceActorBase<int>
     {
-        public SingleEpochSourceActor(IEpochCoordinator coordinator, string sourceId)
-            : base(coordinator, sourceId)
+        public SingleEpochSourceActor(string sourceId)
+            : base(sourceId)
         {
         }
 
@@ -288,6 +287,7 @@ public class SourceCoordinationTests : IAsyncDisposable
             IActorExecutionContext context)
         {
             yield return await CreateEpochStreamAsync(
+                context,
                 1,
                 ProduceItems(context.CancellationToken),
                 context.CancellationToken);
@@ -306,8 +306,8 @@ public class SourceCoordinationTests : IAsyncDisposable
 
     private class MultiEpochSourceActor : SourceActorBase<int>
     {
-        public MultiEpochSourceActor(IEpochCoordinator coordinator, string sourceId)
-            : base(coordinator, sourceId)
+        public MultiEpochSourceActor(string sourceId)
+            : base(sourceId)
         {
         }
 
@@ -318,10 +318,11 @@ public class SourceCoordinationTests : IAsyncDisposable
             {
                 if (epoch > 1)
                 {
-                    SignalReadyForNext(epoch - 1, epoch);
+                    SignalReadyForNext(context, epoch - 1, epoch);
                 }
                 
                 yield return await CreateEpochStreamAsync(
+                    context,
                     epoch,
                     ProduceEpochItems(epoch, context.CancellationToken),
                     context.CancellationToken);
