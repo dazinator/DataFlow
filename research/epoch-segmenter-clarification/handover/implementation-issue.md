@@ -1,301 +1,198 @@
-# [Implementation] Refactor EpochSegmenterBlock to SegmentationBlock
+# [Implementation] Remove Obsolete Block-Level Epoch Segmentation System
 
 ## Context and Objectives
 
 ### Problem Statement
 
-`EpochSegmenterBlock` provides critical multi-epoch segmentation capabilities (count-based, key-based, clock-based, custom), but its signature (`BlockBase<T, IEpochStream<T>>`) is misaligned with the mandatory epochs architecture, where ALL streams are already epoch streams.
-
-The block's name and signature suggest it "adds" epochs to plain streams, which contradicts the architectural principle that epochs are mandatory and native to the system.
+The block-level epoch segmentation system (`EpochSegmenterBlock`, `EpochSegmentationPolicy`, `PlainSourceAdapter`, `IPlainSourceActor`) is fully obsolete and superseded by the graph-level `ConfigureEpochs()` API with `EpochPolicy`.
 
 ### Research Background
 
-Research was conducted to determine if `EpochSegmenterBlock` was superseded by the mandatory epochs architecture.
+Research determined that the ENTIRE block-level segmentation system should be removed.
 
-**Research Issue**: [Link to research issue]
+**Research Issue**: #88
 **Research Documentation**: `/research/epoch-segmenter-clarification/`
 
 **Key Research Artifacts**:
 - Main findings: `/research/epoch-segmenter-clarification/README.md`
-- Architectural analysis: `/research/epoch-segmenter-clarification/notes/architectural-analysis.md`
 - Usage analysis: `/research/epoch-segmenter-clarification/notes/usage-analysis.md`
+- Architectural analysis: `/research/epoch-segmenter-clarification/notes/architectural-analysis.md`
 - Implementation specs: `/research/epoch-segmenter-clarification/handover/README.md`
 
-**Key Findings from Research**:
-1. **Partially Obsolete**: Single-epoch wrapping (SegmentationMode.None) is superseded by `PlainSourceAdapter`/`WrapInSingleEpoch()`
-2. **Critical Capabilities NOT Superseded**: Multi-epoch segmentation (count, key, clock, custom) has NO REPLACEMENT in current architecture
-3. **Architectural Misalignment**: Signature suggests "adding" epochs, but all streams are already epochs in mandatory epochs architecture
-4. **Solution**: Refactor signature to `BlockBase<IEpochStream<T>, IEpochStream<T>>` to align with architecture while preserving capabilities
+**Key Findings**:
+1. **Fully Obsolete**: All block-level segmentation is superseded by graph-level `ConfigureEpochs()` API
+2. **Replacement Exists**: `ConfigureEpochs()` with `EpochPolicy` provides all segmentation functionality (count, time, combined)
+3. **PlainSourceAdapter Also Obsolete**: Was temporary stand-in; `EpochSourceBlock` is canonical
+4. **Test Coverage Verified**: Equivalent functionality tested in `EpochGraphIntegrationTests.cs` and `EpochConfigurationApiDemoTests.cs`
 
 ### Objectives
 
-- [ ] Create new `SegmentationBlock<T>` with epoch-to-epoch signature
-- [ ] Preserve all segmentation capabilities (Count, Key, Clock, Custom, None modes)
-- [ ] Mark `EpochSegmenterBlock` as `[Obsolete]` with migration guidance
-- [ ] Update all tests to use new pattern
-- [ ] Update all benchmarks to use new pattern
-- [ ] Create comprehensive migration guide
-- [ ] Update design documentation
-- [ ] Create ADR documenting refactoring decision
+- [ ] Remove obsolete block-level segmentation system
+- [ ] Verify test coverage for `ConfigureEpochs()` API
+- [ ] Remove obsolete tests using block-level system
+- [ ] Remove obsolete benchmarks
+- [ ] Update test helpers (BlockHelpers.cs)
+- [ ] Remove obsolete documentation
+- [ ] Ensure no functionality loss
 
-## Implementation Guidance
+## Modern Architecture
 
-### Recommended Approach
-
-**Refactor, don't remove** - `EpochSegmenterBlock` provides valuable functionality but needs architectural alignment.
-
-**Key Change**: Update signature from plain-to-epoch (`T → IEpochStream<T>`) to epoch-to-epoch (`IEpochStream<T> → IEpochStream<T>`)
-
-**Key Principles**:
-1. **Preserve All Capabilities**: All segmentation modes must continue to work
-2. **Align with Mandatory Epochs**: Accept epoch streams as input (since all streams are epochs)
-3. **Clear Semantics**: Re-segment existing epoch streams, not "add" epochs
-4. **Smooth Migration**: Deprecation period with clear migration path
-5. **No Performance Regression**: Refactored block should perform equivalently
-
-### Design References
-
-Supporting documentation:
-- **Research Findings**: `/research/epoch-segmenter-clarification/README.md`
-- **Implementation Specs**: `/research/epoch-segmenter-clarification/handover/README.md`
-- **Architectural Analysis**: `/research/epoch-segmenter-clarification/notes/architectural-analysis.md`
-- **Mandatory Epochs ADR**: `/docs/adr/poc/2025-11-20-mandatory-epochs-unified-architecture.md`
-
-### API Design
-
-#### New SegmentationBlock (Aligned with Mandatory Epochs)
+### Graph-Level Segmentation (Current)
 
 ```csharp
-/// <summary>
-/// Re-segments epoch streams based on segmentation policy.
-/// In mandatory epochs architecture, all streams are already epochs.
-/// This block re-segments existing epoch streams into new epoch boundaries.
-/// </summary>
-public sealed class SegmentationBlock<T> : BlockBase<IEpochStream<T>, IEpochStream<T>>
+var builder = new DataFlowGraphBuilder(serviceProvider, "my-graph");
+
+// Configure epoch segmentation at graph level
+builder.ConfigureEpochs(config =>
 {
-    private readonly SegmentationPolicy _policy;
+    // Count-based: Create new epoch every 100 items
+    config.SetPolicy(EpochPolicy.ByCount(100));
     
-    public SegmentationBlock(IBlockContext context, SegmentationPolicy policy)
-        : base(context)
-    {
-        _policy = policy ?? throw new ArgumentNullException(nameof(policy));
-    }
+    // Time-based: Create new epoch every 5 seconds
+    // config.SetPolicy(EpochPolicy.ByTime(TimeSpan.FromSeconds(5)));
     
-    public override async IAsyncEnumerable<IEpochStream<T>> ExecuteAsync(
-        IAsyncEnumerable<IEpochStream<T>> input,
-        IExecutionContext context)
+    // Both: Create epoch when EITHER condition is met
+    // config.SetPolicy(EpochPolicy.ByCountOrTime(100, TimeSpan.FromSeconds(5)));
+    
+    config.AddProcessor("processor1");
+    
+    // Lifecycle hooks
+    config.OnBeginEpoch(async (epoch, ct) => { /* start transaction */ });
+    config.OnCommitEpoch(async (epoch, ct) => { /* commit transaction */ });
+});
+```
+
+### Canonical Source Pattern
+
+```csharp
+public class MySourceActor : ISourceActor<int>
+{
+    public async IAsyncEnumerable<IEpochStream<int>> ProduceEpochsAsync(
+        IActorExecutionContext context)
     {
-        // 1. Flatten input epoch streams to plain items
-        // 2. Apply segmentation policy
-        // 3. Yield re-segmented epoch streams
+        var items = GetItems();
+        yield return items.WrapInSingleEpoch("my-source", context.CancellationToken);
     }
 }
+
+// Usage
+builder.AddSource<int, MySourceActor>("source");
 ```
 
-#### Obsolete EpochSegmenterBlock (Compatibility)
-
-```csharp
-[Obsolete(
-    "EpochSegmenterBlock is deprecated. Use SegmentationBlock<T> for multi-epoch segmentation. " +
-    "For single-epoch wrapping, use PlainSourceAdapter or WrapInSingleEpoch(). " +
-    "Migration: plainStream.WrapInSingleEpoch(\"source\") → SegmentationBlock(policy). " +
-    "Will be removed in v3.0.",
-    error: false)]
-public sealed class EpochSegmenterBlock<T> : BlockBase<T, IEpochStream<T>>
-{
-    // Keep existing implementation for compatibility period
-}
-```
-
-### Migration Pattern
-
-**Before (v2.0)**:
-```csharp
-var plainStream = ProducePlainItems();
-var segmenter = BlockHelpers.CreateEpochSegmenter<int>(
-    "segmenter", 
-    EpochSegmentationPolicy.ByCount(100, "source"));
-var epochStreams = segmenter.ExecuteAsync(plainStream, context);
-```
-
-**After (v2.1+)**:
-```csharp
-var plainStream = ProducePlainItems();
-var singleEpochStream = plainStream.WrapInSingleEpoch("source", context.CancellationToken);
-var segmenter = BlockHelpers.CreateSegmentation<int>(
-    "segmenter", 
-    SegmentationPolicy.ByCount(100));
-var epochStreams = segmenter.ExecuteAsync(singleEpochStream, context);
-```
-
-### Component Architecture
-
-```
-┌─────────────────┐
-│  Plain Stream   │
-└────────┬────────┘
-         │
-         ▼
-┌────────────────────────┐
-│ WrapInSingleEpoch()    │ (Mandatory epochs - always epoch streams)
-└────────┬───────────────┘
-         │
-         ▼
-┌────────────────────────┐
-│  Single Epoch Stream   │
-└────────┬───────────────┘
-         │
-         ▼
-┌────────────────────────┐
-│  SegmentationBlock     │ (Re-segments existing epoch streams)
-└────────┬───────────────┘
-         │
-         ▼
-┌────────────────────────┐
-│ Multiple Epoch Streams │
-└────────────────────────┘
-```
-
-### Key Implementation Considerations
-
-1. **Input Flattening**: Must unwrap input epoch streams before applying segmentation
-2. **Source ID Handling**: Preserve source ID from input epochs or use policy source ID
-3. **Cancellation**: Properly propagate cancellation through flattening and segmentation
-4. **Resource Cleanup**: Ensure epoch streams are properly disposed
-5. **Backward Compatibility**: Keep obsolete block working during deprecation period
-6. **Test Updates**: ~15 test files need mechanical updates (add WrapInSingleEpoch calls)
-7. **Benchmark Updates**: ~5 benchmark files need same updates
-8. **Documentation**: Update design docs, create migration guide, write ADR
-
-## Test Scenarios
-
-All existing test scenarios must pass after migration:
-
-### Critical Test Scenarios
-
-1. **Count-Based Segmentation**
-   - Input: 10 items
-   - Policy: ByCount(3)
-   - Expected: 4 epochs (3+3+3+1 items)
-
-2. **Key-Based Segmentation**
-   - Input: Items with keys [A, A, B, B, C]
-   - Policy: ByKey(x => x.key)
-   - Expected: 3 epochs (A, B, C groups)
-
-3. **Clock-Based Segmentation**
-   - Input: Stream with epoch clock
-   - Policy: ByClock(epochClock)
-   - Expected: Epochs aligned with clock boundaries
-
-4. **None Mode (Pass-through)**
-   - Input: Single epoch stream
-   - Policy: None
-   - Expected: Single epoch output (no re-segmentation)
-
-5. **Multi-Source Coordination**
-   - Input: Multiple sources with different epoch vectors
-   - Expected: Correct epoch vector handling in output
-
-6. **Empty Input**
-   - Input: Empty epoch stream
-   - Expected: No output epochs, no errors
-
-7. **Cancellation**
-   - Input: Long-running stream
-   - Action: Cancel midway
-   - Expected: Clean cancellation, resources cleaned up
-
-### Performance Validation
-
-- Benchmark segmentation overhead (should be equivalent to current)
-- Validate no regression in integrated pipeline benchmarks
-- Target: <5% overhead compared to current implementation
-
-## Performance Requirements
-
-- **Throughput**: Equivalent to current EpochSegmenterBlock
-- **Memory**: No significant increase in memory usage
-- **Latency**: Flattening + re-segmentation overhead should be minimal
-- **Validation**: Run existing benchmarks, compare results
+Graph applies `EpochPolicy` automatically - no need for segmenter blocks.
 
 ## Implementation Checklist
 
-See complete checklist in `/research/epoch-segmenter-clarification/handover/README.md`
+### Step 1: Verify Test Coverage
 
-**Summary**:
-1. [ ] Create `SegmentationBlock<T>` with new signature
-2. [ ] Update/rename `SegmentationPolicy` (optional)
-3. [ ] Mark `EpochSegmenterBlock` as `[Obsolete]`
-4. [ ] Add `BlockHelpers.CreateSegmentation<T>()` method
-5. [ ] Update ~15 test files (add WrapInSingleEpoch, change helper call)
-6. [ ] Update ~5 benchmark files (same pattern)
-7. [ ] Create migration guide in `/poc/MIGRATION_GUIDE.md`
-8. [ ] Update design documentation
-9. [ ] Create ADR: `2026-01-09-segmentation-block-refactoring.md`
-10. [ ] Validate all tests pass
-11. [ ] Validate benchmarks show no regression
-12. [ ] Code review and merge
+Ensure equivalent test coverage exists for graph-level API:
 
-## Timeline and Phases
+- [ ] `EpochGraphIntegrationTests.cs` covers count-based segmentation
+- [ ] `EpochGraphIntegrationTests.cs` covers time-based segmentation  
+- [ ] `EpochConfigurationApiDemoTests.cs` covers ConfigureEpochs API
+- [ ] Documentation tests show current patterns
+- [ ] Epoch lifecycle hooks are tested
 
-### Phase 1: Deprecation (v2.1)
-- Add `SegmentationBlock`
-- Mark `EpochSegmenterBlock` obsolete
-- Both blocks work
+### Step 2: Remove Obsolete Production Code
 
-### Phase 2: Migration Period (v2.1-v2.x, 6-12 months)
-- Support both APIs
-- Encourage migration via warnings
-- Update documentation
+**Files to Remove**:
+- [ ] `/poc/DataFlow/Blocks/EpochSegmenterBlock.cs`
+- [ ] `/poc/DataFlow/Blocks/EpochSegmentationPolicy.cs`
+- [ ] `/poc/DataFlow/Blocks/PlainSourceAdapter.cs`
+- [ ] `/poc/DataFlow/Core/IPlainSourceActor.cs`
 
-### Phase 3: Removal (v3.0)
-- Remove `EpochSegmenterBlock`
-- `SegmentationBlock` is the unified solution
+### Step 3: Remove Obsolete Tests
 
-## Design Decisions
+**Test Files to Remove**:
+- [ ] `DecoupledEpochTests.cs`
+- [ ] `EpochAwareBlockTests.cs`
+- [ ] `MultiSourceSegmentationTests.cs`
+- [ ] `DecoupledEpochPerformanceTests.cs`
+- [ ] References in `EpochBufferBlockTests.cs`
+- [ ] References in `BlockContextConstructorInjectionTests.cs`
 
-### Why Not Remove Entirely?
+### Step 4: Remove Obsolete Benchmarks
 
-Multi-epoch segmentation capabilities (count, key, clock, custom) have NO REPLACEMENT in the mandatory epochs architecture. Removing would lose critical functionality.
+**Benchmark Files to Remove**:
+- [ ] `DecoupledEpochBenchmark.cs`
+- [ ] `EpochAwareBlockBenchmark.cs`
+- [ ] References in `SimpleEtlPOC.cs`
+- [ ] References in `ComplexEtlPOC.cs`
+- [ ] References in `BatchBlockComparisonBenchmark.cs`
 
-### Why Change Signature?
+### Step 5: Update Test Helpers
 
-Current signature (`T → IEpochStream<T>`) suggests "adding" epochs to plain streams, which contradicts mandatory epochs principle. New signature (`IEpochStream<T> → IEpochStream<T>`) makes it clear: re-segment existing epoch streams.
+**BlockHelpers.cs Changes**:
+- [ ] Remove `CreateEpochSegmenter<T>()` method
+- [ ] Remove `CreatePlainSource<T>()` methods
+- [ ] Remove `PlainProducerWrapper<T>` class
+- [ ] Remove `PlainToEpochActorWrapper<T>` class
+- [ ] Remove `PlainToEpochBatchWrapper<T>` class
+- [ ] Remove `ConcurrentProducerWrapper<T>` class
 
-### Why Not Push Segmentation into Sources?
+### Step 6: Update Documentation
 
-Violates separation of concerns:
-- Sources know data production, not segmentation
-- Same source may need different segmentation in different pipelines
-- Reduces reusability and composability
+**Remove obsolete documentation**:
+- [ ] `/poc/docs/design/blocks/epoch-segmenter-block.md`
+- [ ] `/poc/docs/design/blocks/plain-source-block.md`
+- [ ] Update `/poc/docs/POC_GLOSSARY.md` to remove obsolete entries
+- [ ] Update `/poc/docs/guides/using-epochs.md` to remove obsolete patterns
 
-### Alternatives Considered
+### Step 7: Validation
 
-1. **Remove Entirely**: ❌ Loses critical capabilities
-2. **Keep As-Is**: ❌ Perpetuates architectural misalignment
-3. **Integrate with ConfigureEpochs()**: 🤔 Possible future enhancement, but complex
-4. **Refactor to SegmentationBlock**: ✅ **CHOSEN** - best balance
+- [ ] All tests pass after removal
+- [ ] No references to obsolete classes remain
+- [ ] Documentation is consistent with current architecture
+
+## Test Scenarios
+
+**Verify equivalent coverage exists**:
+
+1. **Count-Based Segmentation**
+   - Via: `ConfigureEpochs(config => config.SetPolicy(EpochPolicy.ByCount(100)))`
+   - Test: `EpochGraphIntegrationTests.cs`
+
+2. **Time-Based Segmentation**
+   - Via: `ConfigureEpochs(config => config.SetPolicy(EpochPolicy.ByTime(period)))`
+   - Test: Verify exists or add if missing
+
+3. **Combined Segmentation**
+   - Via: `EpochPolicy.ByCountOrTime()`
+   - Test: Verify exists or add if missing
+
+4. **Epoch Lifecycle Hooks**
+   - Via: `config.OnBeginEpoch()`, `config.OnCommitEpoch()`
+   - Test: Verify coverage exists
+
+5. **EpochSourceBlock**
+   - Via: `builder.AddSource<T, TActor>()`
+   - Test: Verify exists
+
+## Design References
+
+- **Research**: `/research/epoch-segmenter-clarification/README.md`
+- **Mandatory Epochs ADR**: `/docs/adr/poc/2025-11-20-mandatory-epochs-unified-architecture.md`
+
+## Estimated Effort
+
+**2-3 days**
+
+- Day 1: Verify test coverage, remove production code
+- Day 2: Remove obsolete tests and benchmarks
+- Day 3: Update documentation, validation
 
 ## Related Issues
 
-- Research Issue: [Link when created]
-- Mandatory Epochs Implementation: [Link to previous implementation issue]
+- Research Issue: #88
+- PR: #89
 
 ## Labels
 
 - `workflow:implementation`
-- `type:refactoring`
+- `type:cleanup`
 - `area:poc`
 - `priority:medium`
-- `breaking-change` (v3.0)
 
-## Estimated Effort
+## Correction Note
 
-**3-5 days** (based on research analysis)
-
-- Day 1: Implement `SegmentationBlock<T>` and mark old block obsolete
-- Day 2: Update test helpers and 50% of tests
-- Day 3: Update remaining tests and benchmarks  
-- Day 4: Update documentation and create migration guide
-- Day 5: Review, validation, and ADR creation
+This implementation issue was updated from an initial "refactor" approach to a "remove" approach based on corrected research findings. The entire block-level segmentation system is obsolete and should be removed, not refactored.
