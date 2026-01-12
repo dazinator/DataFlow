@@ -362,8 +362,12 @@ If you're using the old `IEpochStream<T>` pattern, see the migration guide for d
 - ❌ No more out-of-band control signals - Epochs are managed explicitly
 - ✅ Lifecycle hooks replace `IEpochLifecycleParticipant`
 - ✅ Serialized operations replace per-block state management
+
+**Note**: The diagram below shows the old architecture using obsolete blocks. See "Modern Architecture" section for current patterns.
+
+```mermaid
 flowchart LR
-    A[PlainSourceAdapter] --> B[EpochActorBlock<br/>Epoch-aware]
+    A[EpochSourceBlock] --> B[EpochActorBlock<br/>Epoch-aware]
     B --> C[EpochBatchBlock<br/>Batching]
     C --> D[EpochActorBlock<br/>Transactional]
     
@@ -373,57 +377,93 @@ flowchart LR
     style D fill:#c8e6c9
 ```
 
-**Best For**: Some stateless processing, some requiring transactions
+**Best For**: All modern epoch-aware pipelines
 
-## Epoch Segmentation Strategies
+## Modern Epoch Segmentation
 
-### Single-Source Segmentation
+### Graph-Level Configuration (Current)
 
-For a single data source, segment after the source:
+Epoch segmentation is now configured at the graph level using `ConfigureEpochs()`:
 
 ```csharp
+var builder = new DataFlowGraphBuilder(serviceProvider, "my-graph");
+
+// Configure epoch segmentation at graph level
+builder.ConfigureEpochs(config =>
+{
+    // Count-based: Create new epoch every 100 items
+    config.SetPolicy(EpochPolicy.ByCount(100));
+    
+    // Time-based: Create new epoch every 5 seconds
+    // config.SetPolicy(EpochPolicy.ByTime(TimeSpan.FromSeconds(5)));
+    
+    // Both: Create epoch when EITHER condition is met
+    // config.SetPolicy(EpochPolicy.ByCountOrTime(100, TimeSpan.FromSeconds(5)));
+    
+    config.AddProcessor("processor1");
+    
+    // Lifecycle hooks
+    config.OnBeginEpoch(async (epoch, ct) => { /* start transaction */ });
+    config.OnCommitEpoch(async (epoch, ct) => { /* commit transaction */ });
+});
+```
+
+## Epoch Segmentation Strategies (OBSOLETE)
+
+⚠️ **The following sections describe obsolete patterns using removed blocks (`EpochSegmenterBlock`, `PlainSourceAdapter`).** 
+
+**Modern Approach**: Use `EpochSourceBlock` with graph-level `ConfigureEpochs()` API instead.
+
+### Single-Source Segmentation (OBSOLETE)
+
+⚠️ **DO NOT USE** - EpochSegmenterBlock has been removed.
+
+**Old Pattern**:
+```csharp
+// OBSOLETE - DO NOT USE
 var segmenter = new EpochSegmenterBlock<int>(
     "segmenter",
     EpochSegmentationPolicy.ByCount(1000, sourceId: "my-source"));
 ```
 
+**Modern Replacement**: Use `ConfigureEpochs()` with `EpochPolicy.ByCount(1000)` at graph level.
+
 **Granularity Options**:
-- **Per-batch** (e.g., 1000 items): Efficient bulk operations
-- **Per-entity** (e.g., 1 item): Fine-grained checkpointing
+- **Per-batch** (e.g., 1000 items): Configure via `EpochPolicy.ByCount(1000)`
+- **Per-entity** (e.g., 1 item): Configure via `EpochPolicy.ByCount(1)`
 
-### Multi-Source Segmentation
+### Multi-Source Segmentation (OBSOLETE)
 
-#### Unified-Then-Segment (Recommended)
+⚠️ **DO NOT USE** - These patterns used removed EpochSegmenterBlock.
 
-Merge sources first, then segment:
+#### Unified-Then-Segment (OBSOLETE)
+
+**Old Pattern**:
 
 ```mermaid
 flowchart TD
     S1[Source1] --> U[UnionBlock]
     S2[Source2] --> U
-    U --> SEG[EpochSegmenter<br/>unified]
+    U --> SEG[EpochSegmenter OBSOLETE<br/>unified]
     SEG --> DS[Downstream<br/>Processing]
     
     style S1 fill:#e1f5fe
     style S2 fill:#e1f5fe
     style U fill:#fff9c4
-    style SEG fill:#ffccbc
+    style SEG fill:#ff0000
     style DS fill:#d1c4e9
 ```
 
-**Advantages**:
-- Simple single-source epochs
-- No ancestry tracking needed
-- Easier to implement
+**Advantages**: (No longer applicable - block removed)
 
-#### Segment-Then-Merge (Advanced)
+#### Segment-Then-Merge (OBSOLETE)
 
-Segment each source independently, then merge:
+**Old Pattern**:
 
 ```mermaid
 flowchart TD
-    S1[Source1] --> SEG1[EpochSegmenter<br/>source1]
-    S2[Source2] --> SEG2[EpochSegmenter<br/>source2]
+    S1[Source1] --> SEG1[EpochSegmenter OBSOLETE<br/>source1]
+    S2[Source2] --> SEG2[EpochSegmenter OBSOLETE<br/>source2]
     SEG1 --> M[MergeBlock]
     SEG2 --> M
     M --> DS[Downstream<br/>Processing]
@@ -485,40 +525,22 @@ Start with **coarse epochs** (hundreds to thousands of items) for efficiency. Re
 - Bulk operation capabilities
 - Checkpointing frequency needs
 
-## Examples
+## Examples (OBSOLETE)
 
-### Example 1: Transactional Database Writes
+⚠️ **The following examples use obsolete blocks (PlainSourceAdapter, EpochSegmenterBlock). DO NOT USE.**
 
-```csharp
-var services = new ServiceCollection();
-services.AddTransient<MyDataProducer>();
-services.AddTransient<DatabaseWriteActor>();
-var provider = services.BuildServiceProvider();
+**For Modern Examples**: See:
+- `/research/epoch-di-improvement/handover/prototype/EpochGraphIntegrationTests.cs`
+- `/research/epoch-di-improvement/handover/prototype/EpochConfigurationApiDemoTests.cs`
 
-var sourceBlock = new PlainSourceAdapter<Invoice, MyDataProducer>(
-    new BlockContext("invoice-source"),
-    provider.GetRequiredService<IServiceScopeFactory>(),
-    "invoice-source");
+### Example 1: Transactional Database Writes (OBSOLETE)
 
-var segmenterBlock = new EpochSegmenterBlock<Invoice>(
-    new BlockContext("segmenter"),
-    EpochSegmentationPolicy.ByCount(100, "invoices")); // Batch 100 invoices per epoch
+⚠️ **DO NOT USE** - This example uses obsolete PlainSourceAdapter and EpochSegmenterBlock.
 
-var writerBlock = new EpochActorBlock<Invoice, object, DatabaseWriteActor>(
-    new BlockContext("writer"),
-    provider.GetRequiredService<IServiceScopeFactory>());
+**Modern Replacement**: Use EpochSourceBlock with graph-level ConfigureEpochs().
 
-// Execute pipeline
-var context = new ExecutionContext();
-var invoices = sourceBlock.ExecuteAsync(EmptyInput(), context);
-var epochStreams = segmenterBlock.ExecuteAsync(invoices, context);
-var results = writerBlock.ExecuteAsync(epochStreams, context);
+### Example 2: Composed Pipeline with Batching
 
-await foreach (var result in results)
-{
-    // Process results
-}
-```
 
 ### Example 2: Composed Pipeline with Batching
 
@@ -575,7 +597,7 @@ Use this flowchart to decide your approach:
 flowchart TD
     A[Need transactional boundaries?] -->|No| B[Use Plain Blocks]
     A -->|Yes| C[Multiple sources?]
-    C -->|No| D[Single Source: PlainSource → Segmenter → EpochBlocks]
+    C -->|No| D[Single Source: Use EpochSourceBlock with ConfigureEpochs]
     C -->|Yes| E[Unified-Then-Segment or Segment-Then-Merge?]
     E -->|Simple| F[Unified-Then-Segment: Union → Segmenter → EpochBlocks]
     E -->|Advanced| G[Segment-Then-Merge: Segmenters → Merge → EpochBlocks]

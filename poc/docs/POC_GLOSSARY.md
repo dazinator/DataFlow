@@ -216,48 +216,51 @@ A downstream block that manages per-epoch state (typically DbContext) and partic
 
 **Pattern**: Composable - can have multiple tracking blocks in same pipeline (multi-sink).
 
-### PlainSourceAdapter
-A source block adapter that wraps plain source actors in single-epoch streams.
+### PlainSourceAdapter (OBSOLETE)
+⚠️ **REMOVED** - This block has been deprecated and removed.
 
-**Type**: `PlainSourceAdapter<T, TActor>` where `TActor : IPlainSourceActor<T>`
+**Replacement**: Use `EpochSourceBlock` with `ISourceActor<T>` for native epoch stream production.
 
-**Purpose**: 
-- Wraps plain `IAsyncEnumerable<T>` sources in epoch streams
-- Provides automatic single-epoch wrapping for legacy sources
-- Outputs `IAsyncEnumerable<IEpochStream<T>>`
-
-**Pattern**: PlainSourceAdapter → epoch-aware blocks (no segmenter needed)
-
-**Example**:
+**Migration**: Instead of adapting plain sources, implement epoch-aware sources:
 ```csharp
-var sourceBlock = new PlainSourceAdapter<int, MyProducer>(
-    new BlockContext("plain-source"),
-    serviceScopeFactory,
-    "plain-source");
+public class MySourceActor : ISourceActor<int>
+{
+    public async IAsyncEnumerable<IEpochStream<int>> ProduceEpochsAsync(
+        IActorExecutionContext context)
+    {
+        var items = GetItems();
+        yield return items.WrapInSingleEpoch("my-source", context.CancellationToken);
+    }
+}
+
+// Usage
+builder.AddSource<int, MySourceActor>("source");
 ```
 
-**Note**: Replaces the deprecated `PlainSourceBlock`. For new code, prefer `EpochSourceBlock` with epoch-aware actors.
+### EpochSegmenterBlock (OBSOLETE)
+⚠️ **REMOVED** - This block has been deprecated and removed.
 
-### EpochSegmenterBlock
-A block that segments plain item streams into epoch streams.
+**Replacement**: Use graph-level `ConfigureEpochs()` API with `EpochPolicy`.
 
-**Type**: `EpochSegmenterBlock<T>`
-
-**Purpose**:
-- Converts `IAsyncEnumerable<T>` to `IAsyncEnumerable<IEpochStream<T>>`
-- Applies segmentation policy (by count, by time, by predicate)
-- Creates epoch boundaries for downstream processing
-
-**Configuration**: `EpochSegmentationPolicy`
-- `ByCount(n, sourceId)` - Every N items forms an epoch
-- Custom policies via predicate
-
-**Example**:
+**Migration**: Epoch segmentation is now configured at the graph level:
 ```csharp
-var segmenter = new EpochSegmenterBlock<int>(
-    "segmenter",
-    EpochSegmentationPolicy.ByCount(1000, "my-source"));
+builder.ConfigureEpochs(config =>
+{
+    // Count-based: Create new epoch every 100 items
+    config.SetPolicy(EpochPolicy.ByCount(100));
+    
+    // Time-based: Create new epoch every 5 seconds
+    // config.SetPolicy(EpochPolicy.ByTime(TimeSpan.FromSeconds(5)));
+    
+    config.AddProcessor("processor1");
+    
+    // Lifecycle hooks
+    config.OnBeginEpoch(async (epoch, ct) => { /* start transaction */ });
+    config.OnCommitEpoch(async (epoch, ct) => { /* commit transaction */ });
+});
 ```
+
+**See Also**: `/docs/adr/poc/2025-11-20-mandatory-epochs-unified-architecture.md`
 
 ### EpochActorBlock
 **⭐ RECOMMENDED** primary block for epoch-aware stream processing.
@@ -327,51 +330,65 @@ var batchBlock = new EpochBatchBlock<int>(
 
 ## Composability Patterns
 
-### Epoch-Based Pipeline Pattern
+### Epoch-Based Pipeline Pattern (MODERN)
 Modern processing with epoch awareness - standard for all pipelines.
 
-**Structure**: `PlainSourceAdapter → EpochActorBlock → EpochBatchBlock → EpochProcessorBlock`
+**Structure**: `EpochSourceBlock → EpochActorBlock → EpochBatchBlock → EpochProcessorBlock`
 
 **Use When**: Standard pattern for all new code (epochs provide transactional boundaries and checkpointing)
 
-### Full Epoch Pipeline Pattern
-Processing with epochs throughout the pipeline.
+**Example**:
+```csharp
+builder.AddSource<int, MySourceActor>("source");
+builder.AddActor<int, string, TransformActor>("transform").ReceiveFrom("source");
+builder.AddBatch<string>("batcher", 100).ReceiveFrom("transform");
+builder.AddProcessor<string[], ProcessorActor>("processor").ReceiveFrom("batcher");
 
-**Structure**: `PlainSourceBlock → EpochSegmenterBlock → EpochActorBlock → EpochBatchBlock → EpochActorBlock`
+// Configure epoch segmentation at graph level
+builder.ConfigureEpochs(config =>
+{
+    config.SetPolicy(EpochPolicy.ByCount(1000));
+    config.AddProcessor("processor");
+});
+```
 
-**Use When**: Transactional processing, checkpointing, or bulk operations with boundaries
+### Full Epoch Pipeline Pattern (OBSOLETE)
+⚠️ **REMOVED** - This pattern used obsolete `PlainSourceBlock` and `EpochSegmenterBlock`.
 
-### Mixed Pipeline Pattern
-Combine plain and epoch-aware processing.
+**Old Structure**: `PlainSourceBlock → EpochSegmenterBlock → EpochActorBlock → EpochBatchBlock → EpochActorBlock`
 
-**Structure**: `PlainSourceBlock → TransformerBlock → EpochSegmenterBlock → EpochActorBlock`
+**Modern Replacement**: Use `EpochSourceBlock` with graph-level `ConfigureEpochs()` API.
 
-**Use When**: Some stateless processing, some requiring transaction boundaries
+### Mixed Pipeline Pattern (OBSOLETE)
+⚠️ **REMOVED** - This pattern used obsolete `PlainSourceBlock` and `EpochSegmenterBlock`.
 
-### Unified-Then-Segment Pattern
-Merge multiple plain sources, then segment (recommended for multi-source).
+**Old Structure**: `PlainSourceBlock → TransformerBlock → EpochSegmenterBlock → EpochActorBlock`
 
-**Structure**:
+**Modern Replacement**: All processing is now epoch-aware. Use `EpochSourceBlock` with epoch-aware actors.
+
+### Unified-Then-Segment Pattern (OBSOLETE)
+⚠️ **REMOVED** - This pattern used obsolete `EpochSegmenterBlock`.
+
+**Old Structure**:
 ```
 Source1 → ┐
          ├→ UnionBlock → EpochSegmenterBlock("unified") → EpochActorBlock
 Source2 → ┘
 ```
 
-**Advantages**:
-- Simple single-source epochs
-- No ancestry tracking needed
-- Easier to implement
+**Modern Replacement**: Use multiple `EpochSourceBlock` instances with `ConfigureEpochs()` for segmentation.
 
-### Segment-Then-Merge Pattern
-Segment each source independently, then merge (advanced multi-source).
+### Segment-Then-Merge Pattern (OBSOLETE)
+⚠️ **REMOVED** - This pattern used obsolete `EpochSegmenterBlock`.
 
-**Structure**:
+**Old Structure**:
 ```
 Source1 → EpochSegmenterBlock("s1") → ┐
                                       ├→ MergeBlock → EpochActorBlock
 Source2 → EpochSegmenterBlock("s2") → ┘
 ```
+
+**Modern Replacement**: Use multiple `EpochSourceBlock` instances. Each source produces its own epoch streams.
 
 **Advantages**:
 - Per-source checkpointing
