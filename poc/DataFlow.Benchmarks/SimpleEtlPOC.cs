@@ -77,13 +77,22 @@ public static class SimpleEtlPOC
     /// <summary>
     /// Builds a simplified ETL dataflow: DataSource → Validators → Enrichers → Collector
     /// Uses EpochBufferBlock at each stage to ensure proper fan-out/fan-in patterns.
-    /// CONVERTED: Now uses full epoch-based architecture.
+    /// 
+    /// ⚠️ OBSOLETE: This method used EpochSegmenterBlock which has been removed.
+    /// Epoch segmentation is now done at graph level via ConfigureEpochs() API.
+    /// To update, use graph.ConfigureEpochs() instead of EpochSegmenterBlock.
     /// </summary>
+    [Obsolete("This method uses removed EpochSegmenterBlock. Use ConfigureEpochs() for graph-level epoch configuration.")]
     public static DataFlowGraph BuildDataFlow(
         IServiceProvider serviceProvider,
         int recordCount,
         int maxConcurrency = 4)
     {
+        throw new NotSupportedException(
+            "BuildDataFlow is obsolete. EpochSegmenterBlock has been removed. " +
+            "Use graph-level ConfigureEpochs() API for epoch segmentation.");
+        
+        /* OBSOLETE CODE - kept for reference
         var builder = GraphHelpers.CreateGraphBuilder("SimpleEtlBenchmark-POC");
 
         // Source: Generate raw data records using deprecated ProducerBlock
@@ -191,6 +200,7 @@ public static class SimpleEtlPOC
         builder.Connect(enricherBuffer, collector);
 
         return builder.Build();
+        */
     }
 
     // Data models (same as ComplexEtlPOC)

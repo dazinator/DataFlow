@@ -155,15 +155,23 @@ public static class ComplexEtlPOC
 
     /// <summary>
     /// Builds the complete ETL dataflow using POC DataFlowGraphBuilder.
-    /// Uses POC architecture pattern: concurrency via multiple block instances + CompetingEdgeStrategy.
-    /// CONVERTED: Now uses full epoch-based architecture with EpochBufferBlock and EpochActorBlock.
+    /// 
+    /// ⚠️ OBSOLETE: This method used EpochSegmenterBlock which has been removed.
+    /// Epoch segmentation is now done at graph level via ConfigureEpochs() API.
+    /// To update, use graph.ConfigureEpochs() instead of EpochSegmenterBlock.
     /// </summary>
+    [Obsolete("This method uses removed EpochSegmenterBlock. Use ConfigureEpochs() for graph-level epoch configuration.")]
     public static DataFlowGraph BuildDataFlow(
         IServiceProvider serviceProvider,
         int recordCount,
         int maxConcurrency = 4,
         int batchSize = 100)
     {
+        throw new NotSupportedException(
+            "BuildDataFlow is obsolete. EpochSegmenterBlock has been removed. " +
+            "Use graph-level ConfigureEpochs() API for epoch segmentation.");
+        
+        /* OBSOLETE CODE - kept for reference
         var builder = GraphHelpers.CreateGraphBuilder("ComplexEtlBenchmark-POC");
 
         // Source: Generate raw data records using deprecated PlainSourceBlock
@@ -432,6 +440,7 @@ public static class ComplexEtlPOC
         }
 
         return builder.Build();
+        */
     }
 
     // Data models (matching non-POC)

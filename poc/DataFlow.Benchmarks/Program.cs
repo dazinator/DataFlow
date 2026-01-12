@@ -142,9 +142,12 @@ else if (args.Length > 0 && args[0] == "epoch-production-io")
 }
 else if (args.Length > 0 && args[0] == "decoupled-epoch")
 {
+    // OBSOLETE: DecoupledEpochBenchmark removed - used obsolete EpochSegmenterBlock
     // Run decoupled epoch segmentation benchmarks
     // Compares source-centric vs decoupled approach performance
-    BenchmarkRunner.Run<DataFlow.POC.Benchmarks.DecoupledEpochBenchmark>();
+    // BenchmarkRunner.Run<DataFlow.POC.Benchmarks.DecoupledEpochBenchmark>();
+    Console.WriteLine("DecoupledEpochBenchmark has been removed as it used obsolete EpochSegmenterBlock.");
+    Console.WriteLine("Epoch segmentation is now done at graph level via ConfigureEpochs() API.");
 }
 else if (args.Length > 0 && args[0] == "tracking-block")
 {

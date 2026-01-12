@@ -43,7 +43,7 @@ public class BatchBlockComparisonBenchmark
         // POC service setup
         var pocServices = new ServiceCollection();
         pocServices.AddLogging(builder => builder.SetMinimumLevel(LogLevel.Warning));
-        pocServices.AddTransient<BenchmarkPlainSource>();
+        // pocServices.AddTransient<BenchmarkPlainSource>(); // OBSOLETE - removed with PlainSourceActorBase
         _pocServiceProvider = pocServices.BuildServiceProvider();
     }
 
@@ -83,6 +83,10 @@ public class BatchBlockComparisonBenchmark
     // 2. POC Plain BatchBlock (No Epochs)
     // ==========================================
 
+    // OBSOLETE: This benchmark used PlainSourceBlock and BenchmarkPlainSource which have been removed
+    // as part of the migration to mandatory epochs architecture.
+    // To re-enable, update to use modern EpochSourceBlock with ISourceActor<T>
+    /*
     [Benchmark(Description = "POC BatchBlock (plain)")]
     public async Task<int> PocPlainBatchBlock()
     {
@@ -109,11 +113,16 @@ public class BatchBlockComparisonBenchmark
 
         return itemCount;
     }
+    */
 
     // ==========================================
     // 3. POC EpochBatchBlock (No Actual Epochs)
     // ==========================================
 
+    // OBSOLETE: This benchmark used EpochSegmenterBlock which has been removed.
+    // Epoch segmentation is now done at graph level via ConfigureEpochs() API.
+    // To re-enable, update to use graph-level epoch configuration.
+    /*
     [Benchmark(Description = "POC EpochBatchBlock (no segmentation)")]
     public async Task<int> PocEpochBatchBlock_NoSegmentation()
     {
@@ -149,11 +158,16 @@ public class BatchBlockComparisonBenchmark
 
         return itemCount;
     }
+    */
 
     // ==========================================
     // 4. POC EpochBatchBlock (With Epochs)
     // ==========================================
 
+    // OBSOLETE: This benchmark used EpochSegmenterBlock which has been removed.
+    // Epoch segmentation is now done at graph level via ConfigureEpochs() API.
+    // To re-enable, update to use graph-level epoch configuration.
+    /*
     [Benchmark(Description = "POC EpochBatchBlock (with epochs)")]
     public async Task<int> PocEpochBatchBlock_WithEpochs()
     {
@@ -188,6 +202,7 @@ public class BatchBlockComparisonBenchmark
 
         return itemCount;
     }
+    */
 
     // ==========================================
     // Helper methods
