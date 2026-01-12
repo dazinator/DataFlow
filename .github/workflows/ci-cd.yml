@@ -123,13 +123,13 @@ jobs:
     - name: Build solution
       run: dotnet build ${{ env.SOLUTION_PATH }} --configuration Release --no-restore /p:Version=${{ steps.gitversion.outputs.fullSemVer }}   
       
-    - name: Pack Uniun.DataFlow
+    - name: Pack Uniun.DataFlow.Legacy
       run: dotnet pack src/DataFlow/DataFlow.Legacy.csproj --configuration Release --no-build --output ./packages /p:PackageVersion=${{ steps.gitversion.outputs.fullSemVer }}
     
-    - name: Pack Uniun.DataFlow.OpenTelemetry
+    - name: Pack Uniun.DataFlow.OpenTelemetry.Legacy
       run: dotnet pack src/DataFlow.OpenTelemetry/DataFlow.OpenTelemetry.csproj --configuration Release --no-build --output ./packages /p:PackageVersion=${{ steps.gitversion.outputs.fullSemVer }}
     
-    - name: Pack DataFlow (POC)
+    - name: Pack Uniun.DataFlow (POC)
       run: dotnet pack poc/DataFlow/DataFlow.csproj --configuration Release --no-build --output ./packages /p:PackageVersion=${{ steps.gitversion.outputs.fullSemVer }}
     
     - name: Publish packages to GitHub

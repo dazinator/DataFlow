@@ -4,7 +4,7 @@
     <TargetFrameworks>net8.0</TargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <PackageId>Uniun.DataFlow.OpenTelemetry</PackageId>
+    <PackageId>Uniun.DataFlow.OpenTelemetry.Legacy</PackageId>
     <RootNamespace>Uniun.DataFlow.OpenTelemetry</RootNamespace>
     <LangVersion>preview</LangVersion>
     <Title>Uniun DataFlow OpenTelemetry</Title>
