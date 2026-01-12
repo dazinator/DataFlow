@@ -6,7 +6,7 @@
 set -e
 
 MODE="${1:-simple}"
-OUTPUT_DIR="${2:-./poc/DataFlow.POC.Benchmarks/benchmark-results}"
+OUTPUT_DIR="${2:-./poc/DataFlow.Benchmarks/benchmark-results}"
 TIMESTAMP=$(date +"%Y-%m-%d_%H-%M-%S")
 
 echo "=============================================================================="
@@ -47,7 +47,7 @@ fi
 # Build the project
 echo ""
 echo "Building benchmark project..."
-dotnet build -c Release poc/DataFlow.POC.Benchmarks/DataFlow.POC.Benchmarks.csproj
+dotnet build -c Release poc/DataFlow.Benchmarks/DataFlow.Benchmarks.csproj
 
 # Determine benchmark parameters based on mode
 if [ "$MODE" = "simple" ]; then
@@ -74,10 +74,10 @@ for RECORDS in "${RECORD_COUNTS[@]}"; do
     
     # Start the benchmark
     if [ "$MODE" = "simple" ]; then
-        dotnet run --project poc/DataFlow.POC.Benchmarks/DataFlow.POC.Benchmarks.csproj \
+        dotnet run --project poc/DataFlow.Benchmarks/DataFlow.Benchmarks.csproj \
             --no-build -c Release -- $BENCHMARK_CMD $RECORDS $MAX_CONCURRENCY $ITERATIONS &
     else
-        dotnet run --project poc/DataFlow.POC.Benchmarks/DataFlow.POC.Benchmarks.csproj \
+        dotnet run --project poc/DataFlow.Benchmarks/DataFlow.Benchmarks.csproj \
             --no-build -c Release -- $BENCHMARK_CMD $RECORDS $MAX_CONCURRENCY $BATCH_SIZE $ITERATIONS &
     fi
     

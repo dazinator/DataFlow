@@ -53,12 +53,12 @@ CHARTS_DIR="${RESULTS_DIR}/charts_${OUTPUT_PREFIX}_${TIMESTAMP}"
 SUMMARY_FILE="${CHARTS_DIR}/summary.md"
 
 echo "Building benchmark project..."
-dotnet build -c Release poc/DataFlow.POC.Benchmarks/DataFlow.POC.Benchmarks.csproj --no-restore
+dotnet build -c Release poc/DataFlow.Benchmarks/DataFlow.Benchmarks.csproj --no-restore
 
 # Start the benchmark in the background
 echo ""
 echo "Starting benchmark process..."
-dotnet run --project poc/DataFlow.POC.Benchmarks/DataFlow.POC.Benchmarks.csproj \
+dotnet run --project poc/DataFlow.Benchmarks/DataFlow.Benchmarks.csproj \
     --no-build -c Release -- $BENCHMARK_CMD &
 BENCHMARK_PID=$!
 
