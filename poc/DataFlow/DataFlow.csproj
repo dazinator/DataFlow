@@ -5,6 +5,14 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
+    <PackageId>Uniun.DataFlow</PackageId>
+    <Title>Uniun DataFlow</Title>
+    <Authors>Darrell Tunnell</Authors>
+    <Company>Uniun Technology Ltd</Company>
+    <Product>Uniun</Product>
+    <Description>Build data flows using an actor based block model with System.Threading.Channels.</Description>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/uniun-technology/dataflow</RepositoryUrl>
   </PropertyGroup>
 
   <ItemGroup>
