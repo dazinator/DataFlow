@@ -6,6 +6,7 @@ using DataFlow.POC.Blocks;
 using DataFlow.POC.Registry;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using OpenTelemetry.Trace;
 
 /// <summary>
 /// Builder for registering DataFlow components with dependency injection.
@@ -14,21 +15,21 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 public class DataFlowBuilder
 {
     private readonly IServiceCollection _services;
-    private readonly string _namespace;
     private readonly IBlockTypeRegistry _registry;
+    private const string DefaultNamespacePrefix = "global";
 
     internal DataFlowBuilder(IServiceCollection services, IBlockTypeRegistry registry, string? namespacePrefix = null)
     {
         _services = services ?? throw new ArgumentNullException(nameof(services));
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
-        _namespace = namespacePrefix ?? "global";
+        Namespace = namespacePrefix ?? DefaultNamespacePrefix;
     }
 
     /// <summary>
     /// Gets the namespace prefix used for this builder.
     /// Default is "global" if no namespace was specified.
     /// </summary>
-    public string Namespace => _namespace;
+    public string Namespace { get; }
 
     #region Block Registration
 
@@ -184,15 +185,17 @@ public class DataFlowBuilder
     public DataFlowBuilder AddGraph(string name, Action<DataFlowGraphBuilder> configure)
     {
         if (string.IsNullOrWhiteSpace(name))
+        {
             throw new ArgumentException("Graph name cannot be null or whitespace", nameof(name));
-        
+        }
+
         ArgumentNullException.ThrowIfNull(configure);
         
         var fullKey = ResolveKey(name);
         CheckDuplicateRegistration(fullKey, "Graph");
 
         // Capture the namespace to pass to graph builder
-        var currentNamespace = _namespace;
+        var currentNamespace = Namespace;
         
         _services.AddKeyedScoped<DataFlowGraph>(fullKey, (sp, key) =>
         {
@@ -216,13 +219,15 @@ public class DataFlowBuilder
         where TDefinition : class, IDataFlowDefinition
     {
         if (string.IsNullOrWhiteSpace(name))
+        {
             throw new ArgumentException("Graph name cannot be null or whitespace", nameof(name));
-        
+        }
+
         var fullKey = ResolveKey(name);
         CheckDuplicateRegistration(fullKey, "Graph");
 
         // Capture the namespace to pass to graph builder
-        var currentNamespace = _namespace;
+        var currentNamespace = Namespace;
 
         // Register the definition class if not already registered
         _services.TryAddScoped<TDefinition>();
@@ -293,13 +298,17 @@ public class DataFlowBuilder
     private void ValidateBlockName(string name)
     {
         if (string.IsNullOrWhiteSpace(name))
+        {
             throw new ArgumentException("Block name cannot be null or whitespace", nameof(name));
+        }
     }
 
     private void ValidateStrategyName(string name)
     {
         if (string.IsNullOrWhiteSpace(name))
+        {
             throw new ArgumentException("Strategy name cannot be null or whitespace", nameof(name));
+        }
     }
 
     /// <summary>
@@ -316,13 +325,13 @@ public class DataFlowBuilder
         }
         
         // Apply current namespace prefix
-        return $"{_namespace}:{name}";
+        return $"{Namespace}:{name}";
     }
 
     private void CheckDuplicateRegistration(string fullKey, string componentType)
     {
         // Check for duplicate keyed service registration using the full key
-        bool isDuplicate = _services.Any(sd => 
+        bool isDuplicate = _services.Any(sd =>
             sd.ServiceKey?.ToString() == fullKey && 
             (sd.ServiceType == typeof(IBlock) || 
              sd.ServiceType == typeof(EdgeStrategy) || 
@@ -418,8 +427,10 @@ public static class ServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
         
         if (string.IsNullOrWhiteSpace(namespacePrefix))
+        {
             throw new ArgumentException("Namespace prefix cannot be null or whitespace", nameof(namespacePrefix));
-        
+        }
+
         ArgumentNullException.ThrowIfNull(configure);
 
         // Get or create the singleton registry instance
