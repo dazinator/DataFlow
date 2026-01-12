@@ -177,38 +177,8 @@ public class BlockContextConstructorInjectionTests
 
     #region EpochSegmenterBlock Tests
 
-    [Fact]
-    public void EpochSegmenterBlock_ConstructorWithContext_SetsNameImmediately()
-    {
-        // Arrange
-        var context = new BlockContext("segmenter-block");
-        var policy = new EpochSegmentationPolicy 
-        { 
-            Mode = SegmentationMode.None, 
-            SourceId = "test-source" 
-        };
-
-        // Act
-        var block = new EpochSegmenterBlock<int>(context, policy);
-
-        // Assert
-        block.Name.ShouldBe("segmenter-block");
-    }
-
-    [Fact]
-    public void EpochSegmenterBlock_ConstructorWithNullContext_ThrowsArgumentNullException()
-    {
-        // Arrange
-        IBlockContext? nullContext = null;
-        var policy = new EpochSegmentationPolicy 
-        { 
-            Mode = SegmentationMode.None, 
-            SourceId = "test-source" 
-        };
-
-        // Act & Assert
-        Should.Throw<ArgumentNullException>(() => new EpochSegmenterBlock<int>(nullContext!, policy));
-    }
+    // Tests for EpochSegmenterBlock removed - block has been deprecated
+    // Replaced by graph-level ConfigureEpochs() API
 
     #endregion
 }

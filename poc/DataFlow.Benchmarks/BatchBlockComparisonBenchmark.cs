@@ -207,18 +207,8 @@ public class BatchBlockComparisonBenchmark
         yield break;
     }
 
-    private class BenchmarkPlainSource : PlainSourceActorBase<int>
-    {
-        public override async IAsyncEnumerable<int> ProduceAsync(
-            [EnumeratorCancellation] IActorExecutionContext context)
-        {
-            for (int i = 0; i < TotalItems; i++)
-            {
-                yield return i;
-            }
-            await Task.CompletedTask;
-        }
-    }
+    // BenchmarkPlainSource removed - PlainSourceActorBase has been deprecated
+    // Benchmarks using this should be updated to use modern EpochSourceBlock
 
     private class BenchmarkExecutionContext : IExecutionContext
     {

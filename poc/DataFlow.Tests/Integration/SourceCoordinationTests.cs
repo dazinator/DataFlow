@@ -1,5 +1,6 @@
 namespace DataFlow.POC.Tests.Integration;
 
+using DataFlow.POC.Tests.TestHelpers;
 using DataFlow.POC.Blocks;
 using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
@@ -50,7 +51,7 @@ public class SourceCoordinationTests : IAsyncDisposable
             testServiceProvider.GetRequiredService<IServiceScopeFactory>(),
             coordinator);
 
-        var context = new TestExecutionContext();
+        var context = TestContext.CreateExecution();
         
         async IAsyncEnumerable<object> EmptyInput()
         {
@@ -102,7 +103,7 @@ public class SourceCoordinationTests : IAsyncDisposable
             testServiceProvider.GetRequiredService<IServiceScopeFactory>(),
             coordinator);
 
-        var context = new TestExecutionContext();
+        var context = TestContext.CreateExecution();
         
         async IAsyncEnumerable<object> EmptyInput()
         {
@@ -162,7 +163,7 @@ public class SourceCoordinationTests : IAsyncDisposable
             sp2.GetRequiredService<IServiceScopeFactory>(),
             coordinator);
 
-        var context = new TestExecutionContext();
+        var context = TestContext.CreateExecution();
         
         async IAsyncEnumerable<object> EmptyInput()
         {
@@ -239,7 +240,7 @@ public class SourceCoordinationTests : IAsyncDisposable
             testServiceProvider.GetRequiredService<IServiceScopeFactory>(),
             coordinator);
 
-        var context = new TestExecutionContext();
+        var context = TestContext.CreateExecution();
         
         async IAsyncEnumerable<object> EmptyInput()
         {
