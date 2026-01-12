@@ -1,4 +1,4 @@
-﻿flowchart LR
+flowchart LR
     %% DataFlow: ComplexFlow
 
     source(["source<br/><small>→ int</small>"])

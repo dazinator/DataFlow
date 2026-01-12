@@ -1,4 +1,4 @@
-﻿digraph "SimpleFlow" {
+digraph "SimpleFlow" {
     label="DataFlow: SimpleFlow";
     rankdir=LR;
     node [fontname="Arial"];

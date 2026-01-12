@@ -1,4 +1,4 @@
-﻿flowchart LR
+flowchart LR
     %% DataFlow: CompetingConsumersFlow
 
     source(["source<br/><small>→ int</small>"])
