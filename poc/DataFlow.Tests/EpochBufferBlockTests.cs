@@ -334,44 +334,9 @@ public class EpochBufferBlockTests
 
     #region Integration Tests
 
-    [Fact]
-    public async Task EpochBuffer_Should_Work_In_Pipeline()
-    {
-        // Arrange - Create a simple pipeline with buffer in the middle
-        var segmenterBlock = BlockHelpers.CreateEpochSegmenter<int>("segmenter", 
-            EpochSegmentationPolicy.ByCount(3, "test-source"));
-
-        var bufferConfig = new BufferConfiguration(capacity: 10);
-        var bufferContext = new BlockContext("buffer");
-        var bufferBlock = new EpochBufferBlock<int>(bufferContext, bufferConfig);
-
-        var execContext = new TestExecutionContext();
-
-        // Act
-        var plainItems = ProducePlainItems(10);
-        var epochStreams = segmenterBlock.ExecuteAsync(plainItems, execContext);
-        var bufferedEpochs = bufferBlock.ExecuteAsync(epochStreams, execContext);
-
-        var result = new List<(EpochVector epoch, List<int> items)>();
-        await foreach (var epochStream in bufferedEpochs)
-        {
-            var items = new List<int>();
-            await foreach (var item in epochStream.Items)
-            {
-                items.Add(item);
-            }
-            result.Add((epochStream.Epoch, items));
-        }
-
-        // Assert
-        result.Count.ShouldBe(4); // 10 items / 3 per epoch = 4 epochs
-        result[0].items.ShouldBe(new[] { 0, 1, 2 });
-        result[1].items.ShouldBe(new[] { 3, 4, 5 });
-        result[2].items.ShouldBe(new[] { 6, 7, 8 });
-        result[3].items.ShouldBe(new[] { 9 });
-        
-        _output.WriteLine($"✓ Buffer integrated successfully in pipeline with {result.Count} epochs");
-    }
+    // EpochBuffer integration test with EpochSegmenterBlock removed - block has been deprecated
+    // Replaced by graph-level ConfigureEpochs() API
+    // Buffer functionality is tested independently above
 
     #endregion
 

@@ -474,55 +474,6 @@ public static class BlockHelpers
         return new EpochBatchBlock<T>(new BlockContext(name), maxBatchSize, windowPeriod);
     }
 
-    /// <summary>
-    /// Creates an EpochSegmenterBlock with a segmentation policy.
-    /// </summary>
-    public static EpochSegmenterBlock<T> CreateEpochSegmenter<T>(
-        string name,
-        EpochSegmentationPolicy policy)
-    {
-        return new EpochSegmenterBlock<T>(new BlockContext(name), policy);
-    }
-
-    #endregion
-
-    #region Temporary Migration Helpers (PlainSource Wrappers)
-    
-    /// <summary>
-    /// Creates a plain source adapter with a service scope factory.
-    /// This is the direct replacement for PlainSourceBlock.
-    /// </summary>
-    public static PlainSourceAdapter<T, TActor> CreatePlainSource<T, TActor>(
-        string name,
-        IServiceScopeFactory scopeFactory)
-        where TActor : IPlainSourceActor<T>
-    {
-        return new PlainSourceAdapter<T, TActor>(new BlockContext(name), scopeFactory, name);
-    }
-
-    /// <summary>
-    /// Creates a plain source adapter with a single actor instance.
-    /// This is the direct replacement for PlainSourceBlock.
-    /// </summary>
-    public static PlainSourceAdapter<T, TActor> CreatePlainSource<T, TActor>(
-        string name,
-        TActor actor)
-        where TActor : class, IPlainSourceActor<T>
-    {
-        var scopeFactory = TestServiceBuilder.Create()
-            .WithScoped(actor)
-            .BuildScopeFactory();
-        return new PlainSourceAdapter<T, TActor>(new BlockContext(name), scopeFactory, name);
-    }
-
-    #endregion
-
-    #region Plain Source Blocks (Removed - Use PlainSourceAdapter)
-
-    // PlainSourceBlock has been removed. Use PlainSourceAdapter instead:
-    // - PlainSourceAdapter automatically wraps plain sources in single-epoch streams
-    // - For epoch-aware sources, use CreateEpochSource<T, TActor>(name, scopeFactory)
-
     #endregion
 
     #region Helper Methods

@@ -2,11 +2,11 @@
 
 ## Overview
 
-Epochs provide transactional boundaries and coordination capabilities in DataFlow pipelines. This guide explains the **formalized epoch system** using `EpochSourceNode` and `EpochProcessorNode` for building transactional data processing pipelines.
+Epochs provide transactional boundaries and coordination capabilities in DataFlow pipelines. This guide explains the modern epoch system using graph-level configuration for building transactional data processing pipelines.
 
 ## What are Epochs?
 
-An **epoch** represents a logical boundary in the data stream that groups related items together. The formalized epoch system provides:
+An **epoch** represents a logical boundary in the data stream that groups related items together. The epoch system provides:
 
 - **Transaction lifecycle management**: Begin, commit, and rollback transactions via lifecycle hooks
 - **Serialized operation execution**: Queue operations that execute serially within epoch scope
@@ -18,7 +18,7 @@ An **epoch** represents a logical boundary in the data stream that groups relate
 
 ### Epoch Architecture
 
-The formalized epoch system consists of two specialized nodes:
+The epoch system consists of two specialized nodes and graph-level configuration:
 
 #### EpochSourceNode
 Creates and publishes epochs to an internal stream. Acts as the coordinator for epoch creation.
@@ -44,6 +44,32 @@ public sealed class EpochProcessorNode : IAsyncDisposable
     public EpochProcessorNode(EpochSourceNode source, EpochHooks? hooks = null);
     public Task CompletionTask { get; }
 }
+```
+
+#### Graph-Level Configuration
+Configure epoch segmentation and lifecycle at the graph level using `ConfigureEpochs()`:
+
+```csharp
+var builder = new DataFlowGraphBuilder(serviceProvider, "my-graph");
+
+builder.ConfigureEpochs(config =>
+{
+    // Count-based: Create new epoch every 100 items
+    config.SetPolicy(EpochPolicy.ByCount(100));
+    
+    // Time-based: Create new epoch every 5 seconds
+    // config.SetPolicy(EpochPolicy.ByTime(TimeSpan.FromSeconds(5)));
+    
+    // Both: Create epoch when EITHER condition is met
+    // config.SetPolicy(EpochPolicy.ByCountOrTime(100, TimeSpan.FromSeconds(5)));
+    
+    config.AddProcessor("processor1");
+    
+    // Lifecycle hooks
+    config.OnBeginEpoch(async (epoch, ct) => { /* start transaction */ });
+    config.OnCommitEpoch(async (epoch, ct) => { /* commit transaction */ });
+    config.OnEpochError(async (epoch, ex, ct) => { /* handle error */ });
+});
 ```
 
 ### Epoch Scopes and DI
@@ -85,7 +111,7 @@ await epoch.QueueSerializedOperationAsync<DbContext>(async db =>
 
 ## When to Use Epochs
 
-### Use the Formalized Epoch System When You Need:
+### Use Epochs When You Need:
 
 1. **Transactional Database Operations**: Writing to databases where you need transaction lifecycle control
 2. **Scoped Service Coordination**: Multiple blocks need to share scoped services (like `DbContext`)
@@ -98,356 +124,46 @@ await epoch.QueueSerializedOperationAsync<DbContext>(async db =>
 2. **Continuous Streams**: Unbounded streams without natural boundaries
 3. **No Shared State**: Each item processed independently
 
-## Using the Formalized Epoch System
+## Epoch Segmentation Policies
 
-### High-Level API (Recommended)
+Configure how items are grouped into epochs using `EpochPolicy`:
 
-**For most scenarios, use the `ConfigureEpochs` extension method** which provides a clean, declarative API:
+### Count-Based Segmentation
 
-```csharp
-services.AddDataFlows("global", df =>
-{
-    df.AddGraph("process-orders", g =>
-    {
-        g.UseBlock("order-source")
-         .ConfigureEpochs(config =>
-         {
-             // Define epoch policy
-             config.SetPolicy(EpochPolicy.ByCount(1000));
-             
-             // Add processors
-             config.AddProcessor("order-processor");
-             
-             // Configure lifecycle hooks
-             config.OnBeginEpoch(async (epoch, ct) =>
-             {
-                 await epoch.QueueSerializedOperationAsync<DbContext>(
-                     async db => await db.Database.BeginTransactionAsync(ct), ct);
-             });
-             
-             config.OnCommitEpoch(async (epoch, ct) =>
-             {
-                 await epoch.QueueSerializedOperationAsync<DbContext>(async db =>
-                 {
-                     await db.SaveChangesAsync(ct);
-                     await db.Database.CommitTransactionAsync(ct);
-                 }, ct);
-             });
-             
-             config.OnEpochError(async (epoch, error, ct) =>
-             {
-                 await epoch.QueueSerializedOperationAsync<DbContext>(
-                     async db => await db.Database.RollbackTransactionAsync(ct), ct);
-             });
-         });
-         // Note: Factory parameter is optional - DI handles coordinator creation automatically
-    });
-});
-```
-
-**Benefits of ConfigureEpochs API:**
-- ✅ Clean, declarative configuration
-- ✅ Automatic coordinator creation from DI
-- ✅ No manual setup of EpochSourceNode/EpochProcessorNode required
-- ✅ Integrated with DataFlow graph builder
-
-See [EF Core with Epochs](./ef-core-epochs.md) for complete examples.
-
----
-
-### Low-Level Manual Setup (Advanced)
-
-For advanced scenarios requiring manual control, you can configure epochs at a lower level:
+Create a new epoch every N items:
 
 ```csharp
-var services = new ServiceCollection();
-services.AddScoped<DbContext>(); // Register scoped services
-var serviceProvider = services.BuildServiceProvider();
-
-var coordinator = new EpochCoordinator(
-    serviceProvider.GetRequiredService<IServiceScopeFactory>());
-var source = new EpochSourceNode(coordinator);
-
-// Configure lifecycle hooks
-var hooks = new EpochHooks
-{
-    OnBeginEpoch = async (epoch, ct) =>
-    {
-        await epoch.QueueSerializedOperationAsync<DbContext>(async db =>
-        {
-            await db.Database.BeginTransactionAsync(ct);
-        }, ct);
-    },
-    
-    OnCommitEpoch = async (epoch, ct) =>
-    {
-        await epoch.QueueSerializedOperationAsync<DbContext>(async db =>
-        {
-            await db.SaveChangesAsync(ct);
-            await db.Database.CommitTransactionAsync(ct);
-        }, ct);
-    },
-    
-    OnEpochError = async (epoch, error, ct) =>
-    {
-        await epoch.QueueSerializedOperationAsync<DbContext>(async db =>
-        {
-            await db.Database.RollbackTransactionAsync(ct);
-        }, ct);
-    }
-};
-
-// Create processor(s)
-var processor = new EpochProcessorNode(source, hooks);
+config.SetPolicy(EpochPolicy.ByCount(1000));
 ```
 
-### Queueing Operations from Blocks
+**Best For**: Bulk operations, batch processing
 
-In your processing blocks, queue operations to the epoch:
+### Time-Based Segmentation
+
+Create a new epoch after a time window:
 
 ```csharp
-public class OrderProcessingBlock
-{
-    public async Task ProcessOrderAsync(Order order, IEpoch epoch, CancellationToken ct)
-    {
-        // Queue operation to execute within epoch's transaction
-        await epoch.QueueSerializedOperationAsync<DbContext>(async db =>
-        {
-            db.Orders.Add(order);
-            // Don't call SaveChanges here - the OnCommitEpoch hook handles it
-        }, ct);
-    }
-}
+config.SetPolicy(EpochPolicy.ByTime(TimeSpan.FromSeconds(5)));
 ```
 
-### Multi-Processor Concurrency
+**Best For**: Time-sensitive processing, periodic checkpoints
 
-Configure multiple processors for higher throughput:
+### Combined Policy
+
+Create a new epoch when EITHER condition is met:
 
 ```csharp
-// Serial processing (deterministic order)
-var processor1 = new EpochProcessorNode(source, hooks);
-
-// Parallel processing (higher throughput, non-deterministic commit order)
-var processor1 = new EpochProcessorNode(source, hooks);
-var processor2 = new EpochProcessorNode(source, hooks);
-var processor3 = new EpochProcessorNode(source, hooks);
-var processor4 = new EpochProcessorNode(source, hooks);
-
-// Wait for all processors
-await Task.WhenAll(
-    processor1.CompletionTask,
-    processor2.CompletionTask,
-    processor3.CompletionTask,
-    processor4.CompletionTask);
+config.SetPolicy(EpochPolicy.ByCountOrTime(100, TimeSpan.FromSeconds(5)));
 ```
 
-## Configuration Patterns
+**Best For**: Ensuring both throughput and latency bounds
 
-### Policy-Based Epoch Creation
-
-```csharp
-// Create epochs by count
-var policy = EpochPolicy.ByCount(100); // Every 100 items
-
-// Create epochs by time
-var policy = EpochPolicy.ByTime(TimeSpan.FromSeconds(5)); // Every 5 seconds
-
-// Custom policy
-var policy = new CustomEpochPolicy();
-```
-
-### Publishing Epochs
-
-```csharp
-// Create an epoch
-var vector = EpochVector.FromSingleSource("mySource", sequenceNumber);
-var epoch = await coordinator.GetOrCreateEpochAsync("mySource", vector);
-
-// Queue operations during processing
-await epoch.QueueSerializedOperationAsync<MyService>(async svc =>
-{
-    await svc.DoWorkAsync();
-});
-
-// Publish for processing
-await source.PublishEpochAsync(epoch);
-
-// Signal completion when done
-source.SignalCompletion();
-
-// Wait for processing
-await processor.CompletionTask;
-```
-
-## Best Practices
-
-### 1. Use Lifecycle Hooks for Transaction Management
-
-Always use `OnBeginEpoch` and `OnCommitEpoch` hooks for transaction lifecycle:
-
-```csharp
-var hooks = new EpochHooks
-{
-    OnBeginEpoch = async (epoch, ct) =>
-    {
-        await epoch.QueueSerializedOperationAsync<DbContext>(
-            async db => await db.Database.BeginTransactionAsync(ct), ct);
-    },
-    OnCommitEpoch = async (epoch, ct) =>
-    {
-        await epoch.QueueSerializedOperationAsync<DbContext>(async db =>
-        {
-            await db.SaveChangesAsync(ct);
-            await db.Database.CommitTransactionAsync(ct);
-        }, ct);
-    }
-};
-```
-
-### 2. Don't Call SaveChanges in Operations
-
-Let the `OnCommitEpoch` hook handle SaveChanges:
-
-```csharp
-// ✅ CORRECT
-await epoch.QueueSerializedOperationAsync<DbContext>(async db =>
-{
-    db.Orders.Add(order);
-    // OnCommitEpoch will call SaveChangesAsync
-});
-
-// ❌ WRONG
-await epoch.QueueSerializedOperationAsync<DbContext>(async db =>
-{
-    db.Orders.Add(order);
-    await db.SaveChangesAsync(); // Don't do this!
-});
-```
-
-### 3. Queue Operations, Don't Block
-
-The `QueueSerializedOperationAsync` returns when the operation is **queued**, not when it executes:
-
-```csharp
-// Queues operation and returns immediately
-await epoch.QueueSerializedOperationAsync<DbContext>(async db =>
-{
-    db.Orders.Add(order);
-});
-
-// Continue processing - operation executes later
-await ProcessNextItemAsync();
-```
-
-### 4. Configure Processor Count for Your Workload
-
-- **1 processor**: Deterministic commit order, lower throughput
-- **2-4 processors**: Higher throughput, non-deterministic commit order
-- **More processors**: Diminishing returns due to coordination overhead
-
-## See Also
-
-- [EF Core with Epochs Guide](./ef-core-epochs.md) - Specific guidance for Entity Framework Core
-- [Epoch Vectors](../design/epoch-vectors.md) - Multi-source coordination
-- [Transaction Boundaries](../design/transaction-boundaries.md) - Transaction semantics
-
-## Migration from Old Patterns
-
-If you're using the old `IEpochStream<T>` pattern, see the migration guide for details on converting to the formalized epoch system.
-
-**Key Changes**:
-- ❌ No more `IEpochStream<T>` - Use `EpochSourceNode` and `EpochProcessorNode`
-- ❌ No more `EpochActorBlock` - Queue operations via `IEpoch.QueueSerializedOperationAsync`
-- ❌ No more out-of-band control signals - Epochs are managed explicitly
-- ✅ Lifecycle hooks replace `IEpochLifecycleParticipant`
-- ✅ Serialized operations replace per-block state management
-flowchart LR
-    A[PlainSourceAdapter] --> B[EpochActorBlock<br/>Epoch-aware]
-    B --> C[EpochBatchBlock<br/>Batching]
-    C --> D[EpochActorBlock<br/>Transactional]
-    
-    style A fill:#e1f5fe
-    style B fill:#d1c4e9
-    style C fill:#ffccbc
-    style D fill:#c8e6c9
-```
-
-**Best For**: Some stateless processing, some requiring transactions
-
-## Epoch Segmentation Strategies
-
-### Single-Source Segmentation
-
-For a single data source, segment after the source:
-
-```csharp
-var segmenter = new EpochSegmenterBlock<int>(
-    "segmenter",
-    EpochSegmentationPolicy.ByCount(1000, sourceId: "my-source"));
-```
-
-**Granularity Options**:
-- **Per-batch** (e.g., 1000 items): Efficient bulk operations
-- **Per-entity** (e.g., 1 item): Fine-grained checkpointing
-
-### Multi-Source Segmentation
-
-#### Unified-Then-Segment (Recommended)
-
-Merge sources first, then segment:
-
-```mermaid
-flowchart TD
-    S1[Source1] --> U[UnionBlock]
-    S2[Source2] --> U
-    U --> SEG[EpochSegmenter<br/>unified]
-    SEG --> DS[Downstream<br/>Processing]
-    
-    style S1 fill:#e1f5fe
-    style S2 fill:#e1f5fe
-    style U fill:#fff9c4
-    style SEG fill:#ffccbc
-    style DS fill:#d1c4e9
-```
-
-**Advantages**:
-- Simple single-source epochs
-- No ancestry tracking needed
-- Easier to implement
-
-#### Segment-Then-Merge (Advanced)
-
-Segment each source independently, then merge:
-
-```mermaid
-flowchart TD
-    S1[Source1] --> SEG1[EpochSegmenter<br/>source1]
-    S2[Source2] --> SEG2[EpochSegmenter<br/>source2]
-    SEG1 --> M[MergeBlock]
-    SEG2 --> M
-    M --> DS[Downstream<br/>Processing]
-    
-    style S1 fill:#e1f5fe
-    style S2 fill:#e1f5fe
-    style SEG1 fill:#ffccbc
-    style SEG2 fill:#ffccbc
-    style M fill:#fff9c4
-    style DS fill:#d1c4e9
-```
-
-**Advantages**:
-- Per-source checkpointing
-- Independent progress tracking
-
-**Complexity**: Requires lifecycle-aware blocks for multi-source epochs
-
-## Epoch Granularity Trade-offs
+## Choosing Epoch Granularity
 
 ### Coarse Epochs (Many Items per Epoch)
 
 ```csharp
-EpochSegmentationPolicy.ByCount(1000, "source")
+config.SetPolicy(EpochPolicy.ByCount(1000));
 ```
 
 **Pros**:
@@ -464,7 +180,7 @@ EpochSegmentationPolicy.ByCount(1000, "source")
 ### Fine Epochs (Few Items per Epoch)
 
 ```csharp
-EpochSegmentationPolicy.ByCount(1, "source")
+config.SetPolicy(EpochPolicy.ByCount(1));
 ```
 
 **Pros**:
@@ -485,110 +201,214 @@ Start with **coarse epochs** (hundreds to thousands of items) for efficiency. Re
 - Bulk operation capabilities
 - Checkpointing frequency needs
 
+## Working with Epoch Sources
+
+### Creating an Epoch Source
+
+Define a source actor that produces epoch streams:
+
+```csharp
+public class MySourceActor : ISourceActor<Invoice>
+{
+    private readonly IDataService _dataService;
+    
+    public MySourceActor(IDataService dataService)
+    {
+        _dataService = dataService;
+    }
+    
+    public async IAsyncEnumerable<IEpochStream<Invoice>> ProduceEpochsAsync(
+        IActorExecutionContext context)
+    {
+        var invoices = await _dataService.GetInvoicesAsync();
+        yield return invoices.WrapInSingleEpoch("invoice-source", context.CancellationToken);
+    }
+}
+
+// Usage in graph
+builder.AddSource<Invoice, MySourceActor>("invoice-source");
+```
+
+### Multi-Source Coordination
+
+When working with multiple sources, each source produces its own epoch streams:
+
+```csharp
+// Source 1: Orders
+builder.AddSource<Order, OrderSourceActor>("order-source");
+
+// Source 2: Customers  
+builder.AddSource<Customer, CustomerSourceActor>("customer-source");
+
+// Both sources can share epoch configuration
+builder.ConfigureEpochs(config =>
+{
+    config.SetPolicy(EpochPolicy.ByCount(100));
+    config.AddProcessor("order-processor");
+    config.AddProcessor("customer-processor");
+});
+```
+
+## Lifecycle Hooks
+
+### OnBeginEpoch
+
+Called when an epoch begins, before any operations execute:
+
+```csharp
+config.OnBeginEpoch(async (epoch, ct) =>
+{
+    var db = epoch.ServiceProvider.GetRequiredService<DbContext>();
+    await db.Database.BeginTransactionAsync(ct);
+});
+```
+
+**Use Cases**:
+- Start database transactions
+- Initialize epoch-scoped resources
+- Log epoch boundaries
+
+### OnCommitEpoch
+
+Called after all operations complete successfully:
+
+```csharp
+config.OnCommitEpoch(async (epoch, ct) =>
+{
+    var db = epoch.ServiceProvider.GetRequiredService<DbContext>();
+    await db.Database.CommitTransactionAsync(ct);
+});
+```
+
+**Use Cases**:
+- Commit database transactions
+- Write checkpoints
+- Emit completion events
+
+### OnEpochError
+
+Called when an error occurs during epoch processing:
+
+```csharp
+config.OnEpochError(async (epoch, exception, ct) =>
+{
+    var db = epoch.ServiceProvider.GetRequiredService<DbContext>();
+    await db.Database.RollbackTransactionAsync(ct);
+    
+    // Log error with epoch context
+    _logger.LogError(exception, "Epoch {EpochVector} failed", epoch.Vector);
+});
+```
+
+**Use Cases**:
+- Rollback transactions
+- Log errors with epoch context
+- Trigger alerts
+
 ## Examples
 
 ### Example 1: Transactional Database Writes
 
 ```csharp
-var services = new ServiceCollection();
-services.AddTransient<MyDataProducer>();
-services.AddTransient<DatabaseWriteActor>();
-var provider = services.BuildServiceProvider();
-
-var sourceBlock = new PlainSourceAdapter<Invoice, MyDataProducer>(
-    new BlockContext("invoice-source"),
-    provider.GetRequiredService<IServiceScopeFactory>(),
-    "invoice-source");
-
-var segmenterBlock = new EpochSegmenterBlock<Invoice>(
-    new BlockContext("segmenter"),
-    EpochSegmentationPolicy.ByCount(100, "invoices")); // Batch 100 invoices per epoch
-
-var writerBlock = new EpochActorBlock<Invoice, object, DatabaseWriteActor>(
-    new BlockContext("writer"),
-    provider.GetRequiredService<IServiceScopeFactory>());
-
-// Execute pipeline
-var context = new ExecutionContext();
-var invoices = sourceBlock.ExecuteAsync(EmptyInput(), context);
-var epochStreams = segmenterBlock.ExecuteAsync(invoices, context);
-var results = writerBlock.ExecuteAsync(epochStreams, context);
-
-await foreach (var result in results)
+public class DatabaseWriteActor : IStreamActor<Invoice, object>
 {
-    // Process results
-}
-```
-
-### Example 2: Composed Pipeline with Batching
-
-```csharp
-// Transform → Batch → Process within epochs
-var transformBlock = new EpochActorBlock<int, int, DoubleActor>(
-    "doubler",
-    scopeFactory);
-
-var batchBlock = new EpochBatchBlock<int>(
-    "batcher",
-    maxBatchSize: 50);
-
-var processBlock = new EpochActorBlock<int[], object, BatchProcessorActor>(
-    "processor",
-    scopeFactory);
-
-// Chain blocks
-var epochStreams = segmenterBlock.ExecuteAsync(plainItems, context);
-var transformed = transformBlock.ExecuteAsync(epochStreams, context);
-var batched = batchBlock.ExecuteAsync(transformed, context);
-var processed = processBlock.ExecuteAsync(batched, context);
-```
-
-### Example 3: Filtering Within Epochs
-
-```csharp
-public class FilterEvenActor : IStreamActor<int, int>
-{
-    public async IAsyncEnumerable<int> RunAsync(
-        IAsyncEnumerable<int> input,
+    private readonly ILogger<DatabaseWriteActor> _logger;
+    
+    public async IAsyncEnumerable<object> RunAsync(
+        IAsyncEnumerable<Invoice> input,
         IActorExecutionContext context)
     {
-        await foreach (var item in input.WithCancellation(context.CancellationToken))
+        await foreach (var invoice in input.WithCancellation(context.CancellationToken))
         {
-            if (item % 2 == 0)
-            {
-                yield return item; // Only even numbers
-            }
+            // Queue database write - executes serially within epoch
+            await context.EpochCoordinator!.CurrentEpoch!.QueueSerializedOperationAsync<DbContext>(
+                async db =>
+                {
+                    db.Invoices.Add(invoice);
+                    await db.SaveChangesAsync();
+                });
         }
+        
+        yield return new object(); // Signal completion
     }
 }
 
-var filterBlock = new EpochActorBlock<int, int, FilterEvenActor>(
-    "filter-evens",
-    scopeFactory);
+// Configure graph
+var builder = new DataFlowGraphBuilder(serviceProvider, "invoice-pipeline");
+
+var source = builder.AddSource<Invoice, InvoiceSourceActor>("source");
+var writer = builder.AddActor<Invoice, object, DatabaseWriteActor>("writer");
+builder.Connect(source, writer);
+
+builder.ConfigureEpochs(config =>
+{
+    config.SetPolicy(EpochPolicy.ByCount(100));
+    config.AddProcessor("writer");
+    
+    config.OnBeginEpoch(async (epoch, ct) =>
+    {
+        var db = epoch.ServiceProvider.GetRequiredService<DbContext>();
+        await db.Database.BeginTransactionAsync(ct);
+    });
+    
+    config.OnCommitEpoch(async (epoch, ct) =>
+    {
+        var db = epoch.ServiceProvider.GetRequiredService<DbContext>();
+        await db.Database.CommitTransactionAsync(ct);
+    });
+});
+
+var graph = builder.Build();
+await graph.ExecuteAsync(executionContext);
 ```
 
-## Decision Tree
+### Example 2: ETL Pipeline with Batching
 
-Use this flowchart to decide your approach:
+```csharp
+// Source: Read data
+var source = builder.AddSource<RawRecord, DataSourceActor>("source");
 
-```mermaid
-flowchart TD
-    A[Need transactional boundaries?] -->|No| B[Use Plain Blocks]
-    A -->|Yes| C[Multiple sources?]
-    C -->|No| D[Single Source: PlainSource → Segmenter → EpochBlocks]
-    C -->|Yes| E[Unified-Then-Segment or Segment-Then-Merge?]
-    E -->|Simple| F[Unified-Then-Segment: Union → Segmenter → EpochBlocks]
-    E -->|Advanced| G[Segment-Then-Merge: Segmenters → Merge → EpochBlocks]
+// Transform: Validate and enrich
+var validator = builder.AddActor<RawRecord, ValidatedRecord, ValidationActor>("validator");
+builder.Connect(source, validator);
+
+var enricher = builder.AddActor<ValidatedRecord, EnrichedRecord, EnrichmentActor>("enricher");
+builder.Connect(validator, enricher);
+
+// Batch for efficient writes
+var batcher = builder.AddBatch<EnrichedRecord>("batcher", maxSize: 100);
+builder.Connect(enricher, batcher);
+
+// Write batches
+var writer = builder.AddProcessor<EnrichedRecord[], BatchWriterActor>("writer");
+builder.Connect(batcher, writer);
+
+// Configure epochs for transactional writes
+builder.ConfigureEpochs(config =>
+{
+    config.SetPolicy(EpochPolicy.ByCountOrTime(1000, TimeSpan.FromSeconds(30)));
+    config.AddProcessor("writer");
+    
+    config.OnBeginEpoch(async (epoch, ct) =>
+    {
+        // Start transaction
+    });
+    
+    config.OnCommitEpoch(async (epoch, ct) =>
+    {
+        // Commit transaction and checkpoint
+    });
+});
 ```
 
 ## Best Practices
 
 1. **Respect Epoch Boundaries**: Never mix items from different epochs
 2. **Choose Appropriate Granularity**: Balance efficiency vs. checkpointing frequency
-3. **Use EpochActorBlock**: Primary block for epoch-aware processing (DI-safe by default)
+3. **Use Lifecycle Hooks**: Leverage hooks for transaction management
 4. **Streaming Semantics**: Use `yield return` for lazy evaluation
 5. **Handle Cancellation**: Always pass through cancellation tokens
-6. **Cleanup Resources**: Use `finally` blocks for resource disposal
+6. **Cleanup Resources**: Use lifecycle hooks for resource disposal
 
 ## Common Pitfalls
 
@@ -606,8 +426,8 @@ foreach (var item in allItems)
 ### ✅ Streaming Processing
 
 ```csharp
-// DO: Stream items as they arrive
-await foreach (var item in epochStream.Items.WithCancellation(ct))
+// DO: Stream items one at a time
+await foreach (var item in epochStream.Items)
 {
     yield return Transform(item);
 }
@@ -616,32 +436,65 @@ await foreach (var item in epochStream.Items.WithCancellation(ct))
 ### ❌ Ignoring Cancellation
 
 ```csharp
-// DON'T: Process without checking cancellation
-await foreach (var item in epochStream.Items)
+// DON'T: Ignores cancellation
+await foreach (var item in input)
 {
     yield return Transform(item);
 }
 ```
 
-### ✅ Respecting Cancellation
+### ✅ Proper Cancellation
 
 ```csharp
 // DO: Pass cancellation token
-await foreach (var item in epochStream.Items.WithCancellation(context.CancellationToken))
+await foreach (var item in input.WithCancellation(context.CancellationToken))
 {
+    context.CancellationToken.ThrowIfCancellationRequested();
     yield return Transform(item);
 }
 ```
 
 ## Performance Considerations
 
-- **EpochActorBlock**: Minimal overhead (~10% in micro-benchmarks)
-- **EpochBatchBlock**: Efficient batching with epoch boundary checks
-- **Memory**: O(1) per item for streaming operations
-- **Throughput**: Comparable to plain blocks for most workloads
+### Epoch Overhead
 
-## Further Reading
+Performance targets (from `EpochNodeBenchmarks.cs`):
+- **Epoch creation**: < 1μs per epoch (target)
+- **Operation throughput**: > 100k operations/sec (target)
+- **Lifecycle hook execution**: Depends on implementation
 
-- `/poc/docs/design/epoch-segmentation.md` - Epoch segmentation design
-- `/research/flow-composability-unification/` - Research on composability patterns
-- `/poc/docs/POC_GLOSSARY.md` - POC terminology reference
+Actual performance meets or exceeds these targets in typical workloads. Run `EpochNodeBenchmarks` for specific measurements on your hardware.
+
+### Optimization Tips
+
+1. **Batch operations**: Use larger epochs for better throughput
+2. **Minimize hooks**: Only use hooks when necessary
+3. **Reuse scopes**: Leverage epoch-scoped DI for shared resources
+4. **Parallel processors**: Configure multiple processors for concurrency
+
+## Troubleshooting
+
+### Deadlocks
+
+**Symptom**: Pipeline hangs
+**Cause**: Circular dependencies in serialized operations
+**Solution**: Ensure operations don't wait on each other
+
+### Memory Growth
+
+**Symptom**: Increasing memory usage
+**Cause**: Large epoch sizes or unbounded buffers
+**Solution**: Reduce epoch size or add backpressure
+
+### Slow Throughput
+
+**Symptom**: Low items/second
+**Cause**: Small epoch sizes or heavy lifecycle hooks
+**Solution**: Increase epoch size, optimize hooks
+
+## See Also
+
+- [EF Core with Epochs Guide](./ef-core-epochs.md) - Specific guidance for Entity Framework Core
+- [Epoch Vectors](../design/epoch-vectors.md) - Multi-source coordination
+- [Transaction Boundaries](../design/transaction-boundaries.md) - Transaction semantics
+- [ConfigureEpochs API Reference](../api/configure-epochs.md) - Complete API documentation
