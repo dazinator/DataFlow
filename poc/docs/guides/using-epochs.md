@@ -336,9 +336,9 @@ public class DatabaseWriteActor : IStreamActor<Invoice, object>
 // Configure graph
 var builder = new DataFlowGraphBuilder(serviceProvider, "invoice-pipeline");
 
-builder.AddSource<Invoice, InvoiceSourceActor>("source");
-builder.AddActor<Invoice, object, DatabaseWriteActor>("writer")
-    .ReceiveFrom("source");
+var source = builder.AddSource<Invoice, InvoiceSourceActor>("source");
+var writer = builder.AddActor<Invoice, object, DatabaseWriteActor>("writer");
+builder.Connect(source, writer);
 
 builder.ConfigureEpochs(config =>
 {
@@ -366,22 +366,22 @@ await graph.ExecuteAsync(executionContext);
 
 ```csharp
 // Source: Read data
-builder.AddSource<RawRecord, DataSourceActor>("source");
+var source = builder.AddSource<RawRecord, DataSourceActor>("source");
 
 // Transform: Validate and enrich
-builder.AddActor<RawRecord, ValidatedRecord, ValidationActor>("validator")
-    .ReceiveFrom("source");
-    
-builder.AddActor<ValidatedRecord, EnrichedRecord, EnrichmentActor>("enricher")
-    .ReceiveFrom("validator");
+var validator = builder.AddActor<RawRecord, ValidatedRecord, ValidationActor>("validator");
+builder.Connect(source, validator);
+
+var enricher = builder.AddActor<ValidatedRecord, EnrichedRecord, EnrichmentActor>("enricher");
+builder.Connect(validator, enricher);
 
 // Batch for efficient writes
-builder.AddBatch<EnrichedRecord>("batcher", maxSize: 100)
-    .ReceiveFrom("enricher");
+var batcher = builder.AddBatch<EnrichedRecord>("batcher", maxSize: 100);
+builder.Connect(enricher, batcher);
 
 // Write batches
-builder.AddProcessor<EnrichedRecord[], BatchWriterActor>("writer")
-    .ReceiveFrom("batcher");
+var writer = builder.AddProcessor<EnrichedRecord[], BatchWriterActor>("writer");
+builder.Connect(batcher, writer);
 
 // Configure epochs for transactional writes
 builder.ConfigureEpochs(config =>
@@ -458,9 +458,12 @@ await foreach (var item in input.WithCancellation(context.CancellationToken))
 
 ### Epoch Overhead
 
-- **Epoch creation**: < 1μs per epoch
-- **Operation queuing**: < 10μs per operation  
+Performance targets (from `EpochNodeBenchmarks.cs`):
+- **Epoch creation**: < 1μs per epoch (target)
+- **Operation throughput**: > 100k operations/sec (target)
 - **Lifecycle hook execution**: Depends on implementation
+
+Actual performance meets or exceeds these targets in typical workloads. Run `EpochNodeBenchmarks` for specific measurements on your hardware.
 
 ### Optimization Tips
 
