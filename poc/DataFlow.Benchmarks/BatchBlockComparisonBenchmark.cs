@@ -43,7 +43,6 @@ public class BatchBlockComparisonBenchmark
         // POC service setup
         var pocServices = new ServiceCollection();
         pocServices.AddLogging(builder => builder.SetMinimumLevel(LogLevel.Warning));
-        // pocServices.AddTransient<BenchmarkPlainSource>(); // OBSOLETE - removed with PlainSourceActorBase
         _pocServiceProvider = pocServices.BuildServiceProvider();
     }
 

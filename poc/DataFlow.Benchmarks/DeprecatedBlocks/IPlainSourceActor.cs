@@ -1,4 +1,6 @@
-namespace DataFlow.POC.Core;
+namespace DataFlow.POC.Benchmarks.DeprecatedBlocks;
+
+using DataFlow.POC.Core;
 
 /// <summary>
 /// ⚠️ DEPRECATED - Benchmark-only interface.
