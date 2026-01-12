@@ -337,6 +337,9 @@ public class BlockTypeRegistryTests
         Assert.True(registry.IsBlockRegistered("global:stringifier"));
         
         var metadata = registry.GetMetadata("global:stringifier");
+        // AddActorBlock registers SEMANTIC types (what the actor processes)
+        // NOT the infrastructure wrapper types (IEpochStream<>)
+        // The registry stores the logical data contract, not implementation details
         Assert.Equal(typeof(int), metadata.InputType);
         Assert.Equal(typeof(string), metadata.OutputType);
     }

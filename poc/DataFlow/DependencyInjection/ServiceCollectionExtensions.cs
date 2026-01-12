@@ -84,8 +84,19 @@ public class DataFlowBuilder
         Type? outputType = null;
         
         var blockType = typeof(TBlock);
-        var genericBlockInterface = blockType.GetInterfaces()
-            .FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IBlock<,>));
+        
+        // Check if TBlock itself is the generic IBlock<,> (for direct interface implementations)
+        Type? genericBlockInterface = null;
+        if (blockType.IsGenericType && blockType.GetGenericTypeDefinition() == typeof(IBlock<,>))
+        {
+            genericBlockInterface = blockType;
+        }
+        else
+        {
+            // Otherwise search in implemented interfaces
+            genericBlockInterface = blockType.GetInterfaces()
+                .FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IBlock<,>));
+        }
         
         if (genericBlockInterface != null)
         {
@@ -255,9 +266,13 @@ public class DataFlowBuilder
     /// 
     /// Note: This method now registers EpochActorBlock (epoch-aware processing).
     /// The plain ActorBlock variant has been removed in favor of unified epoch architecture.
+    /// 
+    /// The registry stores the semantic data types (TIn, TOut) that the actor processes,
+    /// not the infrastructure wrapper types (IEpochStream<TIn>, IEpochStream<TOut>).
+    /// This keeps the registry focused on the logical data contract, not implementation details.
     /// </summary>
-    /// <typeparam name="TIn">Input type</typeparam>
-    /// <typeparam name="TOut">Output type</typeparam>
+    /// <typeparam name="TIn">Input type (plain data type, not epoch stream)</typeparam>
+    /// <typeparam name="TOut">Output type (plain data type, not epoch stream)</typeparam>
     /// <typeparam name="TActor">Actor type</typeparam>
     /// <param name="name">Unique name for this block</param>
     /// <returns>This builder for chaining</returns>
@@ -269,9 +284,9 @@ public class DataFlowBuilder
         var fullKey = ResolveKey(name);
         CheckDuplicateRegistration(fullKey, "Block");
 
-        // Register metadata with known types
-        // Note: EpochActorBlock works with IEpochStream<TIn> -> IEpochStream<TOut>
-        // but we register base types for compatibility
+        // Register metadata with SEMANTIC types (what the actor actually processes)
+        // NOT the infrastructure wrapper types (IEpochStream<>)
+        // The wrapper is an implementation detail that connection validation should handle
         var metadata = new BlockTypeMetadata(typeof(TIn), typeof(TOut));
         _registry.RegisterBlock(fullKey, metadata);
 
