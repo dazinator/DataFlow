@@ -99,6 +99,9 @@ jobs:
           ${{ env.POC_RESULTS_DIR }}/*.png
           ${{ env.POC_RESULTS_DIR }}/*.csv
           ${{ env.POC_RESULTS_DIR }}/charts_*/**
+          BenchmarkDotNet.Artifacts/results/*.md
+          BenchmarkDotNet.Artifacts/results/*.csv
+          BenchmarkDotNet.Artifacts/results/*.html
           poc/DataFlow.Benchmarks/BenchmarkDotNet.Artifacts/results/*.md
           poc/DataFlow.Benchmarks/BenchmarkDotNet.Artifacts/results/*.csv
           poc/DataFlow.Benchmarks/BenchmarkDotNet.Artifacts/results/*.html
@@ -129,6 +132,20 @@ jobs:
         if find "${{ env.POC_RESULTS_DIR }}" -type d -name "charts_*" -print -quit 2>/dev/null | grep -q .; then
           git add -f ${{ env.POC_RESULTS_DIR }}/charts_*/*.png 2>/dev/null || true
           git add -f ${{ env.POC_RESULTS_DIR }}/charts_*/*.md 2>/dev/null || true
+          COMMITTED=true
+        fi
+        
+        # Add BenchmarkDotNet artifacts from root directory (created by POC benchmarks)
+        if [ -n "$(ls -A BenchmarkDotNet.Artifacts/results/*.md 2>/dev/null)" ]; then
+          git add -f BenchmarkDotNet.Artifacts/results/*.md
+          COMMITTED=true
+        fi
+        if [ -n "$(ls -A BenchmarkDotNet.Artifacts/results/*.csv 2>/dev/null)" ]; then
+          git add -f BenchmarkDotNet.Artifacts/results/*.csv
+          COMMITTED=true
+        fi
+        if [ -n "$(ls -A BenchmarkDotNet.Artifacts/results/*.html 2>/dev/null)" ]; then
+          git add -f BenchmarkDotNet.Artifacts/results/*.html
           COMMITTED=true
         fi
         
