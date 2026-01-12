@@ -1,9 +1,0 @@
-﻿flowchart LR
-    %% DataFlow: BufferFlow
-
-    producer(["producer<br/><small>→ int</small>"])
-    consumer["consumer<br/><small>int →</small>"]
-    shared_buffer[("shared-buffer")]
-
-    producer -->|Int32| shared_buffer
-    shared_buffer -->|Int32| consumer

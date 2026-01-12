@@ -1,4 +1,4 @@
-﻿digraph "BroadcastFlow" {
+digraph "BroadcastFlow" {
     label="DataFlow: BroadcastFlow";
     rankdir=LR;
     node [fontname="Arial"];

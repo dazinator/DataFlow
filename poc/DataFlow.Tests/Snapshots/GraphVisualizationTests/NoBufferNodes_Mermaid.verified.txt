@@ -1,6 +1,0 @@
-﻿flowchart LR
-    %% DataFlow: BufferFlow
-
-    producer(["producer<br/><small>→ int</small>"])
-    consumer["consumer<br/><small>int →</small>"]
-
