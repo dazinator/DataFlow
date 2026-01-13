@@ -10,6 +10,7 @@ using DataFlow.POC.Benchmarks.DeprecatedBlocks;
 using DataFlow.POC.Blocks;
 using DataFlow.POC.Builder;
 using DataFlow.POC.Core;
+using DataFlow.POC.Tests.TestHelpers;
 using Microsoft.Extensions.DependencyInjection;
 
 /// <summary>
@@ -77,32 +78,19 @@ public static class SimpleEtlPOC
     /// <summary>
     /// Builds a simplified ETL dataflow: DataSource → Validators → Enrichers → Collector
     /// Uses EpochBufferBlock at each stage to ensure proper fan-out/fan-in patterns.
-    /// 
-    /// ⚠️ OBSOLETE: This method used EpochSegmenterBlock which has been removed.
-    /// Epoch segmentation is now done at graph level via ConfigureEpochs() API.
-    /// To update, use graph.ConfigureEpochs() instead of EpochSegmenterBlock.
+    /// Updated to use modern DI patterns and BlockHelpers.
     /// </summary>
-    [Obsolete("This method uses removed EpochSegmenterBlock. Use ConfigureEpochs() for graph-level epoch configuration.")]
     public static DataFlowGraph BuildDataFlow(
         IServiceProvider serviceProvider,
         int recordCount,
         int maxConcurrency = 4)
     {
-        throw new NotSupportedException(
-            "BuildDataFlow is obsolete. EpochSegmenterBlock has been removed. " +
-            "Use graph-level ConfigureEpochs() API for epoch segmentation.");
-        
-        /* OBSOLETE CODE - kept for reference
-        var builder = GraphHelpers.CreateGraphBuilder("SimpleEtlBenchmark-POC");
+        // Create graph builder using modern pattern
+        var builder = GraphHelpers.CreateGraphBuilder("SimpleEtlBenchmark-POC", serviceProvider);
 
-        // Source: Generate raw data records using deprecated ProducerBlock
-        var dataSource = new ProducerBlock<RawRecord>("data-source",
+        // Source: Generate raw data records using BlockHelpers.CreateProducer
+        var dataSource = BlockHelpers.CreateProducer("data-source",
             ctx => ProduceRawRecords(recordCount, ctx.CancellationToken));
-
-        // Segmenter: Convert plain stream to epoch streams
-        var segmenter = new EpochSegmenterBlock<RawRecord>(
-            new BlockContext("segmenter"),
-            EpochSegmentationPolicy.ByCount(100, "source"));
 
         // Buffer: Fan out from single source to multiple validators (competing consumers)
         var sourceBuffer = new EpochBufferBlock<RawRecord>(
@@ -113,13 +101,13 @@ public static class SimpleEtlPOC
         var validatorServices = new ServiceCollection();
         validatorServices.AddScoped<ValidatorActor>();
         var validatorServiceProvider = validatorServices.BuildServiceProvider();
+        var validatorScopeFactory = validatorServiceProvider.GetRequiredService<IServiceScopeFactory>();
         
         var validators = new List<IBlock>();
         for (int i = 0; i < maxConcurrency; i++)
         {
-            validators.Add(new EpochActorBlock<RawRecord, ValidatedRecord, ValidatorActor>(
-                new BlockContext($"validator-{i}"),
-                validatorServiceProvider.GetRequiredService<IServiceScopeFactory>()));
+            validators.Add(BlockHelpers.CreateActor<RawRecord, ValidatedRecord, ValidatorActor>(
+                $"validator-{i}", validatorScopeFactory));
         }
 
         // Buffer: Merge validator outputs into single competing channel for enrichers
@@ -131,13 +119,13 @@ public static class SimpleEtlPOC
         var enricherServices = new ServiceCollection();
         enricherServices.AddScoped<EnricherActor>();
         var enricherServiceProvider = enricherServices.BuildServiceProvider();
+        var enricherScopeFactory = enricherServiceProvider.GetRequiredService<IServiceScopeFactory>();
         
         var enrichers = new List<IBlock>();
         for (int i = 0; i < maxConcurrency; i++)
         {
-            enrichers.Add(new EpochActorBlock<ValidatedRecord, EnrichedRecord, EnricherActor>(
-                new BlockContext($"enricher-{i}"),
-                enricherServiceProvider.GetRequiredService<IServiceScopeFactory>()));
+            enrichers.Add(BlockHelpers.CreateActor<ValidatedRecord, EnrichedRecord, EnricherActor>(
+                $"enricher-{i}", enricherScopeFactory));
         }
 
         // Buffer: Merge enricher outputs into single channel for collector
@@ -149,13 +137,12 @@ public static class SimpleEtlPOC
         var collectorServices = new ServiceCollection();
         collectorServices.AddScoped<CollectorActor>();
         var collectorServiceProvider = collectorServices.BuildServiceProvider();
-        var collector = new EpochActorBlock<EnrichedRecord, object, CollectorActor>(
-            new BlockContext("collector"),
-            collectorServiceProvider.GetRequiredService<IServiceScopeFactory>());
+        var collectorScopeFactory = collectorServiceProvider.GetRequiredService<IServiceScopeFactory>();
+        var collector = BlockHelpers.CreateActor<EnrichedRecord, object, CollectorActor>(
+            "collector", collectorScopeFactory);
 
         // Add all blocks to the graph
         builder.AddBlock(dataSource);
-        builder.AddBlock(segmenter);
         builder.AddBlock(sourceBuffer);
         foreach (var validator in validators)
             builder.AddBlock(validator);
@@ -166,11 +153,8 @@ public static class SimpleEtlPOC
         builder.AddBlock(collector);
 
         // Connect blocks
-        // Source to segmenter - convert plain to epoch streams
-        builder.Connect(dataSource, segmenter);
-        
-        // Segmenter to buffer - single producer to shared buffer
-        builder.Connect(segmenter, sourceBuffer);
+        // Source to buffer - single producer to shared buffer
+        builder.Connect(dataSource, sourceBuffer);
 
         // Buffer to validators - all validators compete from shared buffer
         foreach (var validator in validators)
@@ -200,7 +184,6 @@ public static class SimpleEtlPOC
         builder.Connect(enricherBuffer, collector);
 
         return builder.Build();
-        */
     }
 
     // Data models (same as ComplexEtlPOC)

@@ -20,6 +20,7 @@
     <ProjectReference Include="..\..\src\Benchmarks\Benchmarks.csproj" />
     <ProjectReference Include="..\..\src\DataFlow\DataFlow.Legacy.csproj" />
     <ProjectReference Include="..\DataFlow\DataFlow.csproj" />
+    <ProjectReference Include="..\DataFlow.Tests\DataFlow.Tests.csproj" />
     <ProjectReference Include="..\EpochAnchoringDemo\EpochAnchoringDemo.csproj" />
   </ItemGroup>
 
