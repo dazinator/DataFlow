@@ -258,6 +258,31 @@ public class DataFlowGraphBuilder
     }
 
     /// <summary>
+    /// Connect a source block to multiple target blocks by name with competing consumer semantics.
+    /// Each item from the source will be delivered to exactly one target (competing consumers).
+    /// This is useful for load balancing across multiple parallel workers.
+    /// </summary>
+    /// <param name="sourceName">The name of the source block</param>
+    /// <param name="targetNames">The names of the target blocks that will compete for items</param>
+    /// <param name="bufferCapacity">The buffer capacity for the edge (default: 100)</param>
+    /// <returns>The builder for chaining</returns>
+    public DataFlowGraphBuilder ConnectCompeting(
+        string sourceName,
+        IEnumerable<string> targetNames,
+        int bufferCapacity = 100)
+    {
+        var source = FindBlockByName(sourceName, "Source");
+        var targets = targetNames.Select(name => FindBlockByName(name, "Target")).ToList();
+        
+        if (targets.Count == 0)
+        {
+            throw new ArgumentException("At least one target block is required", nameof(targetNames));
+        }
+        
+        return ConnectCompeting(source, targets, bufferCapacity);
+    }
+
+    /// <summary>
     /// Find a block by name, trying both the original name and the resolved key.
     /// </summary>
     private IBlock FindBlockByName(string name, string blockRole)

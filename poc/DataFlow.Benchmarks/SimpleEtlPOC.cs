@@ -77,19 +77,13 @@ public static class SimpleEtlPOC
     }
 
     /// <summary>
-    /// Configures a simplified ETL dataflow: DataSource → Validator → Enricher → Collector
+    /// Configures a simplified ETL dataflow: DataSource → Validators → Enrichers → Collector
     /// Uses modern DI patterns with AddDataFlows to register blocks and graphs.
-    /// 
-    /// ARCHITECTURE NOTE:
-    /// This implementation creates a single validator and single enricher block to match
-    /// the Non-POC architecture which uses MaxConcurrency on single blocks.
-    /// The POC architecture doesn't support MaxConcurrency on ActorBlocks, so we use
-    /// multiple instances for now, but this creates competing consumer overhead.
-    /// TODO: Add MaxConcurrency support to ActorBlocks for better performance.
+    /// Uses multiple block instances for concurrency with competing consumer pattern for load distribution.
     /// </summary>
     /// <param name="services">Service collection to configure</param>
     /// <param name="recordCount">Number of records to process</param>
-    /// <param name="maxConcurrency">Maximum concurrent actors (NOTE: currently ignored, always uses 1)</param>
+    /// <param name="maxConcurrency">Maximum concurrent actors</param>
     /// <param name="graphName">Name for the registered graph (default: "simple-etl")</param>
     public static void ConfigureDataFlow(
         IServiceCollection services,
@@ -103,8 +97,6 @@ public static class SimpleEtlPOC
         services.AddScoped<CollectorActor>();
 
         // Configure dataflow using AddDataFlows pattern
-        // NOTE: We ignore maxConcurrency for now since ActorBlocks don't support it yet
-        // We create a single validator and single enricher for simplicity
         services.AddDataFlows(graphName, df =>
         {
             // Register source block
@@ -112,21 +104,31 @@ public static class SimpleEtlPOC
                 BlockHelpers.CreateProducer("data-source",
                     ctx => ProduceRawRecords(recordCount, ctx.CancellationToken)));
 
-            // Register single validator block
-            df.AddScopedBlock("validator", sp =>
+            // Register validator blocks - multiple instances for concurrency
+            for (int i = 0; i < maxConcurrency; i++)
             {
-                var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
-                return BlockHelpers.CreateActor<RawRecord, ValidatedRecord, ValidatorActor>(
-                    "validator", scopeFactory);
-            });
+                var index = i; // Capture for closure
+                var validatorName = $"validator-{index}";
+                df.AddScopedBlock(validatorName, sp =>
+                {
+                    var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
+                    return BlockHelpers.CreateActor<RawRecord, ValidatedRecord, ValidatorActor>(
+                        $"validator-{index}", scopeFactory);
+                });
+            }
 
-            // Register single enricher block
-            df.AddScopedBlock("enricher", sp =>
+            // Register enricher blocks - multiple instances for concurrency
+            for (int i = 0; i < maxConcurrency; i++)
             {
-                var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
-                return BlockHelpers.CreateActor<ValidatedRecord, EnrichedRecord, EnricherActor>(
-                    "enricher", scopeFactory);
-            });
+                var index = i; // Capture for closure
+                var enricherName = $"enricher-{index}";
+                df.AddScopedBlock(enricherName, sp =>
+                {
+                    var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
+                    return BlockHelpers.CreateActor<ValidatedRecord, EnrichedRecord, EnricherActor>(
+                        $"enricher-{index}", scopeFactory);
+                });
+            }
 
             // Register collector block
             df.AddScopedBlock("collector", sp =>
@@ -136,19 +138,50 @@ public static class SimpleEtlPOC
                     "collector", scopeFactory);
             });
 
-            // Register graph with simple linear connections
+            // Register graph with competing consumer connections
             df.AddGraph("graph", g =>
             {
-                // Simple linear pipeline
+                // Use all registered blocks
                 g.UseBlock("data-source");
-                g.UseBlock("validator");
-                g.UseBlock("enricher");
+                
+                // Use validator blocks
+                var validatorNames = new List<string>();
+                for (int i = 0; i < maxConcurrency; i++)
+                {
+                    var validatorName = $"validator-{i}";
+                    g.UseBlock(validatorName);
+                    validatorNames.Add(validatorName);
+                }
+
+                // Use enricher blocks
+                var enricherNames = new List<string>();
+                for (int i = 0; i < maxConcurrency; i++)
+                {
+                    var enricherName = $"enricher-{i}";
+                    g.UseBlock(enricherName);
+                    enricherNames.Add(enricherName);
+                }
+
+                // Use collector
                 g.UseBlock("collector");
                 
-                // Connect blocks in sequence
-                g.Connect("data-source", "validator");
-                g.Connect("validator", "enricher");
-                g.Connect("enricher", "collector");
+                // Connect data-source to all validators with competing consumer semantics
+                // Each validator will compete for items from the source (load balancing)
+                g.ConnectCompeting("data-source", validatorNames);
+
+                // Connect each validator to all enrichers with competing consumer semantics
+                // Each enricher will compete for items from each validator (load balancing)
+                foreach (var validatorName in validatorNames)
+                {
+                    g.ConnectCompeting(validatorName, enricherNames);
+                }
+
+                // Connect all enrichers to collector with competing consumer semantics
+                // Collector receives all items from all enrichers
+                foreach (var enricherName in enricherNames)
+                {
+                    g.Connect(enricherName, "collector");
+                }
             });
         });
     }
