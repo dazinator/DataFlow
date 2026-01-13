@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8' />
+<title>DataFlow.POC.Benchmarks.EpochGranularityScalingBenchmark-20260112-154110</title>
+
+<style type="text/css">
+	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
+	td, th { padding: 6px 13px; border: 1px solid #ddd; text-align: right; }
+	tr { background-color: #fff; border-top: 1px solid #ccc; }
+	tr:nth-child(even) { background: #f8f8f8; }
+</style>
+</head>
+<body>
+<pre><code>
+BenchmarkDotNet v0.13.12, Ubuntu 24.04.3 LTS (Noble Numbat)
+Intel Xeon Platinum 8370C CPU 2.80GHz, 1 CPU, 2 logical cores and 1 physical core
+.NET SDK 10.0.101
+  [Host]     : .NET 8.0.22 (8.0.2225.52707), X64 RyuJIT AVX-512F+CD+BW+DQ+VL+VBMI
+  Job-XSBZJV : .NET 8.0.22 (8.0.2225.52707), X64 RyuJIT AVX-512F+CD+BW+DQ+VL+VBMI
+</code></pre>
+<pre><code>IterationCount=5  WarmupCount=3  
+</code></pre>
+
+<table>
+<thead><tr><th>Method         </th><th>EpochCount</th><th>Mean</th><th>Error</th><th>StdDev</th><th>Ratio</th><th>Gen0</th><th>Allocated</th><th>Alloc Ratio</th>
+</tr>
+</thead><tbody><tr><td>Baseline_NoEpochs</td><td>1</td><td>3.588 ms</td><td>0.0230 ms</td><td>0.0060 ms</td><td>1.00</td><td>-</td><td>6 B</td><td>1.00</td>
+</tr><tr><td>WithEpochs_Sequential</td><td>1</td><td>6.667 ms</td><td>0.0796 ms</td><td>0.0123 ms</td><td>1.86</td><td>-</td><td>694 B</td><td>115.67</td>
+</tr><tr><td>WithEpochs_Overlapped</td><td>1</td><td>6.312 ms</td><td>0.0557 ms</td><td>0.0145 ms</td><td>1.76</td><td>-</td><td>670 B</td><td>111.67</td>
+</tr><tr><td>Baseline_NoEpochs</td><td>10</td><td>3.574 ms</td><td>0.0201 ms</td><td>0.0052 ms</td><td>1.00</td><td>-</td><td>3 B</td><td>1.00</td>
+</tr><tr><td>WithEpochs_Sequential</td><td>10</td><td>6.676 ms</td><td>0.0475 ms</td><td>0.0123 ms</td><td>1.87</td><td>-</td><td>3430 B</td><td>1,143.33</td>
+</tr><tr><td>WithEpochs_Overlapped</td><td>10</td><td>6.137 ms</td><td>0.0572 ms</td><td>0.0148 ms</td><td>1.72</td><td>-</td><td>3406 B</td><td>1,135.33</td>
+</tr><tr><td>Baseline_NoEpochs</td><td>100</td><td>3.474 ms</td><td>0.0276 ms</td><td>0.0072 ms</td><td>1.00</td><td>-</td><td>3 B</td><td>1.00</td>
+</tr><tr><td>WithEpochs_Sequential</td><td>100</td><td>6.646 ms</td><td>0.0249 ms</td><td>0.0065 ms</td><td>1.91</td><td>-</td><td>30790 B</td><td>10,263.33</td>
+</tr><tr><td>WithEpochs_Overlapped</td><td>100</td><td>6.223 ms</td><td>0.0335 ms</td><td>0.0052 ms</td><td>1.79</td><td>-</td><td>30766 B</td><td>10,255.33</td>
+</tr><tr><td>Baseline_NoEpochs</td><td>1000</td><td>3.476 ms</td><td>0.0101 ms</td><td>0.0026 ms</td><td>1.00</td><td>-</td><td>3 B</td><td>1.00</td>
+</tr><tr><td>WithEpochs_Sequential</td><td>1000</td><td>6.797 ms</td><td>0.0179 ms</td><td>0.0028 ms</td><td>1.96</td><td>7.8125</td><td>304390 B</td><td>101,463.33</td>
+</tr><tr><td>WithEpochs_Overlapped</td><td>1000</td><td>6.334 ms</td><td>0.0425 ms</td><td>0.0110 ms</td><td>1.82</td><td>7.8125</td><td>304366 B</td><td>101,455.33</td>
+</tr><tr><td>Baseline_NoEpochs</td><td>10000</td><td>3.498 ms</td><td>0.0191 ms</td><td>0.0050 ms</td><td>1.00</td><td>-</td><td>3 B</td><td>1.00</td>
+</tr><tr><td>WithEpochs_Sequential</td><td>10000</td><td>8.591 ms</td><td>0.1838 ms</td><td>0.0477 ms</td><td>2.46</td><td>109.3750</td><td>3040396 B</td><td>1,013,465.33</td>
+</tr><tr><td>WithEpochs_Overlapped</td><td>10000</td><td>8.463 ms</td><td>0.0954 ms</td><td>0.0248 ms</td><td>2.42</td><td>109.3750</td><td>3040372 B</td><td>1,013,457.33</td>
+</tr></tbody></table>
+</body>
+</html>
