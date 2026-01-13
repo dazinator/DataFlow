@@ -1095,8 +1095,7 @@ public class ConcurrencyScalingTests
         // Each enricher broadcasts to both collectors (edge layer handles broadcasting)
         foreach (var enricher in enrichers)
         {
-            builder.AddEdge(new Edge(enricher, collector1, BufferMode.Bounded, 10));
-            builder.AddEdge(new Edge(enricher, collector2, BufferMode.Bounded, 10));
+            builder.ConnectBroadcast(enricher, new[] { collector1, collector2 }, bufferCapacity: 10);
         }
 
         var graph = builder.Build();

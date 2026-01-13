@@ -219,8 +219,7 @@ public class GraphVisualizationTests
         builder.AddBlock(producer)
             .AddBlock(processor1)
             .AddBlock(processor2)
-            .Connect(producer, processor1)
-            .Connect(producer, processor2);
+            .ConnectBroadcast(producer, new[] { processor1, processor2 }); // Use ConnectBroadcast
 
         return builder.Build();
     }
@@ -256,8 +255,7 @@ public class GraphVisualizationTests
             .AddBlock(processor2)
             .Connect(producer, transformer1)
             .Connect(transformer1, transformer2)
-            .Connect(transformer2, processor1)
-            .Connect(transformer2, processor2);
+            .ConnectBroadcast(transformer2, new[] { processor1, processor2 }); // Use ConnectBroadcast
 
         return builder.Build();
     }

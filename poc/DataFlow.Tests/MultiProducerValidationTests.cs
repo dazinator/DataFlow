@@ -178,8 +178,7 @@ public class MultiProducerMergePatternTests
         builder.AddBlock(producer)
             .AddBlock(processor1)
             .AddBlock(processor2)
-            .Connect(producer, processor1)
-            .Connect(producer, processor2);
+            .ConnectBroadcast(producer, new[] { processor1, processor2 }); // Use ConnectBroadcast for multiple targets
 
         // Assert
         var graph = Should.NotThrow(() => builder.Build());

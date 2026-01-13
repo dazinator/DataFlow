@@ -47,8 +47,7 @@ public class BroadcastFlowTests
         builder.AddBlock(producer)
             .AddBlock(processor1)
             .AddBlock(processor2)
-            .Connect(producer, processor1) // Producer broadcasts to processor1 (edge layer handles broadcasting)
-            .Connect(producer, processor2); // Producer broadcasts to processor2
+            .ConnectBroadcast(producer, new[] { processor1, processor2 }); // Single broadcast edge to both processors
 
         var graph = builder.Build();
         var context = new ExecutionContext(commonServices, CancellationToken.None);

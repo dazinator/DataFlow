@@ -344,8 +344,7 @@ public class AsyncLocalPropagationTests
         builder.AddBlock(producer)
             .AddBlock(processor1)
             .AddBlock(processor2)
-            .Connect(producer, processor1) // Edge layer handles broadcasting
-            .Connect(producer, processor2);
+            .ConnectBroadcast(producer, new[] { processor1, processor2 }); // Single broadcast edge
 
         var graph = builder.Build();
         var context = new ExecutionContext(commonServices, CancellationToken.None, expectedContextId);
