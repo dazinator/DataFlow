@@ -77,8 +77,7 @@ public static class SimpleEtlPOC
 
     /// <summary>
     /// Builds a simplified ETL dataflow: DataSource → Validators → Enrichers → Collector
-    /// Uses EpochBufferBlock at each stage to ensure proper fan-out/fan-in patterns.
-    /// Updated to use modern DI patterns and BlockHelpers.
+    /// Uses BlockHelpers for modern DI patterns and multiple concurrent actors for scalability.
     /// </summary>
     public static DataFlowGraph BuildDataFlow(
         IServiceProvider serviceProvider,
@@ -91,11 +90,6 @@ public static class SimpleEtlPOC
         // Source: Generate raw data records using BlockHelpers.CreateProducer
         var dataSource = BlockHelpers.CreateProducer("data-source",
             ctx => ProduceRawRecords(recordCount, ctx.CancellationToken));
-
-        // Buffer: Fan out from single source to multiple validators (competing consumers)
-        var sourceBuffer = new EpochBufferBlock<RawRecord>(
-            new BlockContext("source-buffer"),
-            new BufferConfiguration(100));
 
         // Transform: Parse and validate records - use multiple instances for concurrency
         var validatorServices = new ServiceCollection();
@@ -110,11 +104,6 @@ public static class SimpleEtlPOC
                 $"validator-{i}", validatorScopeFactory));
         }
 
-        // Buffer: Merge validator outputs into single competing channel for enrichers
-        var validatorBuffer = new EpochBufferBlock<ValidatedRecord>(
-            new BlockContext("validator-buffer"),
-            new BufferConfiguration(100));
-
         // Transform: Enrich with additional data - use multiple instances for concurrency
         var enricherServices = new ServiceCollection();
         enricherServices.AddScoped<EnricherActor>();
@@ -128,11 +117,6 @@ public static class SimpleEtlPOC
                 $"enricher-{i}", enricherScopeFactory));
         }
 
-        // Buffer: Merge enricher outputs into single channel for collector
-        var enricherBuffer = new EpochBufferBlock<EnrichedRecord>(
-            new BlockContext("enricher-buffer"),
-            new BufferConfiguration(100));
-
         // Terminal: Collect all enriched records
         var collectorServices = new ServiceCollection();
         collectorServices.AddScoped<CollectorActor>();
@@ -143,45 +127,33 @@ public static class SimpleEtlPOC
 
         // Add all blocks to the graph
         builder.AddBlock(dataSource);
-        builder.AddBlock(sourceBuffer);
         foreach (var validator in validators)
             builder.AddBlock(validator);
-        builder.AddBlock(validatorBuffer);
         foreach (var enricher in enrichers)
             builder.AddBlock(enricher);
-        builder.AddBlock(enricherBuffer);
         builder.AddBlock(collector);
 
         // Connect blocks
-        // Source to buffer - single producer to shared buffer
-        builder.Connect(dataSource, sourceBuffer);
-
-        // Buffer to validators - all validators compete from shared buffer
+        // Source to validators - fan out to multiple validators (broadcast pattern)
         foreach (var validator in validators)
         {
-            builder.Connect(sourceBuffer, validator);
+            builder.Connect(dataSource, validator);
         }
 
-        // Validators to buffer - all validators write to shared buffer
+        // Validators to enrichers - connect each validator to each enricher (broadcast pattern)
         foreach (var validator in validators)
         {
-            builder.Connect(validator, validatorBuffer);
+            foreach (var enricher in enrichers)
+            {
+                builder.Connect(validator, enricher);
+            }
         }
 
-        // Buffer to enrichers - all enrichers compete from shared buffer
+        // Enrichers to collector - all enrichers write to collector
         foreach (var enricher in enrichers)
         {
-            builder.Connect(validatorBuffer, enricher);
+            builder.Connect(enricher, collector);
         }
-
-        // Enrichers to buffer - all enrichers write to shared buffer
-        foreach (var enricher in enrichers)
-        {
-            builder.Connect(enricher, enricherBuffer);
-        }
-
-        // Buffer to collector
-        builder.Connect(enricherBuffer, collector);
 
         return builder.Build();
     }
