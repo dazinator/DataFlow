@@ -16,7 +16,7 @@ using Microsoft.Extensions.DependencyInjection;
 /// <summary>
 /// Simplified POC ETL benchmark focusing on datasource → validators → enrichers.
 /// This removes routing, broadcasting, and batching to isolate the core concurrency scaling issue.
-/// CONVERTED: Now uses epoch-based architecture with EpochBufferBlock and EpochActorBlock.
+/// Updated to use modern DI patterns with BlockHelpers and GraphHelpers.
 /// </summary>
 public static class SimpleEtlPOC
 {
@@ -87,43 +87,37 @@ public static class SimpleEtlPOC
         // Create graph builder using modern pattern
         var builder = GraphHelpers.CreateGraphBuilder("SimpleEtlBenchmark-POC", serviceProvider);
 
+        // Consolidate actor registrations in a single service collection
+        var actorServices = new ServiceCollection();
+        actorServices.AddScoped<ValidatorActor>();
+        actorServices.AddScoped<EnricherActor>();
+        actorServices.AddScoped<CollectorActor>();
+        var actorServiceProvider = actorServices.BuildServiceProvider();
+        var actorScopeFactory = actorServiceProvider.GetRequiredService<IServiceScopeFactory>();
+
         // Source: Generate raw data records using BlockHelpers.CreateProducer
         var dataSource = BlockHelpers.CreateProducer("data-source",
             ctx => ProduceRawRecords(recordCount, ctx.CancellationToken));
 
         // Transform: Parse and validate records - use multiple instances for concurrency
-        var validatorServices = new ServiceCollection();
-        validatorServices.AddScoped<ValidatorActor>();
-        var validatorServiceProvider = validatorServices.BuildServiceProvider();
-        var validatorScopeFactory = validatorServiceProvider.GetRequiredService<IServiceScopeFactory>();
-        
         var validators = new List<IBlock>();
         for (int i = 0; i < maxConcurrency; i++)
         {
             validators.Add(BlockHelpers.CreateActor<RawRecord, ValidatedRecord, ValidatorActor>(
-                $"validator-{i}", validatorScopeFactory));
+                $"validator-{i}", actorScopeFactory));
         }
 
         // Transform: Enrich with additional data - use multiple instances for concurrency
-        var enricherServices = new ServiceCollection();
-        enricherServices.AddScoped<EnricherActor>();
-        var enricherServiceProvider = enricherServices.BuildServiceProvider();
-        var enricherScopeFactory = enricherServiceProvider.GetRequiredService<IServiceScopeFactory>();
-        
         var enrichers = new List<IBlock>();
         for (int i = 0; i < maxConcurrency; i++)
         {
             enrichers.Add(BlockHelpers.CreateActor<ValidatedRecord, EnrichedRecord, EnricherActor>(
-                $"enricher-{i}", enricherScopeFactory));
+                $"enricher-{i}", actorScopeFactory));
         }
 
         // Terminal: Collect all enriched records
-        var collectorServices = new ServiceCollection();
-        collectorServices.AddScoped<CollectorActor>();
-        var collectorServiceProvider = collectorServices.BuildServiceProvider();
-        var collectorScopeFactory = collectorServiceProvider.GetRequiredService<IServiceScopeFactory>();
         var collector = BlockHelpers.CreateActor<EnrichedRecord, object, CollectorActor>(
-            "collector", collectorScopeFactory);
+            "collector", actorScopeFactory);
 
         // Add all blocks to the graph
         builder.AddBlock(dataSource);
@@ -133,20 +127,19 @@ public static class SimpleEtlPOC
             builder.AddBlock(enricher);
         builder.AddBlock(collector);
 
-        // Connect blocks
-        // Source to validators - fan out to multiple validators (broadcast pattern)
+        // Connect blocks - use round-robin for load distribution
+        // Source to validators - broadcast to all validators
         foreach (var validator in validators)
         {
             builder.Connect(dataSource, validator);
         }
 
-        // Validators to enrichers - connect each validator to each enricher (broadcast pattern)
-        foreach (var validator in validators)
+        // Validators to enrichers - each validator connects to ONE enricher (round-robin)
+        // This avoids N×M duplication while still enabling parallel processing
+        for (int i = 0; i < validators.Count; i++)
         {
-            foreach (var enricher in enrichers)
-            {
-                builder.Connect(validator, enricher);
-            }
+            var enricherIndex = i % enrichers.Count;
+            builder.Connect(validators[i], enrichers[enricherIndex]);
         }
 
         // Enrichers to collector - all enrichers write to collector
