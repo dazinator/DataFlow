@@ -140,13 +140,14 @@ public static class PythonComparativeBenchmark
         // Start timer
         var stopwatch = Stopwatch.StartNew();
 
-        // Run the benchmark
-        // Create minimal ServiceProvider required by SimpleEtlPOC.BuildDataFlow and ExecutionContext
+        // Run the benchmark using modern ConfigureDataFlow pattern
         var services = new ServiceCollection();
+        SimpleEtlPOC.ConfigureDataFlow(services, config.RecordCount, config.MaxConcurrency);
         var serviceProvider = services.BuildServiceProvider();
         
-        var graph = SimpleEtlPOC.BuildDataFlow(serviceProvider, config.RecordCount, config.MaxConcurrency);
-        var context = new DataFlow.POC.Core.ExecutionContext(serviceProvider, CancellationToken.None);
+        var graph = serviceProvider.GetRequiredKeyedService<DataFlowGraph>("simple-etl:graph");
+        using var scope = serviceProvider.CreateScope();
+        var context = new DataFlow.POC.Core.ExecutionContext(scope.ServiceProvider, CancellationToken.None);
         await graph.ExecuteAsync(context);
 
         stopwatch.Stop();

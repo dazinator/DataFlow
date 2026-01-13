@@ -10,13 +10,14 @@ using DataFlow.POC.Benchmarks.DeprecatedBlocks;
 using DataFlow.POC.Blocks;
 using DataFlow.POC.Builder;
 using DataFlow.POC.Core;
+using DataFlow.POC.DependencyInjection;
 using DataFlow.POC.Tests.TestHelpers;
 using Microsoft.Extensions.DependencyInjection;
 
 /// <summary>
 /// Simplified POC ETL benchmark focusing on datasource → validators → enrichers.
 /// This removes routing, broadcasting, and batching to isolate the core concurrency scaling issue.
-/// CONVERTED: Now uses epoch-based architecture with EpochBufferBlock and EpochActorBlock.
+/// Updated to use modern DI patterns with BlockHelpers and GraphHelpers.
 /// </summary>
 public static class SimpleEtlPOC
 {
@@ -76,86 +77,115 @@ public static class SimpleEtlPOC
     }
 
     /// <summary>
-    /// Builds a simplified ETL dataflow: DataSource → Validators → Enrichers → Collector
-    /// Uses BlockHelpers for modern DI patterns and multiple concurrent actors for scalability.
+    /// Configures a simplified ETL dataflow: DataSource → Validators → Enrichers → Collector
+    /// Uses modern DI patterns with AddDataFlows to register blocks and graphs.
     /// </summary>
+    /// <param name="services">Service collection to configure</param>
+    /// <param name="recordCount">Number of records to process</param>
+    /// <param name="maxConcurrency">Maximum concurrent actors</param>
+    /// <param name="graphName">Name for the registered graph (default: "simple-etl")</param>
+    public static void ConfigureDataFlow(
+        IServiceCollection services,
+        int recordCount,
+        int maxConcurrency = 4,
+        string graphName = "simple-etl")
+    {
+        // Register actors in main service collection
+        services.AddScoped<ValidatorActor>();
+        services.AddScoped<EnricherActor>();
+        services.AddScoped<CollectorActor>();
+
+        // Configure dataflow using AddDataFlows pattern
+        services.AddDataFlows(graphName, df =>
+        {
+            // Register source block
+            df.AddScopedBlock("data-source", sp => 
+                BlockHelpers.CreateProducer("data-source",
+                    ctx => ProduceRawRecords(recordCount, ctx.CancellationToken)));
+
+            // Register validator blocks
+            for (int i = 0; i < maxConcurrency; i++)
+            {
+                var index = i; // Capture for closure
+                var validatorName = $"validator-{index}";
+                df.AddScopedBlock(validatorName, sp =>
+                {
+                    var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
+                    return BlockHelpers.CreateActor<RawRecord, ValidatedRecord, ValidatorActor>(
+                        $"validator-{index}", scopeFactory);
+                });
+            }
+
+            // Register enricher blocks
+            for (int i = 0; i < maxConcurrency; i++)
+            {
+                var index = i; // Capture for closure
+                var enricherName = $"enricher-{index}";
+                df.AddScopedBlock(enricherName, sp =>
+                {
+                    var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
+                    return BlockHelpers.CreateActor<ValidatedRecord, EnrichedRecord, EnricherActor>(
+                        $"enricher-{index}", scopeFactory);
+                });
+            }
+
+            // Register collector block
+            df.AddScopedBlock("collector", sp =>
+            {
+                var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
+                return BlockHelpers.CreateActor<EnrichedRecord, object, CollectorActor>(
+                    "collector", scopeFactory);
+            });
+
+            // Register graph with connections
+            df.AddGraph("graph", g =>
+            {
+                // Use all registered blocks
+                g.UseBlock("data-source");
+                
+                // Add validators and connect to source
+                for (int i = 0; i < maxConcurrency; i++)
+                {
+                    var validatorName = $"validator-{i}";
+                    g.UseBlock(validatorName);
+                    g.Connect("data-source", validatorName);
+                }
+
+                // Add enrichers with round-robin connections from validators
+                for (int i = 0; i < maxConcurrency; i++)
+                {
+                    var enricherName = $"enricher-{i}";
+                    g.UseBlock(enricherName);
+                    
+                    // Round-robin: each validator connects to one enricher
+                    var validatorIndex = i % maxConcurrency;
+                    g.Connect($"validator-{validatorIndex}", enricherName);
+                }
+
+                // Add collector and connect all enrichers to it
+                g.UseBlock("collector");
+                for (int i = 0; i < maxConcurrency; i++)
+                {
+                    g.Connect($"enricher-{i}", "collector");
+                }
+            });
+        });
+    }
+
+    /// <summary>
+    /// Builds a simplified ETL dataflow: DataSource → Validators → Enrichers → Collector
+    /// Legacy method for backward compatibility - delegates to ConfigureDataFlow.
+    /// </summary>
+    [Obsolete("Use ConfigureDataFlow instead to follow modern DI patterns. This method creates a separate service provider.")]
     public static DataFlowGraph BuildDataFlow(
         IServiceProvider serviceProvider,
         int recordCount,
         int maxConcurrency = 4)
     {
-        // Create graph builder using modern pattern
-        var builder = GraphHelpers.CreateGraphBuilder("SimpleEtlBenchmark-POC", serviceProvider);
-
-        // Source: Generate raw data records using BlockHelpers.CreateProducer
-        var dataSource = BlockHelpers.CreateProducer("data-source",
-            ctx => ProduceRawRecords(recordCount, ctx.CancellationToken));
-
-        // Transform: Parse and validate records - use multiple instances for concurrency
-        var validatorServices = new ServiceCollection();
-        validatorServices.AddScoped<ValidatorActor>();
-        var validatorServiceProvider = validatorServices.BuildServiceProvider();
-        var validatorScopeFactory = validatorServiceProvider.GetRequiredService<IServiceScopeFactory>();
-        
-        var validators = new List<IBlock>();
-        for (int i = 0; i < maxConcurrency; i++)
-        {
-            validators.Add(BlockHelpers.CreateActor<RawRecord, ValidatedRecord, ValidatorActor>(
-                $"validator-{i}", validatorScopeFactory));
-        }
-
-        // Transform: Enrich with additional data - use multiple instances for concurrency
-        var enricherServices = new ServiceCollection();
-        enricherServices.AddScoped<EnricherActor>();
-        var enricherServiceProvider = enricherServices.BuildServiceProvider();
-        var enricherScopeFactory = enricherServiceProvider.GetRequiredService<IServiceScopeFactory>();
-        
-        var enrichers = new List<IBlock>();
-        for (int i = 0; i < maxConcurrency; i++)
-        {
-            enrichers.Add(BlockHelpers.CreateActor<ValidatedRecord, EnrichedRecord, EnricherActor>(
-                $"enricher-{i}", enricherScopeFactory));
-        }
-
-        // Terminal: Collect all enriched records
-        var collectorServices = new ServiceCollection();
-        collectorServices.AddScoped<CollectorActor>();
-        var collectorServiceProvider = collectorServices.BuildServiceProvider();
-        var collectorScopeFactory = collectorServiceProvider.GetRequiredService<IServiceScopeFactory>();
-        var collector = BlockHelpers.CreateActor<EnrichedRecord, object, CollectorActor>(
-            "collector", collectorScopeFactory);
-
-        // Add all blocks to the graph
-        builder.AddBlock(dataSource);
-        foreach (var validator in validators)
-            builder.AddBlock(validator);
-        foreach (var enricher in enrichers)
-            builder.AddBlock(enricher);
-        builder.AddBlock(collector);
-
-        // Connect blocks
-        // Source to validators - fan out to multiple validators (broadcast pattern)
-        foreach (var validator in validators)
-        {
-            builder.Connect(dataSource, validator);
-        }
-
-        // Validators to enrichers - connect each validator to each enricher (broadcast pattern)
-        foreach (var validator in validators)
-        {
-            foreach (var enricher in enrichers)
-            {
-                builder.Connect(validator, enricher);
-            }
-        }
-
-        // Enrichers to collector - all enrichers write to collector
-        foreach (var enricher in enrichers)
-        {
-            builder.Connect(enricher, collector);
-        }
-
-        return builder.Build();
+        var services = new ServiceCollection();
+        ConfigureDataFlow(services, recordCount, maxConcurrency);
+        var provider = services.BuildServiceProvider();
+        return provider.GetRequiredKeyedService<DataFlowGraph>("simple-etl:graph");
     }
 
     // Data models (same as ComplexEtlPOC)
