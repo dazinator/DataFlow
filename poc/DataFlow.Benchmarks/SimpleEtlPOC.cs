@@ -77,12 +77,19 @@ public static class SimpleEtlPOC
     }
 
     /// <summary>
-    /// Configures a simplified ETL dataflow: DataSource → Validators → Enrichers → Collector
+    /// Configures a simplified ETL dataflow: DataSource → Validator → Enricher → Collector
     /// Uses modern DI patterns with AddDataFlows to register blocks and graphs.
+    /// 
+    /// ARCHITECTURE NOTE:
+    /// This implementation creates a single validator and single enricher block to match
+    /// the Non-POC architecture which uses MaxConcurrency on single blocks.
+    /// The POC architecture doesn't support MaxConcurrency on ActorBlocks, so we use
+    /// multiple instances for now, but this creates competing consumer overhead.
+    /// TODO: Add MaxConcurrency support to ActorBlocks for better performance.
     /// </summary>
     /// <param name="services">Service collection to configure</param>
     /// <param name="recordCount">Number of records to process</param>
-    /// <param name="maxConcurrency">Maximum concurrent actors</param>
+    /// <param name="maxConcurrency">Maximum concurrent actors (NOTE: currently ignored, always uses 1)</param>
     /// <param name="graphName">Name for the registered graph (default: "simple-etl")</param>
     public static void ConfigureDataFlow(
         IServiceCollection services,
@@ -96,6 +103,8 @@ public static class SimpleEtlPOC
         services.AddScoped<CollectorActor>();
 
         // Configure dataflow using AddDataFlows pattern
+        // NOTE: We ignore maxConcurrency for now since ActorBlocks don't support it yet
+        // We create a single validator and single enricher for simplicity
         services.AddDataFlows(graphName, df =>
         {
             // Register source block
@@ -103,31 +112,21 @@ public static class SimpleEtlPOC
                 BlockHelpers.CreateProducer("data-source",
                     ctx => ProduceRawRecords(recordCount, ctx.CancellationToken)));
 
-            // Register validator blocks
-            for (int i = 0; i < maxConcurrency; i++)
+            // Register single validator block
+            df.AddScopedBlock("validator", sp =>
             {
-                var index = i; // Capture for closure
-                var validatorName = $"validator-{index}";
-                df.AddScopedBlock(validatorName, sp =>
-                {
-                    var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
-                    return BlockHelpers.CreateActor<RawRecord, ValidatedRecord, ValidatorActor>(
-                        $"validator-{index}", scopeFactory);
-                });
-            }
+                var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
+                return BlockHelpers.CreateActor<RawRecord, ValidatedRecord, ValidatorActor>(
+                    "validator", scopeFactory);
+            });
 
-            // Register enricher blocks
-            for (int i = 0; i < maxConcurrency; i++)
+            // Register single enricher block
+            df.AddScopedBlock("enricher", sp =>
             {
-                var index = i; // Capture for closure
-                var enricherName = $"enricher-{index}";
-                df.AddScopedBlock(enricherName, sp =>
-                {
-                    var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
-                    return BlockHelpers.CreateActor<ValidatedRecord, EnrichedRecord, EnricherActor>(
-                        $"enricher-{index}", scopeFactory);
-                });
-            }
+                var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
+                return BlockHelpers.CreateActor<ValidatedRecord, EnrichedRecord, EnricherActor>(
+                    "enricher", scopeFactory);
+            });
 
             // Register collector block
             df.AddScopedBlock("collector", sp =>
@@ -137,37 +136,19 @@ public static class SimpleEtlPOC
                     "collector", scopeFactory);
             });
 
-            // Register graph with connections
+            // Register graph with simple linear connections
             df.AddGraph("graph", g =>
             {
-                // Use all registered blocks
+                // Simple linear pipeline
                 g.UseBlock("data-source");
-                
-                // Add validators and connect to source
-                for (int i = 0; i < maxConcurrency; i++)
-                {
-                    var validatorName = $"validator-{i}";
-                    g.UseBlock(validatorName);
-                    g.Connect("data-source", validatorName);
-                }
-
-                // Add enrichers with round-robin connections from validators
-                for (int i = 0; i < maxConcurrency; i++)
-                {
-                    var enricherName = $"enricher-{i}";
-                    g.UseBlock(enricherName);
-                    
-                    // Round-robin: each validator connects to one enricher
-                    var validatorIndex = i % maxConcurrency;
-                    g.Connect($"validator-{validatorIndex}", enricherName);
-                }
-
-                // Add collector and connect all enrichers to it
+                g.UseBlock("validator");
+                g.UseBlock("enricher");
                 g.UseBlock("collector");
-                for (int i = 0; i < maxConcurrency; i++)
-                {
-                    g.Connect($"enricher-{i}", "collector");
-                }
+                
+                // Connect blocks in sequence
+                g.Connect("data-source", "validator");
+                g.Connect("validator", "enricher");
+                g.Connect("enricher", "collector");
             });
         });
     }
