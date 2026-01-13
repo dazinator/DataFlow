@@ -61,17 +61,78 @@ public class Edge
         }
 
         // Validate type compatibility for all targets
+        // Epoch blocks store semantic types in metadata but operate on IEpochStream<T>
+        // We need to check semantic compatibility, not exact type matching
         foreach (var targetBlock in targetBlocks)
         {
-            if (sourceBlock.OutputType != targetBlock.InputType)
+            if (!AreTypesCompatible(sourceBlock.OutputType, targetBlock.InputType))
             {
                 throw new ArgumentException(
-                    $"Type mismatch: Source block '{sourceBlock.Name}' output type {sourceBlock.OutputType.Name} " +
-                    $"does not match target block '{targetBlock.Name}' input type {targetBlock.InputType.Name}");
+                    $"Type mismatch: Source block '{sourceBlock.Name}' output type {GetSemanticTypeName(sourceBlock.OutputType)} " +
+                    $"does not match target block '{targetBlock.Name}' input type {GetSemanticTypeName(targetBlock.InputType)}");
             }
         }
 
         DataType = sourceBlock.OutputType;
+    }
+
+    /// <summary>
+    /// Checks if two types are compatible for connection.
+    /// Handles both direct type matching and epoch stream semantic compatibility.
+    /// </summary>
+    private static bool AreTypesCompatible(Type sourceOutputType, Type targetInputType)
+    {
+        // Exact match - most common case
+        if (sourceOutputType == targetInputType)
+        {
+            return true;
+        }
+
+        // Check if both are epoch streams with compatible item types
+        if (IsEpochStreamType(sourceOutputType) && IsEpochStreamType(targetInputType))
+        {
+            var sourceItemType = GetEpochStreamItemType(sourceOutputType);
+            var targetItemType = GetEpochStreamItemType(targetInputType);
+            return sourceItemType == targetItemType;
+        }
+
+        // One is epoch stream, other is not - incompatible
+        // (Would need explicit unwrap/wrap blocks to connect)
+        return false;
+    }
+
+    /// <summary>
+    /// Checks if a type is IEpochStream<T> for some T.
+    /// </summary>
+    private static bool IsEpochStreamType(Type type)
+    {
+        return type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IEpochStream<>);
+    }
+
+    /// <summary>
+    /// Extracts the item type from IEpochStream<T>.
+    /// </summary>
+    private static Type GetEpochStreamItemType(Type epochStreamType)
+    {
+        if (!IsEpochStreamType(epochStreamType))
+        {
+            throw new ArgumentException($"Type {epochStreamType} is not IEpochStream<T>");
+        }
+        return epochStreamType.GetGenericArguments()[0];
+    }
+
+    /// <summary>
+    /// Gets a user-friendly type name for error messages.
+    /// Unwraps IEpochStream<T> to show semantic type.
+    /// </summary>
+    private static string GetSemanticTypeName(Type type)
+    {
+        if (IsEpochStreamType(type))
+        {
+            var itemType = GetEpochStreamItemType(type);
+            return $"{itemType.Name} (epoch)";
+        }
+        return type.Name;
     }
 
     /// <summary>
