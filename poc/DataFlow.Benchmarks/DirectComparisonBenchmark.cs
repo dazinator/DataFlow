@@ -4,6 +4,7 @@ using System;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
+using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -172,44 +173,61 @@ public class DirectComparisonBenchmark
     {
         var services = new ServiceCollection();
         services.AddLogging(builder => builder.AddProvider(NullLoggerProvider.Instance));
-        var serviceProvider = services.BuildServiceProvider();
-
-        var sw = Stopwatch.StartNew();
+        
+        if (useSimplePipeline)
+        {
+            SimpleEtlPOC.ConfigureDataFlow(services, recordCount, maxConcurrency);
+        }
+        else
+        {
+            // ComplexEtlPOC still uses old pattern
+            var serviceProvider = services.BuildServiceProvider();
+            var graph = ComplexEtlPOC.BuildDataFlow(
+                serviceProvider,
+                recordCount,
+                maxConcurrency,
+                batchSize);
+            
+            var sw = Stopwatch.StartNew();
+            try
+            {
+                var context = new PocExecutionContext(serviceProvider, CancellationToken.None);
+                await graph.ExecuteAsync(context);
+                sw.Stop();
+            }
+            finally
+            {
+                serviceProvider.Dispose();
+            }
+            
+            return new BenchmarkResult
+            {
+                ElapsedMs = sw.ElapsedMilliseconds,
+                RecordCount = recordCount
+            };
+        }
+        
+        var provider = services.BuildServiceProvider();
+        var sw2 = Stopwatch.StartNew();
 
         try
         {
-            if (useSimplePipeline)
-            {
-                var graph = SimpleEtlPOC.BuildDataFlow(
-                    serviceProvider,
-                    recordCount,
-                    maxConcurrency);
-
-                var context = new PocExecutionContext(serviceProvider, CancellationToken.None);
-                await graph.ExecuteAsync(context);
-            }
-            else
-            {
-                var graph = ComplexEtlPOC.BuildDataFlow(
-                    serviceProvider,
-                    recordCount,
-                    maxConcurrency,
-                    batchSize);
-
-                var context = new PocExecutionContext(serviceProvider, CancellationToken.None);
-                await graph.ExecuteAsync(context);
-            }
-
-            sw.Stop();
+            var graph = provider.GetRequiredKeyedService<DataFlowGraph>("simple-etl:graph");
+            
+            using var scope = provider.CreateScope();
+            var context = new PocExecutionContext(scope.ServiceProvider, CancellationToken.None);
+            await graph.ExecuteAsync(context);
+            
+            sw2.Stop();
         }
         finally
         {
-            serviceProvider.Dispose();
+            provider.Dispose();
         }
 
         return new BenchmarkResult
         {
-            ElapsedMs = sw.ElapsedMilliseconds,
+            ElapsedMs = sw2.ElapsedMilliseconds,
             RecordCount = recordCount
         };
     }

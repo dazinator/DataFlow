@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -152,19 +153,18 @@ public class SimpleComparisonBenchmark
     {
         var services = new ServiceCollection();
         services.AddLogging(builder => builder.AddConsole().SetMinimumLevel(LogLevel.Warning));
+        SimpleEtlPOC.ConfigureDataFlow(services, recordCount, maxConcurrency);
         var serviceProvider = services.BuildServiceProvider();
 
-        var graph = SimpleEtlPOC.BuildDataFlow(
-            serviceProvider,
-            recordCount,
-            maxConcurrency);
+        var graph = serviceProvider.GetRequiredKeyedService<DataFlowGraph>("simple-etl:graph");
 
         var sw = Stopwatch.StartNew();
         var memoryBefore = GC.GetTotalMemory(forceFullCollection: true);
 
         try
         {
-            var context = new PocExecutionContext(serviceProvider, CancellationToken.None);
+            using var scope = serviceProvider.CreateScope();
+            var context = new PocExecutionContext(scope.ServiceProvider, CancellationToken.None);
             await graph.ExecuteAsync(context);
             sw.Stop();
             
