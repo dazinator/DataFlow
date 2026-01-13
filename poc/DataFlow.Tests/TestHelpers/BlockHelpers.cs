@@ -32,9 +32,6 @@ using Microsoft.Extensions.DependencyInjection;
 /// // Batch blocks
 /// var batcher = BlockHelpers.CreateBatch<int>("batcher", maxBatchSize: 100);
 /// var batcher = BlockHelpers.CreateBatch<int>("batcher", 100, TimeSpan.FromSeconds(5));
-/// 
-/// // Broadcast blocks
-/// var broadcast = BlockHelpers.CreateBroadcast<int>("broadcast");
 /// </summary>
 public static class BlockHelpers
 {
@@ -335,18 +332,6 @@ public static class BlockHelpers
     // - Use CreateEpochBatch<T>(name, maxBatchSize)
     // - Input must be IAsyncEnumerable<IEpochStream<T>>
     // - For plain sources, wrap with .WrapInSingleEpoch("source-name")
-
-    #endregion
-
-    #region Broadcast Blocks
-
-    /// <summary>
-    /// Creates a BroadcastBlock.
-    /// </summary>
-    public static BroadcastBlock<T> CreateBroadcast<T>(string name)
-    {
-        return new BroadcastBlock<T>(new BlockContext(name));
-    }
 
     #endregion
 
