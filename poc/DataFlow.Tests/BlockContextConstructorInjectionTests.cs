@@ -85,33 +85,6 @@ public class BlockContextConstructorInjectionTests
 
     #endregion
 
-    #region BroadcastBlock Tests
-
-    [Fact]
-    public void BroadcastBlock_ConstructorWithContext_SetsNameImmediately()
-    {
-        // Arrange
-        var context = new BlockContext("broadcast-block");
-
-        // Act
-        var block = new BroadcastBlock<int>(context);
-
-        // Assert
-        block.Name.ShouldBe("broadcast-block");
-    }
-
-    [Fact]
-    public void BroadcastBlock_ConstructorWithNullContext_ThrowsArgumentNullException()
-    {
-        // Arrange
-        IBlockContext? nullContext = null;
-
-        // Act & Assert
-        Should.Throw<ArgumentNullException>(() => new BroadcastBlock<int>(nullContext!));
-    }
-
-    #endregion
-
     #region EpochActorBlock Tests
 
     [Fact]

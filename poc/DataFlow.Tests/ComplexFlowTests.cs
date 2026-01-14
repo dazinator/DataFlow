@@ -111,9 +111,9 @@ public class ComplexFlowTests
             .AddBlock(transformer1)
             .AddBlock(transformer2)
             .AddBlock(processor)
-            .ConnectMany(producer, transformer1, transformer2) // Split
-            .ConnectMany(transformer1, processor) // Merge
-            .Connect(transformer2, processor); // Merge
+            .ConnectBroadcast(producer, new[] { transformer1, transformer2 }) // Split - broadcast to both transformers
+            .Connect(transformer1, processor) // Merge - transformer1 connects to processor
+            .Connect(transformer2, processor); // Merge - transformer2 connects to processor
 
         var graph = builder.Build();
         var context = new ExecutionContext(commonServices, CancellationToken.None);

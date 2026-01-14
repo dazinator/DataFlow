@@ -20,6 +20,7 @@ public class DataFlowGraphBuilder
     private readonly List<IBlock> _blocks = new();
     private readonly Dictionary<string, IBlock> _blocksByName = new(); // Track blocks by their registration name
     private readonly List<Edge> _edges = new();
+    private readonly HashSet<IBlock> _simpleConnectedSources = new(); // Track sources connected via simple Connect/ConnectBroadcast/ConnectCompeting
     private EpochSourceNode? _epochSource;
     private readonly List<EpochProcessorNode> _epochProcessors = new();
     private IEpochCoordinator? _epochCoordinator;
@@ -164,8 +165,10 @@ public class DataFlowGraphBuilder
     }
 
     /// <summary>
-    /// Connect two blocks with an edge.
-    /// Note: Only bounded buffer mode is supported to ensure memory constraints are considered.
+    /// Connect two blocks with an edge for single target.
+    /// For single targets, the edge strategy defaults to broadcast (most efficient for single target).
+    /// To connect to multiple targets, use ConnectBroadcast() or ConnectCompeting().
+    /// Note: A source can only be connected once. Subsequent connections will throw an exception.
     /// </summary>
     public DataFlowGraphBuilder Connect(
         IBlock source,
@@ -184,51 +187,93 @@ public class DataFlowGraphBuilder
         BufferMode bufferMode,
         int bufferCapacity)
     {
+        // Enforce single-connection-per-source rule
+        if (_simpleConnectedSources.Contains(source))
+        {
+            throw new InvalidOperationException(
+                $"Source block '{source.Name}' has already been connected. " +
+                $"Each source can only be connected once. Use ConnectBroadcast() or ConnectCompeting() to connect to multiple targets.");
+        }
+
         var edge = new Edge(source, target, bufferMode, bufferCapacity);
         _edges.Add(edge);
+        _simpleConnectedSources.Add(source);
         return this;
     }
 
     /// <summary>
     /// Add a pre-configured edge to the graph.
     /// This allows using custom edge strategies like CompetingEdgeStrategy or CloningEdgeStrategy.
+    /// Note: This is for advanced scenarios. For simple connections, use Connect(), ConnectBroadcast(), or ConnectCompeting().
     /// </summary>
     public DataFlowGraphBuilder AddEdge(Edge edge)
     {
+        // AddEdge is for advanced scenarios and doesn't enforce single-connection rule
+        // This allows multiple edges from same source with different strategies (e.g., metrics + routing)
         _edges.Add(edge);
         return this;
     }
 
     /// <summary>
-    /// Connect a source block to multiple target blocks.
-    /// Useful for broadcasting or routing scenarios.
+    /// Connect a source block to multiple target blocks with broadcast semantics.
+    /// All targets will receive all items from the source.
+    /// Creates a single edge with BroadcastEdgeStrategy.
+    /// Note: A source can only be connected once.
     /// </summary>
-    public DataFlowGraphBuilder ConnectMany(
+    /// <param name="source">The source block</param>
+    /// <param name="targets">The target blocks that will all receive all items</param>
+    /// <param name="bufferCapacity">The buffer capacity for the edge (default: 100)</param>
+    /// <param name="cloneFunc">Optional function to clone items for mutation isolation</param>
+    /// <returns>The builder for chaining</returns>
+    public DataFlowGraphBuilder ConnectBroadcast(
         IBlock source,
-        params IBlock[] targets)
+        IReadOnlyList<IBlock> targets,
+        int bufferCapacity = 100,
+        Func<object, object>? cloneFunc = null)
     {
-        return ConnectMany(source, 100, targets);
+        // Enforce single-connection-per-source rule
+        if (_simpleConnectedSources.Contains(source))
+        {
+            throw new InvalidOperationException(
+                $"Source block '{source.Name}' has already been connected. " +
+                $"Each source can only be connected once.");
+        }
+
+        var strategy = cloneFunc != null
+            ? new BroadcastEdgeStrategy(cloneFunc, BufferMode.Bounded, bufferCapacity)
+            : new BroadcastEdgeStrategy(BufferMode.Bounded, bufferCapacity);
+
+        var edge = new Edge(source, targets, strategy);
+        _edges.Add(edge);
+        _simpleConnectedSources.Add(source);
+        return this;
     }
 
     /// <summary>
-    /// Connect a source block to multiple target blocks with specified buffer capacity.
+    /// Connect a source block to a single target with broadcast semantics.
+    /// For single targets, this is equivalent to Connect() but more explicit.
+    /// Note: A source can only be connected once.
     /// </summary>
-    public DataFlowGraphBuilder ConnectMany(
+    /// <param name="source">The source block</param>
+    /// <param name="target">The target block</param>
+    /// <param name="bufferCapacity">The buffer capacity for the edge (default: 100)</param>
+    /// <param name="cloneFunc">Optional function to clone items for mutation isolation</param>
+    /// <returns>The builder for chaining</returns>
+    public DataFlowGraphBuilder ConnectBroadcast(
         IBlock source,
-        int bufferCapacity,
-        params IBlock[] targets)
+        IBlock target,
+        int bufferCapacity = 100,
+        Func<object, object>? cloneFunc = null)
     {
-        foreach (var target in targets)
-        {
-            Connect(source, target, BufferMode.Bounded, bufferCapacity);
-        }
-        return this;
+        return ConnectBroadcast(source, new[] { target }, bufferCapacity, cloneFunc);
     }
 
     /// <summary>
     /// Connect a source block to multiple target blocks with competing consumer semantics.
     /// Each item from the source will be delivered to exactly one target (competing consumers).
     /// This is useful for load balancing across multiple parallel workers.
+    /// Creates a single edge with CompetingEdgeStrategy.
+    /// Note: A source can only be connected once.
     /// </summary>
     /// <param name="source">The source block</param>
     /// <param name="targets">The target blocks that will compete for items</param>
@@ -239,8 +284,17 @@ public class DataFlowGraphBuilder
         IReadOnlyList<IBlock> targets,
         int bufferCapacity = 100)
     {
+        // Enforce single-connection-per-source rule
+        if (_simpleConnectedSources.Contains(source))
+        {
+            throw new InvalidOperationException(
+                $"Source block '{source.Name}' has already been connected. " +
+                $"Each source can only be connected once.");
+        }
+
         var edge = new Edge(source, targets, new CompetingEdgeStrategy(BufferMode.Bounded, bufferCapacity));
         _edges.Add(edge);
+        _simpleConnectedSources.Add(source);
         return this;
     }
 

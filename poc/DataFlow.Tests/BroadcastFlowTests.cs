@@ -35,8 +35,6 @@ public class BroadcastFlowTests
         // Using TestStreams.Integers() instead of custom ProduceIntegers function
         var producer = BlockHelpers.CreateProducer("producer", TestStreams.Integers(5));
 
-        var broadcast = BlockHelpers.CreateBroadcast<int>("broadcast");
-
         var processor1 = BlockHelpers.CreateActor<int, object, CollectorActor<int>>(
             "processor1",
             scopeFactory1);
@@ -47,12 +45,9 @@ public class BroadcastFlowTests
 
         var builder = GraphHelpers.CreateGraphBuilder("broadcast-flow");
         builder.AddBlock(producer)
-            .AddBlock(broadcast)
             .AddBlock(processor1)
             .AddBlock(processor2)
-            .Connect(producer, broadcast)
-            .Connect(broadcast, processor1) // Broadcast to processor1
-            .Connect(broadcast, processor2); // Broadcast to processor2
+            .ConnectBroadcast(producer, new[] { processor1, processor2 }); // Single broadcast edge to both processors
 
         var graph = builder.Build();
         var context = new ExecutionContext(commonServices, CancellationToken.None);

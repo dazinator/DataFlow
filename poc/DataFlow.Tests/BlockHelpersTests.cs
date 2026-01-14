@@ -102,17 +102,6 @@ public class BlockHelpersTests
     }
 
     [Fact]
-    public void CreateBroadcast_ShouldCreateBroadcastBlock()
-    {
-        // Act
-        var broadcast = BlockHelpers.CreateBroadcast<int>("test");
-
-        // Assert
-        broadcast.ShouldNotBeNull();
-        broadcast.Name.ShouldBe("test");
-    }
-
-    [Fact]
     public async Task CreateProducer_Integration_ShouldProduceItems()
     {
         // Arrange

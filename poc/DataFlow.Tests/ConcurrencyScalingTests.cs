@@ -1064,8 +1064,6 @@ public class ConcurrencyScalingTests
                 enricherServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
-        var broadcast = BlockHelpers.CreateBroadcast<string>("broadcast");
-
         var collector1Services = new ServiceCollection();
         collector1Services.AddScoped<NoOpStringProcessorActor>();
         var collector1ServiceProvider = collector1Services.BuildServiceProvider();
@@ -1082,7 +1080,6 @@ public class ConcurrencyScalingTests
         builder.AddBlock(producer);
         foreach (var v in validators) builder.AddBlock(v);
         foreach (var e in enrichers) builder.AddBlock(e);
-        builder.AddBlock(broadcast);
         builder.AddBlock(collector1);
         builder.AddBlock(collector2);
 
@@ -1095,14 +1092,11 @@ public class ConcurrencyScalingTests
                 new CompetingEdgeStrategy(BufferMode.Bounded, 10)));
         }
 
+        // Each enricher broadcasts to both collectors (edge layer handles broadcasting)
         foreach (var enricher in enrichers)
         {
-            builder.Connect(enricher, broadcast);
+            builder.ConnectBroadcast(enricher, new[] { collector1, collector2 }, bufferCapacity: 10);
         }
-
-        // Broadcast to collectors
-        builder.AddEdge(new Edge(broadcast, collector1, BufferMode.Bounded, 10));
-        builder.AddEdge(new Edge(broadcast, collector2, BufferMode.Bounded, 10));
 
         var graph = builder.Build();
         var context = new ExecutionContext(services, CancellationToken.None);
@@ -1268,7 +1262,6 @@ public class ConcurrencyScalingTests
                 enricherServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
-        var broadcast = BlockHelpers.CreateBroadcast<string>("broadcast");
         
         // Broadcast path 1: Collector
         var metricsCollectorServices = new ServiceCollection();
@@ -1307,7 +1300,6 @@ public class ConcurrencyScalingTests
         builder.AddBlock(producer);
         foreach (var v in validators) builder.AddBlock(v);
         foreach (var e in enrichers) builder.AddBlock(e);
-        builder.AddBlock(broadcast);
         builder.AddBlock(metricsCollector);
         foreach (var p in evenProcessors) builder.AddBlock(p);
         foreach (var p in oddProcessors) builder.AddBlock(p);
@@ -1323,16 +1315,13 @@ public class ConcurrencyScalingTests
                 new CompetingEdgeStrategy(BufferMode.Bounded, 10)));
         }
 
-        // Enrichers → Broadcast
+        // Each enricher broadcasts to metrics collector (edge layer handles broadcasting)
         foreach (var enricher in enrichers)
         {
-            builder.Connect(enricher, broadcast);
+            builder.AddEdge(new Edge(enricher, metricsCollector, BufferMode.Bounded, 10));
         }
 
-        // Broadcast → Metrics
-        builder.AddEdge(new Edge(broadcast, metricsCollector, BufferMode.Bounded, 10));
-
-        // Broadcast → Selective Routing to [even processors (competing), odd processors (competing)]
+        // Selective Routing from each enricher to [even processors (competing), odd processors (competing)]
         // Route to all processors of each type, then they compete
         var routeMapping = new Dictionary<string, IBlock>();
         foreach (var proc in evenProcessors)
@@ -1364,8 +1353,13 @@ public class ConcurrencyScalingTests
             });
 
         var allProcessors = evenProcessors.Cast<IBlock>().Concat(oddProcessors.Cast<IBlock>()).ToList();
-        var routingEdge = new Edge(broadcast, allProcessors, routingStrategy);
-        builder.AddEdge(routingEdge);
+        
+        // Each enricher connects with selective routing (edge layer handles broadcasting)
+        foreach (var enricher in enrichers)
+        {
+            var routingEdge = new Edge(enricher, allProcessors, routingStrategy);
+            builder.AddEdge(routingEdge);
+        }
 
         var graph = builder.Build();
         var context = new ExecutionContext(services, CancellationToken.None);
@@ -1428,7 +1422,6 @@ public class ConcurrencyScalingTests
                 enricherServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
-        var broadcast = BlockHelpers.CreateBroadcast<string>("broadcast");
         
         var metricsCollectorServices = new ServiceCollection();
         metricsCollectorServices.AddScoped<NoOpStringProcessorActor>();
@@ -1462,7 +1455,6 @@ public class ConcurrencyScalingTests
         builder.AddBlock(producer);
         foreach (var v in validators) builder.AddBlock(v);
         foreach (var e in enrichers) builder.AddBlock(e);
-        builder.AddBlock(broadcast);
         builder.AddBlock(metricsCollector);
         builder.AddBlock(batcher);
         builder.AddBlock(aggregator);
@@ -1478,14 +1470,13 @@ public class ConcurrencyScalingTests
                 new CompetingEdgeStrategy(BufferMode.Bounded, 10)));
         }
 
+        // Each enricher broadcasts to metrics collector (edge layer handles broadcasting)
         foreach (var enricher in enrichers)
         {
-            builder.Connect(enricher, broadcast);
+            builder.AddEdge(new Edge(enricher, metricsCollector, BufferMode.Bounded, 10));
         }
-
-        builder.AddEdge(new Edge(broadcast, metricsCollector, BufferMode.Bounded, 10));
         
-        // Selective routing from broadcast - "even" items go to batcher, "odd" to discard
+        // Selective routing from each enricher - "even" items go to batcher, "odd" to discard
         var routeMapping = new Dictionary<string, IBlock>
         {
             ["even"] = batcher,
@@ -1496,8 +1487,12 @@ public class ConcurrencyScalingTests
             routeKeyToBlock: routeMapping,
             routeSelector: item => item.StartsWith("even") ? "even" : "odd");
 
-        var routingEdge = new Edge(broadcast, new IBlock[] { batcher, discardSink }, routingStrategy);
-        builder.AddEdge(routingEdge);
+        // Each enricher connects with selective routing (edge layer handles broadcasting)
+        foreach (var enricher in enrichers)
+        {
+            var routingEdge = new Edge(enricher, new IBlock[] { batcher, discardSink }, routingStrategy);
+            builder.AddEdge(routingEdge);
+        }
         
         builder.Connect(batcher, aggregator);
         builder.Connect(aggregator, writer);
@@ -1757,7 +1752,6 @@ public class ConcurrencyScalingTests
                 enricherServiceProvider.GetRequiredService<IServiceScopeFactory>()));
         }
 
-        var broadcast = BlockHelpers.CreateBroadcast<string>("broadcast");
         
         var metricsCollectorServices = new ServiceCollection();
         metricsCollectorServices.AddScoped<NoOpStringProcessorActor>();
@@ -1815,7 +1809,6 @@ public class ConcurrencyScalingTests
         builder.AddBlock(producer);
         foreach (var v in validators) builder.AddBlock(v);
         foreach (var e in enrichers) builder.AddBlock(e);
-        builder.AddBlock(broadcast);
         builder.AddBlock(metricsCollector);
         foreach (var p in typeAProcessors) builder.AddBlock(p);
         foreach (var w in typeAWriters) builder.AddBlock(w);
@@ -1835,16 +1828,13 @@ public class ConcurrencyScalingTests
                 new CompetingEdgeStrategy(BufferMode.Bounded, 100)));
         }
 
-        // Enrichers → Broadcast
+        // Each enricher broadcasts to metrics collector (edge layer handles broadcasting)
         foreach (var enricher in enrichers)
         {
-            builder.Connect(enricher, broadcast);
+            builder.AddEdge(new Edge(enricher, metricsCollector, BufferMode.Bounded, 100));
         }
 
-        // Broadcast → Metrics
-        builder.AddEdge(new Edge(broadcast, metricsCollector, BufferMode.Bounded, 100));
-
-        // Broadcast → Selective Routing to [TypeA processors, TypeB batcher, TypeC writer]
+        // Selective Routing from each enricher to [TypeA processors, TypeB batcher, TypeC writer]
         // For TypeA, route to competing processors
         var routeMapping = new Dictionary<string, IBlock>();
         
@@ -1879,8 +1869,12 @@ public class ConcurrencyScalingTests
             .Append(typeCWriter)
             .ToList();
         
-        var routingEdge = new Edge(broadcast, allTargets, routingStrategy);
-        builder.AddEdge(routingEdge);
+        // Each enricher connects with selective routing (edge layer handles broadcasting)
+        foreach (var enricher in enrichers)
+        {
+            var routingEdge = new Edge(enricher, allTargets, routingStrategy);
+            builder.AddEdge(routingEdge);
+        }
 
         // TypeA: Processors → Writers (competing)
         foreach (var processor in typeAProcessors)

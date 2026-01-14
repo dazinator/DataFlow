@@ -306,10 +306,10 @@ public class AsyncLocalPropagationTests
     }
 
     /// <summary>
-    /// Tests AsyncLocal propagation with broadcast block (multiple consumers)
+    /// Tests AsyncLocal propagation with direct broadcast (multiple consumers via edge layer)
     /// </summary>
     [Fact]
-    public async Task AsyncLocal_Should_Propagate_Through_BroadcastBlock()
+    public async Task AsyncLocal_Should_Propagate_Through_DirectBroadcast()
     {
         // Arrange
         var expectedContextId = Guid.NewGuid();
@@ -332,8 +332,6 @@ public class AsyncLocalPropagationTests
             return ProduceWithContextCapture(5, producer1ContextIds);
         });
 
-        var broadcast = BlockHelpers.CreateBroadcast<int>("broadcast");
-
         var processor1 = BlockHelpers.CreateActor<int, object, ContextCapturingCollectorActor<int>>(
             "processor1",
             processor1SP.GetRequiredService<IServiceScopeFactory>());
@@ -344,12 +342,9 @@ public class AsyncLocalPropagationTests
 
         var builder = GraphHelpers.CreateGraphBuilder("broadcast-flow");
         builder.AddBlock(producer)
-            .AddBlock(broadcast)
-            .Connect(producer, broadcast)
             .AddBlock(processor1)
-            .Connect(broadcast, processor1)
             .AddBlock(processor2)
-            .Connect(broadcast, processor2);
+            .ConnectBroadcast(producer, new[] { processor1, processor2 }); // Single broadcast edge
 
         var graph = builder.Build();
         var context = new ExecutionContext(commonServices, CancellationToken.None, expectedContextId);
