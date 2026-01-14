@@ -79,6 +79,7 @@ public static class SimpleEtlPOC
     /// <summary>
     /// Configures a simplified ETL dataflow: DataSource → Validators → Enrichers → Collector
     /// Uses modern DI patterns with AddDataFlows to register blocks and graphs.
+    /// Uses multiple block instances for concurrency with competing consumer pattern for load distribution.
     /// </summary>
     /// <param name="services">Service collection to configure</param>
     /// <param name="recordCount">Number of records to process</param>
@@ -103,7 +104,7 @@ public static class SimpleEtlPOC
                 BlockHelpers.CreateProducer("data-source",
                     ctx => ProduceRawRecords(recordCount, ctx.CancellationToken)));
 
-            // Register validator blocks
+            // Register validator blocks - multiple instances for concurrency
             for (int i = 0; i < maxConcurrency; i++)
             {
                 var index = i; // Capture for closure
@@ -116,7 +117,7 @@ public static class SimpleEtlPOC
                 });
             }
 
-            // Register enricher blocks
+            // Register enricher blocks - multiple instances for concurrency
             for (int i = 0; i < maxConcurrency; i++)
             {
                 var index = i; // Capture for closure
@@ -137,36 +138,49 @@ public static class SimpleEtlPOC
                     "collector", scopeFactory);
             });
 
-            // Register graph with connections
+            // Register graph with competing consumer connections
             df.AddGraph("graph", g =>
             {
                 // Use all registered blocks
                 g.UseBlock("data-source");
                 
-                // Add validators and connect to source
+                // Use validator blocks
+                var validatorNames = new List<string>();
                 for (int i = 0; i < maxConcurrency; i++)
                 {
                     var validatorName = $"validator-{i}";
                     g.UseBlock(validatorName);
-                    g.Connect("data-source", validatorName);
+                    validatorNames.Add(validatorName);
                 }
 
-                // Add enrichers with round-robin connections from validators
+                // Use enricher blocks
+                var enricherNames = new List<string>();
                 for (int i = 0; i < maxConcurrency; i++)
                 {
                     var enricherName = $"enricher-{i}";
                     g.UseBlock(enricherName);
-                    
-                    // Round-robin: each validator connects to one enricher
-                    var validatorIndex = i % maxConcurrency;
-                    g.Connect($"validator-{validatorIndex}", enricherName);
+                    enricherNames.Add(enricherName);
                 }
 
-                // Add collector and connect all enrichers to it
+                // Use collector
                 g.UseBlock("collector");
-                for (int i = 0; i < maxConcurrency; i++)
+                
+                // Connect data-source to all validators with competing consumer semantics
+                // Each validator will compete for items from the source (load balancing)
+                g.ConnectCompeting("data-source", validatorNames);
+
+                // Connect each validator to all enrichers with competing consumer semantics
+                // Each enricher will compete for items from each validator (load balancing)
+                foreach (var validatorName in validatorNames)
                 {
-                    g.Connect($"enricher-{i}", "collector");
+                    g.ConnectCompeting(validatorName, enricherNames);
+                }
+
+                // Connect all enrichers to collector with competing consumer semantics
+                // Collector receives all items from all enrichers
+                foreach (var enricherName in enricherNames)
+                {
+                    g.Connect(enricherName, "collector");
                 }
             });
         });
