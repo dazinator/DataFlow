@@ -2,7 +2,7 @@
 <html lang='en'>
 <head>
 <meta charset='utf-8' />
-<title>DataFlow.POC.Benchmarks.EpochProductionIOBenchmark-20260112-153847</title>
+<title>DataFlow.POC.Benchmarks.EpochProductionIOBenchmark-20260120-180049</title>
 
 <style type="text/css">
 	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
@@ -14,10 +14,10 @@
 <body>
 <pre><code>
 BenchmarkDotNet v0.13.12, Ubuntu 24.04.3 LTS (Noble Numbat)
-Intel Xeon Platinum 8370C CPU 2.80GHz, 1 CPU, 2 logical cores and 1 physical core
+AMD EPYC 7763, 1 CPU, 2 logical cores and 1 physical core
 .NET SDK 10.0.101
-  [Host]     : .NET 8.0.22 (8.0.2225.52707), X64 RyuJIT AVX-512F+CD+BW+DQ+VL+VBMI
-  Job-GTVTZU : .NET 8.0.22 (8.0.2225.52707), X64 RyuJIT AVX-512F+CD+BW+DQ+VL+VBMI
+  [Host]     : .NET 8.0.23 (8.0.2325.60607), X64 RyuJIT AVX2
+  Job-WTGITC : .NET 8.0.23 (8.0.2325.60607), X64 RyuJIT AVX2
 </code></pre>
 <pre><code>IterationCount=5  WarmupCount=3  
 </code></pre>
@@ -25,10 +25,10 @@ Intel Xeon Platinum 8370C CPU 2.80GHz, 1 CPU, 2 logical cores and 1 physical cor
 <table>
 <thead><tr><th>Method                        </th><th>Mean</th><th>Error</th><th>StdDev</th><th>Ratio</th><th>Allocated</th><th>Alloc Ratio</th>
 </tr>
-</thead><tbody><tr><td>Baseline_RealisticIO</td><td>3.000 s</td><td>0.0121 s</td><td>0.0031 s</td><td>1.00</td><td>17.66 KB</td><td>1.00</td>
-</tr><tr><td>EpochPipeline_RealisticIO_100Epochs</td><td>3.010 s</td><td>0.0149 s</td><td>0.0039 s</td><td>1.00</td><td>55.39 KB</td><td>3.14</td>
-</tr><tr><td>EpochPipeline_RealisticIO_1000Epochs</td><td>3.010 s</td><td>0.0094 s</td><td>0.0015 s</td><td>1.00</td><td>322.58 KB</td><td>18.26</td>
-</tr><tr><td>EpochPipeline_RealisticIO_10Epochs</td><td>3.012 s</td><td>0.0053 s</td><td>0.0008 s</td><td>1.00</td><td>21.72 KB</td><td>1.23</td>
+</thead><tbody><tr><td>Baseline_RealisticIO</td><td>2.991 s</td><td>0.0022 s</td><td>0.0006 s</td><td>1.00</td><td>17.66 KB</td><td>1.00</td>
+</tr><tr><td>EpochPipeline_RealisticIO_100Epochs</td><td>3.000 s</td><td>0.0038 s</td><td>0.0010 s</td><td>1.00</td><td>55.39 KB</td><td>3.14</td>
+</tr><tr><td>EpochPipeline_RealisticIO_1000Epochs</td><td>3.000 s</td><td>0.0060 s</td><td>0.0009 s</td><td>1.00</td><td>322.58 KB</td><td>18.26</td>
+</tr><tr><td>EpochPipeline_RealisticIO_10Epochs</td><td>3.001 s</td><td>0.0013 s</td><td>0.0002 s</td><td>1.00</td><td>21.72 KB</td><td>1.23</td>
 </tr></tbody></table>
 </body>
 </html>
