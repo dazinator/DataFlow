@@ -434,7 +434,7 @@ public class EpochBufferBlockTests
         _output.WriteLine($"4 consumers time: {multiConsumerTime}ms");
         _output.WriteLine($"Speedup: {(double)singleConsumerTime / multiConsumerTime:F2}x");
 
-        // With 4 consumers, we expect at least 2x speedup (conservative due to test overhead)
+        // With 4 consumers, we expect at least ~1.4x speedup (conservative due to test overhead)
         ((double)multiConsumerTime).ShouldBeLessThan((double)singleConsumerTime * 0.7, "Multiple consumers should improve throughput");
     }
 
@@ -840,50 +840,6 @@ public class EpochBufferBlockTests
     }
 
     /// <summary>
-    /// Source actor that produces multiple epochs for epoch boundary tests.
-    /// </summary>
-    private class TestMultiEpochSourceActor : SourceActorBase<int>
-    {
-        private readonly int _producerId;
-        private readonly int _epochCount;
-        private readonly int _itemsPerEpoch;
-
-        public TestMultiEpochSourceActor(string sourceId, int producerId, int epochCount, int itemsPerEpoch)
-            : base(sourceId)
-        {
-            _producerId = producerId;
-            _epochCount = epochCount;
-            _itemsPerEpoch = itemsPerEpoch;
-        }
-
-        public override async IAsyncEnumerable<IEpochStream<int>> ProduceEpochsAsync(
-            IActorExecutionContext context)
-        {
-            for (int epoch = 1; epoch <= _epochCount; epoch++)
-            {
-                var baseValue = (_producerId * 10000) + (epoch * 100);
-                var items = ProduceEpochItems(baseValue, _itemsPerEpoch, context.CancellationToken);
-                
-                var epochStream = await CreateEpochStreamAsync(context, epoch, items, context.CancellationToken);
-                yield return epochStream;
-            }
-        }
-
-        private async IAsyncEnumerable<int> ProduceEpochItems(
-            int baseValue,
-            int count,
-            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
-        {
-            for (int i = 0; i < count; i++)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                yield return baseValue + i;
-                await Task.Yield();
-            }
-        }
-    }
-
-    /// <summary>
     /// Source actor with configurable production rate for variable rate tests.
     /// </summary>
     private class TestVariableRateSourceActor : SourceActorBase<int>
@@ -949,16 +905,9 @@ public class EpochBufferBlockTests
         // Start all producers
         var tasks = producerBlocks.Select(producer => Task.Run(async () =>
         {
-            try
+            await foreach (var epochStream in producer.ExecuteAsync(EmptyInput(), context))
             {
-                await foreach (var epochStream in producer.ExecuteAsync(EmptyInput(), context))
-                {
-                    await channel.Writer.WriteAsync(epochStream, context.CancellationToken);
-                }
-            }
-            catch (Exception)
-            {
-                throw;
+                await channel.Writer.WriteAsync(epochStream, context.CancellationToken);
             }
         }, context.CancellationToken)).ToList();
 
