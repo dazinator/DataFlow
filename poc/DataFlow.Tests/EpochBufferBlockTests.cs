@@ -475,7 +475,7 @@ public class EpochBufferBlockTests
     }
 
     [Fact]
-    public async Task EpochBuffer_Should_Distribute_Backpressure_Across_Producers()
+    public async Task EpochBuffer_Should_Handle_Backpressure_With_Multiple_Producers()
     {
         // Arrange - Multiple producers, small buffer, slow consumer
         var producerCount = 3;
@@ -514,63 +514,62 @@ public class EpochBufferBlockTests
             }
         }
 
-        // Assert - All items received without loss
+        // Assert - All items received without loss despite backpressure
         receivedItems.Count.ShouldBe(producerCount * itemsPerProducer);
         
         _output.WriteLine($"✓ Backpressure correctly handled with {producerCount} producers, buffer capacity {bufferCapacity}");
     }
 
-    [Fact]
-    public async Task EpochBuffer_EndToEnd_ProducersToBufferToConsumers_ScalingPattern()
+    [Theory]
+    [InlineData(1, 1)]
+    [InlineData(1, 2)]
+    [InlineData(1, 4)]
+    [InlineData(2, 1)]
+    [InlineData(2, 2)]
+    [InlineData(2, 4)]
+    [InlineData(4, 1)]
+    [InlineData(4, 2)]
+    [InlineData(4, 4)]
+    public async Task EpochBuffer_EndToEnd_ProducersToBufferToConsumers_ScalingPattern(int producerCount, int consumerCount)
     {
         // Arrange - Full pattern: Multiple Producers → Buffer → Competing Consumers
-        var producerCounts = new[] { 1, 2, 4 };
-        var consumerCounts = new[] { 1, 2, 4 };
         var itemsPerProducer = 40;
         var bufferCapacity = 20;
 
-        foreach (var producerCount in producerCounts)
-        {
-            foreach (var consumerCount in consumerCounts)
-            {
-                _output.WriteLine($"\nTesting {producerCount} producers → buffer → {consumerCount} consumers");
+        _output.WriteLine($"Testing {producerCount} producers → buffer → {consumerCount} consumers");
 
-                var services = new ServiceCollection();
-                var coordinator = new EpochCoordinator(services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>());
+        var services = new ServiceCollection();
+        var coordinator = new EpochCoordinator(services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>());
 
-                // Create producers
-                var sourceActors = Enumerable.Range(0, producerCount)
-                    .Select(i => new TestMultiProducerSourceActor($"source-{i}", i, itemsPerProducer))
-                    .ToList();
+        // Create producers
+        var sourceActors = Enumerable.Range(0, producerCount)
+            .Select(i => new TestMultiProducerSourceActor($"source-{i}", i, itemsPerProducer))
+            .ToList();
 
-                var producerBlocks = sourceActors.Select((actor, idx) =>
-                    BlockHelpers.CreateEpochSource<int, TestMultiProducerSourceActor>($"producer-{idx}", actor, coordinator)
-                ).ToList();
+        var producerBlocks = sourceActors.Select((actor, idx) =>
+            BlockHelpers.CreateEpochSource<int, TestMultiProducerSourceActor>($"producer-{idx}", actor, coordinator)
+        ).ToList();
 
-                // Create buffer
-                var bufferConfig = new BufferConfiguration(capacity: bufferCapacity);
-                var bufferContext = new BlockContext("buffer");
-                var buffer = new EpochBufferBlock<int>(bufferContext, bufferConfig);
+        // Create buffer
+        var bufferConfig = new BufferConfiguration(capacity: bufferCapacity);
+        var bufferContext = new BlockContext("buffer");
+        var buffer = new EpochBufferBlock<int>(bufferContext, bufferConfig);
 
-                var execContext = new TestExecutionContext();
+        var execContext = new TestExecutionContext();
 
-                // Act - Merge producers → buffer → competing consumers
-                var allProducerOutputs = MergeProducerEpochStreams<int>(producerBlocks, execContext);
-                var bufferedOutputs = buffer.ExecuteAsync(allProducerOutputs, execContext);
+        // Act - Merge producers → buffer → competing consumers
+        var allProducerOutputs = MergeProducerEpochStreams<int>(producerBlocks, execContext);
+        var bufferedOutputs = buffer.ExecuteAsync(allProducerOutputs, execContext);
 
-                var sw = System.Diagnostics.Stopwatch.StartNew();
-                var receivedItems = await ConsumeWithCompetingConsumers(bufferedOutputs, consumerCount);
-                sw.Stop();
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var receivedItems = await ConsumeWithCompetingConsumers(bufferedOutputs, consumerCount);
+        sw.Stop();
 
-                // Assert
-                var totalExpected = producerCount * itemsPerProducer;
-                receivedItems.Count.ShouldBe(totalExpected);
+        // Assert
+        var totalExpected = producerCount * itemsPerProducer;
+        receivedItems.Count.ShouldBe(totalExpected);
 
-                _output.WriteLine($"  Items: {receivedItems.Count}/{totalExpected}, Time: {sw.ElapsedMilliseconds}ms");
-            }
-        }
-
-        _output.WriteLine("\n✓ End-to-end scaling pattern validated across multiple configurations");
+        _output.WriteLine($"  Items: {receivedItems.Count}/{totalExpected}, Time: {sw.ElapsedMilliseconds}ms");
     }
 
     [Fact]
