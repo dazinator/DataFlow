@@ -126,6 +126,35 @@ public async Task TriggerContext_WebRequest_PropertiesAccessible()
 }
 ```
 
+### 5. Dynamic JSON Context
+```csharp
+[Fact]
+public async Task TriggerContext_JsonDynamic_PropertiesAccessible()
+{
+    // Validate dynamic JSON-based trigger context works
+    var triggerContext = new JsonTriggerContext
+    {
+        Data = new JsonObject
+        {
+            ["tenantId"] = "tenant-123",
+            ["customProperty"] = JsonValue.Create(42)
+        }
+    };
+    // ... test implementation
+}
+```
+
+### 4. Web Request Context
+```csharp
+[Fact]
+public async Task TriggerContext_WebRequest_PropertiesAccessible()
+{
+    // Validate all web request properties accessible
+    var triggerContext = new WebRequestTriggerContext { UserId = "user-123" };
+    // ... test implementation
+}
+```
+
 ---
 
 ## Performance Requirements
@@ -164,6 +193,7 @@ public async Task TriggerContext_WebRequest_PropertiesAccessible()
 
 ### Phase 3: Example Implementations
 - [ ] Create `TriggerContexts.cs` with example implementations:
+  - [ ] `JsonTriggerContext` (dynamic JSON-based for flexible scenarios)
   - [ ] `ScheduledTriggerContext`
   - [ ] `MessageQueueTriggerContext`
   - [ ] `WebRequestTriggerContext`
@@ -181,6 +211,9 @@ public async Task TriggerContext_WebRequest_PropertiesAccessible()
 - [ ] Validate message queue context test
 - [ ] Validate null context handling test
 - [ ] Validate web request context test
+- [ ] Validate dynamic JSON context test
+- [ ] Validate null context handling test
+- [ ] Validate web request context test
 - [ ] Run all existing tests to ensure no regressions
 
 ### Phase 6: Documentation
@@ -188,6 +221,10 @@ public async Task TriggerContext_WebRequest_PropertiesAccessible()
 - [ ] Document common trigger scenarios
 - [ ] Add migration guide for existing code
 - [ ] Update API documentation
+- [ ] **Update `/poc/docs/guides/getting-started.md`** to include:
+  - Static typing scenarios (using `ScheduledTriggerContext`, `MessageQueueTriggerContext`, `WebRequestTriggerContext`)
+  - Dynamic typing scenarios (using `JsonTriggerContext` for flexible/runtime-determined trigger data)
+  - Examples showing both approaches and when to use each
 
 ### Phase 7: Validation
 - [ ] Run full test suite - all tests pass
@@ -241,8 +278,10 @@ await graph.ExecuteAsync(context);
 
 ### For New Dataflows with Trigger Context
 
+#### Static Typing (Recommended for known structure)
+
 ```csharp
-// New code - with trigger context
+// Static typing - with strongly-typed trigger context
 var triggerContext = new ScheduledTriggerContext
 {
     JobName = "DailyReport",
@@ -261,7 +300,45 @@ var context = new ExecutionContext(
 await graph.ExecuteAsync(context);
 ```
 
+#### Dynamic Typing (For flexible/runtime-determined data)
+
+```csharp
+// Dynamic typing - with JSON-based trigger context
+var triggerContext = new JsonTriggerContext
+{
+    Data = new JsonObject
+    {
+        ["tenantId"] = "tenant-123",
+        ["jobName"] = "DailyReport",
+        ["customProperty"] = JsonValue.Create(42),
+        ["metadata"] = new JsonObject
+        {
+            ["source"] = "scheduler",
+            ["priority"] = "high"
+        }
+    }
+};
+
+var context = new ExecutionContext(
+    serviceProvider,
+    cancellationToken,
+    Guid.NewGuid(),
+    recoveryCheckpoint: null,
+    metrics: null,
+    triggerContext);
+
+await graph.ExecuteAsync(context);
+
+// Can also create from JSON string
+var triggerContext2 = JsonTriggerContext.FromJson(@"{
+    ""tenantId"": ""tenant-456"",
+    ""customData"": ""value""
+}");
+```
+
 ### For Actors
+
+#### Accessing Static Trigger Context
 
 ```csharp
 public class MyActor : IStreamActor<int, string>
@@ -270,11 +347,40 @@ public class MyActor : IStreamActor<int, string>
         IAsyncEnumerable<int> input,
         IActorExecutionContext context)
     {
-        // Access trigger context if needed
+        // Access strongly-typed trigger context
         if (context.TriggerContext is ScheduledTriggerContext scheduled)
         {
             var tenantId = scheduled.TenantId;
             // Use tenant ID in processing
+        }
+        
+        await foreach (var item in input)
+        {
+            yield return ProcessItem(item);
+        }
+    }
+}
+```
+
+#### Accessing Dynamic Trigger Context
+
+```csharp
+public class MyDynamicActor : IStreamActor<int, string>
+{
+    public async IAsyncEnumerable<string> RunAsync(
+        IAsyncEnumerable<int> input,
+        IActorExecutionContext context)
+    {
+        // Access JSON-based dynamic trigger context
+        if (context.TriggerContext is JsonTriggerContext jsonContext)
+        {
+            var tenantId = jsonContext.Data?["tenantId"]?.GetValue<string>();
+            var customProperty = jsonContext.Data?["customProperty"]?.GetValue<int>();
+            
+            // Access nested properties
+            var source = jsonContext.Data?["metadata"]?["source"]?.GetValue<string>();
+            
+            // Use dynamic values in processing
         }
         
         await foreach (var item in input)

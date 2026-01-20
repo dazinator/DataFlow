@@ -230,6 +230,121 @@ public class TriggerContextTests
         Assert.Equal("corr-789", webContext.Headers["X-Correlation-Id"]);
     }
 
+    [Fact]
+    public async Task TriggerContext_JsonDynamic_PropertiesAccessible()
+    {
+        // Arrange - Dynamic JSON-based trigger context
+        var triggerContext = new JsonTriggerContext
+        {
+            Data = new System.Text.Json.Nodes.JsonObject
+            {
+                ["tenantId"] = "tenant-xyz",
+                ["requestId"] = "req-789",
+                ["customProperty"] = System.Text.Json.Nodes.JsonValue.Create(42),
+                ["metadata"] = new System.Text.Json.Nodes.JsonObject
+                {
+                    ["source"] = "api",
+                    ["priority"] = "high"
+                }
+            }
+        };
+
+        var services = new ServiceCollection().BuildServiceProvider();
+        var context = new ExecutionContext(
+            services,
+            CancellationToken.None,
+            Guid.NewGuid(),
+            recoveryCheckpoint: null,
+            metrics: null,
+            triggerContext);
+
+        // Assert - Verify JSON properties are accessible
+        Assert.NotNull(context.TriggerContext);
+        var jsonContext = context.TriggerContext as JsonTriggerContext;
+        Assert.NotNull(jsonContext);
+        Assert.NotNull(jsonContext.Data);
+        
+        // Access simple properties
+        Assert.Equal("tenant-xyz", jsonContext.Data["tenantId"]?.GetValue<string>());
+        Assert.Equal("req-789", jsonContext.Data["requestId"]?.GetValue<string>());
+        Assert.Equal(42, jsonContext.Data["customProperty"]?.GetValue<int>());
+        
+        // Access nested properties
+        var metadata = jsonContext.Data["metadata"]?.AsObject();
+        Assert.NotNull(metadata);
+        Assert.Equal("api", metadata["source"]?.GetValue<string>());
+        Assert.Equal("high", metadata["priority"]?.GetValue<string>());
+        
+        // Test serialization
+        var json = jsonContext.ToJson();
+        Assert.Contains("tenant-xyz", json);
+        
+        // Test deserialization
+        var deserializedContext = JsonTriggerContext.FromJson(json);
+        Assert.NotNull(deserializedContext.Data);
+        Assert.Equal("tenant-xyz", deserializedContext.Data["tenantId"]?.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task TriggerContext_JsonDynamic_UsedByActor()
+    {
+        // Arrange - Dynamic JSON-based trigger context
+        var triggerContext = new JsonTriggerContext
+        {
+            Data = new System.Text.Json.Nodes.JsonObject
+            {
+                ["tenantId"] = "tenant-dynamic",
+                ["customValue"] = System.Text.Json.Nodes.JsonValue.Create(100)
+            }
+        };
+
+        var services = new ServiceCollection().BuildServiceProvider();
+        var context = new ExecutionContext(
+            services,
+            CancellationToken.None,
+            Guid.NewGuid(),
+            recoveryCheckpoint: null,
+            metrics: null,
+            triggerContext);
+
+        var actorContext = new ActorExecutionContext();
+        actorContext.Reset(
+            context.CancellationToken,
+            context.InvocationId,
+            () => { },
+            epochCoordinator: null,
+            context.TriggerContext);
+
+        var actor = new JsonAwareActor();
+        var input = CreateAsyncEnumerable(1, 2);
+
+        // Act
+        var results = await TestStreams.CollectAsync(actor.RunAsync(input, actorContext));
+
+        // Assert
+        Assert.Equal(2, results.Count);
+        Assert.All(results, r => Assert.StartsWith("Tenant:tenant-dynamic:", r));
+    }
+
+    /// <summary>
+    /// Actor that accesses JSON-based dynamic trigger context.
+    /// </summary>
+    private class JsonAwareActor : IStreamActor<int, string>
+    {
+        public async IAsyncEnumerable<string> RunAsync(
+            IAsyncEnumerable<int> input,
+            IActorExecutionContext context)
+        {
+            var jsonContext = context.TriggerContext as JsonTriggerContext;
+            var tenantId = jsonContext?.Data?["tenantId"]?.GetValue<string>() ?? "unknown";
+
+            await foreach (var item in input)
+            {
+                yield return $"Tenant:{tenantId}:Item:{item}";
+            }
+        }
+    }
+
     private static async IAsyncEnumerable<int> CreateAsyncEnumerable(params int[] values)
     {
         foreach (var value in values)

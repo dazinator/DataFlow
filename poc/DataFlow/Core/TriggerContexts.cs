@@ -1,5 +1,67 @@
 namespace DataFlow.POC.Core;
 
+using System.Text.Json.Nodes;
+
+/// <summary>
+/// General-purpose JSON-based trigger context for dynamic scenarios.
+/// Allows trigger context to be provided as a flexible JSON object without requiring
+/// strongly-typed classes. Useful for scenarios where trigger data structure varies
+/// or is determined at runtime.
+/// </summary>
+/// <remarks>
+/// This implementation uses System.Text.Json.Nodes.JsonObject which is easily
+/// serializable/deserializable and supports dynamic property access.
+/// <example>
+/// Usage:
+/// <code>
+/// var triggerContext = new JsonTriggerContext
+/// {
+///     Data = new JsonObject
+///     {
+///         ["tenantId"] = "tenant-123",
+///         ["requestId"] = "req-456",
+///         ["customProperty"] = JsonValue.Create(42)
+///     }
+/// };
+/// 
+/// // In actor - access dynamically
+/// if (context.TriggerContext is JsonTriggerContext jsonContext)
+/// {
+///     var tenantId = jsonContext.Data?["tenantId"]?.GetValue&lt;string&gt;();
+///     var requestId = jsonContext.Data?["requestId"]?.GetValue&lt;string&gt;();
+/// }
+/// </code>
+/// </example>
+/// </remarks>
+public record JsonTriggerContext : ITriggerContext
+{
+    /// <summary>
+    /// The JSON object containing trigger context data.
+    /// Supports dynamic property access and is easily serializable.
+    /// </summary>
+    public JsonObject? Data { get; init; }
+
+    /// <summary>
+    /// Creates a JsonTriggerContext from a JSON string.
+    /// </summary>
+    /// <param name="json">JSON string to parse</param>
+    /// <returns>JsonTriggerContext with parsed data</returns>
+    public static JsonTriggerContext FromJson(string json)
+    {
+        var jsonObject = JsonNode.Parse(json)?.AsObject();
+        return new JsonTriggerContext { Data = jsonObject };
+    }
+
+    /// <summary>
+    /// Serializes the trigger context to a JSON string.
+    /// </summary>
+    /// <returns>JSON string representation</returns>
+    public string ToJson()
+    {
+        return Data?.ToJsonString() ?? "null";
+    }
+}
+
 /// <summary>
 /// Trigger context for scheduled/cron job executions.
 /// Contains information about the scheduled job that triggered the dataflow.
