@@ -4,6 +4,20 @@ using DataFlow.POC.Checkpointing;
 using DataFlow.POC.Observability;
 
 /// <summary>
+/// Marker interface for trigger-specific context data.
+/// Implementations should be immutable and contain information about what triggered the dataflow execution.
+/// </summary>
+/// <remarks>
+/// Example implementations:
+/// - ScheduledTriggerContext - for cron/scheduled jobs
+/// - MessageQueueTriggerContext - for message-driven execution
+/// - WebRequestTriggerContext - for request-driven execution
+/// </remarks>
+public interface ITriggerContext
+{
+}
+
+/// <summary>
 /// Represents the execution context for a dataflow.
 /// </summary>
 public interface IExecutionContext
@@ -34,6 +48,13 @@ public interface IExecutionContext
     /// Blocks can use this to emit custom metrics.
     /// </summary>
     IDataFlowMetrics? Metrics { get; }
+
+    /// <summary>
+    /// Optional trigger context that initiated this dataflow execution.
+    /// Contains trigger-specific information like tenant ID, message metadata, request details, etc.
+    /// Available to all blocks and actors during execution.
+    /// </summary>
+    ITriggerContext? TriggerContext { get; }
 }
 
 /// <summary>
@@ -58,17 +79,17 @@ public class ExecutionContext : IExecutionContext
     }
 
     public ExecutionContext(IServiceProvider serviceProvider, CancellationToken cancellationToken)
-        : this(serviceProvider, cancellationToken, Guid.NewGuid(), null, null)
+        : this(serviceProvider, cancellationToken, Guid.NewGuid(), null, null, null)
     {
     }
 
     public ExecutionContext(IServiceProvider serviceProvider, CancellationToken cancellationToken, Guid invocationId)
-        : this(serviceProvider, cancellationToken, invocationId, null, null)
+        : this(serviceProvider, cancellationToken, invocationId, null, null, null)
     {
     }
 
     public ExecutionContext(IServiceProvider serviceProvider, CancellationToken cancellationToken, Guid invocationId, ICheckpoint? recoveryCheckpoint)
-        : this(serviceProvider, cancellationToken, invocationId, recoveryCheckpoint, null)
+        : this(serviceProvider, cancellationToken, invocationId, recoveryCheckpoint, null, null)
     {
     }
 
@@ -78,12 +99,24 @@ public class ExecutionContext : IExecutionContext
         Guid invocationId, 
         ICheckpoint? recoveryCheckpoint,
         IDataFlowMetrics? metrics)
+        : this(serviceProvider, cancellationToken, invocationId, recoveryCheckpoint, metrics, null)
+    {
+    }
+
+    public ExecutionContext(
+        IServiceProvider serviceProvider, 
+        CancellationToken cancellationToken, 
+        Guid invocationId, 
+        ICheckpoint? recoveryCheckpoint,
+        IDataFlowMetrics? metrics,
+        ITriggerContext? triggerContext)
     {
         ServiceProvider = serviceProvider;
         CancellationToken = cancellationToken;
         InvocationId = invocationId;
         RecoveryCheckpoint = recoveryCheckpoint;
         Metrics = metrics;
+        TriggerContext = triggerContext;
     }
 
     public CancellationToken CancellationToken { get; }
@@ -91,4 +124,5 @@ public class ExecutionContext : IExecutionContext
     public Guid InvocationId { get; }
     public ICheckpoint? RecoveryCheckpoint { get; }
     public IDataFlowMetrics? Metrics { get; }
+    public ITriggerContext? TriggerContext { get; }
 }

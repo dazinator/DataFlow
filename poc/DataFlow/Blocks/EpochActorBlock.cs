@@ -104,7 +104,9 @@ public sealed class EpochActorBlock<TIn, TOut, TActor> : BlockBase<IEpochStream<
         _context.Reset(
             cancellationToken,
             context.InvocationId,
-            onRotationRequested);
+            onRotationRequested,
+            epochCoordinator: null,
+            context.TriggerContext);
     }
 
 
