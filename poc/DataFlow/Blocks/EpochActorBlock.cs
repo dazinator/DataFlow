@@ -106,7 +106,7 @@ public sealed class EpochActorBlock<TIn, TOut, TActor> : BlockBase<IEpochStream<
             context.InvocationId,
             onRotationRequested,
             epochCoordinator: null,
-            context.TriggerContext);
+            triggerContext: context.TriggerContext);
     }
 
 
