@@ -13,8 +13,9 @@
 3. [Core Concepts](#core-concepts)
 4. [Your First DataFlow Graph](#your-first-dataflow-graph)
 5. [Executing Your Graph](#executing-your-graph)
-6. [Real-World Example](#real-world-example)
-7. [Next Steps](#next-steps)
+6. [Passing Trigger Context](#passing-trigger-context)
+7. [Real-World Example](#real-world-example)
+8. [Next Steps](#next-steps)
 
 ---
 
@@ -436,6 +437,259 @@ public class MyService
 ```
 
 **Pattern**: Inject `IServiceProvider` and use `GetKeyedService<DataFlowGraph>(key)` to resolve graphs.
+
+---
+
+## Passing Trigger Context
+
+DataFlow supports passing trigger-specific metadata (like tenant ID, message properties, or request details) through the execution context. This allows your actors to adapt their behavior based on how the dataflow was triggered.
+
+### When to Use Trigger Context
+
+Use trigger context when your dataflow needs to:
+- Process data differently for different tenants (multi-tenancy)
+- Access message metadata for retry logic
+- Track correlation IDs from web requests
+- Use dynamic parameters determined at runtime
+
+### Static Trigger Context (Recommended for Known Structure)
+
+For scenarios where you know the trigger structure at compile time, use strongly-typed trigger contexts:
+
+```csharp
+// Define trigger context with known properties
+var triggerContext = new ScheduledTriggerContext
+{
+    JobName = "DailyReport",
+    TenantId = "tenant-123",
+    ScheduledTime = DateTime.UtcNow
+};
+
+// Pass to execution context
+var context = new ExecutionContext(
+    app.Services,
+    CancellationToken.None,
+    Guid.NewGuid(),
+    recoveryCheckpoint: null,
+    metrics: null,
+    triggerContext);  // Trigger context parameter
+
+await graph.ExecuteAsync(context);
+```
+
+**Access in actors:**
+```csharp
+public class TenantAwareActor : IStreamActor<Order, ProcessedOrder>
+{
+    public async IAsyncEnumerable<ProcessedOrder> RunAsync(
+        IAsyncEnumerable<Order> input,
+        IActorExecutionContext context)
+    {
+        // Extract tenant ID from trigger context
+        string tenantId = "default";
+        if (context.TriggerContext is ScheduledTriggerContext scheduled)
+        {
+            tenantId = scheduled.TenantId ?? "default";
+        }
+        
+        await foreach (var order in input.WithCancellation(context.CancellationToken))
+        {
+            // Use tenant ID in processing
+            yield return ProcessOrderForTenant(order, tenantId);
+        }
+    }
+}
+```
+
+### Dynamic Trigger Context (For Flexible/Runtime Data)
+
+When trigger structure is determined at runtime or varies between calls, use `JsonTriggerContext`:
+
+```csharp
+// Dynamic JSON-based trigger context
+var triggerContext = new JsonTriggerContext
+{
+    Data = new JsonObject
+    {
+        ["tenantId"] = "tenant-123",
+        ["reportDate"] = JsonValue.Create(DateTime.UtcNow),
+        ["customProperty"] = 42,
+        ["metadata"] = new JsonObject
+        {
+            ["source"] = "scheduler",
+            ["priority"] = "high"
+        }
+    }
+};
+
+// Or create from JSON string
+var triggerContext2 = JsonTriggerContext.FromJson(@"{
+    ""tenantId"": ""tenant-456"",
+    ""customData"": ""value""
+}");
+
+var context = new ExecutionContext(
+    app.Services,
+    CancellationToken.None,
+    Guid.NewGuid(),
+    null,
+    null,
+    triggerContext);
+
+await graph.ExecuteAsync(context);
+```
+
+**Access dynamic properties in actors:**
+```csharp
+public class DynamicActor : IStreamActor<Data, Result>
+{
+    public async IAsyncEnumerable<Result> RunAsync(
+        IAsyncEnumerable<Data> input,
+        IActorExecutionContext context)
+    {
+        // Extract values from JSON context
+        string tenantId = "default";
+        int priority = 0;
+        
+        if (context.TriggerContext is JsonTriggerContext json)
+        {
+            tenantId = json.Data?["tenantId"]?.GetValue<string>() ?? "default";
+            priority = json.Data?["customProperty"]?.GetValue<int>() ?? 0;
+            
+            // Access nested properties
+            var source = json.Data?["metadata"]?["source"]?.GetValue<string>();
+        }
+        
+        await foreach (var item in input.WithCancellation(context.CancellationToken))
+        {
+            yield return ProcessWithContext(item, tenantId, priority);
+        }
+    }
+}
+```
+
+### Built-in Trigger Context Types
+
+DataFlow provides several built-in trigger context types:
+
+**ScheduledTriggerContext** - For scheduled/timer jobs
+```csharp
+new ScheduledTriggerContext
+{
+    JobName = "DailyReport",
+    TenantId = "tenant-123",
+    ScheduledTime = DateTime.UtcNow,
+    Metadata = new Dictionary<string, string> { ["region"] = "us-west" }
+}
+```
+
+**MessageQueueTriggerContext** - For message queue triggers
+```csharp
+new MessageQueueTriggerContext
+{
+    QueueName = "orders-queue",
+    MessageId = "msg-456",
+    CorrelationId = "corr-789",
+    DeliveryCount = 2,  // For retry logic
+    MessageProperties = new Dictionary<string, string>
+    {
+        ["tenantId"] = "tenant-123"
+    }
+}
+```
+
+**WebRequestTriggerContext** - For HTTP request triggers
+```csharp
+new WebRequestTriggerContext
+{
+    UserId = "user-123",
+    TenantId = "tenant-456",
+    RequestPath = "/api/reports",
+    RequestMethod = "POST",
+    RequestHeaders = new Dictionary<string, string>
+    {
+        ["X-Correlation-Id"] = "corr-789"
+    }
+}
+```
+
+**JsonTriggerContext** - For flexible/dynamic scenarios
+```csharp
+new JsonTriggerContext
+{
+    Data = new JsonObject { /* any structure */ }
+}
+```
+
+### Best Practices
+
+**1. Provide defaults for missing trigger context:**
+```csharp
+// Good - defensive with defaults
+string tenantId = "default";
+if (context.TriggerContext is ScheduledTriggerContext scheduled && 
+    scheduled.TenantId != null)
+{
+    tenantId = scheduled.TenantId;
+}
+```
+
+**2. Validate required parameters early:**
+```csharp
+public async IAsyncEnumerable<Result> RunAsync(
+    IAsyncEnumerable<Data> input,
+    IActorExecutionContext context)
+{
+    // Validate upfront before processing
+    var tenantId = ExtractTenantId(context.TriggerContext);
+    if (string.IsNullOrEmpty(tenantId))
+    {
+        throw new InvalidOperationException(
+            "TenantId is required. Please provide it in trigger context.");
+    }
+    
+    await foreach (var item in input)
+        yield return ProcessForTenant(item, tenantId);
+}
+```
+
+**3. Document parameter requirements:**
+```csharp
+/// <summary>
+/// Processes reports with tenant-specific logic.
+/// </summary>
+/// <remarks>
+/// Required Parameters:
+/// - tenantId (string): Tenant identifier
+/// 
+/// Optional Parameters:
+/// - reportDate (DateTime): Report generation date
+/// </remarks>
+public class TenantAwareReportActor : IStreamActor<ReportData, Report>
+{
+    // Implementation
+}
+```
+
+### Backward Compatibility
+
+Trigger context is **completely optional**. Existing code continues to work without any changes:
+
+```csharp
+// No trigger context - works perfectly
+var context = new ExecutionContext(app.Services, CancellationToken.None);
+await graph.ExecuteAsync(context);
+
+// Actors handle null context gracefully
+if (context.TriggerContext is ScheduledTriggerContext scheduled)
+{
+    // Use trigger context
+}
+else
+{
+    // Use defaults
+}
+```
 
 ---
 
