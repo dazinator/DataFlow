@@ -28,4 +28,11 @@ public interface IActorExecutionContext
     /// Null for non-epoch contexts.
     /// </summary>
     IEpochCoordinator? EpochCoordinator { get; }
+
+    /// <summary>
+    /// Optional trigger context providing trigger-specific information.
+    /// Available to all actors for accessing trigger metadata
+    /// (e.g., tenant ID, message properties, request details).
+    /// </summary>
+    ITriggerContext? TriggerContext { get; }
 }
