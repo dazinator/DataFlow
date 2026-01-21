@@ -62,6 +62,205 @@ public interface IActorExecutionContext
 
 ---
 
+## Known Limitations and Future Enhancements
+
+### Design Limitations (Phase 1)
+
+This implementation has two known limitations documented during research review:
+
+#### Limitation 1: Actor Coupling to Trigger Context Types
+
+Actors must check for specific trigger context types, creating tight coupling:
+
+```csharp
+// Actors check specific types
+if (context.TriggerContext is ScheduledTriggerContext scheduled)
+    tenantId = scheduled.TenantId;
+else if (context.TriggerContext is JsonTriggerContext json)
+    tenantId = json.Data?["tenantId"]?.GetValue<string>();
+```
+
+**Impact**: Adding new trigger types may require updating actors.
+
+**Mitigation**:
+- Use `JsonTriggerContext` for flexible scenarios
+- Document parameter requirements in actor comments
+- Plan Parameter Provider pattern (Phase 2)
+
+#### Limitation 2: No Pre-Execution Parameter Validation
+
+No way to validate required parameters before execution:
+
+```csharp
+// Runtime failure if parameter missing
+var context = new ExecutionContext(..., triggerContext);
+await graph.ExecuteAsync(context); // May fail if actor needs missing parameter
+```
+
+**Impact**: Parameters validated only at runtime.
+
+**Mitigation**:
+- Clear error messages in actors
+- Document parameter requirements
+- Plan parameter metadata support (Phase 3)
+
+### Best Practices for Phase 1
+
+#### For Actor Developers
+
+**1. Check for parameter availability, not type:**
+
+```csharp
+// GOOD: Defensive with defaults
+string tenantId = "default";
+
+if (context.TriggerContext is ScheduledTriggerContext scheduled && 
+    scheduled.TenantId != null)
+{
+    tenantId = scheduled.TenantId;
+}
+else if (context.TriggerContext is MessageQueueTriggerContext queue &&
+    queue.MessageProperties?.ContainsKey("tenantId") == true)
+{
+    tenantId = queue.MessageProperties["tenantId"];
+}
+else if (context.TriggerContext is JsonTriggerContext json &&
+    json.Data?.ContainsKey("tenantId") == true)
+{
+    tenantId = json.Data["tenantId"]?.GetValue<string>() ?? "default";
+}
+```
+
+**2. Document parameter requirements:**
+
+```csharp
+/// <summary>
+/// Processes reports with tenant-specific logic.
+/// </summary>
+/// <remarks>
+/// <para><b>Required Parameters:</b></para>
+/// <list type="bullet">
+/// <item><term>tenantId</term><description>String - Tenant identifier</description></item>
+/// </list>
+/// <para><b>Optional Parameters:</b></para>
+/// <list type="bullet">
+/// <item><term>reportDate</term><description>DateTime - Report generation date</description></item>
+/// </list>
+/// </remarks>
+public class TenantAwareActor : IStreamActor<ReportData, ProcessedReport>
+{
+    // Implementation
+}
+```
+
+**3. Validate parameters early:**
+
+```csharp
+public async IAsyncEnumerable<ProcessedReport> RunAsync(
+    IAsyncEnumerable<ReportData> input,
+    IActorExecutionContext context)
+{
+    // Validate required parameters upfront
+    string tenantId = ExtractTenantId(context.TriggerContext);
+    
+    if (string.IsNullOrEmpty(tenantId))
+    {
+        throw new InvalidOperationException(
+            "TenantId is required. Please provide it in trigger context.");
+    }
+    
+    await foreach (var data in input)
+    {
+        yield return new ProcessedReport { TenantId = tenantId, Data = data };
+    }
+}
+```
+
+#### For Dataflow Callers
+
+**1. Use JsonTriggerContext for maximum flexibility:**
+
+```csharp
+// Flexible - works with any actor expecting these parameters
+var triggerContext = new JsonTriggerContext
+{
+    Data = new JsonObject
+    {
+        ["tenantId"] = "tenant-123",
+        ["reportDate"] = JsonValue.Create(DateTime.UtcNow)
+    }
+};
+```
+
+**2. Document trigger requirements:**
+
+```csharp
+/// <summary>
+/// Executes daily report generation for a tenant.
+/// </summary>
+/// <param name="tenantId">Required. Tenant identifier.</param>
+/// <param name="reportDate">Optional. Report date (defaults to today).</param>
+public async Task ExecuteDailyReport(string tenantId, DateTime? reportDate = null)
+{
+    var triggerContext = new ScheduledTriggerContext
+    {
+        JobName = "DailyReport",
+        TenantId = tenantId,
+        ScheduledTime = reportDate ?? DateTime.UtcNow
+    };
+    
+    var context = new ExecutionContext(services, cancellationToken, 
+        Guid.NewGuid(), null, null, triggerContext);
+    
+    await graph.ExecuteAsync(context);
+}
+```
+
+### Future Enhancement Roadmap
+
+**Phase 2: Parameter Provider Pattern**
+
+Decouple actors from specific trigger context types:
+
+```csharp
+// Future: Parameter provider abstraction
+public interface IParameterProvider
+{
+    bool TryGetParameter<T>(string name, out T? value);
+    T GetRequiredParameter<T>(string name);
+}
+
+// Actor usage
+var tenantId = context.Parameters.GetRequiredParameter<string>("tenantId");
+```
+
+**Phase 3: Parameter Metadata & Validation**
+
+Add compile-time parameter declarations and pre-execution validation:
+
+```csharp
+// Future: Declare requirements
+public class TenantAwareActor : IParameterizedActor<ReportData, ProcessedReport>
+{
+    public IReadOnlyList<IParameterDescriptor> GetParameterDescriptors()
+    {
+        return new[]
+        {
+            new ParameterDescriptor<string>("tenantId", required: true)
+        };
+    }
+}
+
+// Pre-execution validation
+var requiredParams = graph.GetRequiredParameters();
+ValidateParameters(requiredParams, triggerContext); // Fails fast if missing
+await graph.ExecuteAsync(context);
+```
+
+**See**: [`/research/trigger-context-passing/design/advanced-considerations.md`](../design/advanced-considerations.md) for complete analysis and patterns.
+
+---
+
 ## Success Criteria
 
 - [ ] `ITriggerContext` interface added to `/poc/DataFlow/Core/IExecutionContext.cs`

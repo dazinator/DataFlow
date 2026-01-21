@@ -327,6 +327,63 @@ Passed!  - Failed:     0, Passed:     4, Skipped:     0, Total:     4, Duration:
 
 ---
 
+## Design Considerations and Limitations
+
+### Known Limitations (Documented for Future Enhancement)
+
+During prototype review, two design concerns were identified:
+
+#### 1. Actor Coupling to Specific Trigger Context Types
+
+**Issue**: Actors must check for specific trigger context types, creating coupling:
+- If new trigger context types are added, existing actors may need updates
+- Actors cannot be truly polymorphic with respect to trigger sources
+
+**Example**:
+```csharp
+// Tightly coupled to specific types
+if (context.TriggerContext is ScheduledTriggerContext scheduled)
+    tenantId = scheduled.TenantId;
+else if (context.TriggerContext is JsonTriggerContext json)
+    tenantId = json.Data?["tenantId"]?.GetValue<string>();
+```
+
+**Mitigation for Phase 1**:
+- Document best practices for defensive parameter access
+- Use `JsonTriggerContext` for maximum flexibility
+- Plan Parameter Provider pattern for Phase 2
+
+#### 2. No Pre-Execution Parameter Validation
+
+**Issue**: No way to know what parameters actors need before execution:
+- Parameters validated only at runtime
+- Missing parameters cause runtime failures
+- No metadata about parameter requirements
+
+**Mitigation for Phase 1**:
+- Clear error messages when parameters missing
+- Document parameter requirements in actor comments
+- Plan parameter metadata support for Phase 2+
+
+### Future Enhancement Path
+
+A comprehensive analysis of these concerns and proposed solutions has been documented:
+
+**See**: [`design/advanced-considerations.md`](design/advanced-considerations.md)
+
+This document covers:
+1. **Parameter Provider Pattern** (Phase 2) - Decouple actors from specific types
+2. **Parameter Metadata & Validation** (Phase 3) - Compile-time safety and pre-execution validation
+3. **Comparison to industry patterns** - ASP.NET Core model binding, Azure Functions
+4. **Implementation roadmap** - Phased approach to enhanced parameter handling
+
+**Recommendation**: 
+- ✅ Current design suitable for Phase 1 (initial implementation)
+- ✅ Limitations documented and mitigated
+- ✅ Clear evolution path defined
+
+---
+
 ## Success Metrics Results
 
 | Metric | Target | Result |
