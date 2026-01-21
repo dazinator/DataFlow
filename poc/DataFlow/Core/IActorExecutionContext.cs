@@ -28,11 +28,4 @@ public interface IActorExecutionContext
     /// Null for non-epoch contexts.
     /// </summary>
     IEpochCoordinator? EpochCoordinator { get; }
-
-    /// <summary>
-    /// Optional trigger context that initiated this dataflow execution.
-    /// Same context as available in IExecutionContext.TriggerContext.
-    /// Actors can use this to access trigger-specific information.
-    /// </summary>
-    ITriggerContext? TriggerContext { get; }
 }

@@ -56,7 +56,6 @@ public sealed class EpochSourceBlock<T, TActor> : BlockBase<object, IEpochStream
             context.CancellationToken,
             context.InvocationId,
             () => { }, // Source actors don't rotate
-            coordinator,
-            context.TriggerContext);
+            coordinator);
     }
 }

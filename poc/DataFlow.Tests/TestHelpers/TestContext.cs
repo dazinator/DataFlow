@@ -17,16 +17,11 @@ public static class TestContext
     /// </summary>
     public static IExecutionContext CreateExecution(
         IServiceProvider? serviceProvider = null,
-        CancellationToken cancellationToken = default,
-        ITriggerContext? triggerContext = null)
+        CancellationToken cancellationToken = default)
     {
         return new ExecutionContext(
             serviceProvider ?? new ServiceCollection().BuildServiceProvider(),
-            cancellationToken,
-            Guid.NewGuid(),
-            recoveryCheckpoint: null,
-            metrics: null,
-            triggerContext);
+            cancellationToken);
     }
 
     /// <summary>
@@ -36,27 +31,22 @@ public static class TestContext
     /// var context = TestContext.CreateActor();
     /// </summary>
     public static IActorExecutionContext CreateActor(
-        CancellationToken cancellationToken = default,
-        ITriggerContext? triggerContext = null)
+        CancellationToken cancellationToken = default)
     {
-        return new SimpleActorExecutionContext(cancellationToken, triggerContext);
+        return new SimpleActorExecutionContext(cancellationToken);
     }
 
     private class SimpleActorExecutionContext : IActorExecutionContext
     {
-        public SimpleActorExecutionContext(
-            CancellationToken cancellationToken,
-            ITriggerContext? triggerContext = null)
+        public SimpleActorExecutionContext(CancellationToken cancellationToken)
         {
             CancellationToken = cancellationToken;
             InvocationId = Guid.NewGuid();
-            TriggerContext = triggerContext;
         }
 
         public CancellationToken CancellationToken { get; }
         public Guid InvocationId { get; }
         public IEpochCoordinator? EpochCoordinator => null;
-        public ITriggerContext? TriggerContext { get; }
         public void RequestRotation() { }
     }
 }

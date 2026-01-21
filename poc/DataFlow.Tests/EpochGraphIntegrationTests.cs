@@ -412,7 +412,6 @@ public class EpochGraphIntegrationTests : IAsyncDisposable
         public Guid InvocationId { get; } = Guid.NewGuid();
         public ICheckpoint? RecoveryCheckpoint { get; } = null;
         public POC.Observability.IDataFlowMetrics? Metrics { get; } = null;
-        public ITriggerContext? TriggerContext { get; } = null;
         
         public void Cancel() => _cts.Cancel();
     }

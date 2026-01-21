@@ -10,12 +10,10 @@ internal sealed class ActorExecutionContext : IActorExecutionContext
     private Guid _invocationId;
     private Action? _requestRotation;
     private IEpochCoordinator? _epochCoordinator;
-    private ITriggerContext? _triggerContext;
 
     public CancellationToken CancellationToken => _cancellationToken;
     public Guid InvocationId => _invocationId;
     public IEpochCoordinator? EpochCoordinator => _epochCoordinator;
-    public ITriggerContext? TriggerContext => _triggerContext;
 
     public void RequestRotation() => _requestRotation?.Invoke();
 
@@ -27,13 +25,11 @@ internal sealed class ActorExecutionContext : IActorExecutionContext
         CancellationToken cancellationToken,
         Guid invocationId,
         Action requestRotation,
-        IEpochCoordinator? epochCoordinator = null,
-        ITriggerContext? triggerContext = null)
+        IEpochCoordinator? epochCoordinator = null)
     {
         _cancellationToken = cancellationToken;
         _invocationId = invocationId;
         _requestRotation = requestRotation;
         _epochCoordinator = epochCoordinator;
-        _triggerContext = triggerContext;
     }
 }
