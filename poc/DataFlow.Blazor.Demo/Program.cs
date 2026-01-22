@@ -1,33 +1,16 @@
+using Microsoft.AspNetCore.Components.Web;
+using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using DataFlow.Blazor.Events;
 using DataFlow.Blazor.Services;
 using DataFlow.Blazor.Demo.Components;
 
-var builder = WebApplication.CreateBuilder(args);
-
-// Add services to the container.
-builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
+var builder = WebAssemblyHostBuilder.CreateDefault(args);
+builder.RootComponents.Add<App>("#app");
+builder.RootComponents.Add<HeadOutlet>("head::after");
 
 // Register DataFlow.Blazor event sources
-builder.Services.AddSingleton<IEventSource, MockEventSource>();
-builder.Services.AddSingleton<BranchingMockEventSource>();
-builder.Services.AddSingleton<FanInMockEventSource>();
+builder.Services.AddScoped<IEventSource, MockEventSource>();
+builder.Services.AddScoped<BranchingMockEventSource>();
+builder.Services.AddScoped<FanInMockEventSource>();
 
-var app = builder.Build();
-
-// Configure the HTTP request pipeline.
-if (!app.Environment.IsDevelopment())
-{
-    app.UseExceptionHandler("/Error", createScopeForErrors: true);
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
-    app.UseHsts();
-}
-
-app.UseHttpsRedirection();
-app.UseStaticFiles();
-app.UseAntiforgery();
-
-app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
-
-app.Run();
+await builder.Build().RunAsync();
