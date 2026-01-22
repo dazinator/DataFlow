@@ -621,39 +621,114 @@ new JsonTriggerContext
 }
 ```
 
-### Best Practices
+### Parameter Provider Pattern (Recommended)
 
-**1. Provide defaults for missing trigger context:**
+For better decoupling, use the **Parameter Provider** instead of checking specific trigger context types. This allows actors to work with ANY trigger context that provides the requested parameters:
+
+**Using Parameter Provider:**
 ```csharp
-// Good - defensive with defaults
-string tenantId = "default";
-if (context.TriggerContext is ScheduledTriggerContext scheduled && 
-    scheduled.TenantId != null)
+public class DecoupledActor : IStreamActor<Order, ProcessedOrder>
 {
-    tenantId = scheduled.TenantId;
+    public async IAsyncEnumerable<ProcessedOrder> RunAsync(
+        IAsyncEnumerable<Order> input,
+        IActorExecutionContext context)
+    {
+        // Decoupled - works with ANY trigger context that provides "tenantId"
+        var tenantId = context.Parameters.GetParameter("tenantId", "default");
+        var priority = context.Parameters.GetParameter("priority", "normal");
+        
+        await foreach (var order in input.WithCancellation(context.CancellationToken))
+        {
+            yield return ProcessOrderForTenant(order, tenantId, priority);
+        }
+    }
 }
 ```
 
-**2. Validate required parameters early:**
+**Benefits:**
+- ✅ No need to check specific trigger context types
+- ✅ Works automatically with new trigger types
+- ✅ Cleaner, more maintainable code
+- ✅ Easier to test (mock parameter provider)
+
+**Parameter Provider Methods:**
+
+```csharp
+// Try to get a parameter (returns false if not found)
+if (context.Parameters.TryGetParameter<string>("tenantId", out var tenantId))
+{
+    // Use tenantId
+}
+
+// Get with default value
+var pageSize = context.Parameters.GetParameter("pageSize", 50);
+
+// Get required parameter (throws if missing)
+var tenantId = context.Parameters.GetRequiredParameter<string>("tenantId");
+```
+
+**Works with all trigger context types:**
+
+```csharp
+// Scheduled job trigger
+var triggerContext = new ScheduledTriggerContext { TenantId = "tenant-123" };
+
+// Message queue trigger
+var triggerContext = new MessageQueueTriggerContext 
+{ 
+    MessageProperties = new Dictionary<string, string> { ["tenantId"] = "tenant-123" }
+};
+
+// Web request trigger
+var triggerContext = new WebRequestTriggerContext { TenantId = "tenant-123" };
+
+// JSON trigger
+var triggerContext = new JsonTriggerContext 
+{ 
+    Data = new JsonObject { ["tenantId"] = "tenant-123" }
+};
+
+// Actor code is the SAME for all cases:
+var tenantId = context.Parameters.GetParameter("tenantId", "default");
+```
+
+### Best Practices
+
+**1. Prefer Parameter Provider over direct trigger context checks:**
+```csharp
+// ✅ RECOMMENDED - Decoupled, works with any trigger type
+var tenantId = context.Parameters.GetParameter("tenantId", "default");
+
+// ❌ NOT RECOMMENDED - Tightly coupled to specific trigger types
+if (context.TriggerContext is ScheduledTriggerContext scheduled)
+    tenantId = scheduled.TenantId;
+else if (context.TriggerContext is MessageQueueTriggerContext queue)
+    tenantId = queue.MessageProperties?["tenantId"];
+// ... more type checks
+```
+
+**2. Provide defaults for missing parameters:**
+```csharp
+// Good - always has a valid value
+var tenantId = context.Parameters.GetParameter("tenantId", "default");
+var pageSize = context.Parameters.GetParameter("pageSize", 50);
+```
+
+**3. Validate required parameters early:**
 ```csharp
 public async IAsyncEnumerable<Result> RunAsync(
     IAsyncEnumerable<Data> input,
     IActorExecutionContext context)
 {
-    // Validate upfront before processing
-    var tenantId = ExtractTenantId(context.TriggerContext);
-    if (string.IsNullOrEmpty(tenantId))
-    {
-        throw new InvalidOperationException(
-            "TenantId is required. Please provide it in trigger context.");
-    }
+    // Validate upfront before processing - throws if missing
+    var tenantId = context.Parameters.GetRequiredParameter<string>("tenantId");
     
     await foreach (var item in input)
         yield return ProcessForTenant(item, tenantId);
 }
 ```
 
-**3. Document parameter requirements:**
+**4. Document parameter requirements:**
 ```csharp
 /// <summary>
 /// Processes reports with tenant-specific logic.
