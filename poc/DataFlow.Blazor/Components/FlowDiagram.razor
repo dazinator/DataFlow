@@ -1,39 +1,57 @@
-@* Simple SVG-based flow diagram *@
+@* SVG-based flow diagram with branching topology support *@
 
 <div class="flow-diagram">
     <svg width="100%" height="600" style="border: 1px solid #dee2e6; border-radius: 8px; background: white;">
         @{
-            var blocksList = State.Blocks.ToList();
-            int totalBlocks = blocksList.Count;
-            double spacing = totalBlocks > 0 ? 800.0 / totalBlocks : 200;
-            double startX = 100;
-            double y = 300;
+            var topology = FlowTopology.Analyze(State.Blocks, State.Channels);
+            var positions = CalculateBlockPositions(topology);
         }
 
         @* Draw connections (edges) first so they appear behind nodes *@
-        @for (int i = 0; i < blocksList.Count - 1; i++)
+        @foreach (var (sourceBlock, targets) in topology.Connections)
         {
-            var x1 = startX + (i * spacing) + 75;  // Center of current block
-            var x2 = startX + ((i + 1) * spacing) - 75;  // Left edge of next block
+            if (!positions.ContainsKey(sourceBlock)) continue;
             
-            var sourceBlock = blocksList[i].Value;
-            var targetBlock = blocksList[i + 1].Value;
+            var (x1, y1) = positions[sourceBlock];
             
-            <g class="edge">
-                @* Arrow line *@
-                <line x1="@x1" y1="@y" x2="@x2" y2="@y" 
-                      stroke="#666" stroke-width="2" marker-end="url(#arrowhead)" />
+            foreach (var targetBlock in targets)
+            {
+                if (!positions.ContainsKey(targetBlock)) continue;
                 
-                @* Channel stats if available *@
-                @if (State.Channels.TryGetValue(blocksList[i].Key, out var channelState))
-                {
-                    var midX = (x1 + x2) / 2;
-                    var midY = y - 20;
-                    var channelText = $"{channelState.CurrentCount}/{channelState.BufferCapacity} ({channelState.BufferUtilizationPercent:F0}%)";
+                var (x2, y2) = positions[targetBlock];
+                
+                <g class="edge">
+                    @* Arrow line - use curves for better visual clarity *@
+                    @if (Math.Abs(y1 - y2) > 10)
+                    {
+                        @* Curved path for branching *@
+                        var midX = (x1 + x2) / 2;
+                        var path = $"M {x1} {y1} Q {midX} {y1}, {midX} {(y1 + y2) / 2} T {x2} {y2}";
+                        <path d="@path" stroke="#666" stroke-width="2" fill="none" marker-end="url(#arrowhead)" />
+                    }
+                    else
+                    {
+                        @* Straight line for linear flow *@
+                        <line x1="@x1" y1="@y1" x2="@x2" y2="@y2" 
+                              stroke="#666" stroke-width="2" marker-end="url(#arrowhead)" />
+                    }
                     
-                    <svg:text x="@midX" y="@midY" text-anchor="middle" font-size="11" fill="#666">@channelText</svg:text>
-                }
-            </g>
+                    @* Channel stats with improved spacing *@
+                    @if (State.Channels.TryGetValue(sourceBlock, out var channelState))
+                    {
+                        var midX = (x1 + x2) / 2;
+                        var midY = (y1 + y2) / 2 - 30;  // More vertical spacing
+                        var channelText = $"{channelState.CurrentCount}/{channelState.BufferCapacity}";
+                        var percentText = $"({channelState.BufferUtilizationPercent:F0}%)";
+                        
+                        @* Background rectangle for better readability *@
+                        <rect x="@(midX - 35)" y="@(midY - 18)" width="70" height="32" 
+                              fill="white" stroke="#ddd" stroke-width="1" rx="4" opacity="0.95" />
+                        <svg:text x="@midX" y="@(midY - 3)" text-anchor="middle" font-size="11" font-weight="600" fill="#333">@channelText</svg:text>
+                        <svg:text x="@midX" y="@(midY + 10)" text-anchor="middle" font-size="10" fill="#666">@percentText</svg:text>
+                    }
+                </g>
+            }
         }
 
         @* Arrow marker definition *@
@@ -44,11 +62,11 @@
         </defs>
 
         @* Draw blocks (nodes) *@
-        @for (int i = 0; i < blocksList.Count; i++)
+        @foreach (var (blockName, blockState) in State.Blocks)
         {
-            var (blockName, blockState) = blocksList[i];
-            var x = startX + (i * spacing);
+            if (!positions.ContainsKey(blockName)) continue;
             
+            var (x, y) = positions[blockName];
             var statusClass = GetBlockStatusClass(blockState.State);
             var fillColor = GetBlockFillColor(blockState.State);
             var borderColor = GetBlockBorderColor(blockState.State);
@@ -83,6 +101,43 @@
 @code {
     [Parameter]
     public FlowExecutionState State { get; set; } = null!;
+
+    private Dictionary<string, (double x, double y)> CalculateBlockPositions(FlowTopology topology)
+    {
+        var positions = new Dictionary<string, (double x, double y)>();
+        
+        // Group blocks by layer
+        var layers = new Dictionary<int, List<string>>();
+        foreach (var (blockName, (layer, position)) in topology.BlockPositions)
+        {
+            if (!layers.ContainsKey(layer))
+                layers[layer] = new List<string>();
+            layers[layer].Add(blockName);
+        }
+        
+        // Layout constants
+        const double layerSpacing = 300;  // Increased horizontal spacing
+        const double blockSpacing = 150;   // Vertical spacing between blocks in same layer
+        const double startX = 150;
+        const double startY = 300;
+        
+        foreach (var (layer, blocks) in layers)
+        {
+            var x = startX + (layer * layerSpacing);
+            
+            // Center blocks vertically within the layer
+            var totalHeight = (blocks.Count - 1) * blockSpacing;
+            var yStart = startY - (totalHeight / 2);
+            
+            for (int i = 0; i < blocks.Count; i++)
+            {
+                var y = yStart + (i * blockSpacing);
+                positions[blocks[i]] = (x, y);
+            }
+        }
+        
+        return positions;
+    }
 
     private string GetBlockStatusClass(Events.BlockState state)
     {

@@ -8,8 +8,10 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-// Register DataFlow.Blazor services
+// Register DataFlow.Blazor event sources
 builder.Services.AddSingleton<IEventSource, MockEventSource>();
+builder.Services.AddSingleton<BranchingMockEventSource>();
+builder.Services.AddSingleton<FanInMockEventSource>();
 
 var app = builder.Build();
 

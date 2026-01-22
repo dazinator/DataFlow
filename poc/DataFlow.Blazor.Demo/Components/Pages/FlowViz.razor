@@ -3,11 +3,12 @@
 @using DataFlow.Blazor.Services
 @rendermode InteractiveServer
 
-<PageTitle>DataFlow Visualization Demo</PageTitle>
+<PageTitle>Linear Topology Demo</PageTitle>
 
-<h1>DataFlow Visualization Demo</h1>
+<h1>DataFlow Visualization - Linear Topology</h1>
 
-<p>This demo shows real-time visualization of a DataFlow pipeline execution.</p>
+<p>This demo shows a simple <strong>linear pipeline</strong> with sequential processing.</p>
+<p><strong>Topology:</strong> Producer → Transform → Batch → Processor</p>
 
 <div style="margin: 1rem 0;">
     <button class="btn btn-primary" @onclick="StartNewFlow" disabled="@_isRunning">

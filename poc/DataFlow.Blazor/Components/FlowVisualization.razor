@@ -17,6 +17,9 @@
     [Parameter]
     public Guid InvocationId { get; set; }
 
+    [Parameter]
+    public IEventSource? EventSourceOverride { get; set; }
+
     private FlowExecutionState? _state;
     private EventProcessor? _processor;
     private CancellationTokenSource? _cts;
@@ -35,8 +38,10 @@
     {
         try
         {
+            var eventSource = EventSourceOverride ?? EventSource;
+            
             // Try to get snapshot first for fast initial load
-            var snapshot = await EventSource.GetSnapshotAsync(InvocationId, cancellationToken);
+            var snapshot = await eventSource.GetSnapshotAsync(InvocationId, cancellationToken);
             if (snapshot != null)
             {
                 _processor!.ApplySnapshot(snapshot);
@@ -44,7 +49,7 @@
             }
 
             // Process real-time events
-            await foreach (var evt in EventSource.GetEventsAsync(InvocationId, cancellationToken))
+            await foreach (var evt in eventSource.GetEventsAsync(InvocationId, cancellationToken))
             {
                 _processor!.ProcessEvent(evt);
                 await InvokeAsync(StateHasChanged);
