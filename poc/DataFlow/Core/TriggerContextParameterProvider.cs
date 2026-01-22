@@ -26,25 +26,15 @@ public class TriggerContextParameterProvider : IParameterProvider
         if (_triggerContext == null)
             return false;
         
-        // Try each trigger context type
-        if (_triggerContext is ScheduledTriggerContext scheduled)
+        // Try each trigger context type - guards removed since we already checked the type
+        return _triggerContext switch
         {
-            return TryGetFromScheduled(name, out value);
-        }
-        else if (_triggerContext is MessageQueueTriggerContext queue)
-        {
-            return TryGetFromQueue(name, out value);
-        }
-        else if (_triggerContext is WebRequestTriggerContext web)
-        {
-            return TryGetFromWeb(name, out value);
-        }
-        else if (_triggerContext is JsonTriggerContext json)
-        {
-            return TryGetFromJson(name, json.Data, out value);
-        }
-        
-        return false;
+            ScheduledTriggerContext scheduled => TryGetFromScheduled<T>(name, scheduled, out value),
+            MessageQueueTriggerContext queue => TryGetFromQueue<T>(name, queue, out value),
+            WebRequestTriggerContext web => TryGetFromWeb<T>(name, web, out value),
+            JsonTriggerContext json => TryGetFromJson(name, json.Data, out value),
+            _ => false
+        };
     }
     
     public T GetRequiredParameter<T>(string name)
@@ -69,12 +59,9 @@ public class TriggerContextParameterProvider : IParameterProvider
         return defaultValue;
     }
     
-    private bool TryGetFromScheduled<T>(string name, out T? value)
+    private bool TryGetFromScheduled<T>(string name, ScheduledTriggerContext scheduled, out T? value)
     {
         value = default;
-        
-        if (_triggerContext is not ScheduledTriggerContext scheduled)
-            return false;
         
         object? objValue = name.ToLowerInvariant() switch
         {
@@ -87,12 +74,9 @@ public class TriggerContextParameterProvider : IParameterProvider
         return TryConvert(objValue, out value);
     }
     
-    private bool TryGetFromQueue<T>(string name, out T? value)
+    private bool TryGetFromQueue<T>(string name, MessageQueueTriggerContext queue, out T? value)
     {
         value = default;
-        
-        if (_triggerContext is not MessageQueueTriggerContext queue)
-            return false;
         
         object? objValue = name.ToLowerInvariant() switch
         {
@@ -107,12 +91,9 @@ public class TriggerContextParameterProvider : IParameterProvider
         return TryConvert(objValue, out value);
     }
     
-    private bool TryGetFromWeb<T>(string name, out T? value)
+    private bool TryGetFromWeb<T>(string name, WebRequestTriggerContext web, out T? value)
     {
         value = default;
-        
-        if (_triggerContext is not WebRequestTriggerContext web)
-            return false;
         
         object? objValue = name.ToLowerInvariant() switch
         {
@@ -140,48 +121,20 @@ public class TriggerContextParameterProvider : IParameterProvider
             if (jsonValue == null)
                 return false;
             
-            // Handle direct type conversion
-            if (typeof(T) == typeof(string))
+            // Use a switch expression for cleaner type handling
+            value = typeof(T) switch
             {
-                value = (T)(object)jsonValue.GetValue<string>();
-                return true;
-            }
-            else if (typeof(T) == typeof(int))
-            {
-                value = (T)(object)jsonValue.GetValue<int>();
-                return true;
-            }
-            else if (typeof(T) == typeof(long))
-            {
-                value = (T)(object)jsonValue.GetValue<long>();
-                return true;
-            }
-            else if (typeof(T) == typeof(bool))
-            {
-                value = (T)(object)jsonValue.GetValue<bool>();
-                return true;
-            }
-            else if (typeof(T) == typeof(DateTime))
-            {
-                value = (T)(object)jsonValue.GetValue<DateTime>();
-                return true;
-            }
-            else if (typeof(T) == typeof(double))
-            {
-                value = (T)(object)jsonValue.GetValue<double>();
-                return true;
-            }
-            else if (typeof(T) == typeof(decimal))
-            {
-                value = (T)(object)jsonValue.GetValue<decimal>();
-                return true;
-            }
-            else
-            {
-                // Try generic conversion
-                value = jsonValue.GetValue<T>();
-                return value != null;
-            }
+                Type t when t == typeof(string) => (T)(object)jsonValue.GetValue<string>(),
+                Type t when t == typeof(int) => (T)(object)jsonValue.GetValue<int>(),
+                Type t when t == typeof(long) => (T)(object)jsonValue.GetValue<long>(),
+                Type t when t == typeof(bool) => (T)(object)jsonValue.GetValue<bool>(),
+                Type t when t == typeof(DateTime) => (T)(object)jsonValue.GetValue<DateTime>(),
+                Type t when t == typeof(double) => (T)(object)jsonValue.GetValue<double>(),
+                Type t when t == typeof(decimal) => (T)(object)jsonValue.GetValue<decimal>(),
+                _ => jsonValue.GetValue<T>()
+            };
+            
+            return value != null;
         }
         catch
         {
@@ -205,16 +158,22 @@ public class TriggerContextParameterProvider : IParameterProvider
                 return true;
             }
             
-            // Try conversion for common types
+            // Handle string conversion
             if (typeof(T) == typeof(string))
             {
                 value = (T)(object)objValue.ToString()!;
                 return true;
             }
             
-            // Use Convert for numeric and other convertible types
-            value = (T)Convert.ChangeType(objValue, typeof(T));
-            return true;
+            // Only use Convert.ChangeType for known convertible types
+            var targetType = typeof(T);
+            if (targetType.IsPrimitive || targetType == typeof(decimal) || targetType == typeof(DateTime))
+            {
+                value = (T)Convert.ChangeType(objValue, targetType);
+                return true;
+            }
+            
+            return false;
         }
         catch
         {
