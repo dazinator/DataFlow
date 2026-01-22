@@ -1,0 +1,71 @@
+@using System.Threading
+@inject IEventSource EventSource
+
+<div class="flow-visualization">
+    @if (_state != null)
+    {
+        <FlowStatusPanel State="_state" />
+        <FlowDiagram State="_state" />
+    }
+    else
+    {
+        <div class="loading">Loading flow visualization...</div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public Guid InvocationId { get; set; }
+
+    private FlowExecutionState? _state;
+    private EventProcessor? _processor;
+    private CancellationTokenSource? _cts;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _processor = new EventProcessor(InvocationId);
+        _state = _processor.State;
+
+        // Start listening to events
+        _cts = new CancellationTokenSource();
+        _ = Task.Run(async () => await ListenToEventsAsync(_cts.Token));
+    }
+
+    private async Task ListenToEventsAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            // Try to get snapshot first for fast initial load
+            var snapshot = await EventSource.GetSnapshotAsync(InvocationId, cancellationToken);
+            if (snapshot != null)
+            {
+                _processor!.ApplySnapshot(snapshot);
+                await InvokeAsync(StateHasChanged);
+            }
+
+            // Process real-time events
+            await foreach (var evt in EventSource.GetEventsAsync(InvocationId, cancellationToken))
+            {
+                _processor!.ProcessEvent(evt);
+                await InvokeAsync(StateHasChanged);
+
+                // Throttle UI updates to avoid overwhelming the browser
+                await Task.Delay(50, cancellationToken);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected when component is disposed
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error processing events: {ex.Message}");
+        }
+    }
+
+    public void Dispose()
+    {
+        _cts?.Cancel();
+        _cts?.Dispose();
+    }
+}

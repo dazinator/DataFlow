@@ -1,0 +1,67 @@
+<div class="flow-status-panel">
+    <div class="status-section">
+        <h2>@State.FlowName</h2>
+        <span class="status-badge @GetStatusClass()">@State.State</span>
+    </div>
+    
+    <div class="metrics-section">
+        <div class="metric">
+            <span class="metric-label">Invocation ID:</span>
+            <span class="metric-value">@State.InvocationId.ToString("N")[..8]...</span>
+        </div>
+        
+        <div class="metric">
+            <span class="metric-label">Start Time:</span>
+            <span class="metric-value">@FormatTime(State.StartTime)</span>
+        </div>
+        
+        @if (State.Duration.HasValue)
+        {
+            <div class="metric">
+                <span class="metric-label">Duration:</span>
+                <span class="metric-value">@FormatDuration(State.Duration.Value)</span>
+            </div>
+        }
+        
+        <div class="metric">
+            <span class="metric-label">Items Processed:</span>
+            <span class="metric-value">@State.TotalItemsProcessed.ToString("N0")</span>
+        </div>
+        
+        <div class="metric">
+            <span class="metric-label">Blocks:</span>
+            <span class="metric-value">@State.Blocks.Count</span>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public FlowExecutionState State { get; set; } = null!;
+
+    private string GetStatusClass()
+    {
+        return State.State switch
+        {
+            FlowState.Running => "status-running",
+            FlowState.Completed => "status-completed",
+            FlowState.Failed => "status-failed",
+            _ => "status-idle"
+        };
+    }
+
+    private string FormatTime(DateTime? time)
+    {
+        if (time == null) return "N/A";
+        return time.Value.ToLocalTime().ToString("HH:mm:ss");
+    }
+
+    private string FormatDuration(TimeSpan duration)
+    {
+        if (duration.TotalHours >= 1)
+            return $"{duration.Hours}h {duration.Minutes}m {duration.Seconds}s";
+        if (duration.TotalMinutes >= 1)
+            return $"{duration.Minutes}m {duration.Seconds}s";
+        return $"{duration.Seconds}.{duration.Milliseconds:000}s";
+    }
+}
