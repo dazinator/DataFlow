@@ -1,0 +1,40 @@
+@page "/flow-viz"
+@using DataFlow.Blazor.Components
+@using DataFlow.Blazor.Services
+@rendermode InteractiveServer
+
+<PageTitle>DataFlow Visualization Demo</PageTitle>
+
+<h1>DataFlow Visualization Demo</h1>
+
+<p>This demo shows real-time visualization of a DataFlow pipeline execution.</p>
+
+<div style="margin: 1rem 0;">
+    <button class="btn btn-primary" @onclick="StartNewFlow" disabled="@_isRunning">
+        Start New Flow
+    </button>
+</div>
+
+@if (_currentInvocationId != null)
+{
+    <FlowVisualization InvocationId="_currentInvocationId.Value" />
+}
+
+@code {
+    private Guid? _currentInvocationId;
+    private bool _isRunning;
+
+    private void StartNewFlow()
+    {
+        _currentInvocationId = Guid.NewGuid();
+        _isRunning = true;
+        
+        // Simulate flow completion after some time
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(10000); // Wait 10 seconds
+            _isRunning = false;
+            await InvokeAsync(StateHasChanged);
+        });
+    }
+}
