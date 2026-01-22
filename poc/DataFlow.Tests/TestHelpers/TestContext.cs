@@ -49,12 +49,14 @@ public static class TestContext
             CancellationToken = cancellationToken;
             InvocationId = Guid.NewGuid();
             TriggerContext = triggerContext;
+            Parameters = new TriggerContextParameterProvider(triggerContext);
         }
 
         public CancellationToken CancellationToken { get; }
         public Guid InvocationId { get; }
         public IEpochCoordinator? EpochCoordinator => null;
         public ITriggerContext? TriggerContext { get; }
+        public IParameterProvider Parameters { get; }
         public void RequestRotation() { }
     }
 }

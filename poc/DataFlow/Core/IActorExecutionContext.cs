@@ -35,4 +35,10 @@ public interface IActorExecutionContext
     /// (e.g., tenant ID, message properties, request details).
     /// </summary>
     ITriggerContext? TriggerContext { get; }
+
+    /// <summary>
+    /// Parameter provider for accessing trigger parameters in a decoupled manner.
+    /// Allows actors to request parameters by name without checking specific trigger context types.
+    /// </summary>
+    IParameterProvider Parameters { get; }
 }

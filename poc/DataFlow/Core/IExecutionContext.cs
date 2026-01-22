@@ -47,6 +47,12 @@ public interface IExecutionContext
     /// (e.g., tenant ID, message properties, request details).
     /// </summary>
     ITriggerContext? TriggerContext { get; }
+
+    /// <summary>
+    /// Parameter provider for accessing trigger parameters in a decoupled manner.
+    /// Allows actors to request parameters by name without checking specific trigger context types.
+    /// </summary>
+    IParameterProvider Parameters { get; }
 }
 
 /// <summary>
@@ -109,6 +115,7 @@ public class ExecutionContext : IExecutionContext
         RecoveryCheckpoint = recoveryCheckpoint;
         Metrics = metrics;
         TriggerContext = triggerContext;
+        Parameters = new TriggerContextParameterProvider(triggerContext);
     }
 
     public CancellationToken CancellationToken { get; }
@@ -117,4 +124,5 @@ public class ExecutionContext : IExecutionContext
     public ICheckpoint? RecoveryCheckpoint { get; }
     public IDataFlowMetrics? Metrics { get; }
     public ITriggerContext? TriggerContext { get; }
+    public IParameterProvider Parameters { get; }
 }

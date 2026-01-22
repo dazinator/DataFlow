@@ -232,5 +232,6 @@ public class BatchBlockComparisonBenchmark
         public ICheckpoint? RecoveryCheckpoint { get; } = null;
         public IDataFlowMetrics? Metrics { get; } = null;
         public ITriggerContext? TriggerContext { get; } = null;
+        public IParameterProvider Parameters => new TriggerContextParameterProvider(TriggerContext);
     }
 }
