@@ -1,0 +1,193 @@
+using DataFlow.Blazor.Events;
+using DataFlow.Blazor.Services;
+using Xunit;
+
+namespace DataFlow.Blazor.Tests;
+
+/// <summary>
+/// Tests for the EventProcessor state management
+/// </summary>
+public class EventProcessorTests
+{
+    [Fact]
+    public void EventProcessor_InitializesWithCorrectInvocationId()
+    {
+        // Arrange
+        var invocationId = Guid.NewGuid();
+
+        // Act
+        var processor = new EventProcessor(invocationId);
+
+        // Assert
+        Assert.Equal(invocationId, processor.State.InvocationId);
+    }
+
+    [Fact]
+    public void EventProcessor_ProcessesFlowStartedEvent()
+    {
+        // Arrange
+        var processor = new EventProcessor(Guid.NewGuid());
+        var evt = new FlowStartedEvent(processor.State.InvocationId, "Test Flow", DateTime.UtcNow);
+
+        // Act
+        processor.ProcessEvent(evt);
+
+        // Assert
+        Assert.Equal("Test Flow", processor.State.FlowName);
+        Assert.Equal(FlowState.Running, processor.State.State);
+        Assert.NotNull(processor.State.StartTime);
+    }
+
+    [Fact]
+    public void EventProcessor_ProcessesFlowCompletedEvent()
+    {
+        // Arrange
+        var processor = new EventProcessor(Guid.NewGuid());
+        var startEvt = new FlowStartedEvent(processor.State.InvocationId, "Test Flow", DateTime.UtcNow);
+        var completeEvt = new FlowCompletedEvent(processor.State.InvocationId, true, DateTime.UtcNow, null);
+
+        // Act
+        processor.ProcessEvent(startEvt);
+        processor.ProcessEvent(completeEvt);
+
+        // Assert
+        Assert.Equal(FlowState.Completed, processor.State.State);
+        Assert.NotNull(processor.State.EndTime);
+        Assert.Null(processor.State.ErrorMessage);
+    }
+
+    [Fact]
+    public void EventProcessor_ProcessesFlowCompletedEventWithError()
+    {
+        // Arrange
+        var processor = new EventProcessor(Guid.NewGuid());
+        var startEvt = new FlowStartedEvent(processor.State.InvocationId, "Test Flow", DateTime.UtcNow);
+        var completeEvt = new FlowCompletedEvent(processor.State.InvocationId, false, DateTime.UtcNow, "Test error");
+
+        // Act
+        processor.ProcessEvent(startEvt);
+        processor.ProcessEvent(completeEvt);
+
+        // Assert
+        Assert.Equal(FlowState.Failed, processor.State.State);
+        Assert.Equal("Test error", processor.State.ErrorMessage);
+    }
+
+    [Fact]
+    public void EventProcessor_ProcessesBlockStartedEvent()
+    {
+        // Arrange
+        var processor = new EventProcessor(Guid.NewGuid());
+        var evt = new BlockStartedEvent("producer", "ProducerBlock", DateTime.UtcNow);
+
+        // Act
+        processor.ProcessEvent(evt);
+
+        // Assert
+        Assert.True(processor.State.Blocks.ContainsKey("producer"));
+        Assert.Equal("ProducerBlock", processor.State.Blocks["producer"].BlockType);
+        Assert.Equal(Events.BlockState.Running, processor.State.Blocks["producer"].State);
+    }
+
+    [Fact]
+    public void EventProcessor_ProcessesBlockProgressEvent()
+    {
+        // Arrange
+        var processor = new EventProcessor(Guid.NewGuid());
+        var startEvt = new BlockStartedEvent("producer", "ProducerBlock", DateTime.UtcNow);
+        var progressEvt = new BlockProgressEvent("producer", 100, DateTime.UtcNow);
+
+        // Act
+        processor.ProcessEvent(startEvt);
+        processor.ProcessEvent(progressEvt);
+
+        // Assert
+        Assert.Equal(100, processor.State.Blocks["producer"].ItemsProcessed);
+    }
+
+    [Fact]
+    public void EventProcessor_ProcessesBlockCompletedEvent()
+    {
+        // Arrange
+        var processor = new EventProcessor(Guid.NewGuid());
+        var startEvt = new BlockStartedEvent("producer", "ProducerBlock", DateTime.UtcNow);
+        var completeEvt = new BlockCompletedEvent("producer", true, DateTime.UtcNow, null);
+
+        // Act
+        processor.ProcessEvent(startEvt);
+        processor.ProcessEvent(completeEvt);
+
+        // Assert
+        Assert.Equal(Events.BlockState.Completed, processor.State.Blocks["producer"].State);
+        Assert.NotNull(processor.State.Blocks["producer"].EndTime);
+    }
+
+    [Fact]
+    public void EventProcessor_ProcessesChannelStatsEvent()
+    {
+        // Arrange
+        var processor = new EventProcessor(Guid.NewGuid());
+        var blockStartEvt = new BlockStartedEvent("producer", "ProducerBlock", DateTime.UtcNow);
+        var channelEvt = new ChannelStatsEvent("producer", 100, 50, DateTime.UtcNow);
+
+        // Act
+        processor.ProcessEvent(blockStartEvt);
+        processor.ProcessEvent(channelEvt);
+
+        // Assert
+        Assert.True(processor.State.Channels.ContainsKey("producer"));
+        Assert.Equal(100, processor.State.Channels["producer"].BufferCapacity);
+        Assert.Equal(50, processor.State.Channels["producer"].CurrentCount);
+    }
+
+    [Fact]
+    public void EventProcessor_CalculatesTotalItemsProcessed()
+    {
+        // Arrange
+        var processor = new EventProcessor(Guid.NewGuid());
+        processor.ProcessEvent(new BlockStartedEvent("block1", "ProducerBlock", DateTime.UtcNow));
+        processor.ProcessEvent(new BlockStartedEvent("block2", "TransformBlock", DateTime.UtcNow));
+        processor.ProcessEvent(new BlockProgressEvent("block1", 100, DateTime.UtcNow));
+        processor.ProcessEvent(new BlockProgressEvent("block2", 200, DateTime.UtcNow));
+
+        // Act
+        var totalItems = processor.State.TotalItemsProcessed;
+
+        // Assert
+        Assert.Equal(300, totalItems);
+    }
+
+    [Fact]
+    public void EventProcessor_AppliesSnapshot()
+    {
+        // Arrange
+        var processor = new EventProcessor(Guid.NewGuid());
+        var snapshot = new FlowSnapshot(
+            InvocationId: processor.State.InvocationId,
+            FlowName: "Snapshot Flow",
+            StartTime: DateTime.UtcNow,
+            State: FlowState.Running,
+            Blocks: new Dictionary<string, BlockSnapshot>
+            {
+                ["producer"] = new BlockSnapshot(
+                    BlockName: "producer",
+                    BlockType: "ProducerBlock",
+                    State: Events.BlockState.Running,
+                    ItemsProcessed: 500,
+                    StartTime: DateTime.UtcNow,
+                    EndTime: null,
+                    ErrorMessage: null
+                )
+            },
+            Channels: new Dictionary<string, ChannelSnapshot>()
+        );
+
+        // Act
+        processor.ApplySnapshot(snapshot);
+
+        // Assert
+        Assert.Equal("Snapshot Flow", processor.State.FlowName);
+        Assert.True(processor.State.Blocks.ContainsKey("producer"));
+        Assert.Equal(500, processor.State.Blocks["producer"].ItemsProcessed);
+    }
+}
