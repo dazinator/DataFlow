@@ -11,6 +11,7 @@ using DataFlow.POC.Blocks;
 using DataFlow.POC.Builder;
 using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Benchmark runner that outputs results in a format compatible with Python benchmarks

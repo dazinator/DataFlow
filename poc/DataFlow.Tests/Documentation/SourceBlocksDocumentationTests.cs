@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
 using Xunit.Categories;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Documentation tests for the Source Blocks guide.
@@ -34,7 +35,7 @@ public class SourceBlocksDocumentationTests
             .AddBlock(numbers)
             .AddBlock(processor)
             .Connect(numbers, processor)
-            .Build();
+            .Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         
         var serviceProvider = new ServiceCollection().BuildServiceProvider();
         var context = new ExecutionContext(serviceProvider, CancellationToken.None);
@@ -65,7 +66,7 @@ public class SourceBlocksDocumentationTests
             .AddBlock(asyncSource)
             .AddBlock(processor)
             .Connect(asyncSource, processor)
-            .Build();
+            .Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         
         var serviceProvider = new ServiceCollection().BuildServiceProvider();
         var context = new ExecutionContext(serviceProvider, CancellationToken.None);
@@ -97,7 +98,7 @@ public class SourceBlocksDocumentationTests
             .AddBlock(fruits)
             .AddBlock(processor)
             .Connect(fruits, processor)
-            .Build();
+            .Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         
         var serviceProvider = new ServiceCollection().BuildServiceProvider();
         var context = new ExecutionContext(serviceProvider, CancellationToken.None);

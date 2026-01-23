@@ -8,6 +8,7 @@ using Shouldly;
 using Xunit;
 using System.Diagnostics;
 using DataFlow.POC.Tests.TestHelpers;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Tests for Optimized Side-Channel Strategy implementation.
@@ -62,7 +63,7 @@ public class OptimizedSideChannelTests
         var optimizedStrategy = new OptimizedSideChannelStrategy();
         builder.AddEdge(new Edge(producer, new[] { consumer1, consumer2 }, optimizedStrategy));
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(services, CancellationToken.None);
 
         // Act
@@ -120,7 +121,7 @@ public class OptimizedSideChannelTests
         var optimizedStrategy = new OptimizedSideChannelStrategy();
         builder.AddEdge(new Edge(producer, new[] { consumer1, consumer2 }, optimizedStrategy));
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(services, CancellationToken.None);
 
         // Act
@@ -172,7 +173,7 @@ public class OptimizedSideChannelTests
         var optimizedStrategy = new OptimizedSideChannelStrategy(bufferCapacity: 200);
         builder.AddEdge(new Edge(producer, new[] { consumer }, optimizedStrategy));
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(services, CancellationToken.None);
 
         var stopwatch = Stopwatch.StartNew();
@@ -224,7 +225,7 @@ public class OptimizedSideChannelTests
         var optimizedStrategy = new OptimizedSideChannelStrategy();
         builder.AddEdge(new Edge(producer, consumers, optimizedStrategy));
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(services, CancellationToken.None);
 
         // Act
@@ -276,7 +277,7 @@ public class OptimizedSideChannelTests
         var optimizedStrategy = new OptimizedSideChannelStrategy(bufferCapacity: 50);
         builder.AddEdge(new Edge(producer, new[] { consumer1, consumer2 }, optimizedStrategy));
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(services, CancellationToken.None);
 
         // Act

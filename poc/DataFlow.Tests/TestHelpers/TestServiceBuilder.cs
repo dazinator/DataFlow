@@ -2,6 +2,7 @@ namespace DataFlow.POC.Tests.TestHelpers;
 
 using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Fluent builder for setting up test service providers with minimal boilerplate.

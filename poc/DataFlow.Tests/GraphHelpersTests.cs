@@ -7,6 +7,7 @@ using DataFlow.POC.Tests.TestHelpers;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Tests to verify GraphHelpers functionality.
@@ -38,7 +39,7 @@ public class GraphHelpersTests
         builder.AddBlock(producer)
             .AddBlock(collector)
             .Connect(producer, collector);
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
 
         var serviceProvider = new ServiceCollection().BuildServiceProvider();
         var context = new ExecutionContext(serviceProvider, CancellationToken.None);

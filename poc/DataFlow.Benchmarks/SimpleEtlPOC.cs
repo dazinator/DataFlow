@@ -13,6 +13,7 @@ using DataFlow.POC.Core;
 using DataFlow.POC.DependencyInjection;
 using DataFlow.POC.Tests.TestHelpers;
 using Microsoft.Extensions.DependencyInjection;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Simplified POC ETL benchmark focusing on datasource → validators → enrichers.

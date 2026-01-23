@@ -1,5 +1,7 @@
 using BenchmarkDotNet.Attributes;
 using DataFlow.POC.Core;
+using Microsoft.Extensions.DependencyInjection;
+using DataFlow.POC.Registry;
 
 namespace DataFlow.POC.Benchmarks;
 

@@ -7,6 +7,7 @@ using DataFlow.POC.Tests.TestHelpers;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
+using DataFlow.POC.Registry;
 
 public class BatchFlowTests
 {
@@ -42,7 +43,7 @@ public class BatchFlowTests
             .Connect(producer, batcher)
             .Connect(batcher, processor);
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var serviceProvider = new ServiceCollection().BuildServiceProvider();
         var context = new ExecutionContext(serviceProvider, CancellationToken.None);
 
@@ -76,7 +77,7 @@ public class BatchFlowTests
             .Connect(producer, batcher)
             .Connect(batcher, processor);
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var serviceProvider = new ServiceCollection().BuildServiceProvider();
         var context = new ExecutionContext(serviceProvider, CancellationToken.None);
 

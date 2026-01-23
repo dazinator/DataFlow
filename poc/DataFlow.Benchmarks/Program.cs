@@ -1,4 +1,6 @@
 using BenchmarkDotNet.Running;
+using Microsoft.Extensions.DependencyInjection;
+using DataFlow.POC.Registry;
 
 // Check command line arguments
 if (args.Length > 0 && args[0] == "comparative")

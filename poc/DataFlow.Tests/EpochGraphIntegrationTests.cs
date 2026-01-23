@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using System.Linq;
 using Xunit;
 using DataFlow.POC.Tests.TestHelpers;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Integration tests for epoch graph configuration via ConfigureEpochs API.
@@ -52,7 +53,7 @@ public class EpochGraphIntegrationTests : IAsyncDisposable
             config.AddProcessor("proc1");
         });
         
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
 
         // Assert
         Assert.NotNull(graph);
@@ -60,23 +61,23 @@ public class EpochGraphIntegrationTests : IAsyncDisposable
     }
 
     [Fact]
-    public void ConfigureEpochs_ThrowsWhenNoServiceProviderAndNoFactory()
+    public void ConfigureEpochs_ThrowsWhenNoServiceProviderAtBuildTime()
     {
-        // Arrange - Create legacy builder without service provider
-#pragma warning disable CS0618
+        // Arrange - Create builder without service provider
         var builder = new DataFlowGraphBuilder("test");
-#pragma warning restore CS0618
 
-        // Act & Assert
-        var ex = Assert.Throws<InvalidOperationException>(() =>
-            builder.ConfigureEpochs(config =>
-            {
-                config.SetPolicy(EpochPolicy.ByCount(10));
-                config.AddProcessor("proc1");
-            }));
+        // Configure epochs (no exception here)
+        builder.ConfigureEpochs(config =>
+        {
+            config.SetPolicy(EpochPolicy.ByCount(10));
+            config.AddProcessor("proc1");
+        });
         
-        Assert.Contains("service provider", ex.Message);
-        Assert.Contains("coordinatorFactory", ex.Message);
+        // Act & Assert - Exception should be thrown at Build() time
+        var ex = Assert.Throws<ArgumentNullException>(() =>
+            builder.Build(null!, new BlockTypeRegistry()));
+        
+        Assert.Equal("serviceProvider", ex.ParamName);
     }
 
     [Fact]
@@ -107,7 +108,7 @@ public class EpochGraphIntegrationTests : IAsyncDisposable
             config.AddProcessor("processor1");
         }, _ => _coordinator);
         
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         
         // Assert - graph should build successfully
         Assert.NotNull(graph);
@@ -127,7 +128,7 @@ public class EpochGraphIntegrationTests : IAsyncDisposable
             config.AddProcessor("processor3");
         }, _ => _coordinator);
         
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         
         // Assert
         Assert.NotNull(graph);
@@ -192,7 +193,7 @@ public class EpochGraphIntegrationTests : IAsyncDisposable
             });
         }, _ => _coordinator);
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
 
         // Create and publish an epoch
         var vector = EpochVector.FromSingleSource("test", 1);
@@ -241,7 +242,7 @@ public class EpochGraphIntegrationTests : IAsyncDisposable
             });
         }, _ => _coordinator);
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
 
         // Create epoch with failing operation
         var vector = EpochVector.FromSingleSource("test", 1);
@@ -291,7 +292,7 @@ public class EpochGraphIntegrationTests : IAsyncDisposable
             });
         }, _ => _coordinator);
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
 
         // Publish multiple epochs
         var source = GetEpochSource(graph);

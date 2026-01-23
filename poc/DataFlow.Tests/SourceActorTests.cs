@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
 using DataFlow.POC.Tests.TestHelpers;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Tests for source actor pattern and EpochSourceBlock.

@@ -4,6 +4,8 @@ using DataFlow.POC.Core;
 using Shouldly;
 using Xunit;
 using System.Threading.Channels;
+using Microsoft.Extensions.DependencyInjection;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Tests for SingleEpochExtensions - the key pattern enabling mandatory epochs.

@@ -5,6 +5,7 @@ using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Tests to validate that IBlockContext is properly injected via constructor

@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
 using DataFlow.POC.Tests.TestHelpers;
+using DataFlow.POC.Registry;
 
 public class EnvelopeBlocksTests
 {
@@ -58,7 +59,7 @@ public class EnvelopeBlocksTests
         builder.AddEdge(new Edge(producer, transformer, envelopeStrategy));
         builder.AddEdge(new Edge(transformer, consumer, envelopeStrategy));
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(commonServices, CancellationToken.None);
 
         // Act
@@ -111,7 +112,7 @@ public class EnvelopeBlocksTests
         builder.AddEdge(new Edge(producer, transformer, envelopeStrategy));
         builder.AddEdge(new Edge(transformer, consumer, envelopeStrategy));
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(commonServices, CancellationToken.None);
 
         // Act
@@ -153,7 +154,7 @@ public class EnvelopeBlocksTests
         builder.AddEdge(new Edge(producer, projector, envelopeStrategy));
         builder.AddEdge(new Edge(projector, consumer, envelopeStrategy));
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(commonServices, CancellationToken.None);
 
         // Act
@@ -201,7 +202,7 @@ public class EnvelopeBlocksTests
         var envelopeStrategy = EnvelopeEdgeStrategyFactory.CreateBroadcast();
         builder.AddEdge(new Edge(producer, processor, envelopeStrategy));
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(services, CancellationToken.None);
 
         // Act
@@ -241,7 +242,7 @@ public class EnvelopeBlocksTests
         var envelopeStrategy = EnvelopeEdgeStrategyFactory.CreateBroadcast();
         builder.AddEdge(new Edge(producer, processor, envelopeStrategy));
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(services, CancellationToken.None);
 
         // Act
@@ -283,7 +284,7 @@ public class EnvelopeBlocksTests
         builder.AddEdge(new Edge(transformer1, transformer2, envelopeStrategy));
         builder.AddEdge(new Edge(transformer2, consumer, envelopeStrategy));
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(commonServices, CancellationToken.None);
 
         // Act

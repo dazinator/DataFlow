@@ -22,7 +22,7 @@ public class EpochConfigurationApiDemoTests
         var serviceProvider = services.BuildServiceProvider();
         
         var registry = new BlockTypeRegistry();
-        var builder = new DataFlowGraphBuilder("demo", serviceProvider, registry);
+        var builder = new DataFlowGraphBuilder("demo");
         
         // Act - CLEAN API: No factory needed!
         builder.ConfigureEpochs(config =>
@@ -42,7 +42,7 @@ public class EpochConfigurationApiDemoTests
         });
         // ^^^ Notice: No awkward factory function required!
         
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         
         // Assert
         graph.ShouldNotBeNull();
@@ -56,7 +56,7 @@ public class EpochConfigurationApiDemoTests
         var services = new ServiceCollection();
         var serviceProvider = services.BuildServiceProvider();
         var registry = new BlockTypeRegistry();
-        var builder = new DataFlowGraphBuilder("demo", serviceProvider, registry);
+        var builder = new DataFlowGraphBuilder("demo");
         
         // Act - OLD API: Explicit factory still works for advanced scenarios
         builder.ConfigureEpochs(
@@ -75,7 +75,7 @@ public class EpochConfigurationApiDemoTests
                     checkpointStrategy: checkpointStrategy);
             });
         
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         
         // Assert
         graph.ShouldNotBeNull();
@@ -91,7 +91,7 @@ public class EpochConfigurationApiDemoTests
         var registry = new BlockTypeRegistry();
         
         // === BEFORE (Awkward) ===
-        var builderBefore = new DataFlowGraphBuilder("before", serviceProvider, registry);
+        var builderBefore = new DataFlowGraphBuilder("before");
         builderBefore.ConfigureEpochs(
             config =>
             {
@@ -106,7 +106,7 @@ public class EpochConfigurationApiDemoTests
             });
         
         // === AFTER (Clean) ===
-        var builderAfter = new DataFlowGraphBuilder("after", serviceProvider, registry);
+        var builderAfter = new DataFlowGraphBuilder("after");
         builderAfter.ConfigureEpochs(config =>
         {
             config.SetPolicy(EpochPolicy.ByCount(1000));
@@ -115,8 +115,8 @@ public class EpochConfigurationApiDemoTests
         // ✅ Factory is optional - DI handles it automatically!
         
         // Both should work
-        var graphBefore = builderBefore.Build();
-        var graphAfter = builderAfter.Build();
+        var graphBefore = builderBefore.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
+        var graphAfter = builderAfter.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         
         graphBefore.ShouldNotBeNull();
         graphAfter.ShouldNotBeNull();

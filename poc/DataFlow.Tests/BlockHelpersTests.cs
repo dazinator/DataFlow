@@ -7,6 +7,7 @@ using DataFlow.POC.Tests.TestHelpers;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Unit tests for BlockHelpers test utility.
@@ -114,7 +115,7 @@ public class BlockHelpersTests
             .AddBlock(collector)
             .Connect(producer, collector);
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var serviceProvider = new ServiceCollection().BuildServiceProvider();
         var context = new ExecutionContext(serviceProvider, CancellationToken.None);
 
@@ -141,7 +142,7 @@ public class BlockHelpersTests
             .Connect(producer, batcher)
             .Connect(batcher, collector);
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var serviceProvider = new ServiceCollection().BuildServiceProvider();
         var context = new ExecutionContext(serviceProvider, CancellationToken.None);
 

@@ -10,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
 using DataFlow.POC.Tests.TestHelpers;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Tests for Out-of-Band Epoch Control Plane implementation.
@@ -165,7 +166,7 @@ public class EpochControlPlaneTests
         var strategy = EpochControlPlaneFactory.CreateBroadcast(epochManager);
         builder.AddEdge(new Edge(producer, new[] { consumer }, strategy));
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(services, CancellationToken.None);
 
         // Act

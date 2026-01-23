@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
 using DataFlow.POC.Tests.TestHelpers;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Advanced tests demonstrating complex envelope scenarios including:
@@ -113,7 +114,7 @@ public class EnvelopeAdvancedTests
         builder.AddEdge(new Edge(path1Transform, path1Consumer, envelopeStrategy));
         builder.AddEdge(new Edge(path2Transform, path2Consumer, envelopeStrategy));
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(commonServices, CancellationToken.None);
 
         // Act
@@ -185,7 +186,7 @@ public class EnvelopeAdvancedTests
         var envelopeStrategy = EnvelopeEdgeStrategyFactory.CreateBroadcast();
         builder.AddEdge(new Edge(producer, processor, envelopeStrategy));
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(services, CancellationToken.None);
 
         // Act
@@ -240,7 +241,7 @@ public class EnvelopeAdvancedTests
         builder.AddEdge(new Edge(transformer, projector, envelopeStrategy));
         builder.AddEdge(new Edge(projector, processor, envelopeStrategy));
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(commonServices, CancellationToken.None);
 
         // Act
@@ -296,7 +297,7 @@ public class EnvelopeAdvancedTests
         var envelopeStrategy = EnvelopeEdgeStrategyFactory.CreateBroadcast();
         builder.AddEdge(new Edge(producer, processor, envelopeStrategy));
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(services, CancellationToken.None);
 
         // Act

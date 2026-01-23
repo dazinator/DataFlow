@@ -9,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
 using Xunit.Categories;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Documentation tests for the Getting Started guide.
@@ -47,7 +48,7 @@ public class GettingStartedDocumentationTests
             .AddBlock(processor)
             .Connect(producer, transformer)
             .Connect(transformer, processor)
-            .Build();
+            .Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         
         var serviceProvider = new ServiceCollection().BuildServiceProvider();
         var context = new ExecutionContext(serviceProvider, CancellationToken.None);
@@ -141,7 +142,7 @@ public class GettingStartedDocumentationTests
             .AddBlock(producer)
             .AddBlock(processor)
             .Connect(producer, processor)
-            .Build();
+            .Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         
         var serviceProvider = new ServiceCollection().BuildServiceProvider();
         var context = new ExecutionContext(serviceProvider, CancellationToken.None);

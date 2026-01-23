@@ -7,6 +7,7 @@ using DataFlow.POC.Tests.TestHelpers;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
+using DataFlow.POC.Registry;
 
 public class ComplexFlowTests
 {
@@ -63,7 +64,7 @@ public class ComplexFlowTests
             .Connect(transformer, batcher)
             .AddEdge(routingEdge);
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(commonServices, CancellationToken.None);
 
         // Act
@@ -115,7 +116,7 @@ public class ComplexFlowTests
             .Connect(transformer1, processor) // Merge - transformer1 connects to processor
             .Connect(transformer2, processor); // Merge - transformer2 connects to processor
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(commonServices, CancellationToken.None);
 
         // Act

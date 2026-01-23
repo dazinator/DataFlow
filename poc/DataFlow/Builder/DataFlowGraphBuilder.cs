@@ -2,6 +2,7 @@ namespace DataFlow.POC.Builder;
 
 using DataFlow.POC.Core;
 using DataFlow.POC.Registry;
+using DataFlow.POC.Checkpointing;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,50 +14,32 @@ public class DataFlowGraphBuilder
 {
     private readonly string _name;
     private readonly ILogger<DataFlowGraph> _logger;
-    private readonly IServiceProvider? _serviceProvider;
-    private readonly IBlockTypeRegistry? _registry;
     private readonly string _namespace;
     private readonly string _graphId = Guid.NewGuid().ToString(); // Generated once at builder creation
-    private readonly List<IBlock> _blocks = new();
+    private readonly List<IBlock> _blocks = new(); // Blocks added via AddBlock()
+    private readonly List<string> _pendingBlockNames = new(); // Block names to resolve via UseBlock()
     private readonly Dictionary<string, IBlock> _blocksByName = new(); // Track blocks by their registration name
     private readonly List<Edge> _edges = new();
+    private readonly List<(string sourceName, string targetName, int bufferCapacity)> _pendingConnections = new(); // Connections to resolve during Build()
     private readonly HashSet<IBlock> _simpleConnectedSources = new(); // Track sources connected via simple Connect/ConnectBroadcast/ConnectCompeting
     private EpochSourceNode? _epochSource;
     private readonly List<EpochProcessorNode> _epochProcessors = new();
-    private IEpochCoordinator? _epochCoordinator;
+    private EpochConfiguration? _epochConfig; // Store epoch configuration for deferred coordinator creation
+    private Func<ICheckpointStrategy?, IEpochCoordinator>? _epochCoordinatorFactory;
 
     /// <summary>
-    /// Legacy constructor for inline graph building.
-    /// Prefer using the constructor with IServiceProvider for DI-based graph building.
-    /// </summary>
-    [Obsolete("Use the constructor with IServiceProvider for DI-based graph building via services.AddDataFlows(). This constructor will be removed in a future version.")]
-    public DataFlowGraphBuilder(string name, ILogger<DataFlowGraph>? logger = null)
-    {
-        _name = name ?? throw new ArgumentNullException(nameof(name));
-        _logger = logger ?? NullLogger<DataFlowGraph>.Instance;
-        _serviceProvider = null;
-        _registry = null;
-        _namespace = "global";
-    }
-
-    /// <summary>
-    /// Create a new graph builder with service provider support for DI block resolution.
+    /// Create a new graph builder.
+    /// Use Build(IServiceProvider, IBlockTypeRegistry) to resolve blocks and build the graph.
     /// </summary>
     /// <param name="name">Name of the graph</param>
-    /// <param name="serviceProvider">Service provider for resolving registered blocks</param>
-    /// <param name="registry">Block type registry for block resolution and metadata</param>
     /// <param name="namespacePrefix">Optional namespace prefix for block resolution (defaults to "global")</param>
     /// <param name="logger">Optional logger</param>
     public DataFlowGraphBuilder(
-        string name, 
-        IServiceProvider serviceProvider,
-        IBlockTypeRegistry registry,
+        string name,
         string? namespacePrefix = null,
         ILogger<DataFlowGraph>? logger = null)
     {
         _name = name ?? throw new ArgumentNullException(nameof(name));
-        _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
-        _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         _namespace = namespacePrefix ?? "global";
         _logger = logger ?? NullLogger<DataFlowGraph>.Instance;
     }
@@ -67,11 +50,7 @@ public class DataFlowGraphBuilder
     /// </summary>
     public string GraphId => _graphId;
 
-    /// <summary>
-    /// Gets the service provider for DI resolution.
-    /// Used internally by extension methods to resolve dependencies.
-    /// </summary>
-    internal IServiceProvider? GetServiceProvider() => _serviceProvider;
+
 
     /// <summary>
     /// Add a block to the graph.
@@ -86,44 +65,19 @@ public class DataFlowGraphBuilder
 
     /// <summary>
     /// Use a block registered with dependency injection.
-    /// The block will be resolved from the service provider using the provided name.
+    /// The block will be resolved from the service provider during Build().
     /// </summary>
     /// <param name="name">The name of the block to resolve from DI</param>
     /// <returns>The builder for chaining</returns>
-    /// <exception cref="InvalidOperationException">If no service provider was provided or block not found</exception>
     public DataFlowGraphBuilder UseBlock(string name)
     {
-        if (_serviceProvider is null)
-        {
-            throw new InvalidOperationException(
-                "Cannot use UseBlock() without a service provider. " +
-                "Either pass a service provider to the DataFlowGraphBuilder constructor, " +
-                "or use AddBlock() to add blocks directly.");
-        }
-
-        if (_registry is null)
-        {
-            throw new InvalidOperationException(
-                "Cannot use UseBlock() without a block registry. " +
-                "Ensure the registry is passed to the DataFlowGraphBuilder constructor.");
-        }
-
         if (string.IsNullOrWhiteSpace(name))
         {
             throw new ArgumentException("Block name cannot be null or whitespace", nameof(name));
         }
 
-        // Resolve the key with namespace prefix if needed
-        var key = ResolveBlockKey(name);
-
-        // Resolve block from registry
-        var block = _registry.GetBlock(_serviceProvider, key);
-
-        _blocks.Add(block);
-        // Track by resolved key - for DI blocks, this will match block.Name
-        // since SetContext is called with the keyed service key during DI resolution.
-        // This maintains consistency with AddBlock() which tracks by block.Name.
-        _blocksByName[key] = block;
+        // Store the name for later resolution in Build()
+        _pendingBlockNames.Add(name);
         return this;
     }
 
@@ -179,6 +133,20 @@ public class DataFlowGraphBuilder
     }
 
     /// <summary>
+    /// Validates that the source block has not already been connected.
+    /// Enforces the single-connection-per-source rule.
+    /// </summary>
+    private void ValidateSourceNotAlreadyConnected(IBlock source)
+    {
+        if (_simpleConnectedSources.Contains(source))
+        {
+            throw new InvalidOperationException(
+                $"Source block '{source.Name}' has already been connected. " +
+                $"Each source can only be connected once. Use ConnectBroadcast() or ConnectCompeting() to connect to multiple targets.");
+        }
+    }
+
+    /// <summary>
     /// Connect two blocks with an edge (internal method with buffer mode).
     /// </summary>
     private DataFlowGraphBuilder Connect(
@@ -187,13 +155,7 @@ public class DataFlowGraphBuilder
         BufferMode bufferMode,
         int bufferCapacity)
     {
-        // Enforce single-connection-per-source rule
-        if (_simpleConnectedSources.Contains(source))
-        {
-            throw new InvalidOperationException(
-                $"Source block '{source.Name}' has already been connected. " +
-                $"Each source can only be connected once. Use ConnectBroadcast() or ConnectCompeting() to connect to multiple targets.");
-        }
+        ValidateSourceNotAlreadyConnected(source);
 
         var edge = new Edge(source, target, bufferMode, bufferCapacity);
         _edges.Add(edge);
@@ -231,13 +193,7 @@ public class DataFlowGraphBuilder
         int bufferCapacity = 100,
         Func<object, object>? cloneFunc = null)
     {
-        // Enforce single-connection-per-source rule
-        if (_simpleConnectedSources.Contains(source))
-        {
-            throw new InvalidOperationException(
-                $"Source block '{source.Name}' has already been connected. " +
-                $"Each source can only be connected once.");
-        }
+        ValidateSourceNotAlreadyConnected(source);
 
         var strategy = cloneFunc != null
             ? new BroadcastEdgeStrategy(cloneFunc, BufferMode.Bounded, bufferCapacity)
@@ -284,13 +240,7 @@ public class DataFlowGraphBuilder
         IReadOnlyList<IBlock> targets,
         int bufferCapacity = 100)
     {
-        // Enforce single-connection-per-source rule
-        if (_simpleConnectedSources.Contains(source))
-        {
-            throw new InvalidOperationException(
-                $"Source block '{source.Name}' has already been connected. " +
-                $"Each source can only be connected once.");
-        }
+        ValidateSourceNotAlreadyConnected(source);
 
         var edge = new Edge(source, targets, new CompetingEdgeStrategy(BufferMode.Bounded, bufferCapacity));
         _edges.Add(edge);
@@ -300,15 +250,16 @@ public class DataFlowGraphBuilder
 
     /// <summary>
     /// Connect two blocks by name.
+    /// If the blocks were added via UseBlock(), the connection will be resolved during Build().
     /// </summary>
     public DataFlowGraphBuilder Connect(
         string sourceName,
         string targetName,
         int bufferCapacity = 100)
     {
-        var source = FindBlockByName(sourceName, "Source");
-        var target = FindBlockByName(targetName, "Target");
-        return Connect(source, target, BufferMode.Bounded, bufferCapacity);
+        // Store the pending connection - it will be resolved during Build()
+        _pendingConnections.Add((sourceName, targetName, bufferCapacity));
+        return this;
     }
 
     /// <summary>
@@ -353,7 +304,13 @@ public class DataFlowGraphBuilder
         
         if (block is null)
         {
-            throw new ArgumentException($"{blockRole} block '{name}' not found");
+            var key = ResolveBlockKey(name);
+            throw new ArgumentException(
+                $"{blockRole} block '{name}' not found. " +
+                $"Block was either not added to the builder, or if using UseBlock(), " +
+                $"make sure the block is registered with AddDataFlows(). " +
+                $"Tried names: '{name}' and '{key}'.",
+                nameof(name));
         }
 
         return block;
@@ -374,16 +331,24 @@ public class DataFlowGraphBuilder
     }
     
     /// <summary>
-    /// Sets the epoch coordinator for the graph (internal use by ConfigureEpochs).
+    /// Sets the epoch configuration for the graph (internal use by ConfigureEpochs).
+    /// The coordinator will be created during Build() when the service provider is available.
     /// </summary>
-    internal void SetEpochCoordinator(IEpochCoordinator coordinator)
+    /// <param name="config">The epoch configuration containing policy, processors, and hooks</param>
+    /// <param name="coordinatorFactory">Optional factory for creating the coordinator. If null, a default factory will be used.</param>
+    /// <exception cref="ArgumentNullException">Thrown when config is null</exception>
+    /// <exception cref="InvalidOperationException">Thrown when epoch configuration has already been set</exception>
+    internal void SetEpochConfiguration(
+        EpochConfiguration config,
+        Func<ICheckpointStrategy?, IEpochCoordinator>? coordinatorFactory)
     {
-        ArgumentNullException.ThrowIfNull(coordinator);
-        if (_epochCoordinator != null)
+        ArgumentNullException.ThrowIfNull(config);
+        if (_epochConfig != null)
         {
-            throw new InvalidOperationException("Epoch coordinator has already been configured");
+            throw new InvalidOperationException("Epoch configuration has already been set");
         }
-        _epochCoordinator = coordinator;
+        _epochConfig = config;
+        _epochCoordinatorFactory = coordinatorFactory;
     }
     
     /// <summary>
@@ -396,38 +361,94 @@ public class DataFlowGraphBuilder
     }
     
     /// <summary>
-    /// Build the dataflow graph.
+    /// Build the dataflow graph with the provided service provider and registry.
+    /// Blocks added via UseBlock() will be resolved from the registry using the service provider.
+    /// Epoch coordinator will be created if epochs were configured.
     /// </summary>
-    public DataFlowGraph Build()
+    /// <param name="serviceProvider">Service provider for resolving blocks and creating epoch coordinator</param>
+    /// <param name="registry">Block type registry for block resolution</param>
+    /// <returns>The constructed dataflow graph</returns>
+    public DataFlowGraph Build(IServiceProvider serviceProvider, IBlockTypeRegistry registry)
     {
+        ArgumentNullException.ThrowIfNull(serviceProvider);
+        ArgumentNullException.ThrowIfNull(registry);
+        
         var graph = new DataFlowGraph(_name, _graphId, _logger);
 
+        // Add blocks that were added directly via AddBlock()
         foreach (var block in _blocks)
         {
             graph.AddBlock(block);
         }
+        
+        // Resolve and add blocks that were added via UseBlock()
+        foreach (var blockName in _pendingBlockNames)
+        {
+            // Resolve the key with namespace prefix if needed
+            var key = ResolveBlockKey(blockName);
+            
+            // Resolve block from registry
+            var block = registry.GetBlock(serviceProvider, key);
+            
+            graph.AddBlock(block);
+            // Track by resolved key for Connect() lookups
+            _blocksByName[key] = block;
+        }
 
+        // Resolve and add pending connections (from Connect() calls with string names)
+        foreach (var (sourceName, targetName, bufferCapacity) in _pendingConnections)
+        {
+            var source = FindBlockByName(sourceName, "Source");
+            var target = FindBlockByName(targetName, "Target");
+            
+            ValidateSourceNotAlreadyConnected(source);
+            
+            var edge = new Edge(source, target, BufferMode.Bounded, bufferCapacity);
+            graph.AddEdge(edge);
+            _simpleConnectedSources.Add(source);
+        }
+
+        // Add edges that were added directly via AddEdge() or Connect(IBlock, IBlock)
         foreach (var edge in _edges)
         {
             graph.AddEdge(edge);
         }
         
-        // Add epoch nodes if configured
-        if (_epochSource != null)
+        // Create and set epoch coordinator if epochs were configured
+        if (_epochConfig != null)
         {
-            graph.SetEpochSource(_epochSource);
-            foreach (var processor in _epochProcessors)
+            // Create coordinator factory if not provided
+            var factory = _epochCoordinatorFactory ?? CreateDefaultCoordinatorFactory(serviceProvider);
+            
+            // Create coordinator
+            var coordinator = factory(_epochConfig.CheckpointStrategy);
+            
+            // Set coordinator on graph
+            graph.SetEpochCoordinator(coordinator);
+            
+            // Add epoch nodes if configured
+            if (_epochSource != null)
             {
-                graph.AddEpochProcessor(processor);
+                graph.SetEpochSource(_epochSource);
+                foreach (var processor in _epochProcessors)
+                {
+                    graph.AddEpochProcessor(processor);
+                }
             }
-        }
-        
-        // Set epoch coordinator if configured
-        if (_epochCoordinator != null)
-        {
-            graph.SetEpochCoordinator(_epochCoordinator);
         }
 
         return graph;
+    }
+    
+    /// <summary>
+    /// Creates a default coordinator factory that uses IServiceScopeFactory from the service provider.
+    /// </summary>
+    private static Func<ICheckpointStrategy?, IEpochCoordinator> CreateDefaultCoordinatorFactory(IServiceProvider serviceProvider)
+    {
+        return checkpointStrategy =>
+        {
+            var scopeFactory = serviceProvider.GetRequiredService<IServiceScopeFactory>();
+            return new EpochCoordinator(scopeFactory, checkpointStrategy: checkpointStrategy);
+        };
     }
 }

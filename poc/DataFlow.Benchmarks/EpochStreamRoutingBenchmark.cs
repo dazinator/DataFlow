@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System.Runtime.CompilerServices;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Benchmarks epoch stream routing performance across high epoch volumes.

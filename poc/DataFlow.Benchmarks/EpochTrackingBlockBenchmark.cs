@@ -5,6 +5,8 @@ using BenchmarkDotNet.Jobs;
 using DataFlow.POC.Core;
 using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
+using Microsoft.Extensions.DependencyInjection;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Benchmarks measuring the overhead of EntityTrackingBlock pattern

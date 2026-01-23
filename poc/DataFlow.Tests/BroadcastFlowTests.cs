@@ -7,6 +7,7 @@ using DataFlow.POC.Tests.TestHelpers;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
+using DataFlow.POC.Registry;
 
 public class BroadcastFlowTests
 {
@@ -49,7 +50,7 @@ public class BroadcastFlowTests
             .AddBlock(processor2)
             .ConnectBroadcast(producer, new[] { processor1, processor2 }); // Single broadcast edge to both processors
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(commonServices, CancellationToken.None);
 
         // Act

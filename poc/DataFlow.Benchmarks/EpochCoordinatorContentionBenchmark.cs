@@ -5,6 +5,7 @@ using BenchmarkDotNet.Order;
 using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Concurrent;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Benchmarks measuring lock contention and memory overhead of EpochCoordinator.

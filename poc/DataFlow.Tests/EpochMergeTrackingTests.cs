@@ -5,6 +5,8 @@ using DataFlow.POC.Core;
 using Shouldly;
 using Xunit;
 using Xunit.Abstractions;
+using Microsoft.Extensions.DependencyInjection;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Tests for EntityTrackingBlock behavior at epoch merge points.

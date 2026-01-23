@@ -6,6 +6,7 @@ using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Phase 3: Fan-In Support and Dynamic Sources

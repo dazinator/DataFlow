@@ -11,6 +11,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Uniun.DataFlow;
 using PocExecutionContext = DataFlow.POC.Core.ExecutionContext;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Extended comparison benchmark that tests various parameter combinations

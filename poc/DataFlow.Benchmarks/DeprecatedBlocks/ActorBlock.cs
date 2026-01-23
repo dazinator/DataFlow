@@ -3,6 +3,7 @@ namespace DataFlow.POC.Benchmarks.DeprecatedBlocks;
 using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
 using System.Runtime.CompilerServices;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// ⚠️ DEPRECATED - Benchmark-only. Use EpochActorBlock for new code.

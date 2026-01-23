@@ -1,6 +1,8 @@
 namespace DataFlow.POC.Tests.TestHelpers;
 
 using DataFlow.POC.Core;
+using Microsoft.Extensions.DependencyInjection;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Generic collector actor that accumulates items into a provided list.

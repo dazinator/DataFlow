@@ -9,6 +9,7 @@ using Shouldly;
 using System.Runtime.CompilerServices;
 using Xunit;
 using Xunit.Abstractions;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Tests for EpochBufferBlock that validates epoch-aware buffering functionality.

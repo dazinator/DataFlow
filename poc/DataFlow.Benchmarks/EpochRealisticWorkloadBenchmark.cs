@@ -4,6 +4,7 @@ using DataFlow.POC.Core;
 using EpochAnchoringDemo.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using DataFlow.POC.Registry;
 
 namespace DataFlow.POC.Benchmarks;
 

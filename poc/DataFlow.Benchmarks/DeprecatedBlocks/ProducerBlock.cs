@@ -2,6 +2,7 @@ namespace DataFlow.POC.Benchmarks.DeprecatedBlocks;
 
 using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// ⚠️ DEPRECATED - Benchmark-only. Use PlainSourceAdapter for new code.

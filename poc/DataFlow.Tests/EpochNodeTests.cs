@@ -3,6 +3,7 @@ namespace DataFlow.POC.Tests;
 using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Tests for EpochSourceNode, EpochProcessorNode, and EpochHooks.

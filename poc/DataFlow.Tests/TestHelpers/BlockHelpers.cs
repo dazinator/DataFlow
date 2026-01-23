@@ -3,6 +3,7 @@ namespace DataFlow.POC.Tests.TestHelpers;
 using DataFlow.POC.Blocks;
 using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Helper methods for creating block instances in tests with consistent patterns.

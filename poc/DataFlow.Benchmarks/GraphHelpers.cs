@@ -4,6 +4,7 @@ using DataFlow.POC.Builder;
 using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Helper methods for creating DataFlowGraphBuilder instances in benchmarks.
@@ -20,10 +21,8 @@ public static class GraphHelpers
         ILogger<DataFlowGraph>? logger = null)
     {
         serviceProvider ??= new ServiceCollection().BuildServiceProvider();
-        // Use the obsolete constructor for benchmarking to keep benchmarks simple
-        #pragma warning disable CS0618 // Type or member is obsolete
-        return new DataFlowGraphBuilder(name, logger);
-        #pragma warning restore CS0618 // Type or member is obsolete
+        // Use the new constructor for benchmarking
+        return new DataFlowGraphBuilder(name, null, logger);
     }
 
     /// <summary>

@@ -11,6 +11,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Uniun.DataFlow;
 using PocExecutionContext = DataFlow.POC.Core.ExecutionContext;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Comparison benchmark runner that measures performance of POC vs non-POC implementations

@@ -4,6 +4,7 @@ using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 using Xunit.Abstractions;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Tests for async readiness coordination in EpochCoordinator.

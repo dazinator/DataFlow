@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
 using Xunit.Categories;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Documentation tests for the Broadcast Topology guide.
@@ -46,7 +47,7 @@ public class BroadcastTopologyDocumentationTests
             .AddBlock(logger)
             .AddBlock(metrics)
             .AddEdge(broadcastEdge)
-            .Build();
+            .Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         
         var serviceProvider = new ServiceCollection().BuildServiceProvider();
         var context = new ExecutionContext(serviceProvider, CancellationToken.None);
@@ -96,7 +97,7 @@ public class BroadcastTopologyDocumentationTests
             .AddBlock(target2)
             .AddBlock(target3)
             .AddEdge(broadcastEdge)
-            .Build();
+            .Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         
         var serviceProvider = new ServiceCollection().BuildServiceProvider();
         var context = new ExecutionContext(serviceProvider, CancellationToken.None);
