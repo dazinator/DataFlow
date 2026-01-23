@@ -53,6 +53,30 @@ In your Blazor page:
 
 The visualization will automatically connect to the event source and display real-time updates.
 
+## CSS Dependencies
+
+**None required!** The DataFlow.Blazor library is **self-contained** with all styling built into the components via scoped CSS. You don't need to:
+- ❌ Import any CSS files
+- ❌ Add Bootstrap or other CSS frameworks
+- ❌ Configure any build steps
+
+Simply add the component to your page and it works out of the box. The component includes:
+- ✅ Scoped CSS for all visual elements (`.razor.css` files)
+- ✅ SVG-based diagram with inline styling
+- ✅ Responsive layout that adapts to container width
+- ✅ Color schemes and animations built-in
+
+**Optional**: If you want to customize colors or spacing, you can override CSS custom properties in your app's global CSS:
+
+```css
+/* Optional customization in app.css */
+:root {
+    --flow-running-color: #ffc107;  /* Default yellow for running state */
+    --flow-completed-color: #28a745;  /* Default green for completed */
+    --flow-failed-color: #dc3545;  /* Default red for failed */
+}
+```
+
 ## Event Model
 
 The library uses a simple event-driven architecture with the following event types:
