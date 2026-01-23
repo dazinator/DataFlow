@@ -1,5 +1,6 @@
 @using System.Threading
 @inject IEventSource EventSource
+@implements IDisposable
 
 <div class="flow-visualization">
     @if (_state != null)

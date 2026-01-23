@@ -9,7 +9,7 @@ using DataFlow.Blazor.Events;
 /// </summary>
 public class FanInMockEventSource : IEventSource
 {
-    private readonly Random _random = new();
+    private readonly Random _random = Random.Shared;
 
     public async IAsyncEnumerable<object> GetEventsAsync(
         Guid invocationId,

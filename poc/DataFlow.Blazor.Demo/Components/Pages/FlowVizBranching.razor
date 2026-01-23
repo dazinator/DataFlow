@@ -37,9 +37,16 @@
         
         _ = Task.Run(async () =>
         {
-            await Task.Delay(10000);
-            _isRunning = false;
-            await InvokeAsync(StateHasChanged);
+            try
+            {
+                await Task.Delay(10000);
+                _isRunning = false;
+                await InvokeAsync(StateHasChanged);
+            }
+            catch (Exception)
+            {
+                // Swallow exceptions from the background task to avoid unobserved task exceptions
+            }
         });
     }
 }

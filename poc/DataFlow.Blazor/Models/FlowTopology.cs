@@ -106,7 +106,10 @@ public class FlowTopology
         {
             foreach (var target in targets)
             {
-                inDegree[target]++;
+                if (inDegree.ContainsKey(target))
+                {
+                    inDegree[target]++;
+                }
             }
         }
         

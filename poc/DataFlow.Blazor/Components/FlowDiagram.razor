@@ -25,9 +25,7 @@
                     @if (Math.Abs(y1 - y2) > 10)
                     {
                         @* Curved path for branching *@
-                        var midX = (x1 + x2) / 2;
-                        var path = $"M {x1} {y1} Q {midX} {y1}, {midX} {(y1 + y2) / 2} T {x2} {y2}";
-                        <path d="@path" stroke="#666" stroke-width="2" fill="none" marker-end="url(#arrowhead)" />
+                        <path d="@GenerateCurvedPath(x1, y1, x2, y2)" stroke="#666" stroke-width="2" fill="none" marker-end="url(#arrowhead)" />
                     }
                     else
                     {
@@ -181,5 +179,20 @@
             Events.BlockState.Failed => "#dc3545",
             _ => "#6c757d"
         };
+    }
+
+    /// <summary>
+    /// Generates an SVG path string for a quadratic Bézier curve between two points.
+    /// Creates a smooth curved path suitable for visualizing branching connections.
+    /// </summary>
+    /// <param name="x1">Starting X coordinate</param>
+    /// <param name="y1">Starting Y coordinate</param>
+    /// <param name="x2">Ending X coordinate</param>
+    /// <param name="y2">Ending Y coordinate</param>
+    /// <returns>SVG path string in format "M x1 y1 Q cx cy, cx cy T x2 y2"</returns>
+    private string GenerateCurvedPath(double x1, double y1, double x2, double y2)
+    {
+        var midX = (x1 + x2) / 2;
+        return $"M {x1} {y1} Q {midX} {y1}, {midX} {(y1 + y2) / 2} T {x2} {y2}";
     }
 }
