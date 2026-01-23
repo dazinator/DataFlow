@@ -10,6 +10,7 @@ using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using static BenchmarkActorHelpers;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Benchmarks for comparing typed channels vs object channels in EdgeStrategy implementations.
@@ -65,7 +66,7 @@ public class TypedChannelBenchmarks
         
         builder.AddEdge(broadcastEdge);
         
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(services, CancellationToken.None);
         
         await graph.ExecuteAsync(context);
@@ -108,7 +109,7 @@ public class TypedChannelBenchmarks
         
         builder.AddEdge(broadcastEdge);
         
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(services, CancellationToken.None);
         
         await graph.ExecuteAsync(context);
@@ -154,7 +155,7 @@ public class TypedChannelBenchmarks
         
         builder.AddEdge(competingEdge);
         
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(services, CancellationToken.None);
         
         await graph.ExecuteAsync(context);
@@ -199,7 +200,7 @@ public class TypedChannelBenchmarks
         
         builder.AddEdge(competingEdge);
         
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(services, CancellationToken.None);
         
         await graph.ExecuteAsync(context);
@@ -239,7 +240,7 @@ public class TypedChannelBenchmarks
         
         builder.AddEdge(broadcastEdge);
         
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(services, CancellationToken.None);
         
         await graph.ExecuteAsync(context);

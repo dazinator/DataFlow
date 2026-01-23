@@ -1,6 +1,8 @@
 using BenchmarkDotNet.Running;
 using BenchmarkDotNet.Configs;
 using DataFlow.POC.Benchmarks;
+using Microsoft.Extensions.DependencyInjection;
+using DataFlow.POC.Registry;
 
 namespace DataFlow.POC.Benchmarks;
 

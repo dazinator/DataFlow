@@ -6,6 +6,7 @@ using DataFlow.POC.Tests.TestHelpers;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Tests for SelectiveRoutingEdgeStrategy to validate:
@@ -68,7 +69,7 @@ public class SelectiveRoutingEdgeStrategyTests
             .AddBlock(oddProcessor)
             .AddEdge(edge);
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(commonServices, CancellationToken.None);
 
         // Act
@@ -150,7 +151,7 @@ public class SelectiveRoutingEdgeStrategyTests
             .AddBlock(route4)
             .AddEdge(edge);
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(commonServices, CancellationToken.None);
 
         // Act
@@ -209,7 +210,7 @@ public class SelectiveRoutingEdgeStrategyTests
             .AddBlock(processor)
             .AddEdge(edge);
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(commonServices, CancellationToken.None);
 
         // Act & Assert
@@ -280,7 +281,7 @@ public class SelectiveRoutingEdgeStrategyTests
             .AddBlock(customerBProcessor)
             .AddEdge(edge);
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(commonServices, CancellationToken.None);
 
         // Act

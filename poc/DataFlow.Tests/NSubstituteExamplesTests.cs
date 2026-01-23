@@ -5,6 +5,8 @@ using DataFlow.POC.Tests.TestHelpers;
 using NSubstitute;
 using Shouldly;
 using Xunit;
+using Microsoft.Extensions.DependencyInjection;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Demonstrates the value of NSubstitute for testing DataFlow actors with dependencies.

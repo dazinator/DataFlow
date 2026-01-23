@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using System.Linq;
 using Xunit;
 using DataFlow.POC.Tests.TestHelpers;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Integration tests for epoch graph configuration via ConfigureEpochs API.
@@ -52,7 +53,7 @@ public class EpochGraphIntegrationTests : IAsyncDisposable
             config.AddProcessor("proc1");
         });
         
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
 
         // Assert
         Assert.NotNull(graph);
@@ -107,7 +108,7 @@ public class EpochGraphIntegrationTests : IAsyncDisposable
             config.AddProcessor("processor1");
         }, _ => _coordinator);
         
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         
         // Assert - graph should build successfully
         Assert.NotNull(graph);
@@ -127,7 +128,7 @@ public class EpochGraphIntegrationTests : IAsyncDisposable
             config.AddProcessor("processor3");
         }, _ => _coordinator);
         
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         
         // Assert
         Assert.NotNull(graph);
@@ -192,7 +193,7 @@ public class EpochGraphIntegrationTests : IAsyncDisposable
             });
         }, _ => _coordinator);
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
 
         // Create and publish an epoch
         var vector = EpochVector.FromSingleSource("test", 1);
@@ -241,7 +242,7 @@ public class EpochGraphIntegrationTests : IAsyncDisposable
             });
         }, _ => _coordinator);
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
 
         // Create epoch with failing operation
         var vector = EpochVector.FromSingleSource("test", 1);
@@ -291,7 +292,7 @@ public class EpochGraphIntegrationTests : IAsyncDisposable
             });
         }, _ => _coordinator);
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
 
         // Publish multiple epochs
         var source = GetEpochSource(graph);

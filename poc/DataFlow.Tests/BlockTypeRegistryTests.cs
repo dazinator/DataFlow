@@ -391,7 +391,7 @@ public class BlockTypeRegistryTests
         builder.UseBlock("producer")
             .UseBlock("transformer")
             .Connect("producer", "transformer");
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
 
         // Assert
         Assert.NotNull(graph);

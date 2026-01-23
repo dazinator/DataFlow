@@ -7,6 +7,7 @@ using DataFlow.POC.Tests.TestHelpers;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Demonstrates improved testing experience with test helper utilities.
@@ -53,7 +54,7 @@ public class TestHelpersDemoTests
             .AddBlock(collector)
             .Connect(transformer, collector);
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var commonServices = new ServiceCollection().BuildServiceProvider();
         var context = new ExecutionContext(commonServices, CancellationToken.None);
 
@@ -129,7 +130,7 @@ public class TestHelpersDemoTests
             .AddBlock(collector)
             .Connect(transformer, collector);
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = TestContext.CreateExecution();
 
         // Act

@@ -7,6 +7,7 @@ using DataFlow.POC.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 using DataFlow.POC.Tests.TestHelpers;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Tests for the revised DI service registration design.
@@ -34,7 +35,7 @@ public class RevisedDiRegistrationTests
         builder.AddBlock(producer)
             .AddBlock(transformer)
             .Connect(producer, transformer);
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
 
         // Assert
         Assert.NotNull(graph);
@@ -58,7 +59,7 @@ public class RevisedDiRegistrationTests
         builder.UseBlock("producer")
             .UseBlock("transformer")
             .Connect("producer", "transformer");
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
 
         // Assert
         Assert.NotNull(graph);
@@ -82,7 +83,7 @@ public class RevisedDiRegistrationTests
         builder.UseBlock("producer")           // From DI
             .AddBlock(directBlock)              // Direct instance
             .Connect("producer", "transformer");
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
 
         // Assert
         Assert.NotNull(graph);
@@ -404,7 +405,7 @@ public class RevisedDiRegistrationTests
         builder.UseBlock("producer")
             .UseBlock("transformer")
             .Connect("producer", "transformer");
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
 
         // Assert
         Assert.NotNull(graph);

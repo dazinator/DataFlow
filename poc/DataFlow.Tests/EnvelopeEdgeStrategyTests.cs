@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
 using DataFlow.POC.Tests.TestHelpers;
+using DataFlow.POC.Registry;
 
 public class EnvelopeEdgeStrategyTests
 {
@@ -94,7 +95,7 @@ public class EnvelopeEdgeStrategyTests
         var envelopeStrategy = EnvelopeEdgeStrategyFactory.CreateBroadcast();
         builder.AddEdge(new Edge(producer, new[] { consumer1, consumer2 }, envelopeStrategy));
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(commonServices, CancellationToken.None);
 
         // Act
@@ -155,7 +156,7 @@ public class EnvelopeEdgeStrategyTests
         var envelopeStrategy = EnvelopeEdgeStrategyFactory.CreateCompeting();
         builder.AddEdge(new Edge(producer, new[] { consumer1, consumer2 }, envelopeStrategy));
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(commonServices, CancellationToken.None);
 
         // Act
@@ -198,7 +199,7 @@ public class EnvelopeEdgeStrategyTests
         var envelopeStrategy = EnvelopeEdgeStrategyFactory.CreateBroadcast();
         builder.AddEdge(new Edge(producer, consumer, envelopeStrategy));
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(commonServices, CancellationToken.None);
 
         // Act
@@ -247,7 +248,7 @@ public class EnvelopeEdgeStrategyTests
         var envelopeStrategy = EnvelopeEdgeStrategyFactory.CreateBroadcast();
         builder.AddEdge(new Edge(producer, consumer, envelopeStrategy));
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(commonServices, CancellationToken.None);
 
         // Act
@@ -282,7 +283,7 @@ public class EnvelopeEdgeStrategyTests
         var envelopeStrategy = EnvelopeEdgeStrategyFactory.CreateBroadcast();
         builder.AddEdge(new Edge(producer, consumer, envelopeStrategy));
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(commonServices, CancellationToken.None);
 
         // Act

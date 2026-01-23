@@ -1,6 +1,8 @@
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Jobs;
 using DataFlow.POC.Core;
+using Microsoft.Extensions.DependencyInjection;
+using DataFlow.POC.Registry;
 
 namespace DataFlow.POC.Benchmarks;
 

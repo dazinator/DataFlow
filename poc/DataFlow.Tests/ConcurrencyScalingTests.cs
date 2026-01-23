@@ -10,6 +10,7 @@ using Shouldly;
 using Xunit;
 using Xunit.Abstractions;
 using DataFlow.POC.Tests.TestHelpers;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Tests specifically focused on verifying concurrent execution and scaling behavior.
@@ -513,7 +514,7 @@ public class ConcurrencyScalingTests
             builder.Connect(t, collector);
         }
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(services, CancellationToken.None);
 
         // Act
@@ -621,7 +622,7 @@ public class ConcurrencyScalingTests
             processors.Cast<IBlock>().ToList(),
             new CompetingEdgeStrategy(BufferMode.Bounded, 10)));
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(services, CancellationToken.None);
 
         // Act
@@ -747,7 +748,7 @@ public class ConcurrencyScalingTests
             builder.Connect(enricher, collector);
         }
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(services, CancellationToken.None);
 
         // Act
@@ -906,7 +907,7 @@ public class ConcurrencyScalingTests
             builder.Connect(t, collector);
         }
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(services, CancellationToken.None);
 
         var sw = Stopwatch.StartNew();
@@ -1006,7 +1007,7 @@ public class ConcurrencyScalingTests
             builder.Connect(enricher, collector);
         }
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(services, CancellationToken.None);
 
         var sw = Stopwatch.StartNew();
@@ -1098,7 +1099,7 @@ public class ConcurrencyScalingTests
             builder.ConnectBroadcast(enricher, new[] { collector1, collector2 }, bufferCapacity: 10);
         }
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(services, CancellationToken.None);
 
         var sw = Stopwatch.StartNew();
@@ -1203,7 +1204,7 @@ public class ConcurrencyScalingTests
             builder.AddEdge(routingEdge);
         }
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(services, CancellationToken.None);
 
         var sw = Stopwatch.StartNew();
@@ -1361,7 +1362,7 @@ public class ConcurrencyScalingTests
             builder.AddEdge(routingEdge);
         }
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(services, CancellationToken.None);
 
         var sw = Stopwatch.StartNew();
@@ -1497,7 +1498,7 @@ public class ConcurrencyScalingTests
         builder.Connect(batcher, aggregator);
         builder.Connect(aggregator, writer);
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(services, CancellationToken.None);
 
         var sw = Stopwatch.StartNew();
@@ -1589,7 +1590,7 @@ public class ConcurrencyScalingTests
             builder.Connect(enricher, collector);
         }
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(services, CancellationToken.None);
 
         var sw = Stopwatch.StartNew();
@@ -1889,7 +1890,7 @@ public class ConcurrencyScalingTests
 
         // TypeC: already routed to writer
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(services, CancellationToken.None);
 
         var sw = Stopwatch.StartNew();

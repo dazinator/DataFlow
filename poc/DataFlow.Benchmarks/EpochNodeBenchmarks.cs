@@ -3,6 +3,7 @@ using BenchmarkDotNet.Jobs;
 using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
 using System.Threading.Channels;
+using DataFlow.POC.Registry;
 
 namespace DataFlow.POC.Benchmarks;
 

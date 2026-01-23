@@ -11,6 +11,7 @@ using DataFlow.POC.Blocks;
 using DataFlow.POC.Builder;
 using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// POC implementation of complex ETL dataflow for benchmarking.
@@ -439,7 +440,7 @@ public static class ComplexEtlPOC
             builder.Connect(typeCFilterBuffer, writer);
         }
 
-        return builder.Build();
+        return builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         */
     }
 

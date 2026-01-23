@@ -6,6 +6,7 @@ using DataFlow.POC.Checkpointing.Strategies;
 using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
+using DataFlow.POC.Registry;
 
 public class CheckpointIntegrationTests
 {

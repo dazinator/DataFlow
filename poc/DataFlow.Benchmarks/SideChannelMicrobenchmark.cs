@@ -4,6 +4,8 @@ using System.Threading.Channels;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Jobs;
 using DataFlow.POC.Core;
+using Microsoft.Extensions.DependencyInjection;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// BenchmarkDotNet microbenchmark for side-channel competing edge mechanisms.

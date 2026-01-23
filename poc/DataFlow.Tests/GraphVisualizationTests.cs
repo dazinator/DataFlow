@@ -200,7 +200,7 @@ public class GraphVisualizationTests
             .AddBlock(processor)
             .Connect(transformer, processor);
 
-        return builder.Build();
+        return builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
     }
 
 
@@ -221,7 +221,7 @@ public class GraphVisualizationTests
             .AddBlock(processor2)
             .ConnectBroadcast(producer, new[] { processor1, processor2 }); // Use ConnectBroadcast
 
-        return builder.Build();
+        return builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
     }
 
     private DataFlowGraph CreateComplexFlowGraph()
@@ -257,7 +257,7 @@ public class GraphVisualizationTests
             .Connect(transformer1, transformer2)
             .ConnectBroadcast(transformer2, new[] { processor1, processor2 }); // Use ConnectBroadcast
 
-        return builder.Build();
+        return builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
     }
 
     private DataFlowGraph CreateCompetingConsumersFlowGraph()
@@ -283,7 +283,7 @@ public class GraphVisualizationTests
             .AddBlock(processor2)
             .AddEdge(competingEdge);
 
-        return builder.Build();
+        return builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
     }
 
     private DataFlowGraph CreateRoutingFlowGraph()
@@ -320,6 +320,6 @@ public class GraphVisualizationTests
             .AddBlock(oddProcessor)
             .AddEdge(routingEdge);
 
-        return builder.Build();
+        return builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
     }
 }

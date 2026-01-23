@@ -8,6 +8,7 @@ using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using static BenchmarkActorHelpers;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Simple performance tests to quickly measure typed channel improvements.
@@ -66,7 +67,7 @@ public class PerformanceTests
         
         builder.AddEdge(broadcastEdge);
         
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(services, CancellationToken.None);
         
         await graph.ExecuteAsync(context);
@@ -125,7 +126,7 @@ public class PerformanceTests
         
         builder.AddEdge(broadcastEdge);
         
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(services, CancellationToken.None);
         
         await graph.ExecuteAsync(context);
@@ -184,7 +185,7 @@ public class PerformanceTests
         
         builder.AddEdge(competingEdge);
         
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(services, CancellationToken.None);
         
         await graph.ExecuteAsync(context);
@@ -242,7 +243,7 @@ public class PerformanceTests
         
         builder.AddEdge(broadcastEdge);
         
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(services, CancellationToken.None);
         
         await graph.ExecuteAsync(context);

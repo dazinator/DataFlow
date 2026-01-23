@@ -9,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
 using Xunit.Categories;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Documentation tests for the Epoch Actor Block guide.
@@ -53,7 +54,7 @@ public class EpochActorBlockDocumentationTests : IAsyncDisposable
             config.AddProcessor("processor1");
         }, _ => _coordinator);
         
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         
         // Assert
         graph.ShouldNotBeNull();
@@ -75,7 +76,7 @@ public class EpochActorBlockDocumentationTests : IAsyncDisposable
             config.AddProcessor("processor3");
         }, _ => _coordinator);
         
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         
         // Assert
         graph.ShouldNotBeNull();
@@ -95,7 +96,7 @@ public class EpochActorBlockDocumentationTests : IAsyncDisposable
             config.AddProcessor("processor1");
         }, _ => _coordinator);
         
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         
         // Assert
         graph.ShouldNotBeNull();
@@ -121,7 +122,7 @@ public class EpochActorBlockDocumentationTests : IAsyncDisposable
             config.AddProcessor("processor");
         }, _ => _coordinator);
         
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         graph.ShouldNotBeNull();
         
         // The actual scope rotation happens during execution

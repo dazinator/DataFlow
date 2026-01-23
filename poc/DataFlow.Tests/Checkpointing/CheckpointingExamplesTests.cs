@@ -5,6 +5,8 @@ using DataFlow.POC.Checkpointing;
 using DataFlow.POC.Core;
 using Xunit;
 using Xunit.Abstractions;
+using Microsoft.Extensions.DependencyInjection;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Documentation examples showing how to use checkpointing features.

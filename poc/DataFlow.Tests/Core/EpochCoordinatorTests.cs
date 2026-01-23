@@ -3,6 +3,7 @@ namespace DataFlow.POC.Tests.Core;
 using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Tests for source-level epoch coordination approach.

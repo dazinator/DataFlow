@@ -8,6 +8,7 @@ using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using static BenchmarkActorHelpers;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// ActorBlock benchmarks designed for external profiling with dotnet-counters.
@@ -158,7 +159,7 @@ public class ActorBlockBenchmark
             .Connect(producer, actorBlock)
             .Connect(actorBlock, processor);
         
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(services, CancellationToken.None);
         
         await graph.ExecuteAsync(context);
@@ -211,7 +212,7 @@ public class ActorBlockBenchmark
             .Connect(producer, actorBlock)
             .Connect(actorBlock, processor);
         
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(services, CancellationToken.None);
         
         await graph.ExecuteAsync(context);
@@ -267,7 +268,7 @@ public class ActorBlockBenchmark
             .Connect(producer, actorBlock)
             .Connect(actorBlock, processor);
         
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(services, CancellationToken.None);
         
         await graph.ExecuteAsync(context);

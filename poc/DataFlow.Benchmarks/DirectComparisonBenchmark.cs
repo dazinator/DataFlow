@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Uniun.DataFlow;
 using PocExecutionContext = DataFlow.POC.Core.ExecutionContext;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Direct execution comparison benchmark designed for external profiling with dotnet-counters.

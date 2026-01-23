@@ -6,6 +6,7 @@ using System.Threading;
 using DataFlow.POC.Benchmarks.DeprecatedBlocks;
 using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Shared utilities for benchmark actor creation and service provider setup.

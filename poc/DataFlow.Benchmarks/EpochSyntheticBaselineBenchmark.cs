@@ -3,6 +3,8 @@ namespace DataFlow.POC.Benchmarks;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Jobs;
 using DataFlow.POC.Core;
+using Microsoft.Extensions.DependencyInjection;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Synthetic baseline benchmark comparing pure stream processing (no epochs)

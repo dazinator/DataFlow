@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
 using DataFlow.POC.Tests.TestHelpers;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Tests to verify that AsyncLocal values (specifically ExecutionContext.Current) 
@@ -103,7 +104,7 @@ public class AsyncLocalPropagationTests
             .AddBlock(processor)
             .Connect(producer, processor);
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(commonServices, CancellationToken.None, expectedContextId);
 
         // Act
@@ -151,7 +152,7 @@ public class AsyncLocalPropagationTests
             .AddBlock(processor)
             .Connect(concurrentProducer, processor);
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(commonServices, CancellationToken.None, expectedContextId);
 
         // Act
@@ -204,7 +205,7 @@ public class AsyncLocalPropagationTests
             .AddBlock(processor)
             .AutoConnect();
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(commonServices, CancellationToken.None, expectedContextId);
 
         // Act
@@ -270,8 +271,8 @@ public class AsyncLocalPropagationTests
             .AddBlock(processor2)
             .Connect(producer2, processor2);
 
-        var graph1 = builder1.Build();
-        var graph2 = builder2.Build();
+        var graph1 = builder1.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
+        var graph2 = builder2.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
 
         var context1 = new ExecutionContext(commonServices, CancellationToken.None, context1Id);
         var context2 = new ExecutionContext(commonServices, CancellationToken.None, context2Id);
@@ -346,7 +347,7 @@ public class AsyncLocalPropagationTests
             .AddBlock(processor2)
             .ConnectBroadcast(producer, new[] { processor1, processor2 }); // Single broadcast edge
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(commonServices, CancellationToken.None, expectedContextId);
 
         // Act
@@ -398,7 +399,7 @@ public class AsyncLocalPropagationTests
             .AddBlock(processor)
             .Connect(batch, processor);
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(commonServices, CancellationToken.None, expectedContextId);
 
         // Act

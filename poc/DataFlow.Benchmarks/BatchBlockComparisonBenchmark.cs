@@ -11,6 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System.Runtime.CompilerServices;
 using Uniun.DataFlow;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Comprehensive BatchBlock comparison benchmark across prod and POC implementations.

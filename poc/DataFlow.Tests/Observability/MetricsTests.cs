@@ -7,6 +7,7 @@ using DataFlow.POC.Observability;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Xunit;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Tests for DataFlow POC metrics collection.

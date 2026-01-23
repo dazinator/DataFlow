@@ -8,6 +8,7 @@ using Xunit;
 using DataFlow.POC.Tests.TestHelpers;
 using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Concurrent;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Tests documenting that multiple producers connecting to a single consumer
@@ -62,7 +63,7 @@ public class MultiProducerMergePatternTests
             .Connect(producer2, processor);
 
         // Act
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(commonServices, CancellationToken.None);
         await graph.ExecuteAsync(context);
 
@@ -97,7 +98,7 @@ public class MultiProducerMergePatternTests
             .Connect("producer2", "processor");
 
         // Act
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(commonServices, CancellationToken.None);
         await graph.ExecuteAsync(context);
 
@@ -136,7 +137,7 @@ public class MultiProducerMergePatternTests
         builder.AddEdge(edge2);
 
         // Act
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new ExecutionContext(commonServices, CancellationToken.None);
         await graph.ExecuteAsync(context);
 
@@ -181,7 +182,7 @@ public class MultiProducerMergePatternTests
             .ConnectBroadcast(producer, new[] { processor1, processor2 }); // Use ConnectBroadcast for multiple targets
 
         // Assert
-        var graph = Should.NotThrow(() => builder.Build());
+        var graph = Should.NotThrow(() => builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry()));
         graph.ShouldNotBeNull();
         
         var context = new ExecutionContext(commonServices, CancellationToken.None);

@@ -4,6 +4,8 @@ using DataFlow.POC.Core;
 using Shouldly;
 using System.Threading.Channels;
 using Xunit;
+using Microsoft.Extensions.DependencyInjection;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Tests for SingleTargetRouter optimization that eliminates dictionary lookups in the routing hot path.

@@ -10,6 +10,7 @@ using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 using Xunit;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Tests that verify the documented observability examples compile and run correctly.

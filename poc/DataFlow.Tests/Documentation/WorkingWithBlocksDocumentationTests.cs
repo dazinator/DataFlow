@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
 using Xunit.Categories;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Documentation tests for the Working with Blocks guide.
@@ -34,7 +35,7 @@ public class WorkingWithBlocksDocumentationTests
             .AddBlock(producer)
             .AddBlock(processor)
             .Connect(producer, processor)
-            .Build();
+            .Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         
         var serviceProvider = new ServiceCollection().BuildServiceProvider();
         var context = new ExecutionContext(serviceProvider, CancellationToken.None);
@@ -76,7 +77,7 @@ public class WorkingWithBlocksDocumentationTests
             .AddBlock(processor)
             .Connect(producer, transformer)
             .Connect(transformer, processor)
-            .Build();
+            .Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         
         var serviceProvider = new ServiceCollection().BuildServiceProvider();
         var context = new ExecutionContext(serviceProvider, CancellationToken.None);
@@ -118,7 +119,7 @@ public class WorkingWithBlocksDocumentationTests
             .AddBlock(processor)
             .Connect(producer, multiplier)
             .Connect(multiplier, processor)
-            .Build();
+            .Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         
         var serviceProvider = new ServiceCollection().BuildServiceProvider();
         var context = new ExecutionContext(serviceProvider, CancellationToken.None);
@@ -160,7 +161,7 @@ public class WorkingWithBlocksDocumentationTests
             .AddBlock(processor)
             .Connect(producer, filter)
             .Connect(filter, processor)
-            .Build();
+            .Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         
         var serviceProvider = new ServiceCollection().BuildServiceProvider();
         var context = new ExecutionContext(serviceProvider, CancellationToken.None);

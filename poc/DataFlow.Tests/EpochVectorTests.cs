@@ -3,6 +3,8 @@ namespace DataFlow.POC.Tests;
 using DataFlow.POC.Core;
 using Shouldly;
 using Xunit;
+using Microsoft.Extensions.DependencyInjection;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Tests for EpochVector multi-source tracking and composition rules.

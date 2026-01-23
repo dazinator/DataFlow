@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Xunit;
 using Xunit.Abstractions;
 using DataFlow.POC.Tests.TestHelpers;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Tests to validate that the untyped IBlock.ExecuteAsync interface is NOT used in execution.
@@ -31,7 +32,7 @@ public class UntypedInterfaceValidationTests
         var builder = GraphHelpers.CreateGraphBuilder("test-graph");
         builder.AddBlock(sourceBlock);
         
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         
         var services = new ServiceCollection().BuildServiceProvider();
         var context = new ExecutionContext(services, CancellationToken.None);

@@ -6,6 +6,7 @@ using Xunit;
 using Xunit.Abstractions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Research tests investigating architectural mismatch in epoch stream routing.

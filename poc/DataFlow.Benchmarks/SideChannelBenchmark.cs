@@ -13,6 +13,7 @@ using DataFlow.POC.Builder;
 using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
 using PocExecutionContext = DataFlow.POC.Core.ExecutionContext;
+using DataFlow.POC.Registry;
 
 /// <summary>
 /// Improved benchmark comparing performance overhead of side-channel competing edges vs standard competing edges.
@@ -148,7 +149,7 @@ public class SideChannelBenchmark
         var strategy = EnvelopeEdgeStrategyFactory.CreateCompeting();
         builder.AddEdge(new Edge(producer, new[] { consumer1, consumer2 }, strategy));
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new PocExecutionContext(services, CancellationToken.None);
 
         var sw = Stopwatch.StartNew();
@@ -229,7 +230,7 @@ public class SideChannelBenchmark
         var strategy = EnvelopeEdgeStrategyFactory.CreateCompetingWithSideChannel();
         builder.AddEdge(new Edge(producer, new[] { consumer1, consumer2 }, strategy));
 
-        var graph = builder.Build();
+        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
         var context = new PocExecutionContext(services, CancellationToken.None);
 
         var sw = Stopwatch.StartNew();
