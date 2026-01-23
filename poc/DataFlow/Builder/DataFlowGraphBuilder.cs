@@ -133,6 +133,20 @@ public class DataFlowGraphBuilder
     }
 
     /// <summary>
+    /// Validates that the source block has not already been connected.
+    /// Enforces the single-connection-per-source rule.
+    /// </summary>
+    private void ValidateSourceNotAlreadyConnected(IBlock source)
+    {
+        if (_simpleConnectedSources.Contains(source))
+        {
+            throw new InvalidOperationException(
+                $"Source block '{source.Name}' has already been connected. " +
+                $"Each source can only be connected once. Use ConnectBroadcast() or ConnectCompeting() to connect to multiple targets.");
+        }
+    }
+
+    /// <summary>
     /// Connect two blocks with an edge (internal method with buffer mode).
     /// </summary>
     private DataFlowGraphBuilder Connect(
@@ -141,13 +155,7 @@ public class DataFlowGraphBuilder
         BufferMode bufferMode,
         int bufferCapacity)
     {
-        // Enforce single-connection-per-source rule
-        if (_simpleConnectedSources.Contains(source))
-        {
-            throw new InvalidOperationException(
-                $"Source block '{source.Name}' has already been connected. " +
-                $"Each source can only be connected once. Use ConnectBroadcast() or ConnectCompeting() to connect to multiple targets.");
-        }
+        ValidateSourceNotAlreadyConnected(source);
 
         var edge = new Edge(source, target, bufferMode, bufferCapacity);
         _edges.Add(edge);
@@ -185,13 +193,7 @@ public class DataFlowGraphBuilder
         int bufferCapacity = 100,
         Func<object, object>? cloneFunc = null)
     {
-        // Enforce single-connection-per-source rule
-        if (_simpleConnectedSources.Contains(source))
-        {
-            throw new InvalidOperationException(
-                $"Source block '{source.Name}' has already been connected. " +
-                $"Each source can only be connected once.");
-        }
+        ValidateSourceNotAlreadyConnected(source);
 
         var strategy = cloneFunc != null
             ? new BroadcastEdgeStrategy(cloneFunc, BufferMode.Bounded, bufferCapacity)
@@ -238,13 +240,7 @@ public class DataFlowGraphBuilder
         IReadOnlyList<IBlock> targets,
         int bufferCapacity = 100)
     {
-        // Enforce single-connection-per-source rule
-        if (_simpleConnectedSources.Contains(source))
-        {
-            throw new InvalidOperationException(
-                $"Source block '{source.Name}' has already been connected. " +
-                $"Each source can only be connected once.");
-        }
+        ValidateSourceNotAlreadyConnected(source);
 
         var edge = new Edge(source, targets, new CompetingEdgeStrategy(BufferMode.Bounded, bufferCapacity));
         _edges.Add(edge);
@@ -308,7 +304,13 @@ public class DataFlowGraphBuilder
         
         if (block is null)
         {
-            throw new ArgumentException($"{blockRole} block '{name}' not found");
+            var key = ResolveBlockKey(name);
+            throw new ArgumentException(
+                $"{blockRole} block '{name}' not found. " +
+                $"Block was either not added to the builder, or if using UseBlock(), " +
+                $"make sure the block is registered with AddDataFlows(). " +
+                $"Tried names: '{name}' and '{key}'.",
+                nameof(name));
         }
 
         return block;
@@ -332,6 +334,10 @@ public class DataFlowGraphBuilder
     /// Sets the epoch configuration for the graph (internal use by ConfigureEpochs).
     /// The coordinator will be created during Build() when the service provider is available.
     /// </summary>
+    /// <param name="config">The epoch configuration containing policy, processors, and hooks</param>
+    /// <param name="coordinatorFactory">Optional factory for creating the coordinator. If null, a default factory will be used.</param>
+    /// <exception cref="ArgumentNullException">Thrown when config is null</exception>
+    /// <exception cref="InvalidOperationException">Thrown when epoch configuration has already been set</exception>
     internal void SetEpochConfiguration(
         EpochConfiguration config,
         Func<ICheckpointStrategy?, IEpochCoordinator>? coordinatorFactory)
@@ -395,13 +401,7 @@ public class DataFlowGraphBuilder
             var source = FindBlockByName(sourceName, "Source");
             var target = FindBlockByName(targetName, "Target");
             
-            // Enforce single-connection-per-source rule
-            if (_simpleConnectedSources.Contains(source))
-            {
-                throw new InvalidOperationException(
-                    $"Source block '{source.Name}' has already been connected. " +
-                    $"Each source can only be connected once. Use ConnectBroadcast() or ConnectCompeting() to connect to multiple targets.");
-            }
+            ValidateSourceNotAlreadyConnected(source);
             
             var edge = new Edge(source, target, BufferMode.Bounded, bufferCapacity);
             graph.AddEdge(edge);
