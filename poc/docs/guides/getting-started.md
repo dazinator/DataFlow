@@ -452,9 +452,9 @@ Use trigger context when your dataflow needs to:
 - Track correlation IDs from web requests
 - Use dynamic parameters determined at runtime
 
-### Static Trigger Context (Recommended for Known Structure)
+### Accessing Trigger Parameters (Recommended Approach)
 
-For scenarios where you know the trigger structure at compile time, use strongly-typed trigger contexts:
+The **recommended way** to access trigger parameters is using the Parameter Provider, which works with any trigger context type:
 
 ```csharp
 // Define trigger context with known properties
@@ -472,12 +472,12 @@ var context = new ExecutionContext(
     Guid.NewGuid(),
     recoveryCheckpoint: null,
     metrics: null,
-    triggerContext);  // Trigger context parameter
+    triggerContext);
 
 await graph.ExecuteAsync(context);
 ```
 
-**Access in actors:**
+**Access parameters in actors (recommended):**
 ```csharp
 public class TenantAwareActor : IStreamActor<Order, ProcessedOrder>
 {
@@ -485,19 +485,25 @@ public class TenantAwareActor : IStreamActor<Order, ProcessedOrder>
         IAsyncEnumerable<Order> input,
         IActorExecutionContext context)
     {
-        // Extract tenant ID from trigger context
-        string tenantId = "default";
-        if (context.TriggerContext is ScheduledTriggerContext scheduled)
-        {
-            tenantId = scheduled.TenantId ?? "default";
-        }
+        // ✅ RECOMMENDED: Use Parameter Provider (works with any trigger type)
+        var tenantId = context.Parameters.GetParameter("tenantId", "default");
+        var jobName = context.Parameters.GetParameter("jobName", "unknown");
         
         await foreach (var order in input.WithCancellation(context.CancellationToken))
         {
-            // Use tenant ID in processing
             yield return ProcessOrderForTenant(order, tenantId);
         }
     }
+}
+```
+
+**Alternative: Direct trigger context access (not recommended):**
+```csharp
+// ❌ NOT RECOMMENDED: Tightly coupled to specific trigger type
+string tenantId = "default";
+if (context.TriggerContext is ScheduledTriggerContext scheduled)
+{
+    tenantId = scheduled.TenantId ?? "default";
 }
 ```
 
@@ -539,7 +545,7 @@ var context = new ExecutionContext(
 await graph.ExecuteAsync(context);
 ```
 
-**Access dynamic properties in actors:**
+**Access dynamic properties in actors (recommended):**
 ```csharp
 public class DynamicActor : IStreamActor<Data, Result>
 {
@@ -547,22 +553,13 @@ public class DynamicActor : IStreamActor<Data, Result>
         IAsyncEnumerable<Data> input,
         IActorExecutionContext context)
     {
-        // Extract values from JSON context
-        string tenantId = "default";
-        int priority = 0;
-        
-        if (context.TriggerContext is JsonTriggerContext json)
-        {
-            tenantId = json.Data?["tenantId"]?.GetValue<string>() ?? "default";
-            priority = json.Data?["customProperty"]?.GetValue<int>() ?? 0;
-            
-            // Access nested properties
-            var source = json.Data?["metadata"]?["source"]?.GetValue<string>();
-        }
+        // ✅ RECOMMENDED: Use Parameter Provider (works with any trigger type)
+        var tenantId = context.Parameters.GetParameter("tenantId", "default");
+        var customProperty = context.Parameters.GetParameter("customProperty", 0);
         
         await foreach (var item in input.WithCancellation(context.CancellationToken))
         {
-            yield return ProcessWithContext(item, tenantId, priority);
+            yield return ProcessWithContext(item, tenantId, customProperty);
         }
     }
 }
