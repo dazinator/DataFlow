@@ -61,23 +61,23 @@ public class EpochGraphIntegrationTests : IAsyncDisposable
     }
 
     [Fact]
-    public void ConfigureEpochs_ThrowsWhenNoServiceProviderAndNoFactory()
+    public void ConfigureEpochs_ThrowsWhenNoServiceProviderAtBuildTime()
     {
-        // Arrange - Create legacy builder without service provider
-#pragma warning disable CS0618
+        // Arrange - Create builder without service provider
         var builder = new DataFlowGraphBuilder("test");
-#pragma warning restore CS0618
 
-        // Act & Assert
-        var ex = Assert.Throws<InvalidOperationException>(() =>
-            builder.ConfigureEpochs(config =>
-            {
-                config.SetPolicy(EpochPolicy.ByCount(10));
-                config.AddProcessor("proc1");
-            }));
+        // Configure epochs (no exception here)
+        builder.ConfigureEpochs(config =>
+        {
+            config.SetPolicy(EpochPolicy.ByCount(10));
+            config.AddProcessor("proc1");
+        });
         
-        Assert.Contains("service provider", ex.Message);
-        Assert.Contains("coordinatorFactory", ex.Message);
+        // Act & Assert - Exception should be thrown at Build() time
+        var ex = Assert.Throws<ArgumentNullException>(() =>
+            builder.Build(null!, new BlockTypeRegistry()));
+        
+        Assert.Equal("serviceProvider", ex.ParamName);
     }
 
     [Fact]

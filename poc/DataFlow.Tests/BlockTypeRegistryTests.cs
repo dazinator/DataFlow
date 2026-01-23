@@ -385,13 +385,14 @@ public class BlockTypeRegistryTests
         });
 
         var serviceProvider = services.BuildServiceProvider();
+        var registry = serviceProvider.GetRequiredService<IBlockTypeRegistry>();
 
         // Act - Build graph using registered blocks
         var builder = GraphHelpers.CreateGraphBuilder("test", serviceProvider);
         builder.UseBlock("producer")
             .UseBlock("transformer")
             .Connect("producer", "transformer");
-        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
+        var graph = builder.Build(serviceProvider, registry);
 
         // Assert
         Assert.NotNull(graph);

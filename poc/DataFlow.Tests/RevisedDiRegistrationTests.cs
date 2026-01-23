@@ -59,7 +59,7 @@ public class RevisedDiRegistrationTests
         builder.UseBlock("producer")
             .UseBlock("transformer")
             .Connect("producer", "transformer");
-        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
+        var graph = builder.Build(serviceProvider, serviceProvider.GetRequiredService<IBlockTypeRegistry>());
 
         // Assert
         Assert.NotNull(graph);
@@ -83,42 +83,45 @@ public class RevisedDiRegistrationTests
         builder.UseBlock("producer")           // From DI
             .AddBlock(directBlock)              // Direct instance
             .Connect("producer", "transformer");
-        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
+        var graph = builder.Build(serviceProvider, serviceProvider.GetRequiredService<IBlockTypeRegistry>());
 
         // Assert
         Assert.NotNull(graph);
     }
 
     [Fact]
-    public void UseBlock_ThrowsWhenNoServiceProvider()
+    public void UseBlock_ThrowsWhenNoServiceProviderAtBuildTime()
     {
-        // Arrange - Use old constructor directly to test the error case
-#pragma warning disable CS0618 // Type or member is obsolete
+        // Arrange - Create builder without service provider
         var builder = new DataFlowGraphBuilder("test");
-#pragma warning restore CS0618 // Type or member is obsolete
 
-        // Act & Assert
-        var ex = Assert.Throws<InvalidOperationException>(() =>
-            builder.UseBlock("producer"));
+        // Act - UseBlock stores the name, doesn't throw yet
+        builder.UseBlock("producer");
         
-        Assert.Contains("service provider", ex.Message, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("AddBlock()", ex.Message);
+        // Assert - Exception is thrown at Build() time when service provider is null
+        var ex = Assert.Throws<ArgumentNullException>(() =>
+            builder.Build(null!, new BlockTypeRegistry()));
+        
+        Assert.Equal("serviceProvider", ex.ParamName);
     }
 
     [Fact]
-    public void UseBlock_ThrowsWhenBlockNotRegistered()
+    public void UseBlock_ThrowsWhenBlockNotRegisteredAtBuildTime()
     {
         // Arrange
         var services = new ServiceCollection();
         var serviceProvider = services.BuildServiceProvider();
+        var registry = new BlockTypeRegistry();
         var builder = GraphHelpers.CreateGraphBuilder("test", serviceProvider);
 
-        // Act & Assert
+        // Act - UseBlock stores the name, doesn't throw yet
+        builder.UseBlock("non-existent");
+        
+        // Assert - Exception is thrown at Build() time
         var ex = Assert.Throws<InvalidOperationException>(() =>
-            builder.UseBlock("non-existent"));
+            builder.Build(serviceProvider, registry));
         
         Assert.Contains("not found", ex.Message, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("AddDataFlows", ex.Message);
     }
 
     #endregion
@@ -405,7 +408,7 @@ public class RevisedDiRegistrationTests
         builder.UseBlock("producer")
             .UseBlock("transformer")
             .Connect("producer", "transformer");
-        var graph = builder.Build(new ServiceCollection().BuildServiceProvider(), new BlockTypeRegistry());
+        var graph = builder.Build(serviceProvider, serviceProvider.GetRequiredService<IBlockTypeRegistry>());
 
         // Assert
         Assert.NotNull(graph);

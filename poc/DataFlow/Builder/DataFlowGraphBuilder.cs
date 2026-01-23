@@ -20,6 +20,7 @@ public class DataFlowGraphBuilder
     private readonly List<string> _pendingBlockNames = new(); // Block names to resolve via UseBlock()
     private readonly Dictionary<string, IBlock> _blocksByName = new(); // Track blocks by their registration name
     private readonly List<Edge> _edges = new();
+    private readonly List<(string sourceName, string targetName, int bufferCapacity)> _pendingConnections = new(); // Connections to resolve during Build()
     private readonly HashSet<IBlock> _simpleConnectedSources = new(); // Track sources connected via simple Connect/ConnectBroadcast/ConnectCompeting
     private EpochSourceNode? _epochSource;
     private readonly List<EpochProcessorNode> _epochProcessors = new();
@@ -253,15 +254,16 @@ public class DataFlowGraphBuilder
 
     /// <summary>
     /// Connect two blocks by name.
+    /// If the blocks were added via UseBlock(), the connection will be resolved during Build().
     /// </summary>
     public DataFlowGraphBuilder Connect(
         string sourceName,
         string targetName,
         int bufferCapacity = 100)
     {
-        var source = FindBlockByName(sourceName, "Source");
-        var target = FindBlockByName(targetName, "Target");
-        return Connect(source, target, BufferMode.Bounded, bufferCapacity);
+        // Store the pending connection - it will be resolved during Build()
+        _pendingConnections.Add((sourceName, targetName, bufferCapacity));
+        return this;
     }
 
     /// <summary>
@@ -387,7 +389,26 @@ public class DataFlowGraphBuilder
             _blocksByName[key] = block;
         }
 
-        // Add edges
+        // Resolve and add pending connections (from Connect() calls with string names)
+        foreach (var (sourceName, targetName, bufferCapacity) in _pendingConnections)
+        {
+            var source = FindBlockByName(sourceName, "Source");
+            var target = FindBlockByName(targetName, "Target");
+            
+            // Enforce single-connection-per-source rule
+            if (_simpleConnectedSources.Contains(source))
+            {
+                throw new InvalidOperationException(
+                    $"Source block '{source.Name}' has already been connected. " +
+                    $"Each source can only be connected once. Use ConnectBroadcast() or ConnectCompeting() to connect to multiple targets.");
+            }
+            
+            var edge = new Edge(source, target, BufferMode.Bounded, bufferCapacity);
+            graph.AddEdge(edge);
+            _simpleConnectedSources.Add(source);
+        }
+
+        // Add edges that were added directly via AddEdge() or Connect(IBlock, IBlock)
         foreach (var edge in _edges)
         {
             graph.AddEdge(edge);
