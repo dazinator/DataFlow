@@ -211,9 +211,9 @@ public class DataFlowBuilder
         _services.AddKeyedScoped<DataFlowGraph>(fullKey, (sp, key) =>
         {
             var registry = sp.GetRequiredService<IBlockTypeRegistry>();
-            var builder = new DataFlowGraphBuilder(name, currentNamespace);
+            var builder = new DataFlowGraphBuilder(name, sp, registry, currentNamespace);
             configure(builder);
-            return builder.Build(sp, registry);
+            return builder.Build();
         });
 
         return this;
@@ -247,9 +247,9 @@ public class DataFlowBuilder
         {
             var definition = sp.GetRequiredService<TDefinition>();
             var registry = sp.GetRequiredService<IBlockTypeRegistry>();
-            var builder = new DataFlowGraphBuilder(name, currentNamespace);
+            var builder = new DataFlowGraphBuilder(name, sp, registry, currentNamespace);
             definition.Configure(builder);
-            return builder.Build(sp, registry);
+            return builder.Build();
         });
 
         return this;

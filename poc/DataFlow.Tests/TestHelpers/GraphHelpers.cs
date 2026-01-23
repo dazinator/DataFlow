@@ -47,21 +47,25 @@ using Microsoft.Extensions.Logging;
 public static class GraphHelpers
 {
     /// <summary>
-    /// Creates a DataFlowGraphBuilder for testing.
-    /// The service provider and registry will be used when Build() is called.
+    /// Creates a DataFlowGraphBuilder with a minimal service provider for testing.
+    /// This is the primary helper for migrating from the obsolete constructor pattern.
     /// </summary>
     /// <param name="name">Name of the graph</param>
     /// <param name="serviceProvider">Optional custom service provider. If not provided, a minimal one is created.</param>
     /// <param name="logger">Optional logger for the graph</param>
-    /// <returns>A DataFlowGraphBuilder instance</returns>
+    /// <returns>A DataFlowGraphBuilder instance using the DI pattern</returns>
     public static DataFlowGraphBuilder CreateGraphBuilder(
         string name,
         IServiceProvider? serviceProvider = null,
         ILogger<DataFlowGraph>? logger = null)
     {
-        // Service provider and registry will be passed to Build() later
-        // Store them for use in CreateGraph helper
-        return new DataFlowGraphBuilder(name, namespacePrefix: null, logger);
+        // Create minimal service provider if not provided
+        serviceProvider ??= CreateMinimalServiceProvider();
+
+        // Get or create registry from service provider
+        var registry = serviceProvider.GetService<IBlockTypeRegistry>() ?? new BlockTypeRegistry();
+
+        return new DataFlowGraphBuilder(name, serviceProvider, registry, namespacePrefix: null, logger);
     }
 
     /// <summary>
@@ -77,15 +81,9 @@ public static class GraphHelpers
         Action<DataFlowGraphBuilder> configure,
         IServiceProvider? serviceProvider = null)
     {
-        // Create minimal service provider if not provided
-        serviceProvider ??= CreateMinimalServiceProvider();
-        
-        // Get or create registry from service provider
-        var registry = serviceProvider.GetService<IBlockTypeRegistry>() ?? new BlockTypeRegistry();
-        
         var builder = CreateGraphBuilder(name, serviceProvider);
         configure(builder);
-        return builder.Build(serviceProvider, registry);
+        return builder.Build();
     }
 
     /// <summary>
