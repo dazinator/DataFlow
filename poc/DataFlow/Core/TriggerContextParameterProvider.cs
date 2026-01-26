@@ -111,13 +111,13 @@ public class TriggerContextParameterProvider : IParameterProvider
             // Use a switch expression for cleaner type handling
             value = typeof(T) switch
             {
-                Type t when t == typeof(string) => (T)(object)jsonValue.GetValue<string>(),
-                Type t when t == typeof(int) => (T)(object)jsonValue.GetValue<int>(),
-                Type t when t == typeof(long) => (T)(object)jsonValue.GetValue<long>(),
-                Type t when t == typeof(bool) => (T)(object)jsonValue.GetValue<bool>(),
-                Type t when t == typeof(DateTime) => (T)(object)jsonValue.GetValue<DateTime>(),
-                Type t when t == typeof(double) => (T)(object)jsonValue.GetValue<double>(),
-                Type t when t == typeof(decimal) => (T)(object)jsonValue.GetValue<decimal>(),
+                Type when typeof(T) == typeof(string) => (T)(object)jsonValue.GetValue<string>(),
+                Type when typeof(T) == typeof(int) => (T)(object)jsonValue.GetValue<int>(),
+                Type when typeof(T) == typeof(long) => (T)(object)jsonValue.GetValue<long>(),
+                Type when typeof(T) == typeof(bool) => (T)(object)jsonValue.GetValue<bool>(),
+                Type when typeof(T) == typeof(DateTime) => (T)(object)jsonValue.GetValue<DateTime>(),
+                Type when typeof(T) == typeof(double) => (T)(object)jsonValue.GetValue<double>(),
+                Type when typeof(T) == typeof(decimal) => (T)(object)jsonValue.GetValue<decimal>(),
                 _ => jsonValue.GetValue<T>()
             };
             

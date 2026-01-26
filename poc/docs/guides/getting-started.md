@@ -697,7 +697,7 @@ public async IAsyncEnumerable<Result> RunAsync(
 }
 ```
 
-**4. Document parameter requirements:**
+**5. Document parameter requirements:**
 ```csharp
 /// <summary>
 /// Processes reports with tenant-specific logic.
