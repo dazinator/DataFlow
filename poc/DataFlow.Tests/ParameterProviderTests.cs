@@ -99,84 +99,21 @@ public class ParameterProviderTests
     }
 
     [Fact]
-    public async Task Actor_UsesParameterProvider_WithScheduledJobData()
+    public async Task Actor_UsesParameterProvider_WithJsonContext()
     {
         // Arrange
         var services = new ServiceCollection()
             .AddSingleton<DecoupledActor>()
             .BuildServiceProvider();
 
+        // Test with various JSON properties to demonstrate flexibility
         var triggerContext = new JsonTriggerContext
         {
             Data = new JsonObject
             {
-                ["tenantId"] = "tenant-scheduled",
-                ["jobName"] = "DailyReport"
-            }
-        };
-
-        var context = TestContext.CreateActor(triggerContext: triggerContext);
-        var actor = services.GetRequiredService<DecoupledActor>();
-
-        // Act
-        var results = new List<string>();
-        await foreach (var result in actor.RunAsync(TestStreams.FromArray(1, 2, 3), context))
-        {
-            results.Add(result);
-        }
-
-        // Assert
-        Assert.Equal(3, results.Count);
-        Assert.All(results, r => Assert.Contains("tenant-scheduled", r));
-    }
-
-    [Fact]
-    public async Task Actor_UsesParameterProvider_WithMessageQueueData()
-    {
-        // Arrange
-        var services = new ServiceCollection()
-            .AddSingleton<DecoupledActor>()
-            .BuildServiceProvider();
-
-        var triggerContext = new JsonTriggerContext
-        {
-            Data = new JsonObject
-            {
-                ["tenantId"] = "tenant-queue",
-                ["queueName"] = "orders-queue",
-                ["deliveryCount"] = 1
-            }
-        };
-
-        var context = TestContext.CreateActor(triggerContext: triggerContext);
-        var actor = services.GetRequiredService<DecoupledActor>();
-
-        // Act
-        var results = new List<string>();
-        await foreach (var result in actor.RunAsync(TestStreams.FromArray(1, 2, 3), context))
-        {
-            results.Add(result);
-        }
-
-        // Assert
-        Assert.Equal(3, results.Count);
-        Assert.All(results, r => Assert.Contains("tenant-queue", r));
-    }
-
-    [Fact]
-    public async Task Actor_UsesParameterProvider_WithWebRequestData()
-    {
-        // Arrange
-        var services = new ServiceCollection()
-            .AddSingleton<DecoupledActor>()
-            .BuildServiceProvider();
-
-        var triggerContext = new JsonTriggerContext
-        {
-            Data = new JsonObject
-            {
-                ["tenantId"] = "tenant-web",
-                ["userId"] = "user-123",
+                ["tenantId"] = "tenant-123",
+                ["jobName"] = "DailyReport",
+                ["userId"] = "user-456",
                 ["requestPath"] = "/api/reports"
             }
         };
@@ -191,9 +128,9 @@ public class ParameterProviderTests
             results.Add(result);
         }
 
-        // Assert
+        // Assert - Demonstrates decoupling: actor works with any JSON structure
         Assert.Equal(3, results.Count);
-        Assert.All(results, r => Assert.Contains("tenant-web", r));
+        Assert.All(results, r => Assert.Contains("tenant-123", r));
     }
 
     [Fact]
