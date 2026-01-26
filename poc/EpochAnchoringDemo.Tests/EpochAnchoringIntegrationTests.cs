@@ -498,6 +498,8 @@ public class EpochAnchoringIntegrationTests : IDisposable
         public CancellationToken CancellationToken => CancellationToken.None;
         public Guid InvocationId { get; } = Guid.NewGuid();
         public IEpochCoordinator? EpochCoordinator { get; }
+        public ITriggerContext? TriggerContext { get; } = null;
+        public IParameterProvider Parameters => new TriggerContextParameterProvider(TriggerContext);
         public void RequestRotation() { }
     }
     

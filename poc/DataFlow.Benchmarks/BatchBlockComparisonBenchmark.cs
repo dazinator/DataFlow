@@ -232,5 +232,7 @@ public class BatchBlockComparisonBenchmark
         public Guid InvocationId { get; } = Guid.NewGuid();
         public ICheckpoint? RecoveryCheckpoint { get; } = null;
         public IDataFlowMetrics? Metrics { get; } = null;
+        public ITriggerContext? TriggerContext { get; } = null;
+        public IParameterProvider Parameters => new TriggerContextParameterProvider(TriggerContext);
     }
 }

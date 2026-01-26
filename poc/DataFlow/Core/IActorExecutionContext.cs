@@ -28,4 +28,11 @@ public interface IActorExecutionContext
     /// Null for non-epoch contexts.
     /// </summary>
     IEpochCoordinator? EpochCoordinator { get; }
+
+    /// <summary>
+    /// Parameter provider for accessing trigger parameters in a decoupled manner.
+    /// Allows actors to request parameters by name without checking specific trigger context types.
+    /// Use this to access trigger-specific information (e.g., tenant ID, message properties, request details).
+    /// </summary>
+    IParameterProvider Parameters { get; }
 }

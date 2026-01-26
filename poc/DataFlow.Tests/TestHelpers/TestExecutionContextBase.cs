@@ -19,4 +19,6 @@ public class TestExecutionContextBase : IExecutionContext
     public string? FlowName { get; set; }
     public IDataFlowMetrics? Metrics { get; set; }
     public string? CurrentBlockName { get; set; }
+    public ITriggerContext? TriggerContext { get; set; }
+    public IParameterProvider Parameters => new TriggerContextParameterProvider(TriggerContext);
 }
