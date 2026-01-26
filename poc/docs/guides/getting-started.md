@@ -621,7 +621,7 @@ var tenantId = context.Parameters.GetParameter("tenantId", "default");
 
 ### Strong Typing in Actors (Optional)
 
-If you need strong typing in your actors, deserialize from the JSON data:
+If you need strong typing in your actors, use the `Deserialize<T>()` helper method:
 
 ```csharp
 public class ScheduledJobActor : IStreamActor<Data, Report>
@@ -630,19 +630,16 @@ public class ScheduledJobActor : IStreamActor<Data, Report>
         IAsyncEnumerable<Data> input,
         IActorExecutionContext context)
     {
-        // Option 1: Use Parameter Provider (recommended)
+        // Option 1: Use Parameter Provider (recommended for simple parameter access)
         var tenantId = context.Parameters.GetParameter("tenantId", "default");
         
         // Option 2: Deserialize to your own type if you need complex validation
-        if (context.TriggerContext is JsonTriggerContext json && json.Data != null)
+        var jobParams = context.Parameters.Deserialize<ScheduledJobParams>();
+        if (jobParams != null)
         {
-            var jobParams = JsonSerializer.Deserialize<ScheduledJobParams>(json.Data);
-            if (jobParams != null)
-            {
-                // Use strongly-typed parameters
-                ValidateJobParams(jobParams); // Your custom validation
-                tenantId = jobParams.TenantId;
-            }
+            // Use strongly-typed parameters
+            ValidateJobParams(jobParams); // Your custom validation
+            tenantId = jobParams.TenantId;
         }
         
         await foreach (var item in input)

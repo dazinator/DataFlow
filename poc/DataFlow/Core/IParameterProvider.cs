@@ -33,4 +33,26 @@ public interface IParameterProvider
     /// <param name="defaultValue">The default value to return if the parameter is not found.</param>
     /// <returns>The parameter value if found; otherwise, the default value.</returns>
     T GetParameter<T>(string name, T defaultValue);
+    
+    /// <summary>
+    /// Deserializes the entire trigger context data into a strongly-typed object.
+    /// </summary>
+    /// <typeparam name="T">The type to deserialize the trigger context data into.</typeparam>
+    /// <returns>The deserialized object if successful; otherwise, null.</returns>
+    /// <remarks>
+    /// This is useful when you want to deserialize the entire JSON trigger context
+    /// into your own strongly-typed object for complex validation or when you need
+    /// to access multiple related parameters.
+    /// 
+    /// Example:
+    /// <code>
+    /// var jobParams = context.Parameters.Deserialize&lt;ScheduledJobParams&gt;();
+    /// if (jobParams != null)
+    /// {
+    ///     ValidateJobParams(jobParams);
+    ///     // Use jobParams.TenantId, jobParams.JobName, etc.
+    /// }
+    /// </code>
+    /// </remarks>
+    T? Deserialize<T>() where T : class;
 }

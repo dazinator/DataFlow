@@ -1,5 +1,6 @@
 namespace DataFlow.POC.Core;
 
+using System.Text.Json;
 using System.Text.Json.Nodes;
 
 /// <summary>
@@ -55,6 +56,21 @@ public class TriggerContextParameterProvider : IParameterProvider
         }
         
         return defaultValue;
+    }
+    
+    public T? Deserialize<T>() where T : class
+    {
+        if (_triggerContext is not JsonTriggerContext json || json.Data == null)
+            return null;
+        
+        try
+        {
+            return JsonSerializer.Deserialize<T>(json.Data);
+        }
+        catch
+        {
+            return null;
+        }
     }
     
     private bool TryGetFromJson<T>(string name, JsonObject? data, out T? value)

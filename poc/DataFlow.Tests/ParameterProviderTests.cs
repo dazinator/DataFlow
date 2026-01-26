@@ -235,6 +235,79 @@ public class ParameterProviderTests
         Assert.Equal(5, priority);
     }
 
+    [Fact]
+    public void ParameterProvider_Deserialize_ReturnsStronglyTypedObject()
+    {
+        // Arrange
+        var triggerContext = new JsonTriggerContext
+        {
+            Data = new JsonObject
+            {
+                ["JobName"] = "DailyReport",
+                ["TenantId"] = "tenant-deserialize",
+                ["Priority"] = 5,
+                ["ScheduledTime"] = JsonValue.Create(DateTime.Parse("2026-01-26T10:00:00Z"))
+            }
+        };
+        var provider = new TriggerContextParameterProvider(triggerContext);
+
+        // Act
+        var jobParams = provider.Deserialize<TestJobParams>();
+
+        // Assert
+        Assert.NotNull(jobParams);
+        Assert.Equal("DailyReport", jobParams.JobName);
+        Assert.Equal("tenant-deserialize", jobParams.TenantId);
+        Assert.Equal(5, jobParams.Priority);
+    }
+
+    [Fact]
+    public void ParameterProvider_Deserialize_WithNullContext_ReturnsNull()
+    {
+        // Arrange
+        var provider = new TriggerContextParameterProvider(null);
+
+        // Act
+        var result = provider.Deserialize<TestJobParams>();
+
+        // Assert
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public void ParameterProvider_Deserialize_WithInvalidJson_ReturnsNull()
+    {
+        // Arrange
+        var triggerContext = new JsonTriggerContext
+        {
+            Data = new JsonObject
+            {
+                ["invalidProperty"] = "value"
+            }
+        };
+        var provider = new TriggerContextParameterProvider(triggerContext);
+
+        // Act - Deserialize to a type that doesn't match the JSON structure
+        var result = provider.Deserialize<TestJobParams>();
+
+        // Assert - Should return object with null/default values, not null itself
+        Assert.NotNull(result);
+        Assert.Null(result.JobName);
+        Assert.Null(result.TenantId);
+    }
+
+    #region Test Classes
+
+    private class TestJobParams
+    {
+        public string? JobName { get; set; }
+        public string? TenantId { get; set; }
+        public int Priority { get; set; }
+        public DateTime? ScheduledTime { get; set; }
+    }
+
+    #endregion
+
     #region Test Actors
 
     /// <summary>
