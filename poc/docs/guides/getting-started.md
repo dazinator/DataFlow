@@ -633,13 +633,21 @@ public class ScheduledJobActor : IStreamActor<Data, Report>
         // Option 1: Use Parameter Provider (recommended for simple parameter access)
         var tenantId = context.Parameters.GetParameter("tenantId", "default");
         
-        // Option 2: Deserialize to your own type if you need complex validation
+        // Option 2: Deserialize entire context to your own type for complex validation
         var jobParams = context.Parameters.Deserialize<ScheduledJobParams>();
         if (jobParams != null)
         {
             // Use strongly-typed parameters
             ValidateJobParams(jobParams); // Your custom validation
             tenantId = jobParams.TenantId;
+        }
+        
+        // Option 3: Deserialize a nested section of the context
+        // JSON: { "tenant": { "id": "123", "name": "Acme" }, "priority": "high" }
+        var tenantOptions = context.Parameters.Deserialize<TenantOptions>("tenant");
+        if (tenantOptions != null)
+        {
+            tenantId = tenantOptions.Id;
         }
         
         await foreach (var item in input)
@@ -657,14 +665,25 @@ var tenantId = context.Parameters.GetParameter("tenantId", "default");
 var pageSize = context.Parameters.GetParameter("pageSize", 50);
 ```
 
-**2. Provide defaults for missing parameters:**
+**2. Deserialize nested sections when you have structured configuration:**
+```csharp
+// JSON: { "tenant": { "id": "123", "name": "Acme" }, "database": { "connectionString": "..." } }
+
+// Deserialize just the tenant section
+var tenantOptions = context.Parameters.Deserialize<TenantOptions>("tenant");
+
+// Deserialize just the database section
+var dbOptions = context.Parameters.Deserialize<DatabaseOptions>("database");
+```
+
+**3. Provide defaults for missing parameters:**
 ```csharp
 // Good - always has a valid value
 var tenantId = context.Parameters.GetParameter("tenantId", "default");
 var priority = context.Parameters.GetParameter("priority", 0);
 ```
 
-**3. Validate required parameters early:**
+**4. Validate required parameters early:**
 ```csharp
 public async IAsyncEnumerable<Result> RunAsync(
     IAsyncEnumerable<Data> input,

@@ -233,6 +233,67 @@ public class ParameterProviderTests
         Assert.Null(result.TenantId);
     }
 
+    [Fact]
+    public void ParameterProvider_DeserializeSection_WithValidSection_ReturnsDeserializedObject()
+    {
+        // Arrange
+        var triggerContext = new JsonTriggerContext
+        {
+            Data = new JsonObject
+            {
+                ["tenant"] = new JsonObject
+                {
+                    ["Id"] = "tenant-123",
+                    ["Name"] = "Acme Corp"
+                },
+                ["priority"] = "high",
+                ["other"] = "data"
+            }
+        };
+        var provider = new TriggerContextParameterProvider(triggerContext);
+
+        // Act
+        var tenantOptions = provider.Deserialize<TenantOptions>("tenant");
+
+        // Assert
+        Assert.NotNull(tenantOptions);
+        Assert.Equal("tenant-123", tenantOptions.Id);
+        Assert.Equal("Acme Corp", tenantOptions.Name);
+    }
+
+    [Fact]
+    public void ParameterProvider_DeserializeSection_WithMissingSection_ReturnsNull()
+    {
+        // Arrange
+        var triggerContext = new JsonTriggerContext
+        {
+            Data = new JsonObject
+            {
+                ["other"] = "data"
+            }
+        };
+        var provider = new TriggerContextParameterProvider(triggerContext);
+
+        // Act
+        var result = provider.Deserialize<TenantOptions>("tenant");
+
+        // Assert
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public void ParameterProvider_DeserializeSection_WithNullContext_ReturnsNull()
+    {
+        // Arrange
+        var provider = new TriggerContextParameterProvider(null);
+
+        // Act
+        var result = provider.Deserialize<TenantOptions>("tenant");
+
+        // Assert
+        Assert.Null(result);
+    }
+
     #region Test Classes
 
     private class TestJobParams
@@ -241,6 +302,12 @@ public class ParameterProviderTests
         public string? TenantId { get; set; }
         public int Priority { get; set; }
         public DateTime? ScheduledTime { get; set; }
+    }
+
+    private class TenantOptions
+    {
+        public string? Id { get; set; }
+        public string? Name { get; set; }
     }
 
     #endregion

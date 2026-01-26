@@ -73,6 +73,28 @@ public class TriggerContextParameterProvider : IParameterProvider
         }
     }
     
+    public T? Deserialize<T>(string sectionName) where T : class
+    {
+        if (_triggerContext is not JsonTriggerContext json || json.Data == null)
+            return null;
+        
+        if (!json.Data.ContainsKey(sectionName))
+            return null;
+        
+        try
+        {
+            var section = json.Data[sectionName];
+            if (section == null)
+                return null;
+            
+            return JsonSerializer.Deserialize<T>(section);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+    
     private bool TryGetFromJson<T>(string name, JsonObject? data, out T? value)
     {
         value = default;

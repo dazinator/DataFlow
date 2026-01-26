@@ -30,15 +30,9 @@ public interface IActorExecutionContext
     IEpochCoordinator? EpochCoordinator { get; }
 
     /// <summary>
-    /// Optional trigger context providing trigger-specific information.
-    /// Available to all actors for accessing trigger metadata
-    /// (e.g., tenant ID, message properties, request details).
-    /// </summary>
-    ITriggerContext? TriggerContext { get; }
-
-    /// <summary>
     /// Parameter provider for accessing trigger parameters in a decoupled manner.
     /// Allows actors to request parameters by name without checking specific trigger context types.
+    /// Use this to access trigger-specific information (e.g., tenant ID, message properties, request details).
     /// </summary>
     IParameterProvider Parameters { get; }
 }

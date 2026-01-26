@@ -55,4 +55,25 @@ public interface IParameterProvider
     /// </code>
     /// </remarks>
     T? Deserialize<T>() where T : class;
+    
+    /// <summary>
+    /// Deserializes a nested section of the trigger context data into a strongly-typed object.
+    /// </summary>
+    /// <typeparam name="T">The type to deserialize the section into.</typeparam>
+    /// <param name="sectionName">The name of the nested JSON section to deserialize.</param>
+    /// <returns>The deserialized object if successful; otherwise, null.</returns>
+    /// <remarks>
+    /// This is useful when you want to deserialize a specific nested section of the JSON trigger context.
+    /// 
+    /// Example with nested "tenant" section:
+    /// <code>
+    /// // JSON: { "tenant": { "id": "123", "name": "Acme" }, "other": "data" }
+    /// var tenantOptions = context.Parameters.Deserialize&lt;TenantOptions&gt;("tenant");
+    /// if (tenantOptions != null)
+    /// {
+    ///     // Use tenantOptions.Id, tenantOptions.Name, etc.
+    /// }
+    /// </code>
+    /// </remarks>
+    T? Deserialize<T>(string sectionName) where T : class;
 }

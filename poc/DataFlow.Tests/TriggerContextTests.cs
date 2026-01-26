@@ -105,22 +105,29 @@ public class TriggerContextTests
             IAsyncEnumerable<int> input,
             IActorExecutionContext context)
         {
-            // Use Parameter Provider to extract parameters from any trigger context
+            // Use Parameter Provider to extract parameters
             var tenantId = context.Parameters.GetParameter("tenantId", "default");
             
-            // Get all parameters as a string for test verification
-            var allParams = new System.Text.StringBuilder();
-            if (context.TriggerContext is JsonTriggerContext json && json.Data != null)
-            {
-                foreach (var prop in json.Data)
-                {
-                    allParams.Append($"{prop.Key}:{prop.Value},");
-                }
-            }
+            // Get all parameters by trying common ones that tests might provide
+            var param1 = context.Parameters.GetParameter<string>("param1", "");
+            var deliveryCount = context.Parameters.GetParameter<int>("deliveryCount", 0);
+            var userId = context.Parameters.GetParameter<string>("userId", "");
+            var jobName = context.Parameters.GetParameter<string>("jobName", "");
+            var priority = context.Parameters.GetParameter<string>("priority", "");
+            
+            // Build parameter summary including only non-default values
+            var parts = new List<string> { $"tenantId:{tenantId}" };
+            if (!string.IsNullOrEmpty(param1)) parts.Add($"param1:{param1}");
+            if (deliveryCount > 0) parts.Add($"deliveryCount:{deliveryCount}");
+            if (!string.IsNullOrEmpty(userId)) parts.Add($"userId:{userId}");
+            if (!string.IsNullOrEmpty(jobName)) parts.Add($"jobName:{jobName}");
+            if (!string.IsNullOrEmpty(priority)) parts.Add($"priority:{priority}");
+            
+            var paramsSummary = string.Join(",", parts);
 
             await foreach (var item in input)
             {
-                yield return $"tenant:{tenantId}:params:{allParams}:item:{item}";
+                yield return $"tenant:{tenantId}:params:{paramsSummary}:item:{item}";
             }
         }
     }

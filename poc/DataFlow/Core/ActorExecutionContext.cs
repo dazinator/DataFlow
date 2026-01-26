@@ -16,7 +16,6 @@ internal sealed class ActorExecutionContext : IActorExecutionContext
     public CancellationToken CancellationToken => _cancellationToken;
     public Guid InvocationId => _invocationId;
     public IEpochCoordinator? EpochCoordinator => _epochCoordinator;
-    public ITriggerContext? TriggerContext => _triggerContext;
     public IParameterProvider Parameters => _parameters;
 
     public void RequestRotation() => _requestRotation?.Invoke();
