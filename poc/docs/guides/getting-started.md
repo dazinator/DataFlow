@@ -442,7 +442,7 @@ public class MyService
 
 ## Passing Trigger Context
 
-DataFlow supports passing trigger-specific metadata (like tenant ID, message properties, or request details) through the execution context. This allows your actors to adapt their behavior based on how the dataflow was triggered.
+DataFlow supports passing trigger-specific metadata (like tenant ID, message properties, or request details) through the execution context using **JsonTriggerContext**. This flexible JSON-based approach allows your actors to adapt their behavior based on how the dataflow was triggered.
 
 ### When to Use Trigger Context
 
@@ -452,20 +452,69 @@ Use trigger context when your dataflow needs to:
 - Track correlation IDs from web requests
 - Use dynamic parameters determined at runtime
 
-### Accessing Trigger Parameters (Recommended Approach)
+### JsonTriggerContext - The Only Built-in Type
 
-The **recommended way** to access trigger parameters is using the Parameter Provider, which works with any trigger context type:
+DataFlow provides **only one built-in trigger context type**: `JsonTriggerContext`. This keeps the framework generic, flexible, and not coupled to specific trigger scenarios.
 
+**Benefits of JSON-only approach:**
+- ✅ Maximum flexibility - works with any trigger scenario
+- ✅ No framework coupling to specific trigger types
+- ✅ Users can define their own strongly-typed objects
+- ✅ Future-proof - new trigger types work automatically
+- ✅ Enables JSON schema validation in the future
+
+### Creating Trigger Contexts
+
+**Option 1: Direct JSON (most flexible):**
 ```csharp
-// Define trigger context with known properties
-var triggerContext = new ScheduledTriggerContext
+var triggerContext = new JsonTriggerContext
 {
-    JobName = "DailyReport",
+    Data = new JsonObject
+    {
+        ["jobName"] = "DailyReport",
+        ["tenantId"] = "tenant-123",
+        ["scheduledTime"] = JsonValue.Create(DateTime.UtcNow),
+        ["priority"] = 5
+    }
+};
+```
+
+**Option 2: From JSON string:**
+```csharp
+var json = @"{
+    ""jobName"": ""DailyReport"",
+    ""tenantId"": ""tenant-123"",
+    ""priority"": 5
+}";
+
+var triggerContext = JsonTriggerContext.FromJson(json);
+```
+
+**Option 3: From strongly-typed object (recommended for complex scenarios):**
+```csharp
+// Define your own type
+public class ScheduledJobParams
+{
+    public string JobName { get; set; }
+    public string TenantId { get; set; }
+    public DateTime ScheduledTime { get; set; }
+    public int Priority { get; set; }
+}
+
+// Serialize to JSON
+var parameters = new ScheduledJobParams 
+{ 
+    JobName = "DailyReport", 
     TenantId = "tenant-123",
-    ScheduledTime = DateTime.UtcNow
+    ScheduledTime = DateTime.UtcNow,
+    Priority = 5
 };
 
-// Pass to execution context
+var triggerContext = JsonTriggerContext.FromObject(parameters);
+```
+
+**Pass to execution context:**
+```csharp
 var context = new ExecutionContext(
     app.Services,
     CancellationToken.None,
@@ -477,7 +526,10 @@ var context = new ExecutionContext(
 await graph.ExecuteAsync(context);
 ```
 
-**Access parameters in actors (recommended):**
+### Accessing Parameters in Actors (Recommended)
+
+Use the **Parameter Provider** to access trigger parameters - it works seamlessly with JSON data:
+
 ```csharp
 public class TenantAwareActor : IStreamActor<Order, ProcessedOrder>
 {
@@ -485,154 +537,10 @@ public class TenantAwareActor : IStreamActor<Order, ProcessedOrder>
         IAsyncEnumerable<Order> input,
         IActorExecutionContext context)
     {
-        // ✅ RECOMMENDED: Use Parameter Provider (works with any trigger type)
+        // ✅ RECOMMENDED: Use Parameter Provider
         var tenantId = context.Parameters.GetParameter("tenantId", "default");
         var jobName = context.Parameters.GetParameter("jobName", "unknown");
-        
-        await foreach (var order in input.WithCancellation(context.CancellationToken))
-        {
-            yield return ProcessOrderForTenant(order, tenantId);
-        }
-    }
-}
-```
-
-**Alternative: Direct trigger context access (not recommended):**
-```csharp
-// ❌ NOT RECOMMENDED: Tightly coupled to specific trigger type
-string tenantId = "default";
-if (context.TriggerContext is ScheduledTriggerContext scheduled)
-{
-    tenantId = scheduled.TenantId ?? "default";
-}
-```
-
-### Dynamic Trigger Context (For Flexible/Runtime Data)
-
-When trigger structure is determined at runtime or varies between calls, use `JsonTriggerContext`:
-
-```csharp
-// Dynamic JSON-based trigger context
-var triggerContext = new JsonTriggerContext
-{
-    Data = new JsonObject
-    {
-        ["tenantId"] = "tenant-123",
-        ["reportDate"] = JsonValue.Create(DateTime.UtcNow),
-        ["customProperty"] = 42,
-        ["metadata"] = new JsonObject
-        {
-            ["source"] = "scheduler",
-            ["priority"] = "high"
-        }
-    }
-};
-
-// Or create from JSON string
-var triggerContext2 = JsonTriggerContext.FromJson(@"{
-    ""tenantId"": ""tenant-456"",
-    ""customData"": ""value""
-}");
-
-var context = new ExecutionContext(
-    app.Services,
-    CancellationToken.None,
-    Guid.NewGuid(),
-    null,
-    null,
-    triggerContext);
-
-await graph.ExecuteAsync(context);
-```
-
-**Access dynamic properties in actors (recommended):**
-```csharp
-public class DynamicActor : IStreamActor<Data, Result>
-{
-    public async IAsyncEnumerable<Result> RunAsync(
-        IAsyncEnumerable<Data> input,
-        IActorExecutionContext context)
-    {
-        // ✅ RECOMMENDED: Use Parameter Provider (works with any trigger type)
-        var tenantId = context.Parameters.GetParameter("tenantId", "default");
-        var customProperty = context.Parameters.GetParameter("customProperty", 0);
-        
-        await foreach (var item in input.WithCancellation(context.CancellationToken))
-        {
-            yield return ProcessWithContext(item, tenantId, customProperty);
-        }
-    }
-}
-```
-
-### Built-in Trigger Context Types
-
-DataFlow provides several built-in trigger context types:
-
-**ScheduledTriggerContext** - For scheduled/timer jobs
-```csharp
-new ScheduledTriggerContext
-{
-    JobName = "DailyReport",
-    TenantId = "tenant-123",
-    ScheduledTime = DateTime.UtcNow,
-    Metadata = new Dictionary<string, string> { ["region"] = "us-west" }
-}
-```
-
-**MessageQueueTriggerContext** - For message queue triggers
-```csharp
-new MessageQueueTriggerContext
-{
-    QueueName = "orders-queue",
-    MessageId = "msg-456",
-    CorrelationId = "corr-789",
-    DeliveryCount = 2,  // For retry logic
-    MessageProperties = new Dictionary<string, string>
-    {
-        ["tenantId"] = "tenant-123"
-    }
-}
-```
-
-**WebRequestTriggerContext** - For HTTP request triggers
-```csharp
-new WebRequestTriggerContext
-{
-    UserId = "user-123",
-    TenantId = "tenant-456",
-    RequestPath = "/api/reports",
-    RequestMethod = "POST",
-    RequestHeaders = new Dictionary<string, string>
-    {
-        ["X-Correlation-Id"] = "corr-789"
-    }
-}
-```
-
-**JsonTriggerContext** - For flexible/dynamic scenarios
-```csharp
-new JsonTriggerContext
-{
-    Data = new JsonObject { /* any structure */ }
-}
-```
-
-### Parameter Provider Pattern (Recommended)
-
-For better decoupling, use the **Parameter Provider** instead of checking specific trigger context types. This allows actors to work with ANY trigger context that provides the requested parameters:
-
-**Using Parameter Provider:**
-```csharp
-public class DecoupledActor : IStreamActor<Order, ProcessedOrder>
-{
-    public async IAsyncEnumerable<ProcessedOrder> RunAsync(
-        IAsyncEnumerable<Order> input,
-        IActorExecutionContext context)
-    {
-        // Decoupled - works with ANY trigger context that provides "tenantId"
-        var tenantId = context.Parameters.GetParameter("tenantId", "default");
-        var priority = context.Parameters.GetParameter("priority", "normal");
+        var priority = context.Parameters.GetParameter("priority", 0);
         
         await foreach (var order in input.WithCancellation(context.CancellationToken))
         {
@@ -642,73 +550,121 @@ public class DecoupledActor : IStreamActor<Order, ProcessedOrder>
 }
 ```
 
-**Benefits:**
-- ✅ No need to check specific trigger context types
-- ✅ Works automatically with new trigger types
-- ✅ Cleaner, more maintainable code
-- ✅ Easier to test (mock parameter provider)
+### Example Scenarios
 
-**Parameter Provider Methods:**
-
+**Scheduled Job Trigger:**
 ```csharp
-// Try to get a parameter (returns false if not found)
-if (context.Parameters.TryGetParameter<string>("tenantId", out var tenantId))
+// Create trigger context for scheduled job
+var triggerContext = new JsonTriggerContext
 {
-    // Use tenantId
-}
+    Data = new JsonObject
+    {
+        ["jobName"] = "DailyReport",
+        ["tenantId"] = "tenant-123",
+        ["scheduledTime"] = JsonValue.Create(DateTime.UtcNow),
+        ["recurrence"] = "daily"
+    }
+};
 
-// Get with default value
-var pageSize = context.Parameters.GetParameter("pageSize", 50);
+// Pass to execution
+var context = new ExecutionContext(app.Services, CancellationToken.None, 
+    Guid.NewGuid(), null, null, triggerContext);
+await graph.ExecuteAsync(context);
 
-// Get required parameter (throws if missing)
-var tenantId = context.Parameters.GetRequiredParameter<string>("tenantId");
+// In actor - access parameters
+var jobName = context.Parameters.GetParameter("jobName", "unknown");
+var tenantId = context.Parameters.GetParameter("tenantId", "default");
 ```
 
-**Works with all trigger context types:**
+**Message Queue Trigger:**
+```csharp
+// Create trigger context for message queue
+var triggerContext = new JsonTriggerContext
+{
+    Data = new JsonObject
+    {
+        ["queueName"] = "orders-queue",
+        ["messageId"] = "msg-456",
+        ["correlationId"] = "corr-789",
+        ["deliveryCount"] = 2,
+        ["tenantId"] = "tenant-123"
+    }
+};
+
+// In actor - implement retry logic based on delivery count
+var deliveryCount = context.Parameters.GetParameter("deliveryCount", 0);
+if (deliveryCount > 3)
+{
+    // Move to dead letter queue or apply exponential backoff
+}
+```
+
+**Web Request Trigger:**
+```csharp
+// Create trigger context for HTTP request
+var triggerContext = new JsonTriggerContext
+{
+    Data = new JsonObject
+    {
+        ["userId"] = "user-123",
+        ["tenantId"] = "tenant-456",
+        ["requestPath"] = "/api/reports",
+        ["requestMethod"] = "POST",
+        ["correlationId"] = "corr-789"
+    }
+};
+
+// In actor - access request context
+var userId = context.Parameters.GetParameter("userId", "anonymous");
+var tenantId = context.Parameters.GetParameter("tenantId", "default");
+```
+
+### Strong Typing in Actors (Optional)
+
+If you need strong typing in your actors, deserialize from the JSON data:
 
 ```csharp
-// Scheduled job trigger
-var triggerContext = new ScheduledTriggerContext { TenantId = "tenant-123" };
-
-// Message queue trigger
-var triggerContext = new MessageQueueTriggerContext 
-{ 
-    MessageProperties = new Dictionary<string, string> { ["tenantId"] = "tenant-123" }
-};
-
-// Web request trigger
-var triggerContext = new WebRequestTriggerContext { TenantId = "tenant-123" };
-
-// JSON trigger
-var triggerContext = new JsonTriggerContext 
-{ 
-    Data = new JsonObject { ["tenantId"] = "tenant-123" }
-};
-
-// Actor code is the SAME for all cases:
-var tenantId = context.Parameters.GetParameter("tenantId", "default");
+public class ScheduledJobActor : IStreamActor<Data, Report>
+{
+    public async IAsyncEnumerable<Report> RunAsync(
+        IAsyncEnumerable<Data> input,
+        IActorExecutionContext context)
+    {
+        // Option 1: Use Parameter Provider (recommended)
+        var tenantId = context.Parameters.GetParameter("tenantId", "default");
+        
+        // Option 2: Deserialize to your own type if you need complex validation
+        if (context.TriggerContext is JsonTriggerContext json && json.Data != null)
+        {
+            var jobParams = JsonSerializer.Deserialize<ScheduledJobParams>(json.Data);
+            if (jobParams != null)
+            {
+                // Use strongly-typed parameters
+                ValidateJobParams(jobParams); // Your custom validation
+                tenantId = jobParams.TenantId;
+            }
+        }
+        
+        await foreach (var item in input)
+            yield return ProcessForTenant(item, tenantId);
+    }
+}
 ```
 
 ### Best Practices
 
-**1. Prefer Parameter Provider over direct trigger context checks:**
+**1. Use Parameter Provider for simple parameter access:**
 ```csharp
-// ✅ RECOMMENDED - Decoupled, works with any trigger type
+// ✅ RECOMMENDED - Simple and clean
 var tenantId = context.Parameters.GetParameter("tenantId", "default");
-
-// ❌ NOT RECOMMENDED - Tightly coupled to specific trigger types
-if (context.TriggerContext is ScheduledTriggerContext scheduled)
-    tenantId = scheduled.TenantId;
-else if (context.TriggerContext is MessageQueueTriggerContext queue)
-    tenantId = queue.MessageProperties?["tenantId"];
-// ... more type checks
+var pageSize = context.Parameters.GetParameter("pageSize", 50);
 ```
 
 **2. Provide defaults for missing parameters:**
 ```csharp
 // Good - always has a valid value
 var tenantId = context.Parameters.GetParameter("tenantId", "default");
-var pageSize = context.Parameters.GetParameter("pageSize", 50);
+var priority = context.Parameters.GetParameter("priority", 0);
 ```
 
 **3. Validate required parameters early:**
@@ -733,14 +689,32 @@ public async IAsyncEnumerable<Result> RunAsync(
 /// <remarks>
 /// Required Parameters:
 /// - tenantId (string): Tenant identifier
+/// - jobName (string): Name of the job
 /// 
 /// Optional Parameters:
+/// - priority (int): Processing priority (default: 0)
 /// - reportDate (DateTime): Report generation date
 /// </remarks>
 public class TenantAwareReportActor : IStreamActor<ReportData, Report>
 {
     // Implementation
 }
+```
+
+**5. Use FromObject() for complex trigger data:**
+```csharp
+// Define your trigger parameters as a class
+public class JobTriggerParams
+{
+    public string JobName { get; set; }
+    public string TenantId { get; set; }
+    public DateTime ScheduledTime { get; set; }
+    public Dictionary<string, string> Metadata { get; set; }
+}
+
+// Create from object - gets serialized to JSON automatically
+var params = new JobTriggerParams { /* ... */ };
+var triggerContext = JsonTriggerContext.FromObject(params);
 ```
 
 ### Backward Compatibility
@@ -752,15 +726,8 @@ Trigger context is **completely optional**. Existing code continues to work with
 var context = new ExecutionContext(app.Services, CancellationToken.None);
 await graph.ExecuteAsync(context);
 
-// Actors handle null context gracefully
-if (context.TriggerContext is ScheduledTriggerContext scheduled)
-{
-    // Use trigger context
-}
-else
-{
-    // Use defaults
-}
+// Actors handle null context gracefully with defaults
+var tenantId = context.Parameters.GetParameter("tenantId", "default");
 ```
 
 ---

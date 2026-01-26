@@ -10,22 +10,26 @@ using Xunit;
 /// <summary>
 /// Tests for trigger context passing functionality.
 /// Validates that trigger context is properly propagated through the execution pipeline.
+/// All tests use JsonTriggerContext as it's the only built-in trigger context type.
 /// </summary>
 public class TriggerContextTests
 {
     [Fact]
-    public async Task TriggerContext_ScheduledJob_AvailableInActor()
+    public async Task TriggerContext_ScheduledJobData_AvailableInActor()
     {
         // Arrange
         var services = new ServiceCollection()
             .AddSingleton<ScheduledJobActor>()
             .BuildServiceProvider();
 
-        var triggerContext = new ScheduledTriggerContext
+        var triggerContext = new JsonTriggerContext
         {
-            JobName = "DailyReport",
-            TenantId = "tenant-123",
-            ScheduledTime = DateTime.UtcNow
+            Data = new JsonObject
+            {
+                ["jobName"] = "DailyReport",
+                ["tenantId"] = "tenant-123",
+                ["scheduledTime"] = JsonValue.Create(DateTime.UtcNow)
+            }
         };
 
         var executionContext = TestContext.CreateExecution(
@@ -51,20 +55,20 @@ public class TriggerContextTests
     }
 
     [Fact]
-    public async Task TriggerContext_MessageQueue_RetryLogicWorks()
+    public async Task TriggerContext_MessageQueueData_RetryLogicWorks()
     {
         // Arrange
         var services = new ServiceCollection()
             .AddSingleton<MessageQueueActor>()
             .BuildServiceProvider();
 
-        var triggerContext = new MessageQueueTriggerContext
+        var triggerContext = new JsonTriggerContext
         {
-            QueueName = "test-queue",
-            MessageId = "msg-456",
-            DeliveryCount = 2,
-            MessageProperties = new Dictionary<string, string>
+            Data = new JsonObject
             {
+                ["queueName"] = "test-queue",
+                ["messageId"] = "msg-456",
+                ["deliveryCount"] = 2,
                 ["tenantId"] = "tenant-456"
             }
         };
@@ -121,22 +125,21 @@ public class TriggerContextTests
     }
 
     [Fact]
-    public async Task TriggerContext_WebRequest_PropertiesAccessible()
+    public async Task TriggerContext_WebRequestData_PropertiesAccessible()
     {
         // Arrange
         var services = new ServiceCollection()
             .AddSingleton<WebRequestActor>()
             .BuildServiceProvider();
 
-        var triggerContext = new WebRequestTriggerContext
+        var triggerContext = new JsonTriggerContext
         {
-            UserId = "user-123",
-            TenantId = "tenant-789",
-            RequestPath = "/api/reports",
-            RequestMethod = "POST",
-            RequestHeaders = new Dictionary<string, string>
+            Data = new JsonObject
             {
-                ["X-Correlation-Id"] = "corr-123"
+                ["userId"] = "user-123",
+                ["tenantId"] = "tenant-789",
+                ["requestPath"] = "/api/reports",
+                ["requestMethod"] = "POST"
             }
         };
 
@@ -231,14 +234,9 @@ public class TriggerContextTests
             IAsyncEnumerable<int> input,
             IActorExecutionContext context)
         {
-            string tenantId = "default";
-            string jobName = "unknown";
-
-            if (context.TriggerContext is ScheduledTriggerContext scheduled)
-            {
-                tenantId = scheduled.TenantId ?? "default";
-                jobName = scheduled.JobName ?? "unknown";
-            }
+            // Use Parameter Provider (recommended approach)
+            var tenantId = context.Parameters.GetParameter("tenantId", "default");
+            var jobName = context.Parameters.GetParameter("jobName", "unknown");
 
             await foreach (var item in input)
             {
@@ -253,18 +251,13 @@ public class TriggerContextTests
             IAsyncEnumerable<int> input,
             IActorExecutionContext context)
         {
-            string tenantId = "default";
-            int deliveryCount = 0;
-
-            if (context.TriggerContext is MessageQueueTriggerContext queue)
-            {
-                tenantId = queue.MessageProperties?.GetValueOrDefault("tenantId") ?? "default";
-                deliveryCount = queue.DeliveryCount;
-            }
+            // Use Parameter Provider (recommended approach)
+            var tenantId = context.Parameters.GetParameter("tenantId", "default");
+            var deliveryCount = context.Parameters.GetParameter("deliveryCount", 0);
 
             await foreach (var item in input)
             {
-                yield return $"{tenantId}:delivery:{deliveryCount}:item:{item}";
+                yield return $"tenant:{tenantId}:delivery:{deliveryCount}:item:{item}";
             }
         }
     }
@@ -275,17 +268,12 @@ public class TriggerContextTests
             IAsyncEnumerable<int> input,
             IActorExecutionContext context)
         {
-            string tenantId = "default";
-
-            // Gracefully handle null trigger context
-            if (context.TriggerContext is ScheduledTriggerContext scheduled && scheduled.TenantId != null)
-            {
-                tenantId = scheduled.TenantId;
-            }
+            // Null trigger context handled gracefully
+            var tenantId = context.Parameters.GetParameter("tenantId", "default");
 
             await foreach (var item in input)
             {
-                yield return $"{tenantId}:item:{item}";
+                yield return $"tenant:{tenantId}:item:{item}";
             }
         }
     }
@@ -296,18 +284,13 @@ public class TriggerContextTests
             IAsyncEnumerable<int> input,
             IActorExecutionContext context)
         {
-            string userId = "anonymous";
-            string tenantId = "default";
-
-            if (context.TriggerContext is WebRequestTriggerContext web)
-            {
-                userId = web.UserId ?? "anonymous";
-                tenantId = web.TenantId ?? "default";
-            }
+            // Use Parameter Provider (recommended approach)
+            var userId = context.Parameters.GetParameter("userId", "unknown");
+            var tenantId = context.Parameters.GetParameter("tenantId", "default");
 
             await foreach (var item in input)
             {
-                yield return $"{userId}:{tenantId}:item:{item}";
+                yield return $"user:{userId}:tenant:{tenantId}:item:{item}";
             }
         }
     }
@@ -318,18 +301,13 @@ public class TriggerContextTests
             IAsyncEnumerable<int> input,
             IActorExecutionContext context)
         {
-            string tenantId = "default";
-            string customProperty = "none";
-
-            if (context.TriggerContext is JsonTriggerContext json)
-            {
-                tenantId = json.Data?["tenantId"]?.GetValue<string>() ?? "default";
-                customProperty = json.Data?["customProperty"]?.GetValue<int>().ToString() ?? "none";
-            }
+            // Use Parameter Provider (recommended approach)
+            var tenantId = context.Parameters.GetParameter("tenantId", "default");
+            var customProperty = context.Parameters.GetParameter("customProperty", 0);
 
             await foreach (var item in input)
             {
-                yield return $"{tenantId}:customProperty:{customProperty}:item:{item}";
+                yield return $"tenant:{tenantId}:customProperty:{customProperty}:item:{item}";
             }
         }
     }

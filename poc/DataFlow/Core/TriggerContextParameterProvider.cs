@@ -3,8 +3,8 @@ namespace DataFlow.POC.Core;
 using System.Text.Json.Nodes;
 
 /// <summary>
-/// Implementation of IParameterProvider that extracts parameters from trigger contexts.
-/// Supports all built-in trigger context types and provides a unified API for parameter access.
+/// Implementation of IParameterProvider that extracts parameters from JSON trigger contexts.
+/// Provides a unified API for parameter access from JSON-based trigger data.
 /// </summary>
 public class TriggerContextParameterProvider : IParameterProvider
 {
@@ -26,15 +26,13 @@ public class TriggerContextParameterProvider : IParameterProvider
         if (_triggerContext == null)
             return false;
         
-        // Try each trigger context type - guards removed since we already checked the type
-        return _triggerContext switch
+        // Handle JsonTriggerContext
+        if (_triggerContext is JsonTriggerContext json)
         {
-            ScheduledTriggerContext scheduled => TryGetFromScheduled<T>(name, scheduled, out value),
-            MessageQueueTriggerContext queue => TryGetFromQueue<T>(name, queue, out value),
-            WebRequestTriggerContext web => TryGetFromWeb<T>(name, web, out value),
-            JsonTriggerContext json => TryGetFromJson(name, json.Data, out value),
-            _ => false
-        };
+            return TryGetFromJson(name, json.Data, out value);
+        }
+        
+        return false;
     }
     
     public T GetRequiredParameter<T>(string name)
@@ -57,55 +55,6 @@ public class TriggerContextParameterProvider : IParameterProvider
         }
         
         return defaultValue;
-    }
-    
-    private bool TryGetFromScheduled<T>(string name, ScheduledTriggerContext scheduled, out T? value)
-    {
-        value = default;
-        
-        object? objValue = name.ToLowerInvariant() switch
-        {
-            "jobname" => scheduled.JobName,
-            "tenantid" => scheduled.TenantId,
-            "scheduledtime" => scheduled.ScheduledTime,
-            _ => scheduled.Metadata?.GetValueOrDefault(name)
-        };
-        
-        return TryConvert(objValue, out value);
-    }
-    
-    private bool TryGetFromQueue<T>(string name, MessageQueueTriggerContext queue, out T? value)
-    {
-        value = default;
-        
-        object? objValue = name.ToLowerInvariant() switch
-        {
-            "queuename" => queue.QueueName,
-            "messageid" => queue.MessageId,
-            "correlationid" => queue.CorrelationId,
-            "deliverycount" => queue.DeliveryCount,
-            "enqueuedtime" => queue.EnqueuedTime,
-            _ => queue.MessageProperties?.GetValueOrDefault(name)
-        };
-        
-        return TryConvert(objValue, out value);
-    }
-    
-    private bool TryGetFromWeb<T>(string name, WebRequestTriggerContext web, out T? value)
-    {
-        value = default;
-        
-        object? objValue = name.ToLowerInvariant() switch
-        {
-            "userid" => web.UserId,
-            "tenantid" => web.TenantId,
-            "requestpath" => web.RequestPath,
-            "requestmethod" => web.RequestMethod,
-            "clientip" => web.ClientIp,
-            _ => web.RequestHeaders?.GetValueOrDefault(name)
-        };
-        
-        return TryConvert(objValue, out value);
     }
     
     private bool TryGetFromJson<T>(string name, JsonObject? data, out T? value)
@@ -135,45 +84,6 @@ public class TriggerContextParameterProvider : IParameterProvider
             };
             
             return value != null;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-    
-    private bool TryConvert<T>(object? objValue, out T? value)
-    {
-        value = default;
-        
-        if (objValue == null)
-            return false;
-        
-        try
-        {
-            // Direct assignment if types match
-            if (objValue is T typedValue)
-            {
-                value = typedValue;
-                return true;
-            }
-            
-            // Handle string conversion
-            if (typeof(T) == typeof(string))
-            {
-                value = (T)(object)objValue.ToString()!;
-                return true;
-            }
-            
-            // Only use Convert.ChangeType for known convertible types
-            var targetType = typeof(T);
-            if (targetType.IsPrimitive || targetType == typeof(decimal) || targetType == typeof(DateTime))
-            {
-                value = (T)Convert.ChangeType(objValue, targetType);
-                return true;
-            }
-            
-            return false;
         }
         catch
         {
