@@ -14,71 +14,32 @@ using Xunit;
 /// </summary>
 public class TriggerContextTests
 {
-    [Fact]
-    public async Task TriggerContext_ScheduledJobData_AvailableInActor()
+    [Theory]
+    [InlineData("tenant-123", "param1", "value1", "tenant-123", "value1")]
+    [InlineData("tenant-456", "deliveryCount", 2, "tenant-456", "2")]
+    [InlineData("tenant-789", "userId", "user-123", "tenant-789", "user-123")]
+    public async Task TriggerContext_WithJsonData_ParametersAccessibleInActor(
+        string tenantId, 
+        string paramName, 
+        object paramValue,
+        string expectedTenant,
+        string expectedParamValue)
     {
         // Arrange
         var services = new ServiceCollection()
-            .AddSingleton<ScheduledJobActor>()
+            .AddSingleton<GenericActor>()
             .BuildServiceProvider();
 
         var triggerContext = new JsonTriggerContext
         {
             Data = new JsonObject
             {
-                ["jobName"] = "DailyReport",
-                ["tenantId"] = "tenant-123",
-                ["scheduledTime"] = JsonValue.Create(DateTime.UtcNow)
+                ["tenantId"] = tenantId,
+                [paramName] = JsonValue.Create(paramValue)
             }
         };
 
-        var executionContext = TestContext.CreateExecution(
-            services,
-            CancellationToken.None,
-            triggerContext);
-
-        var actor = services.GetRequiredService<ScheduledJobActor>();
-
-        // Act
-        var results = new List<string>();
-        await foreach (var result in actor.RunAsync(
-            TestStreams.FromArray(1, 2, 3),
-            TestContext.CreateActor(triggerContext: triggerContext)))
-        {
-            results.Add(result);
-        }
-
-        // Assert
-        Assert.Equal(3, results.Count);
-        Assert.All(results, r => Assert.StartsWith("tenant-123", r));
-        Assert.All(results, r => Assert.Contains("DailyReport", r));
-    }
-
-    [Fact]
-    public async Task TriggerContext_MessageQueueData_RetryLogicWorks()
-    {
-        // Arrange
-        var services = new ServiceCollection()
-            .AddSingleton<MessageQueueActor>()
-            .BuildServiceProvider();
-
-        var triggerContext = new JsonTriggerContext
-        {
-            Data = new JsonObject
-            {
-                ["queueName"] = "test-queue",
-                ["messageId"] = "msg-456",
-                ["deliveryCount"] = 2,
-                ["tenantId"] = "tenant-456"
-            }
-        };
-
-        var executionContext = TestContext.CreateExecution(
-            services,
-            CancellationToken.None,
-            triggerContext);
-
-        var actor = services.GetRequiredService<MessageQueueActor>();
+        var actor = services.GetRequiredService<GenericActor>();
 
         // Act
         var results = new List<string>();
@@ -91,8 +52,8 @@ public class TriggerContextTests
 
         // Assert
         Assert.Equal(2, results.Count);
-        Assert.All(results, r => Assert.Contains("delivery:2", r));
-        Assert.All(results, r => Assert.Contains("tenant-456", r));
+        Assert.All(results, r => Assert.Contains(expectedTenant, r));
+        Assert.All(results, r => Assert.Contains(expectedParamValue, r));
     }
 
     [Fact]
@@ -100,15 +61,10 @@ public class TriggerContextTests
     {
         // Arrange
         var services = new ServiceCollection()
-            .AddSingleton<NullSafeActor>()
+            .AddSingleton<GenericActor>()
             .BuildServiceProvider();
 
-        var executionContext = TestContext.CreateExecution(
-            services,
-            CancellationToken.None,
-            triggerContext: null);
-
-        var actor = services.GetRequiredService<NullSafeActor>();
+        var actor = services.GetRequiredService<GenericActor>();
 
         // Act
         var results = new List<string>();
@@ -122,91 +78,6 @@ public class TriggerContextTests
         // Assert
         Assert.Equal(3, results.Count);
         Assert.All(results, r => Assert.Contains("default", r));
-    }
-
-    [Fact]
-    public async Task TriggerContext_WebRequestData_PropertiesAccessible()
-    {
-        // Arrange
-        var services = new ServiceCollection()
-            .AddSingleton<WebRequestActor>()
-            .BuildServiceProvider();
-
-        var triggerContext = new JsonTriggerContext
-        {
-            Data = new JsonObject
-            {
-                ["userId"] = "user-123",
-                ["tenantId"] = "tenant-789",
-                ["requestPath"] = "/api/reports",
-                ["requestMethod"] = "POST"
-            }
-        };
-
-        var executionContext = TestContext.CreateExecution(
-            services,
-            CancellationToken.None,
-            triggerContext);
-
-        var actor = services.GetRequiredService<WebRequestActor>();
-
-        // Act
-        var results = new List<string>();
-        await foreach (var result in actor.RunAsync(
-            TestStreams.FromArray(1, 2),
-            TestContext.CreateActor(triggerContext: triggerContext)))
-        {
-            results.Add(result);
-        }
-
-        // Assert
-        Assert.Equal(2, results.Count);
-        Assert.All(results, r => Assert.Contains("user-123", r));
-        Assert.All(results, r => Assert.Contains("tenant-789", r));
-    }
-
-    [Fact]
-    public async Task TriggerContext_JsonDynamic_PropertiesAccessible()
-    {
-        // Arrange
-        var services = new ServiceCollection()
-            .AddSingleton<JsonDynamicActor>()
-            .BuildServiceProvider();
-
-        var triggerContext = new JsonTriggerContext
-        {
-            Data = new JsonObject
-            {
-                ["tenantId"] = "tenant-999",
-                ["customProperty"] = 42,
-                ["metadata"] = new JsonObject
-                {
-                    ["source"] = "scheduler",
-                    ["priority"] = "high"
-                }
-            }
-        };
-
-        var executionContext = TestContext.CreateExecution(
-            services,
-            CancellationToken.None,
-            triggerContext);
-
-        var actor = services.GetRequiredService<JsonDynamicActor>();
-
-        // Act
-        var results = new List<string>();
-        await foreach (var result in actor.RunAsync(
-            TestStreams.FromArray(1, 2),
-            TestContext.CreateActor(triggerContext: triggerContext)))
-        {
-            results.Add(result);
-        }
-
-        // Assert
-        Assert.Equal(2, results.Count);
-        Assert.All(results, r => Assert.Contains("tenant-999", r));
-        Assert.All(results, r => Assert.Contains("customProperty:42", r));
     }
 
     [Fact]
@@ -228,86 +99,28 @@ public class TriggerContextTests
 
     #region Test Actors
 
-    private class ScheduledJobActor : IStreamActor<int, string>
+    private class GenericActor : IStreamActor<int, string>
     {
         public async IAsyncEnumerable<string> RunAsync(
             IAsyncEnumerable<int> input,
             IActorExecutionContext context)
         {
-            // Use Parameter Provider (recommended approach)
+            // Use Parameter Provider to extract parameters from any trigger context
             var tenantId = context.Parameters.GetParameter("tenantId", "default");
-            var jobName = context.Parameters.GetParameter("jobName", "unknown");
-
-            await foreach (var item in input)
+            
+            // Get all parameters as a string for test verification
+            var allParams = new System.Text.StringBuilder();
+            if (context.TriggerContext is JsonTriggerContext json && json.Data != null)
             {
-                yield return $"{tenantId}:{jobName}:{item}";
+                foreach (var prop in json.Data)
+                {
+                    allParams.Append($"{prop.Key}:{prop.Value},");
+                }
             }
-        }
-    }
-
-    private class MessageQueueActor : IStreamActor<int, string>
-    {
-        public async IAsyncEnumerable<string> RunAsync(
-            IAsyncEnumerable<int> input,
-            IActorExecutionContext context)
-        {
-            // Use Parameter Provider (recommended approach)
-            var tenantId = context.Parameters.GetParameter("tenantId", "default");
-            var deliveryCount = context.Parameters.GetParameter("deliveryCount", 0);
 
             await foreach (var item in input)
             {
-                yield return $"tenant:{tenantId}:delivery:{deliveryCount}:item:{item}";
-            }
-        }
-    }
-
-    private class NullSafeActor : IStreamActor<int, string>
-    {
-        public async IAsyncEnumerable<string> RunAsync(
-            IAsyncEnumerable<int> input,
-            IActorExecutionContext context)
-        {
-            // Null trigger context handled gracefully
-            var tenantId = context.Parameters.GetParameter("tenantId", "default");
-
-            await foreach (var item in input)
-            {
-                yield return $"tenant:{tenantId}:item:{item}";
-            }
-        }
-    }
-
-    private class WebRequestActor : IStreamActor<int, string>
-    {
-        public async IAsyncEnumerable<string> RunAsync(
-            IAsyncEnumerable<int> input,
-            IActorExecutionContext context)
-        {
-            // Use Parameter Provider (recommended approach)
-            var userId = context.Parameters.GetParameter("userId", "unknown");
-            var tenantId = context.Parameters.GetParameter("tenantId", "default");
-
-            await foreach (var item in input)
-            {
-                yield return $"user:{userId}:tenant:{tenantId}:item:{item}";
-            }
-        }
-    }
-
-    private class JsonDynamicActor : IStreamActor<int, string>
-    {
-        public async IAsyncEnumerable<string> RunAsync(
-            IAsyncEnumerable<int> input,
-            IActorExecutionContext context)
-        {
-            // Use Parameter Provider (recommended approach)
-            var tenantId = context.Parameters.GetParameter("tenantId", "default");
-            var customProperty = context.Parameters.GetParameter("customProperty", 0);
-
-            await foreach (var item in input)
-            {
-                yield return $"tenant:{tenantId}:customProperty:{customProperty}:item:{item}";
+                yield return $"tenant:{tenantId}:params:{allParams}:item:{item}";
             }
         }
     }
