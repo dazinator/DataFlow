@@ -40,9 +40,21 @@ public class PersistentRouteInfo<T> : IAsyncDisposable
     {
         targetBlock.SetSource(ChannelBlock);
 
-        // Start executing both the channel block and the data flow
-        var channelTask = ChannelBlock.ExecuteAsync(context);
-        var dataFlowTask = Context.DataFlow.ExecuteAsync(context);
+        // Create a new context with the route's service provider
+        // This ensures that the route executes with its own scoped service provider
+        // and prevents ObjectDisposedException when parent worker scopes are disposed
+        var routeContext = new DataFlowContext(context.InvocationId)
+        {
+            Name = context.Name,
+            ServiceProvider = Context.ServiceProvider,
+            CancellationToken = context.CancellationToken,
+            FlowMetricsContext = context.FlowMetricsContext,
+            Items = context.Items
+        };
+
+        // Start executing both the channel block and the data flow with the route's scoped context
+        var channelTask = ChannelBlock.ExecuteAsync(routeContext);
+        var dataFlowTask = Context.DataFlow.ExecuteAsync(routeContext);
 
         // Combine both tasks
         ExecutionTask = Task.WhenAll(channelTask, dataFlowTask);
