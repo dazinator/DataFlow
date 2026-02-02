@@ -46,10 +46,9 @@ public class PersistentRoutingBlockScopeFixTest : DataFlowTestBase
         Services.AddSingleton<ScopeTracker>();
 
         var items = Enumerable.Range(1, 20).ToArray();
-        var scopeTracker = new ScopeTracker();
 
-        Services.AddSingleton(scopeTracker);
         var sp = Services.BuildServiceProvider();
+        var scopeTracker = sp.GetRequiredService<ScopeTracker>();
 
         var builder = new DataFlowBuilder(sp);
         var logger = sp.GetRequiredService<ILogger<PersistentRoutingBlockScopeFixTest>>();
