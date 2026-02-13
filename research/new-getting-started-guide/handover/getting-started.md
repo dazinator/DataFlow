@@ -222,6 +222,8 @@ g.UseBlock("input")
 ```
 
 - **References blocks by name** (doesn't create them)
+- **Resolves to same namespace by default**: `UseBlock("input")` resolves to `"app:input"` when in the "app" namespace
+- **Cross-namespace syntax**: Use `UseBlock("other-namespace:block-name")` to reference blocks from other namespaces
 - Fluent API for readable graph definitions
 - `Connect()` defines data flow between blocks
 
@@ -316,6 +318,36 @@ var inventoryGraph = serviceProvider.GetKeyedService<DataFlowGraph>("inventory:u
 - Prevents naming conflicts
 - Clear separation of concerns
 - Each namespace is independent
+
+### Cross-Namespace Block Usage
+
+You can reference blocks from other namespaces using fully qualified syntax:
+
+```csharp
+// Shared utility in global namespace
+services.AddDataFlows("global", df =>
+{
+    df.AddBlock("logger", sp => new LoggerBlock());
+});
+
+// Module A uses its own blocks AND the global logger
+services.AddDataFlows("moduleA", df =>
+{
+    df.AddBlock("processor", sp => new ProcessorBlock());
+    
+    df.AddGraph("main", g =>
+    {
+        g.UseBlock("processor")           // Resolves to "moduleA:processor"
+         .UseBlock("global:logger")       // References "global:logger"
+         .Connect("processor", "global:logger");
+    });
+});
+```
+
+**When to use**:
+- Shared utility blocks (logging, monitoring, validation)
+- Common transformers used across modules
+- Reusable infrastructure blocks
 
 ---
 
