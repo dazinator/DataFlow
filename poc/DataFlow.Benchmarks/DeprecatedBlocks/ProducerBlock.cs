@@ -14,7 +14,7 @@ using DataFlow.POC.Registry;
 /// <remarks>
 /// This block provides a simple producer pattern using a lambda function.
 /// It is maintained only for benchmark compatibility to avoid massive refactoring.
-/// New code should use PlainSourceAdapter with IPlainSourceActor instead.
+/// New code should use PlainSourceAdapter or EpochSourceBlock instead.
 /// </remarks>
 [Obsolete("ProducerBlock is deprecated. Use PlainSourceAdapter for new code.")]
 public sealed class ProducerBlock<T> : BlockBase<object, T>
