@@ -52,8 +52,15 @@ global using Microsoft.Extensions.DependencyInjection;
 
 Create `Program.cs`:
 
+**Important**: In .NET 6+, top-level statements must come before class definitions. We'll add the main program logic first, then the block definitions after.
+
 ```csharp
 using System.Runtime.CompilerServices;
+
+// ===== MAIN PROGRAM (we'll add this in Step 4) =====
+// ... main logic goes here ...
+
+// ===== BLOCK DEFINITIONS (must come after top-level statements) =====
 
 // Producer: Reads console input
 public class ConsoleInputBlock : BlockBase<object, string>
@@ -62,10 +69,10 @@ public class ConsoleInputBlock : BlockBase<object, string>
 
     public override async IAsyncEnumerable<string> ExecuteAsync(
         IAsyncEnumerable<object> input,
-        [EnumeratorCancellation] CancellationToken cancellationToken)
+        IExecutionContext context)
     {
         Console.WriteLine("Enter lines (empty to quit):");
-        while (!cancellationToken.IsCancellationRequested)
+        while (!context.CancellationToken.IsCancellationRequested)
         {
             var line = Console.ReadLine();
             if (string.IsNullOrEmpty(line)) break;
@@ -82,9 +89,9 @@ public class UppercaseBlock : BlockBase<string, string>
 
     public override async IAsyncEnumerable<string> ExecuteAsync(
         IAsyncEnumerable<string> input,
-        [EnumeratorCancellation] CancellationToken cancellationToken)
+        IExecutionContext context)
     {
-        await foreach (var item in input.WithCancellation(cancellationToken))
+        await foreach (var item in input.WithCancellation(context.CancellationToken))
         {
             yield return item.ToUpperInvariant();
         }
@@ -98,9 +105,9 @@ public class ConsoleWriterBlock : BlockBase<string, object>
 
     public override async IAsyncEnumerable<object> ExecuteAsync(
         IAsyncEnumerable<string> input,
-        [EnumeratorCancellation] CancellationToken cancellationToken)
+        IExecutionContext context)
     {
-        await foreach (var item in input.WithCancellation(cancellationToken))
+        await foreach (var item in input.WithCancellation(context.CancellationToken))
         {
             Console.WriteLine($"Output: {item}");
         }
@@ -109,11 +116,14 @@ public class ConsoleWriterBlock : BlockBase<string, object>
 }
 ```
 
-### Step 4: Register with Dependency Injection
+### Step 4: Add Main Program Logic
 
-Add to `Program.cs`:
+Now add the main program logic at the **top** of `Program.cs` (before the block definitions):
 
 ```csharp
+using System.Runtime.CompilerServices;
+
+// ===== MAIN PROGRAM (must be first) =====
 var services = new ServiceCollection();
 
 // Register DataFlow with namespace "app"
@@ -136,11 +146,20 @@ services.AddDataFlows("app", df =>
 });
 
 var serviceProvider = services.BuildServiceProvider();
+
+// ... block definitions come after this ...
+```
+
+**Note**: If you encounter ambiguous type errors, use fully qualified names:
+```csharp
+var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
+// ...
+var context = new DataFlow.POC.Core.ExecutionContext(serviceProvider, CancellationToken.None);
 ```
 
 ### Step 5: Execute the Graph
 
-Add to `Program.cs`:
+Add graph execution after the DI setup (still in the main program section):
 
 ```csharp
 // Resolve graph using keyed services
