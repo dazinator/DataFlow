@@ -177,13 +177,31 @@ For the producer, create a source actor that reads from console:
 
 ```csharp
 // ConsoleInputSource.cs
-public class ConsoleInputSource : IPlainSourceActor<string>
+using System.Runtime.CompilerServices;
+using DataFlow.POC.Core;
+
+public class ConsoleInputSource : SourceActorBase<string>
 {
-    public async IAsyncEnumerable<string> ProduceAsync(
+    public ConsoleInputSource() : base("console-input")
+    {
+    }
+
+    public override async IAsyncEnumerable<IEpochStream<string>> ProduceEpochsAsync(
         IActorExecutionContext context)
     {
+        // Produce a single epoch with all console input
+        yield return await CreateEpochStreamAsync(
+            context,
+            sequence: 1,
+            items: ReadConsoleInputAsync(context.CancellationToken),
+            context.CancellationToken);
+    }
+
+    private async IAsyncEnumerable<string> ReadConsoleInputAsync(
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
         Console.WriteLine("Enter text (type 'quit' to exit):");
-        while (!context.CancellationToken.IsCancellationRequested)
+        while (!cancellationToken.IsCancellationRequested)
         {
             var line = Console.ReadLine();
             if (line == "quit" || string.IsNullOrEmpty(line))
@@ -210,6 +228,10 @@ builder.Services.AddScoped<ConsoleInputSource>();
 builder.Services.AddScoped<UppercaseActor>();
 builder.Services.AddScoped<ConsoleWriterActor>();
 
+// Register IEpochCoordinator (required for epoch-based processing)
+builder.Services.AddSingleton<IEpochCoordinator>(sp =>
+    new EpochCoordinator(sp.GetRequiredService<IServiceScopeFactory>()));
+
 // Register DataFlow components
 builder.Services.AddDataFlows("app", df =>
 {
@@ -217,10 +239,11 @@ builder.Services.AddDataFlows("app", df =>
     df.AddBlock("input", sp =>
     {
         var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
-        return new PlainSourceAdapter<string, ConsoleInputSource>(
+        var coordinator = sp.GetRequiredService<IEpochCoordinator>();
+        return new EpochSourceBlock<string, ConsoleInputSource>(
             new BlockContext("input"),
             scopeFactory,
-            sourceName: "console-input");
+            coordinator);
     });
     
     // Register actor blocks (transform and processor)
@@ -348,12 +371,6 @@ app.MapPost("/api/process", async (
     CancellationToken ct) =>
 {
     var graph = services.GetKeyedService<DataFlowGraph>("api:process-request");
-    
-    // Create a source for the requests
-    var source = new PlainSourceAdapter<Request, InMemorySource>(
-        new BlockContext("request-source"),
-        services.GetRequiredService<IServiceScopeFactory>(),
-        sourceName: "api-requests");
     
     var context = new ExecutionContext(services, ct);
     await graph!.ExecuteAsync(context);
@@ -758,6 +775,8 @@ This example demonstrates:
 - Complete DI-based setup
 
 ```csharp
+using System.Runtime.CompilerServices;
+using DataFlow.POC.Core;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 
@@ -778,22 +797,34 @@ public class OrderDbContext : DbContext
 }
 
 // Source actor: Reads orders from database
-public class OrderSourceActor : IPlainSourceActor<Order>
+public class OrderSourceActor : SourceActorBase<Order>
 {
     private readonly OrderDbContext _db;
     
-    public OrderSourceActor(OrderDbContext db)
+    public OrderSourceActor(OrderDbContext db) : base("database")
     {
         _db = db;
     }
     
-    public async IAsyncEnumerable<Order> ProduceAsync(IActorExecutionContext context)
+    public override async IAsyncEnumerable<IEpochStream<Order>> ProduceEpochsAsync(
+        IActorExecutionContext context)
+    {
+        // Produce a single epoch with all pending orders
+        yield return await CreateEpochStreamAsync(
+            context,
+            sequence: 1,
+            items: GetPendingOrdersAsync(context.CancellationToken),
+            context.CancellationToken);
+    }
+
+    private async IAsyncEnumerable<Order> GetPendingOrdersAsync(
+        [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var orders = _db.Orders
             .Where(o => o.Status == "Pending")
             .AsAsyncEnumerable();
         
-        await foreach (var order in orders.WithCancellation(context.CancellationToken))
+        await foreach (var order in orders.WithCancellation(cancellationToken))
         {
             yield return order;
         }
@@ -852,6 +883,10 @@ builder.Services.AddScoped<OrderSourceActor>();
 builder.Services.AddScoped<OrderProcessorActor>();
 builder.Services.AddScoped<OrderSaverActor>();
 
+// Register IEpochCoordinator (required for epoch-based processing)
+builder.Services.AddSingleton<IEpochCoordinator>(sp =>
+    new EpochCoordinator(sp.GetRequiredService<IServiceScopeFactory>()));
+
 // Register DataFlow
 builder.Services.AddDataFlows("orders", df =>
 {
@@ -859,10 +894,11 @@ builder.Services.AddDataFlows("orders", df =>
     df.AddBlock("source", sp =>
     {
         var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
-        return new PlainSourceAdapter<Order, OrderSourceActor>(
+        var coordinator = sp.GetRequiredService<IEpochCoordinator>();
+        return new EpochSourceBlock<Order, OrderSourceActor>(
             new BlockContext("order-source"),
             scopeFactory,
-            sourceName: "database");
+            coordinator);
     });
     
     // Processing blocks
