@@ -377,7 +377,6 @@ using (var scope = serviceProvider.CreateScope())
 
 **Why scopes matter**:
 - Each execution gets fresh instances of scoped blocks
-- Safe for EF Core `DbContext` (scoped service)
 - Prevents memory leaks
 - Enables safe concurrent execution
 
@@ -465,107 +464,13 @@ app.MapPost("/process", async (HttpContext httpContext) =>
 
 ## Next Steps
 
-You now understand the fundamentals of DataFlow! Here's where to go next:
+You now understand the fundamentals of DataFlow! You're ready to build your own data processing pipelines.
 
-### Learn More Features
-- **[Working with Blocks](./working-with-blocks.md)** - Block types, custom blocks, patterns
-- **[Topology Patterns](./control-flow-topologies.md)** - Broadcast, competing consumers, routing
-- **[Source Blocks](./source-blocks.md)** - Database sources, file sources, API sources
-
-### Advanced Topics
-- **[Using Epochs](./using-epochs.md)** - Transaction boundaries, checkpointing
-- **[EF Core Integration](./ef-core-epochs.md)** - Database patterns with epochs
-- **[Dependency Injection](./dependency-injection-registration.md)** - Advanced DI patterns
-
-### Reference
-- **[Testing Guide](./testing-guide.md)** - Testing your DataFlows
-- **[Business Logic Decoupling](./business-logic-decoupling.md)** - Separation patterns
+**What you've learned**:
+- Setting up DataFlow with dependency injection
+- Registering blocks and graphs
+- Using keyed services to resolve and execute graphs
+- Organizing code with namespaces
+- Managing execution contexts and scopes
 
 ---
-
-## Troubleshooting
-
-### Graph not found
-
-```csharp
-var graph = serviceProvider.GetKeyedService<DataFlowGraph>("app:main");
-// Returns null
-```
-
-**Solution**: Check the key format `"{namespace}:{graphname}"` matches your registration:
-
-```csharp
-services.AddDataFlows("app", df =>      // ← namespace
-{
-    df.AddGraph("main", g => { ... });  // ← graph name
-});
-```
-
-### Block not found
-
-```csharp
-g.UseBlock("my-block")
-// Throws: "Block 'my-block' not found"
-```
-
-**Solution**: Ensure block is registered before use:
-
-```csharp
-df.AddBlock("my-block", sp => new MyBlock());  // ← Register first
-df.AddGraph("g", g => g.UseBlock("my-block")); // ← Then use
-```
-
-### Type mismatch
-
-```csharp
-g.Connect("producer", "transformer")
-// Throws: "Type mismatch: producer outputs int, transformer expects string"
-```
-
-**Solution**: Verify generic type parameters match:
-
-```csharp
-// Producer outputs int
-public class ProducerBlock : BlockBase<object, int> { ... }
-
-// Transformer must accept int
-public class TransformerBlock : BlockBase<int, string> { ... }
-```
-
----
-
-## Summary
-
-You've learned:
-
-✅ How to register blocks and graphs with DI  
-✅ The `UseBlock` pattern for graph definition  
-✅ Keyed service resolution (`"{namespace}:{graphname}"`)  
-✅ Block reuse across multiple graphs  
-✅ Namespace organization for complex apps  
-✅ Execution contexts and scoping  
-✅ Safe concurrent execution
-
-**Key Pattern** (commit this to memory):
-
-```csharp
-// 1. Register
-services.AddDataFlows("namespace", df =>
-{
-    df.AddBlock("block-name", sp => new MyBlock());
-    df.AddGraph("graph-name", g =>
-    {
-        g.UseBlock("block-name")
-         .Connect(...);
-    });
-});
-
-// 2. Resolve
-var graph = serviceProvider.GetKeyedService<DataFlowGraph>("namespace:graph-name");
-
-// 3. Execute
-var context = new ExecutionContext(serviceProvider, CancellationToken.None);
-await graph.ExecuteAsync(context);
-```
-
-Now go build something! 🚀
