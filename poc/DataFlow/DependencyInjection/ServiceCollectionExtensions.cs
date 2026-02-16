@@ -471,6 +471,12 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<IBlockTypeRegistry>(registry);
         }
 
+        // Auto-register IEpochCoordinator if not already registered
+        // This is required infrastructure for epoch-based source blocks
+        // Registered as SCOPED to isolate epoch coordination per graph execution
+        services.TryAddScoped<IEpochCoordinator>(sp =>
+            new EpochCoordinator(sp.GetRequiredService<IServiceScopeFactory>()));
+
         var builder = new DataFlowBuilder(services, registry, namespacePrefix);
         configure(builder);
 
