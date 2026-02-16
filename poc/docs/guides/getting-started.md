@@ -233,16 +233,8 @@ builder.Services.AddScoped<ConsoleWriterActor>();
 // Each graph execution gets its own coordinator instance for isolation
 builder.Services.AddDataFlows("app", df =>
 {
-    // Register source block
-    df.AddBlock("input", sp =>
-    {
-        var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
-        var coordinator = sp.GetRequiredService<IEpochCoordinator>();
-        return new EpochSourceBlock<string, ConsoleInputSource>(
-            new BlockContext("input"),
-            scopeFactory,
-            coordinator);
-    });
+    // Register source block - simple API, coordinator auto-injected
+    df.AddSourceBlock<string, ConsoleInputSource>("input");
     
     // Register actor blocks (transform and processor)
     df.AddActorBlock<string, string, UppercaseActor>("uppercase");
@@ -886,16 +878,8 @@ builder.Services.AddScoped<OrderSaverActor>();
 // Each graph execution gets its own coordinator instance for isolation
 builder.Services.AddDataFlows("orders", df =>
 {
-    // Source block
-    df.AddBlock("source", sp =>
-    {
-        var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
-        var coordinator = sp.GetRequiredService<IEpochCoordinator>();
-        return new EpochSourceBlock<Order, OrderSourceActor>(
-            new BlockContext("order-source"),
-            scopeFactory,
-            coordinator);
-    });
+    // Register source block - simple API, coordinator auto-injected
+    df.AddSourceBlock<Order, OrderSourceActor>("source");
     
     // Processing blocks
     df.AddActorBlock<Order, Order, OrderProcessorActor>("processor");
