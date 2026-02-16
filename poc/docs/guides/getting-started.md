@@ -229,7 +229,8 @@ builder.Services.AddScoped<UppercaseActor>();
 builder.Services.AddScoped<ConsoleWriterActor>();
 
 // Register DataFlow components
-// Note: IEpochCoordinator is automatically registered as a singleton by AddDataFlows()
+// Note: IEpochCoordinator is automatically registered as a scoped service by AddDataFlows()
+// Each graph execution gets its own coordinator instance for isolation
 builder.Services.AddDataFlows("app", df =>
 {
     // Register source block
@@ -881,7 +882,8 @@ builder.Services.AddScoped<OrderProcessorActor>();
 builder.Services.AddScoped<OrderSaverActor>();
 
 // Register DataFlow
-// Note: IEpochCoordinator is automatically registered as a singleton by AddDataFlows()
+// Note: IEpochCoordinator is automatically registered as a scoped service by AddDataFlows()
+// Each graph execution gets its own coordinator instance for isolation
 builder.Services.AddDataFlows("orders", df =>
 {
     // Source block
