@@ -14,11 +14,11 @@
 /// coordinator registration, and verbose block instantiation.
 /// </summary>
 
-using DataFlow.POC.Core;
 using DataFlow.POC.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using System.Runtime.CompilerServices;
 using Xunit;
+using ExecutionContext = DataFlow.POC.Core.ExecutionContext;
 
 namespace DataFlow.POC.Examples;
 
@@ -27,12 +27,12 @@ public class ModernEpochGraphTestExample
     /// <summary>
     /// Example source actor that produces 3 epochs with integers.
     /// </summary>
-    public class SimpleIntegerSource : SourceActorBase<int>
+    public class SimpleIntegerSource : DataFlow.POC.Core.SourceActorBase<int>
     {
         public SimpleIntegerSource() : base("simple-int-source") { }
 
-        public override async IAsyncEnumerable<IEpochStream<int>> ProduceEpochsAsync(
-            IActorExecutionContext context)
+        public override async IAsyncEnumerable<DataFlow.POC.Core.IEpochStream<int>> ProduceEpochsAsync(
+            DataFlow.POC.Core.IActorExecutionContext context)
         {
             for (int epochNum = 1; epochNum <= 3; epochNum++)
             {
@@ -58,11 +58,11 @@ public class ModernEpochGraphTestExample
     /// <summary>
     /// Example actor that doubles input values.
     /// </summary>
-    public class DoublerActor : IStreamActor<int, int>
+    public class DoublerActor : DataFlow.POC.Core.IStreamActor<int, int>
     {
         public async IAsyncEnumerable<int> RunAsync(
             IAsyncEnumerable<int> input,
-            IActorExecutionContext context)
+            DataFlow.POC.Core.IActorExecutionContext context)
         {
             await foreach (var item in input.WithCancellation(context.CancellationToken))
             {
@@ -75,7 +75,7 @@ public class ModernEpochGraphTestExample
     /// Reusable collector actor for test assertions.
     /// This is a common pattern - create once and reuse across tests.
     /// </summary>
-    public class CollectorActor<T> : IStreamActor<T, object>
+    public class CollectorActor<T> : DataFlow.POC.Core.IStreamActor<T, object>
     {
         private readonly List<T> _results;
 
@@ -86,7 +86,7 @@ public class ModernEpochGraphTestExample
 
         public async IAsyncEnumerable<object> RunAsync(
             IAsyncEnumerable<T> input,
-            IActorExecutionContext context)
+            DataFlow.POC.Core.IActorExecutionContext context)
         {
             await foreach (var item in input.WithCancellation(context.CancellationToken))
             {
@@ -131,7 +131,7 @@ public class ModernEpochGraphTestExample
         var serviceProvider = services.BuildServiceProvider();
         
         // Act
-        var graph = serviceProvider.GetKeyedService<DataFlowGraph>("test:main");
+        var graph = serviceProvider.GetKeyedService<DataFlow.POC.Core.DataFlowGraph>("test:main");
         Assert.NotNull(graph);
         
         var context = new ExecutionContext(serviceProvider, CancellationToken.None);
@@ -179,7 +179,7 @@ public class ModernEpochGraphTestExample
         var serviceProvider = services.BuildServiceProvider();
         
         // Act
-        var graph = serviceProvider.GetKeyedService<DataFlowGraph>("test:terminal-test");
+        var graph = serviceProvider.GetKeyedService<DataFlow.POC.Core.DataFlowGraph>("test:terminal-test");
         var context = new ExecutionContext(serviceProvider, CancellationToken.None);
         await graph!.ExecuteAsync(context);
         
@@ -225,7 +225,7 @@ public class ModernEpochGraphTestExample
         var cts = new CancellationTokenSource();
         cts.CancelAfter(TimeSpan.FromMilliseconds(100)); // Cancel quickly
         
-        var graph = serviceProvider.GetKeyedService<DataFlowGraph>("test:cancel-test");
+        var graph = serviceProvider.GetKeyedService<DataFlow.POC.Core.DataFlowGraph>("test:cancel-test");
         var context = new ExecutionContext(serviceProvider, cts.Token);
         
         // Note: Cancellation may or may not throw depending on timing
@@ -296,7 +296,7 @@ public class ModernEpochGraphTestsWithLifetime : IAsyncLifetime
         _results.Clear();
         
         // Act
-        var graph = _serviceProvider.GetKeyedService<DataFlowGraph>("test:main");
+        var graph = _serviceProvider.GetKeyedService<DataFlow.POC.Core.DataFlowGraph>("test:main");
         var context = new ExecutionContext(_serviceProvider, CancellationToken.None);
         await graph!.ExecuteAsync(context);
         
