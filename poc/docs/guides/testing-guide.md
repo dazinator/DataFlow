@@ -295,6 +295,8 @@ public async Task Actor_Should_Respect_Cancellation()
 
 ## Testing Epoch-Based Graphs
 
+> **📖 For developers migrating from older patterns**: See [DEVELOPER_MIGRATION.md](DEVELOPER_MIGRATION.md) for a step-by-step migration guide.
+
 ### Modern Pattern for Epoch Source and Actor Testing
 
 As of the latest version, DataFlow has simplified APIs that eliminate most boilerplate when testing epoch-based graphs. This section shows the modern, recommended approach.
@@ -341,6 +343,8 @@ services.AddDataFlows("test", df =>
 ```
 
 ### Complete Modern Example
+
+> **📄 Complete working code**: See [examples/ModernEpochGraphTestExample.cs](examples/ModernEpochGraphTestExample.cs) for a full, compilable example.
 
 Here's a complete, production-ready test using the modern API:
 
