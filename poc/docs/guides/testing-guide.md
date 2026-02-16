@@ -295,77 +295,34 @@ public async Task Actor_Should_Respect_Cancellation()
 
 ## Testing Epoch-Based Graphs
 
-> **📖 For developers migrating from older patterns**: See [DEVELOPER_MIGRATION.md](DEVELOPER_MIGRATION.md) for a step-by-step migration guide.
+### Recommended Pattern for Epoch Source and Actor Testing
 
-### Modern Pattern for Epoch Source and Actor Testing
+DataFlow provides simplified APIs that eliminate boilerplate when testing epoch-based graphs. This section demonstrates the recommended approach.
 
-As of the latest version, DataFlow has simplified APIs that eliminate most boilerplate when testing epoch-based graphs. This section shows the modern, recommended approach.
-
-### What Changed in Recent Versions
-
-**Key Improvements:**
-1. ✅ `IEpochCoordinator` is **auto-registered** as scoped by `AddDataFlows()` - no manual registration needed
-2. ✅ `AddSourceBlock<T, TActor>()` extension method - simple one-line source registration
-3. ✅ `AddActorBlock<TIn, TOut, TActor>()` extension method - simple one-line actor registration
-4. ✅ Builder pattern eliminates manual `BlockContext`, coordinator wiring, and registry management
-
-**Old Pattern (Deprecated - Don't Use):**
-```csharp
-// ❌ OUTDATED - Manual setup is verbose and error-prone
-var coordinator = new EpochCoordinator(serviceProvider.GetRequiredService<IServiceScopeFactory>());
-services.AddSingleton<IEpochCoordinator>(coordinator);
-
-var sourceBlock = new EpochSourceBlock<int, MySource>(
-    new BlockContext("source"),
-    scopeFactory,
-    coordinator);
-
-var builder = new DataFlowGraphBuilder("test");  // Deprecated constructor
-builder.AddBlock(sourceBlock);
-// ... manual wiring ...
-```
-
-**Modern Pattern (Recommended):**
-```csharp
-// ✅ MODERN - Clean, simple, idiomatic
-services.AddDataFlows("test", df =>
-{
-    df.AddSourceBlock<int, MySource>("source");
-    df.AddActorBlock<int, int, MyActor>("processor");
-    
-    df.AddGraph("main", g =>
-    {
-        g.UseBlock("source")
-         .UseBlock("processor")
-         .Connect("source", "processor");
-    });
-});
-```
-
-### Complete Modern Example
+### Complete Example
 
 > **📄 Complete working code**: See [examples/ModernEpochGraphTestExample.cs](examples/ModernEpochGraphTestExample.cs) for a full, compilable example.
 
-Here's a complete, production-ready test using the modern API:
+Here's a complete, production-ready test using the recommended API:
 
 ```csharp
-using DataFlow.POC.Core;
 using DataFlow.POC.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using System.Runtime.CompilerServices;
 using Xunit;
+using ExecutionContext = DataFlow.POC.Core.ExecutionContext;
 
-public class ModernEpochGraphTests
+public class EpochGraphTests
 {
     /// <summary>
     /// Simple source actor that produces 3 epochs with integers.
     /// </summary>
-    public class SimpleIntegerSource : SourceActorBase<int>
+    public class SimpleIntegerSource : DataFlow.POC.Core.SourceActorBase<int>
     {
         public SimpleIntegerSource() : base("simple-int-source") { }
 
-        public override async IAsyncEnumerable<IEpochStream<int>> ProduceEpochsAsync(
-            IActorExecutionContext context)
+        public override async IAsyncEnumerable<DataFlow.POC.Core.IEpochStream<int>> ProduceEpochsAsync(
+            DataFlow.POC.Core.IActorExecutionContext context)
         {
             for (int epochNum = 1; epochNum <= 3; epochNum++)
             {
@@ -382,7 +339,6 @@ public class ModernEpochGraphTests
 
         private async IAsyncEnumerable<int> ProduceEpochItems(int epochNum)
         {
-            // Produce single item per epoch for simplicity
             yield return epochNum;
             await Task.CompletedTask;
         }
@@ -391,11 +347,11 @@ public class ModernEpochGraphTests
     /// <summary>
     /// Simple actor that doubles input values.
     /// </summary>
-    public class DoublerActor : IStreamActor<int, int>
+    public class DoublerActor : DataFlow.POC.Core.IStreamActor<int, int>
     {
         public async IAsyncEnumerable<int> RunAsync(
             IAsyncEnumerable<int> input,
-            IActorExecutionContext context)
+            DataFlow.POC.Core.IActorExecutionContext context)
         {
             await foreach (var item in input.WithCancellation(context.CancellationToken))
             {
@@ -405,26 +361,24 @@ public class ModernEpochGraphTests
     }
 
     [Fact]
-    public async Task EpochGraph_WithModernAPI_ProcessesAllEpochs()
+    public async Task EpochGraph_ProcessesAllEpochs()
     {
         // Arrange
         var results = new List<int>();
         var services = new ServiceCollection();
         
-        // Register actors as scoped (standard DI pattern)
+        // Register actors as scoped
         services.AddScoped<SimpleIntegerSource>();
         services.AddScoped<DoublerActor>();
         services.AddScoped(_ => new CollectorActor<int>(results));
         
-        // Modern API: AddDataFlows auto-registers IEpochCoordinator
+        // AddDataFlows auto-registers IEpochCoordinator as scoped
         services.AddDataFlows("test", df =>
         {
-            // Simple one-line registrations
             df.AddSourceBlock<int, SimpleIntegerSource>("source");
             df.AddActorBlock<int, int, DoublerActor>("doubler");
             df.AddActorBlock<int, object, CollectorActor<int>>("collector");
             
-            // Define graph topology
             df.AddGraph("main", g =>
             {
                 g.UseBlock("source")
@@ -438,7 +392,7 @@ public class ModernEpochGraphTests
         var serviceProvider = services.BuildServiceProvider();
         
         // Act
-        var graph = serviceProvider.GetKeyedService<DataFlowGraph>("test:main");
+        var graph = serviceProvider.GetKeyedService<DataFlow.POC.Core.DataFlowGraph>("test:main");
         var context = new ExecutionContext(serviceProvider, CancellationToken.None);
         await graph!.ExecuteAsync(context);
         
@@ -456,24 +410,21 @@ public class ModernEpochGraphTests
 /// <summary>
 /// Reusable collector actor for test assertions.
 /// </summary>
-public class CollectorActor<T> : IStreamActor<T, object>
+public class CollectorActor<T> : DataFlow.POC.Core.IStreamActor<T, object>
 {
     private readonly List<T> _results;
 
-    public CollectorActor(List<T> results)
-    {
-        _results = results;
-    }
+    public CollectorActor(List<T> results) => _results = results;
 
     public async IAsyncEnumerable<object> RunAsync(
         IAsyncEnumerable<T> input,
-        IActorExecutionContext context)
+        DataFlow.POC.Core.IActorExecutionContext context)
     {
         await foreach (var item in input.WithCancellation(context.CancellationToken))
         {
             _results.Add(item);
         }
-        yield break; // Terminal actor - no output
+        yield break;
     }
 }
 ```
@@ -494,7 +445,7 @@ public class MySource : SourceActorBase<int>
 }
 ```
 
-**Why?**
+**Benefits:**
 - `SourceActorBase<T>` provides `CreateEpochStreamAsync()` helper
 - Manages epoch coordination automatically
 - Type-safe epoch stream creation
@@ -509,9 +460,9 @@ services.AddDataFlows("namespace", df =>
 });
 ```
 
-**Why?**
+**Benefits:**
 - Auto-registers `IEpochCoordinator` as scoped
-- Provides fluent, chainable API
+- Fluent, chainable API
 - Eliminates manual block instantiation
 - Type-safe block registration
 
@@ -520,83 +471,7 @@ services.AddDataFlows("namespace", df =>
 var graph = serviceProvider.GetKeyedService<DataFlowGraph>("namespace:graph-name");
 ```
 
-**Why?**
-- Graphs registered as keyed services
-- Key format: `"{namespace}:{graph-name}"`
-- Supports multiple independent graphs
-
-### Common Migration Issues
-
-#### Issue 1: "The type or namespace name 'DataFlowGraphBuilder' could not be found"
-
-**Problem:**
-```csharp
-// ❌ Old constructor is obsolete
-var builder = new DataFlowGraphBuilder("test");
-```
-
-**Solution:**
-```csharp
-// ✅ Use AddDataFlows extension
-services.AddDataFlows("test", df =>
-{
-    // Configure within lambda
-});
-```
-
-#### Issue 2: Manual IEpochCoordinator registration conflicts
-
-**Problem:**
-```csharp
-// ❌ Manually creating coordinator conflicts with auto-registration
-var coordinator = new EpochCoordinator(scopeFactory);
-services.AddSingleton<IEpochCoordinator>(coordinator);
-services.AddDataFlows("test", df => { /* ... */ });
-```
-
-**Solution:**
-```csharp
-// ✅ Let AddDataFlows handle it
-services.AddDataFlows("test", df => { /* ... */ });
-// IEpochCoordinator is automatically registered as scoped
-```
-
-#### Issue 3: Manual block instantiation
-
-**Problem:**
-```csharp
-// ❌ Too much manual wiring
-var sourceBlock = new EpochSourceBlock<int, MySource>(
-    new BlockContext("source"),
-    scopeFactory,
-    coordinator);
-builder.AddBlock(sourceBlock);
-```
-
-**Solution:**
-```csharp
-// ✅ One-line registration
-df.AddSourceBlock<int, MySource>("source");
-```
-
-#### Issue 4: BlockTypeRegistry manual management
-
-**Problem:**
-```csharp
-// ❌ Manual registry creation
-var registry = new BlockTypeRegistry();
-var graph = builder.Build(serviceProvider, registry);
-```
-
-**Solution:**
-```csharp
-// ✅ Handled automatically by AddDataFlows
-services.AddDataFlows("test", df =>
-{
-    df.AddGraph("main", g => { /* ... */ });
-});
-// Registry managed internally
-```
+**Key format**: `"{namespace}:{graph-name}"` - supports multiple independent graphs
 
 ### Testing Tips for Epoch Graphs
 
@@ -672,7 +547,6 @@ public class MyTests : IAsyncLifetime
 ```
 
 ---
-
 ## Testing with Dependencies
 
 ### Using NSubstitute for Mocking
