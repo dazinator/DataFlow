@@ -228,11 +228,8 @@ builder.Services.AddScoped<ConsoleInputSource>();
 builder.Services.AddScoped<UppercaseActor>();
 builder.Services.AddScoped<ConsoleWriterActor>();
 
-// Register IEpochCoordinator (required for epoch-based processing)
-builder.Services.AddSingleton<IEpochCoordinator>(sp =>
-    new EpochCoordinator(sp.GetRequiredService<IServiceScopeFactory>()));
-
 // Register DataFlow components
+// Note: IEpochCoordinator is automatically registered as a singleton by AddDataFlows()
 builder.Services.AddDataFlows("app", df =>
 {
     // Register source block
@@ -883,11 +880,8 @@ builder.Services.AddScoped<OrderSourceActor>();
 builder.Services.AddScoped<OrderProcessorActor>();
 builder.Services.AddScoped<OrderSaverActor>();
 
-// Register IEpochCoordinator (required for epoch-based processing)
-builder.Services.AddSingleton<IEpochCoordinator>(sp =>
-    new EpochCoordinator(sp.GetRequiredService<IServiceScopeFactory>()));
-
 // Register DataFlow
+// Note: IEpochCoordinator is automatically registered as a singleton by AddDataFlows()
 builder.Services.AddDataFlows("orders", df =>
 {
     // Source block
