@@ -306,6 +306,55 @@ public class DataFlowBuilder
         return this;
     }
 
+    /// <summary>
+    /// Register an EpochSourceBlock with type-safe API.
+    /// All dependencies are automatically injected via constructor.
+    /// Uses IBlockContext constructor injection for proper lifecycle management.
+    /// 
+    /// Source blocks produce data streams with epoch boundaries without requiring input.
+    /// The coordinator and scope factory are automatically resolved from DI.
+    /// 
+    /// The registry stores the semantic data types (input: object for no input, output: T)
+    /// that the source produces, not the infrastructure wrapper types (IEpochStream&lt;T&gt;).
+    /// This keeps the registry focused on the logical data contract, not implementation details.
+    /// This matches how AddActorBlock registers semantic types for introspection.
+    /// </summary>
+    /// <typeparam name="T">Output type (data items produced by the source)</typeparam>
+    /// <typeparam name="TActor">Source actor type implementing ISourceActor&lt;T&gt;</typeparam>
+    /// <param name="name">Unique name for this source block</param>
+    /// <returns>This builder for chaining</returns>
+    public DataFlowBuilder AddSourceBlock<T, TActor>(string name)
+        where TActor : ISourceActor<T>
+    {
+        ValidateBlockName(name);
+        
+        var fullKey = ResolveKey(name);
+        CheckDuplicateRegistration(fullKey, "Block");
+
+        // Register metadata with SEMANTIC types (what the source produces)
+        // Input type is 'object' since sources don't take input
+        // Output type is T (the items produced), NOT IEpochStream<T> which is an infrastructure detail
+        // This matches how AddActorBlock registers semantic types for introspection
+        var metadata = new BlockTypeMetadata(typeof(object), typeof(T));
+        _registry.RegisterBlock(fullKey, metadata);
+
+        _services.AddKeyedScoped<IBlock>(fullKey, (sp, key) =>
+        {
+            // Step 1: Create context from key
+            var blockName = key as string ?? throw new InvalidOperationException("Block key must be a string");
+            var context = new BlockContext(blockName);
+            
+            // Step 2: Resolve other dependencies
+            var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
+            var coordinator = sp.GetRequiredService<IEpochCoordinator>();
+            
+            // Step 3: Construct epoch source block with ALL dependencies via constructor
+            return new EpochSourceBlock<T, TActor>(context, scopeFactory, coordinator);
+        });
+
+        return this;
+    }
+
     #endregion
 
     #region Validation Helpers

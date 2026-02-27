@@ -8,9 +8,10 @@ This guide provides comprehensive guidance on testing DataFlow pipelines and act
 2. [Test Helper Utilities](#test-helper-utilities)
 3. [Testing Strategies](#testing-strategies)
 4. [Common Testing Patterns](#common-testing-patterns)
-5. [Testing with Dependencies](#testing-with-dependencies)
-6. [Business Logic Decoupling Pattern](#business-logic-decoupling-pattern)
-7. [Troubleshooting](#troubleshooting)
+5. [Testing Epoch-Based Graphs](#testing-epoch-based-graphs)
+6. [Testing with Dependencies](#testing-with-dependencies)
+7. [Business Logic Decoupling Pattern](#business-logic-decoupling-pattern)
+8. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -292,6 +293,260 @@ public async Task Actor_Should_Respect_Cancellation()
 
 ---
 
+## Testing Epoch-Based Graphs
+
+### Recommended Pattern for Epoch Source and Actor Testing
+
+DataFlow provides simplified APIs that eliminate boilerplate when testing epoch-based graphs. This section demonstrates the recommended approach.
+
+### Complete Example
+
+> **📄 Complete working code**: See [examples/ModernEpochGraphTestExample.cs](examples/ModernEpochGraphTestExample.cs) for a full, compilable example.
+
+Here's a complete, production-ready test using the recommended API:
+
+```csharp
+using DataFlow.POC.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
+using System.Runtime.CompilerServices;
+using Xunit;
+using ExecutionContext = DataFlow.POC.Core.ExecutionContext;
+
+public class EpochGraphTests
+{
+    /// <summary>
+    /// Simple source actor that produces 3 epochs with integers.
+    /// </summary>
+    public class SimpleIntegerSource : DataFlow.POC.Core.SourceActorBase<int>
+    {
+        public SimpleIntegerSource() : base("simple-int-source") { }
+
+        public override async IAsyncEnumerable<DataFlow.POC.Core.IEpochStream<int>> ProduceEpochsAsync(
+            DataFlow.POC.Core.IActorExecutionContext context)
+        {
+            for (int epochNum = 1; epochNum <= 3; epochNum++)
+            {
+                var items = ProduceEpochItems(epochNum);
+                var epochStream = await CreateEpochStreamAsync(
+                    context, 
+                    epochNum, 
+                    items, 
+                    context.CancellationToken);
+                
+                yield return epochStream;
+            }
+        }
+
+        private async IAsyncEnumerable<int> ProduceEpochItems(int epochNum)
+        {
+            yield return epochNum;
+            await Task.CompletedTask;
+        }
+    }
+
+    /// <summary>
+    /// Simple actor that doubles input values.
+    /// </summary>
+    public class DoublerActor : DataFlow.POC.Core.IStreamActor<int, int>
+    {
+        public async IAsyncEnumerable<int> RunAsync(
+            IAsyncEnumerable<int> input,
+            DataFlow.POC.Core.IActorExecutionContext context)
+        {
+            await foreach (var item in input.WithCancellation(context.CancellationToken))
+            {
+                yield return item * 2;
+            }
+        }
+    }
+
+    [Fact]
+    public async Task EpochGraph_ProcessesAllEpochs()
+    {
+        // Arrange
+        var results = new List<int>();
+        var services = new ServiceCollection();
+        
+        // Register actors as scoped
+        services.AddScoped<SimpleIntegerSource>();
+        services.AddScoped<DoublerActor>();
+        services.AddScoped(_ => new CollectorActor<int>(results));
+        
+        // AddDataFlows auto-registers IEpochCoordinator as scoped
+        services.AddDataFlows("test", df =>
+        {
+            df.AddSourceBlock<int, SimpleIntegerSource>("source");
+            df.AddActorBlock<int, int, DoublerActor>("doubler");
+            df.AddActorBlock<int, object, CollectorActor<int>>("collector");
+            
+            df.AddGraph("main", g =>
+            {
+                g.UseBlock("source")
+                 .UseBlock("doubler")
+                 .UseBlock("collector")
+                 .Connect("source", "doubler")
+                 .Connect("doubler", "collector");
+            });
+        });
+        
+        var serviceProvider = services.BuildServiceProvider();
+        
+        // Act
+        var graph = serviceProvider.GetKeyedService<DataFlow.POC.Core.DataFlowGraph>("test:main");
+        var context = new ExecutionContext(serviceProvider, CancellationToken.None);
+        await graph!.ExecuteAsync(context);
+        
+        // Assert
+        Assert.Equal(3, results.Count);
+        Assert.Equal(2, results[0]);  // 1 * 2
+        Assert.Equal(4, results[1]);  // 2 * 2
+        Assert.Equal(6, results[2]);  // 3 * 2
+        
+        // Cleanup
+        await serviceProvider.DisposeAsync();
+    }
+}
+
+/// <summary>
+/// Reusable collector actor for test assertions.
+/// </summary>
+public class CollectorActor<T> : DataFlow.POC.Core.IStreamActor<T, object>
+{
+    private readonly List<T> _results;
+
+    public CollectorActor(List<T> results) => _results = results;
+
+    public async IAsyncEnumerable<object> RunAsync(
+        IAsyncEnumerable<T> input,
+        DataFlow.POC.Core.IActorExecutionContext context)
+    {
+        await foreach (var item in input.WithCancellation(context.CancellationToken))
+        {
+            _results.Add(item);
+        }
+        yield break;
+    }
+}
+```
+
+### Key Patterns Explained
+
+**1. Source Actor Base Class**
+```csharp
+public class MySource : SourceActorBase<int>
+{
+    public MySource() : base("source-id") { }
+    
+    public override async IAsyncEnumerable<IEpochStream<int>> ProduceEpochsAsync(
+        IActorExecutionContext context)
+    {
+        // Produce epochs...
+    }
+}
+```
+
+**Benefits:**
+- `SourceActorBase<T>` provides `CreateEpochStreamAsync()` helper
+- Manages epoch coordination automatically
+- Type-safe epoch stream creation
+
+**2. AddDataFlows with Builder**
+```csharp
+services.AddDataFlows("namespace", df =>
+{
+    df.AddSourceBlock<int, MySource>("source");
+    df.AddActorBlock<int, string, MyActor>("processor");
+    df.AddGraph("graph-name", g => { /* topology */ });
+});
+```
+
+**Benefits:**
+- Auto-registers `IEpochCoordinator` as scoped
+- Fluent, chainable API
+- Eliminates manual block instantiation
+- Type-safe block registration
+
+**3. Graph Resolution**
+```csharp
+var graph = serviceProvider.GetKeyedService<DataFlowGraph>("namespace:graph-name");
+```
+
+**Key format**: `"{namespace}:{graph-name}"` - supports multiple independent graphs
+
+### Testing Tips for Epoch Graphs
+
+**1. Use CollectorActor for Assertions**
+
+Create a reusable `CollectorActor<T>` that accumulates results in a list:
+
+```csharp
+var results = new List<string>();
+services.AddScoped(_ => new CollectorActor<string>(results));
+df.AddActorBlock<string, object, CollectorActor<string>>("collector");
+```
+
+**2. Test Epoch Boundaries**
+
+If you need to verify epoch boundaries, collect `IEpochStream<T>` objects:
+
+```csharp
+public class EpochCollector<T> : IStreamActor<T, T>
+{
+    public List<(EpochVector epoch, List<T> items)> Epochs { get; } = new();
+
+    public async IAsyncEnumerable<T> RunAsync(
+        IAsyncEnumerable<T> input,
+        IActorExecutionContext context)
+    {
+        // Note: This requires access to epoch metadata
+        // For simple tests, use regular CollectorActor
+        await foreach (var item in input.WithCancellation(context.CancellationToken))
+        {
+            yield return item;
+        }
+    }
+}
+```
+
+**3. Proper Cleanup**
+
+Always dispose the service provider to release resources:
+
+```csharp
+var serviceProvider = services.BuildServiceProvider();
+try
+{
+    // ... test execution ...
+}
+finally
+{
+    await serviceProvider.DisposeAsync();
+}
+```
+
+Or use `IAsyncLifetime` for xUnit tests:
+
+```csharp
+public class MyTests : IAsyncLifetime
+{
+    private ServiceProvider? _serviceProvider;
+    
+    public async Task InitializeAsync()
+    {
+        var services = new ServiceCollection();
+        // ... setup ...
+        _serviceProvider = services.BuildServiceProvider();
+    }
+    
+    public async Task DisposeAsync()
+    {
+        if (_serviceProvider != null)
+            await _serviceProvider.DisposeAsync();
+    }
+}
+```
+
+---
 ## Testing with Dependencies
 
 ### Using NSubstitute for Mocking
