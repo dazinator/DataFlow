@@ -30,6 +30,13 @@ public static class ReflectionHelper
     /// </summary>
     private static readonly ConcurrentDictionary<Type, Func<ITypedEdgeRouter, object, IBlock, CancellationToken, Task>> 
         _containerRoutingCache = new();
+
+    /// <summary>
+    /// Cache for compiled terminal epoch stream enumeration delegates to avoid repeated reflection.
+    /// Key is the item type (TItem), value is the compiled delegate.
+    /// </summary>
+    private static readonly ConcurrentDictionary<Type, Func<object, CancellationToken, Task>>
+        _epochTerminalCache = new();
     
     /// <summary>
     /// Determines if a type is IEpochStream&lt;T&gt; for some T.
@@ -476,10 +483,62 @@ public static class ReflectionHelper
         object typedStream,
         CancellationToken cancellationToken)
     {
+        // When T is IEpochStream<TItem>, enumerating only the outer stream is not enough.
+        // The actor's RunAsync produces items lazily inside each epoch stream, so we must
+        // also enumerate the inner items to drive the pipeline to completion.
+        if (IsEpochStreamType(typeof(T)))
+        {
+            var itemType = GetEpochStreamItemType(typeof(T));
+
+            var terminalDelegate = _epochTerminalCache.GetOrAdd(itemType, type =>
+            {
+                var method = typeof(ReflectionHelper).GetMethod(
+                    nameof(EnumerateEpochStreamTerminalAsync),
+                    BindingFlags.NonPublic | BindingFlags.Static);
+
+                if (method == null)
+                {
+                    throw new InvalidOperationException($"Could not find method {nameof(EnumerateEpochStreamTerminalAsync)}");
+                }
+
+                var genericMethod = method.MakeGenericMethod(type);
+                return (stream, ct) => (Task)genericMethod.Invoke(null, new object[] { stream, ct })!;
+            });
+
+            await terminalDelegate(typedStream, cancellationToken);
+            return;
+        }
+
         var stream = (IAsyncEnumerable<T>)typedStream;
         await foreach (var item in stream.WithCancellation(cancellationToken))
         {
             // Enumerate to completion - terminal blocks
+        }
+    }
+
+    /// <summary>
+    /// Enumerates an epoch stream to completion for terminal blocks.
+    /// Consumes both the outer stream of epoch containers and the inner items within each epoch,
+    /// ensuring the actor's RunAsync is fully executed even when there are no downstream blocks.
+    /// </summary>
+    private static async Task EnumerateEpochStreamTerminalAsync<TItem>(
+        object typedStream,
+        CancellationToken cancellationToken)
+    {
+        var stream = (IAsyncEnumerable<IEpochStream<TItem>>)typedStream;
+        await foreach (var epochStream in stream.WithCancellation(cancellationToken))
+        {
+            try
+            {
+                await foreach (var item in epochStream.Items.WithCancellation(cancellationToken))
+                {
+                    // Consume items to drive the actor's RunAsync to completion
+                }
+            }
+            finally
+            {
+                await epochStream.DisposeAsync();
+            }
         }
     }
     
