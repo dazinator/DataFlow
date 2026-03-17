@@ -415,6 +415,41 @@ public class RevisedDiRegistrationTests
         Assert.Equal("dynamic", graph.Name);
     }
 
+    [Fact]
+    public void ConnectCompeting_WithStringNames_WorksWithUseBlock()
+    {
+        // Regression test: ConnectCompeting(string, string[]) must defer block resolution to
+        // Build() just like Connect(string, string) does, so that UseBlock() blocks are available.
+        // Previously it called FindBlockByName eagerly (before Build resolves pending blocks)
+        // and threw "Block not found" even though blocks were registered with AddDataFlows.
+
+        // Arrange
+        var services = new ServiceCollection();
+        services.AddDataFlows("global", df =>
+        {
+            df.AddBlock("producer", sp => new TestProducerBlock());
+            // Use factory-named blocks so each gets a unique block.Name
+            df.AddBlock("worker-1", sp => new NamedTransformerBlock("worker-1"));
+            df.AddBlock("worker-2", sp => new NamedTransformerBlock("worker-2"));
+
+            df.AddGraph("main", g =>
+            {
+                // ConnectCompeting by string name must work here — blocks are only pending, not yet resolved
+                g.UseBlock("producer")
+                 .UseBlock("worker-1")
+                 .UseBlock("worker-2");
+                g.ConnectCompeting("producer", new[] { "worker-1", "worker-2" });
+            });
+        });
+
+        // Act
+        var serviceProvider = services.BuildServiceProvider();
+        var graph = serviceProvider.GetKeyedService<DataFlowGraph>("global:main");
+
+        // Assert
+        Assert.NotNull(graph);
+    }
+
     #endregion
 
     #region Problem 5: Namespace Support (Modular Monolith)
@@ -765,6 +800,25 @@ public class RevisedDiRegistrationTests
                 // Just consume items
             }
             yield break;
+        }
+    }
+
+    /// <summary>
+    /// A transformer block that accepts an explicit name, allowing multiple instances with distinct names.
+    /// Used for testing competing consumer configurations where two workers need unique block names.
+    /// </summary>
+    private class NamedTransformerBlock : BlockBase<int, string>
+    {
+        public NamedTransformerBlock(string name) : base(new BlockContext(name)) { }
+
+        public override async IAsyncEnumerable<string> ExecuteAsync(
+            IAsyncEnumerable<int> input,
+            IExecutionContext context)
+        {
+            await foreach (var item in input)
+            {
+                yield return item.ToString();
+            }
         }
     }
 
