@@ -233,7 +233,7 @@ public class UnroutedErpHandler : INamedErpSystemHandler
 /// Single actor block that replaces AddPersistentRouter.
 /// Resolves the correct handler at call time based on item content.
 /// </summary>
-public class ErpPostingActor : IActor<SystemItem, PostingResult>
+public class ErpPostingActor : IStreamActor<SystemItem, PostingResult>
 {
     private readonly IReadOnlyDictionary<string, INamedErpSystemHandler> _handlers;
     private readonly ILogger<ErpPostingActor> _logger;
@@ -246,24 +246,26 @@ public class ErpPostingActor : IActor<SystemItem, PostingResult>
         _logger = logger;
     }
 
-    public async IAsyncEnumerable<PostingResult> ProcessAsync(
-        SystemItem item,
-        IActorExecutionContext ctx,
-        [EnumeratorCancellation] CancellationToken ct)
+    public async IAsyncEnumerable<PostingResult> RunAsync(
+        IAsyncEnumerable<SystemItem> input,
+        IActorExecutionContext context)
     {
-        var systemName = item.System?.Name ?? "unrouted";
-
-        if (!_handlers.TryGetValue(systemName, out var handler))
+        await foreach (var item in input.WithCancellation(context.CancellationToken))
         {
-            _logger.LogWarning(
-                "No handler for system '{SystemName}'. Routing to unrouted.",
-                systemName);
-            systemName = "unrouted";
-            handler = _handlers["unrouted"];
-        }
+            var systemName = item.System?.Name ?? "unrouted";
 
-        await foreach (var result in handler.PostAsync(item, ct))
-            yield return result;
+            if (!_handlers.TryGetValue(systemName, out var handler))
+            {
+                _logger.LogWarning(
+                    "No handler for system '{SystemName}'. Routing to unrouted.",
+                    systemName);
+                systemName = "unrouted";
+                handler = _handlers["unrouted"];
+            }
+
+            await foreach (var result in handler.PostAsync(item, context.CancellationToken))
+                yield return result;
+        }
     }
 }
 ```
@@ -278,9 +280,13 @@ services.AddScoped<INamedErpSystemHandler, UnroutedErpHandler>();
 
 services.AddScoped<ErpPostingActor>();
 
-// Graph: simple linear pipeline
-df.AddActorBlock<SystemItem, PostingResult,
-    ErpPostingActor>("erp-poster", maxConcurrency: 3);
+// Graph: simple linear pipeline.
+// For concurrency (e.g., 3 parallel SAP workers), register multiple competing instances:
+// df.AddActorBlock<..., ErpPostingActor>("erp-poster-1");
+// df.AddActorBlock<..., ErpPostingActor>("erp-poster-2");
+// df.AddActorBlock<..., ErpPostingActor>("erp-poster-3");
+// Then use ConnectCompeting in the graph. See topology-competing-consumers.md.
+df.AddActorBlock<SystemItem, PostingResult, ErpPostingActor>("erp-poster");
 
 df.AddGraph("flow", g =>
 {
@@ -456,7 +462,7 @@ The `ErpPostingActor` resolves `SapBtpErpHandler` or `UnroutedErpHandler` by `it
 | Sub-flow per system | Single `ErpPostingActor` block |
 | `ActivatorUtilities.CreateInstance(sp, systemName)` | Handler reads `item.System` directly |
 | Per-route `TmsBatcher` + `TmsSender` | Shared TMS path after dispatcher |
-| `MaxConcurrency=3` on per-route transform | `maxConcurrency: 3` on `ErpPostingActor` |
+| `MaxConcurrency=3` on per-route transform | 3 competing `ErpPostingActor` instances via `ConnectCompeting` |
 | Unknown route → no sub-flow | Unknown type → `UnroutedErpHandler` fallback |
 
 ### DI Registration
@@ -466,14 +472,38 @@ services.AddScoped<INamedErpSystemHandler, SapBtpErpHandler>();
 services.AddScoped<INamedErpSystemHandler, UnroutedErpHandler>();
 services.AddScoped<ErpPostingActor>();
 
+// For a single worker:
+df.AddActorBlock<SystemItem, PostingResult, ErpPostingActor>("erp-poster");
+
 df.AddGraph("journal-flow", g =>
 {
     g.UseBlock("producer")
      .BatchWith("journal-batcher")
      .ProcessWith("routing-transformer")
-     .ProcessWith("erp-poster")          // maxConcurrency: 3
+     .ProcessWith("erp-poster")
      .BatchWith("tms-batcher")
      .ProcessWith("tms-sender");
+});
+```
+
+**To replicate `MaxConcurrency=3`**: Register 3 competing instances and use `ConnectCompeting`.
+See [Competing Consumers Guide](topology-competing-consumers.md) for the full pattern.
+
+```csharp
+// 3 competing instances for concurrency
+df.AddActorBlock<SystemItem, PostingResult, ErpPostingActor>("erp-poster-1");
+df.AddActorBlock<SystemItem, PostingResult, ErpPostingActor>("erp-poster-2");
+df.AddActorBlock<SystemItem, PostingResult, ErpPostingActor>("erp-poster-3");
+
+df.AddGraph("journal-flow-concurrent", g =>
+{
+    // Distribute across 3 workers
+    g.UseBlock("routing-transformer")
+     .CompeteWith(new[] { "erp-poster-1", "erp-poster-2", "erp-poster-3" });
+
+    // Each worker sends to shared TMS path
+    // Use a buffer/merge before tms-batcher to fan-in from all workers
+    // See topology-competing-consumers.md for fan-in patterns
 });
 ```
 

@@ -110,23 +110,35 @@ public class Order
 }
 
 // Step 3: Implement route-specific processors
-public class ExpressProcessor : IActor<Order, Order>
+public class ExpressProcessor : IStreamActor<Order, Order>
 {
-    public async Task<Order> ProcessAsync(Order order, CancellationToken ct)
+    public async IAsyncEnumerable<Order> RunAsync(
+        IAsyncEnumerable<Order> input,
+        IActorExecutionContext context)
     {
-        // Express handling - same-day shipping, priority queue
-        await ShipExpressAsync(order, ct);
-        return order;
+        await foreach (var order in input.WithCancellation(context.CancellationToken))
+        {
+            // Express handling - same-day shipping, priority queue
+            // (ShipExpressAsync is your application-specific method)
+            await ShipExpressAsync(order, context.CancellationToken);
+            yield return order;
+        }
     }
 }
 
-public class StandardProcessor : IActor<Order, Order>
+public class StandardProcessor : IStreamActor<Order, Order>
 {
-    public async Task<Order> ProcessAsync(Order order, CancellationToken ct)
+    public async IAsyncEnumerable<Order> RunAsync(
+        IAsyncEnumerable<Order> input,
+        IActorExecutionContext context)
     {
-        // Standard handling - batched shipping
-        await ShipStandardAsync(order, ct);
-        return order;
+        await foreach (var order in input.WithCancellation(context.CancellationToken))
+        {
+            // Standard handling - batched shipping
+            // (ShipStandardAsync is your application-specific method)
+            await ShipStandardAsync(order, context.CancellationToken);
+            yield return order;
+        }
     }
 }
 ```
@@ -413,18 +425,23 @@ df.AddGraph("validated-routing", g =>
      .To("normal-processor", p => p == "normal");
 });
 
-public class ValidatorActor : IActor<Order, Order>
+public class ValidatorActor : IStreamActor<Order, Order>
 {
-    public async Task<Order> ProcessAsync(Order order, CancellationToken ct)
+    public async IAsyncEnumerable<Order> RunAsync(
+        IAsyncEnumerable<Order> input,
+        IActorExecutionContext context)
     {
-        // Normalize priority
-        order.Priority = order.Priority switch
+        await foreach (var order in input.WithCancellation(context.CancellationToken))
         {
-            "urgent" or "high" => "high",
-            _ => "normal"
-        };
-        
-        return order;
+            // Normalize priority
+            order.Priority = order.Priority switch
+            {
+                "urgent" or "high" => "high",
+                _ => "normal"
+            };
+
+            yield return order;
+        }
     }
 }
 ```
@@ -723,7 +740,7 @@ type, use a **single actor block** that resolves the correct handler from DI by 
 /// Single actor block that handles ALL ERP system types.
 /// New tenants don't require new blocks or routes — only configuration changes.
 /// </summary>
-public class ErpPostingActor : IActor<SystemItem, PostingResult>
+public class ErpPostingActor : IStreamActor<SystemItem, PostingResult>
 {
     private readonly IReadOnlyDictionary<string, INamedErpHandler> _handlers;
     private readonly INamedErpHandler _unroutedHandler;
@@ -736,17 +753,19 @@ public class ErpPostingActor : IActor<SystemItem, PostingResult>
         _unroutedHandler = unroutedHandler;
     }
 
-    public async IAsyncEnumerable<PostingResult> ProcessAsync(
-        SystemItem item,
-        IActorExecutionContext ctx,
-        [EnumeratorCancellation] CancellationToken ct)
+    public async IAsyncEnumerable<PostingResult> RunAsync(
+        IAsyncEnumerable<SystemItem> input,
+        IActorExecutionContext context)
     {
-        // Resolve handler by ERP type name from the item
-        var handler = item.SystemName != null && _handlers.TryGetValue(item.SystemName, out var h)
-            ? h : _unroutedHandler;
+        await foreach (var item in input.WithCancellation(context.CancellationToken))
+        {
+            // Resolve handler by ERP type name from the item
+            var handler = item.SystemName != null && _handlers.TryGetValue(item.SystemName, out var h)
+                ? h : _unroutedHandler;
 
-        await foreach (var result in handler.PostAsync(item, ct))
-            yield return result;
+            await foreach (var result in handler.PostAsync(item, context.CancellationToken))
+                yield return result;
+        }
     }
 }
 
@@ -756,8 +775,10 @@ services.AddScoped<INamedErpHandler, SapBtpErpHandler>();
 services.AddScoped<UnroutedErpHandler>();
 services.AddScoped<ErpPostingActor>();
 
-// Graph: single linear pipeline, no routing fan-out needed
-df.AddActorBlock<SystemItem, PostingResult, ErpPostingActor>("erp-poster", maxConcurrency: 3);
+// Graph: single linear pipeline, no routing fan-out needed.
+// For concurrency, register multiple competing instances (e.g., "erp-poster-1", "erp-poster-2", "erp-poster-3")
+// and connect them with ConnectCompeting (see competing consumers guide).
+df.AddActorBlock<SystemItem, PostingResult, ErpPostingActor>("erp-poster");
 ```
 
 Per-tenant configuration (e.g., different SAP subscription keys for different customers) is
@@ -792,10 +813,9 @@ public class DynamicErpDispatcher : IStreamActor<SystemItem, PostingResult>
     private readonly ConcurrentDictionary<string, SystemPipeline> _pipelines = new();
     private readonly IErpHandlerFactory _factory;
 
-    public async IAsyncEnumerable<PostingResult> ProcessAsync(
+    public async IAsyncEnumerable<PostingResult> RunAsync(
         IAsyncEnumerable<SystemItem> input,
-        IActorExecutionContext ctx,
-        [EnumeratorCancellation] CancellationToken ct)
+        IActorExecutionContext context)
     {
         var output = Channel.CreateBounded<PostingResult>(500);
         // ... route each item to a per-type channel, created on demand

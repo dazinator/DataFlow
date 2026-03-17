@@ -27,10 +27,9 @@ namespace JournalProcessing.Prototype;
 /// one item (one system's journals) at a time. This reproduces the
 /// MaxConcurrency=3 from the legacy SAP sender.
 /// </summary>
-public sealed class ErpPostingActor
-    // In the actual POC, this implements the appropriate IActor<TIn, TOut> interface.
-    // The exact interface depends on the POC block model in use (actor vs stream actor).
-    // See /poc/DataFlow/Core/IStreamActor.cs for reference.
+public sealed class ErpPostingActor : IStreamActor<SystemJournalProcessingItems, JournalPostingResult>
+    // IStreamActor<TIn, TOut> is the correct interface in the current POC.
+    // See /poc/DataFlow/Core/IStreamActor.cs for the full interface definition.
 {
     private readonly IReadOnlyDictionary<string, INamedErpSystemHandler> _handlers;
     private readonly UnroutedJournalHandler _unroutedHandler;
@@ -54,18 +53,17 @@ public sealed class ErpPostingActor
     }
 
     /// <summary>
-    /// Processes a single SystemJournalProcessingItems by routing to the correct handler.
+    /// Processes the input stream by routing each item to the correct handler.
     ///
-    /// In the POC actor model, this would be the ProcessAsync / ExecuteAsync method
-    /// with the appropriate signature for the block type.
-    ///
-    /// The item.System?.Name gives us the route key. We look it up in the handler
-    /// registry and delegate. If not found (unknown system type), fall to unrouted handler.
+    /// Implements IStreamActor<TIn, TOut>.RunAsync — takes the full input stream
+    /// and yields output items. The item.System?.Name gives us the route key.
     /// </summary>
-    public async IAsyncEnumerable<JournalPostingResult> HandleAsync(
-        SystemJournalProcessingItems item,
-        [EnumeratorCancellation] CancellationToken cancellationToken)
+    public async IAsyncEnumerable<JournalPostingResult> RunAsync(
+        IAsyncEnumerable<SystemJournalProcessingItems> input,
+        IActorExecutionContext context)
     {
+        await foreach (var item in input.WithCancellation(context.CancellationToken))
+        {
         var systemName = item.System?.Name;
 
         // Resolve handler by system type name
@@ -87,18 +85,19 @@ public sealed class ErpPostingActor
         // - system name present but no handler registered for that type
         if (handler is null)
         {
-            await foreach (var result in _unroutedHandler.HandleAsync(item, cancellationToken))
+            await foreach (var result in _unroutedHandler.HandleAsync(item, context.CancellationToken))
             {
                 yield return result;
             }
-            yield break;
+            continue;
         }
 
         // Delegate to the matched handler
-        await foreach (var result in handler.PostAsync(item, cancellationToken))
+        await foreach (var result in handler.PostAsync(item, context.CancellationToken))
         {
             yield return result;
         }
+        } // end foreach
     }
 }
 
