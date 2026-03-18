@@ -307,6 +307,79 @@ public class DataFlowBuilder
     }
 
     /// <summary>
+    /// Register an <see cref="EpochBatchBlock{T}"/> with type-safe API.
+    /// Batches incoming items into arrays within each epoch boundary.
+    /// A new batch is emitted when it reaches <paramref name="maxBatchSize"/> items.
+    /// When <paramref name="windowPeriod"/> is specified, the window timer starts on the first item
+    /// in a batch; the batch is flushed on the next item arrival after the window expires (not
+    /// proactively without input). Any remaining items at the end of an epoch are also emitted.
+    ///
+    /// Example usage:
+    /// <code>
+    /// df.AddBatch&lt;Journal&gt;("journal-batcher", maxBatchSize: 200, windowPeriod: TimeSpan.FromSeconds(2));
+    ///
+    /// df.AddGraph("flow", g =>
+    /// {
+    ///     g.UseBlock("journal-producer")
+    ///      .UseBlock("journal-batcher")
+    ///      .UseBlock("journal-processor");
+    ///     g.Connect("journal-producer", "journal-batcher");
+    ///     g.Connect("journal-batcher", "journal-processor");
+    /// });
+    /// </code>
+    ///
+    /// The registry stores the semantic data types (input: <typeparamref name="T"/>, output:
+    /// <typeparamref name="T"/>[]) so connection type-validation works correctly.
+    /// </summary>
+    /// <typeparam name="T">Item type (input items; output will be <typeparamref name="T"/>[])</typeparam>
+    /// <param name="name">Unique name for this batch block</param>
+    /// <param name="maxBatchSize">Maximum number of items per batch (must be &gt; 0)</param>
+    /// <param name="windowPeriod">
+    /// Optional time window that triggers a batch flush on the next arriving item after the window
+    /// elapses. Must be a positive duration when provided. When <see langword="null"/> only
+    /// <paramref name="maxBatchSize"/> governs when a batch is flushed.
+    /// </param>
+    /// <returns>This builder for chaining</returns>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown at registration time when <paramref name="maxBatchSize"/> is &lt;= 0, or when
+    /// <paramref name="windowPeriod"/> is provided but is not a positive duration.
+    /// </exception>
+    public DataFlowBuilder AddBatch<T>(string name, int maxBatchSize, TimeSpan? windowPeriod = null)
+    {
+        ValidateBlockName(name);
+
+        if (maxBatchSize <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maxBatchSize), maxBatchSize, "Max batch size must be greater than 0");
+        }
+
+        if (windowPeriod.HasValue && windowPeriod.Value <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(windowPeriod), windowPeriod, "Window period must be a positive duration");
+        }
+
+        var fullKey = ResolveKey(name);
+        CheckDuplicateRegistration(fullKey, "Block");
+
+        // Register metadata with SEMANTIC types (input: T, output: T[])
+        // NOT the infrastructure wrapper types (IEpochStream<>)
+        var metadata = new BlockTypeMetadata(typeof(T), typeof(T[]));
+        _registry.RegisterBlock(fullKey, metadata);
+
+        _services.AddKeyedScoped<IBlock>(fullKey, (sp, key) =>
+        {
+            // Step 1: Create context from key
+            var blockName = key as string ?? throw new InvalidOperationException("Block key must be a string");
+            var context = new BlockContext(blockName);
+
+            // Step 2: Construct batch block - no additional DI dependencies needed
+            return new EpochBatchBlock<T>(context, maxBatchSize, windowPeriod);
+        });
+
+        return this;
+    }
+
+    /// <summary>
     /// Register an EpochSourceBlock with type-safe API.
     /// All dependencies are automatically injected via constructor.
     /// Uses IBlockContext constructor injection for proper lifecycle management.
