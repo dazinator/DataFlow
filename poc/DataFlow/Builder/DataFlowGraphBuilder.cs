@@ -67,6 +67,13 @@ public class DataFlowGraphBuilder
     /// <summary>
     /// Use a block registered with dependency injection.
     /// The block will be resolved from the service provider during Build().
+    /// <para>
+    /// Note: calling <c>UseBlock()</c> is optional for any block that also appears in a
+    /// <see cref="Connect(string,string,int)"/>, <see cref="ConnectCompeting(string,IEnumerable{string},int)"/>,
+    /// or <see cref="ConnectFanIn(IEnumerable{string},string,int)"/> call — those methods
+    /// auto-register the blocks they reference.  <c>UseBlock()</c> is still required for
+    /// blocks that are part of the graph but not referenced in any connection.
+    /// </para>
     /// </summary>
     /// <param name="name">The name of the block to resolve from DI</param>
     /// <returns>The builder for chaining</returns>
@@ -80,6 +87,30 @@ public class DataFlowGraphBuilder
         // Store the name for later resolution in Build()
         _pendingBlockNames.Add(name);
         return this;
+    }
+
+    /// <summary>
+    /// Queues a block name for DI resolution during Build(), but only if it has not already
+    /// been registered directly (via <see cref="AddBlock"/>) or queued for resolution.
+    /// This prevents duplicate entries when the same name appears in multiple Connect calls
+    /// or when it was already added via <see cref="UseBlock"/>.
+    /// </summary>
+    private void EnsurePendingBlock(string name)
+    {
+        // Skip if already registered as a direct block instance
+        var key = ResolveBlockKey(name);
+        if (_blocksByName.ContainsKey(name) || _blocksByName.ContainsKey(key))
+        {
+            return;
+        }
+
+        // Skip if already queued for DI resolution (check both short name and resolved key)
+        if (_pendingBlockNames.Contains(name) || _pendingBlockNames.Contains(key))
+        {
+            return;
+        }
+
+        _pendingBlockNames.Add(name);
     }
 
     /// <summary>
@@ -251,13 +282,17 @@ public class DataFlowGraphBuilder
 
     /// <summary>
     /// Connect two blocks by name.
-    /// If the blocks were added via UseBlock(), the connection will be resolved during Build().
+    /// The blocks do not need to be pre-registered via <see cref="UseBlock"/> — any block name
+    /// that appears in a <c>Connect</c> call is automatically queued for DI resolution.
+    /// Blocks already registered directly (via <see cref="AddBlock"/>) are not re-resolved.
     /// </summary>
     public DataFlowGraphBuilder Connect(
         string sourceName,
         string targetName,
         int bufferCapacity = 100)
     {
+        EnsurePendingBlock(sourceName);
+        EnsurePendingBlock(targetName);
         // Store the pending connection - it will be resolved during Build()
         _pendingConnections.Add((sourceName, targetName, bufferCapacity));
         return this;
@@ -267,6 +302,10 @@ public class DataFlowGraphBuilder
     /// Connect a source block to multiple target blocks by name with competing consumer semantics.
     /// Each item from the source will be delivered to exactly one target (competing consumers).
     /// This is useful for load balancing across multiple parallel workers.
+    /// <para>
+    /// The blocks do not need to be pre-registered via <see cref="UseBlock"/> — all names
+    /// that appear here are automatically queued for DI resolution.
+    /// </para>
     /// </summary>
     /// <param name="sourceName">The name of the source block</param>
     /// <param name="targetNames">The names of the target blocks that will compete for items</param>
@@ -277,9 +316,66 @@ public class DataFlowGraphBuilder
         IEnumerable<string> targetNames,
         int bufferCapacity = 100)
     {
+        var targetList = targetNames.ToList();
+
+        EnsurePendingBlock(sourceName);
+        foreach (var name in targetList)
+        {
+            EnsurePendingBlock(name);
+        }
+
         // Defer resolution to Build() so that blocks added via UseBlock() are available.
         // This matches the behavior of Connect(string, string) which also defers resolution.
-        _pendingCompetingConnections.Add((sourceName, targetNames.ToList(), bufferCapacity));
+        _pendingCompetingConnections.Add((sourceName, targetList, bufferCapacity));
+        return this;
+    }
+
+    /// <summary>
+    /// Connect multiple source blocks to a single target block (fan-in).
+    /// Each source produces items that are all consumed by the shared target.
+    /// This is equivalent to calling <see cref="Connect(string,string,int)"/> for each source,
+    /// but makes the fan-in intent explicit and readable.
+    /// <para>
+    /// The blocks do not need to be pre-registered via <see cref="UseBlock"/> — all names
+    /// that appear here are automatically queued for DI resolution.
+    /// </para>
+    /// </summary>
+    /// <param name="sourceNames">Names of the source blocks</param>
+    /// <param name="targetName">Name of the target (fan-in) block</param>
+    /// <param name="bufferCapacity">Buffer capacity per edge (default: 100)</param>
+    /// <returns>The builder for chaining</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="sourceNames"/> is null</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="targetName"/> is null or whitespace, or when no source names are provided</exception>
+    public DataFlowGraphBuilder ConnectFanIn(
+        IEnumerable<string> sourceNames,
+        string targetName,
+        int bufferCapacity = 100)
+    {
+        ArgumentNullException.ThrowIfNull(sourceNames);
+        if (string.IsNullOrWhiteSpace(targetName))
+        {
+            throw new ArgumentException("Target block name cannot be null or whitespace", nameof(targetName));
+        }
+
+        var sourceList = sourceNames.ToList();
+        if (sourceList.Count == 0)
+        {
+            throw new ArgumentException("At least one source block name must be provided", nameof(sourceNames));
+        }
+
+        EnsurePendingBlock(targetName);
+
+        foreach (var sourceName in sourceList)
+        {
+            if (string.IsNullOrWhiteSpace(sourceName))
+            {
+                throw new ArgumentException("A source block name cannot be null or whitespace", nameof(sourceNames));
+            }
+
+            EnsurePendingBlock(sourceName);
+            _pendingConnections.Add((sourceName, targetName, bufferCapacity));
+        }
+
         return this;
     }
 
