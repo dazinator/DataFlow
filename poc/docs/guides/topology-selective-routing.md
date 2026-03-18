@@ -31,8 +31,9 @@
 7. [When to Use Selective Routing](#when-to-use-selective-routing)
 8. [Real-World Examples](#real-world-examples)
 9. [Advanced Patterns](#advanced-patterns)
-10. [Troubleshooting](#troubleshooting)
-11. [Next Steps](#next-steps)
+10. [Routes Not Known at Build Time](#routes-not-known-at-build-time)
+11. [Troubleshooting](#troubleshooting)
+12. [Next Steps](#next-steps)
 
 ---
 
@@ -109,23 +110,35 @@ public class Order
 }
 
 // Step 3: Implement route-specific processors
-public class ExpressProcessor : IActor<Order, Order>
+public class ExpressProcessor : IStreamActor<Order, Order>
 {
-    public async Task<Order> ProcessAsync(Order order, CancellationToken ct)
+    public async IAsyncEnumerable<Order> RunAsync(
+        IAsyncEnumerable<Order> input,
+        IActorExecutionContext context)
     {
-        // Express handling - same-day shipping, priority queue
-        await ShipExpressAsync(order, ct);
-        return order;
+        await foreach (var order in input.WithCancellation(context.CancellationToken))
+        {
+            // Express handling - same-day shipping, priority queue
+            // (ShipExpressAsync is your application-specific method)
+            await ShipExpressAsync(order, context.CancellationToken);
+            yield return order;
+        }
     }
 }
 
-public class StandardProcessor : IActor<Order, Order>
+public class StandardProcessor : IStreamActor<Order, Order>
 {
-    public async Task<Order> ProcessAsync(Order order, CancellationToken ct)
+    public async IAsyncEnumerable<Order> RunAsync(
+        IAsyncEnumerable<Order> input,
+        IActorExecutionContext context)
     {
-        // Standard handling - batched shipping
-        await ShipStandardAsync(order, ct);
-        return order;
+        await foreach (var order in input.WithCancellation(context.CancellationToken))
+        {
+            // Standard handling - batched shipping
+            // (ShipStandardAsync is your application-specific method)
+            await ShipStandardAsync(order, context.CancellationToken);
+            yield return order;
+        }
     }
 }
 ```
@@ -412,18 +425,23 @@ df.AddGraph("validated-routing", g =>
      .To("normal-processor", p => p == "normal");
 });
 
-public class ValidatorActor : IActor<Order, Order>
+public class ValidatorActor : IStreamActor<Order, Order>
 {
-    public async Task<Order> ProcessAsync(Order order, CancellationToken ct)
+    public async IAsyncEnumerable<Order> RunAsync(
+        IAsyncEnumerable<Order> input,
+        IActorExecutionContext context)
     {
-        // Normalize priority
-        order.Priority = order.Priority switch
+        await foreach (var order in input.WithCancellation(context.CancellationToken))
         {
-            "urgent" or "high" => "high",
-            _ => "normal"
-        };
-        
-        return order;
+            // Normalize priority
+            order.Priority = order.Priority switch
+            {
+                "urgent" or "high" => "high",
+                _ => "normal"
+            };
+
+            yield return order;
+        }
     }
 }
 ```
@@ -689,7 +707,150 @@ builder.Services.AddDataFlows("hybrid", df =>
 
 ---
 
+## Routes Not Known at Build Time
+
+The POC library's graph topology is **static** — all blocks and connections must be declared at
+DI registration time, before the application starts processing data. This is an intentional
+architectural constraint that provides predictable, observable, and safe graphs.
+
+However, some use cases appear to require routes that are only known at runtime — for example,
+routing to different ERP systems where new tenants can be added while the application is running.
+This section explains how to handle these scenarios.
+
+### Re-Framing the Problem: Type vs. Tenant
+
+The most important step is to distinguish between two different kinds of "new route":
+
+| Kind | Example | What it means |
+|------|---------|---------------|
+| **New integration type** | Adding Oracle support | Requires a new handler implementation — code change + restart |
+| **New tenant instance** | Customer adds a new SAP environment | Only configuration changes — handled via `IOptionsSnapshot<T>` |
+
+In most cases, what appears to be a dynamic routing problem is actually a **new tenant instance
+of an existing integration type**. The routing logic is the same; only the configuration values
+differ. This does not require a new graph route.
+
+### Solution: Generic Handler with DI Polymorphism (Recommended)
+
+For the common case where routing destinations are different instances of the same integration
+type, use a **single actor block** that resolves the correct handler from DI by system name:
+
+```csharp
+/// <summary>
+/// Single actor block that handles ALL ERP system types.
+/// New tenants don't require new blocks or routes — only configuration changes.
+/// </summary>
+public class ErpPostingActor : IStreamActor<SystemItem, PostingResult>
+{
+    private readonly IReadOnlyDictionary<string, INamedErpHandler> _handlers;
+    private readonly INamedErpHandler _unroutedHandler;
+
+    public ErpPostingActor(
+        IEnumerable<INamedErpHandler> handlers,   // All registered ERP types
+        UnroutedErpHandler unroutedHandler)
+    {
+        _handlers = handlers.ToDictionary(h => h.SystemName);
+        _unroutedHandler = unroutedHandler;
+    }
+
+    public async IAsyncEnumerable<PostingResult> RunAsync(
+        IAsyncEnumerable<SystemItem> input,
+        IActorExecutionContext context)
+    {
+        await foreach (var item in input.WithCancellation(context.CancellationToken))
+        {
+            // Resolve handler by ERP type name from the item
+            var handler = item.SystemName != null && _handlers.TryGetValue(item.SystemName, out var h)
+                ? h : _unroutedHandler;
+
+            await foreach (var result in handler.PostAsync(item, context.CancellationToken))
+                yield return result;
+        }
+    }
+}
+
+// Register one handler per ERP INTEGRATION TYPE (not per tenant)
+services.AddScoped<INamedErpHandler, SapBtpErpHandler>();
+// services.AddScoped<INamedErpHandler, OracleErpHandler>(); // Added when Oracle is supported
+services.AddScoped<UnroutedErpHandler>();
+services.AddScoped<ErpPostingActor>();
+
+// Graph: single linear pipeline, no routing fan-out needed.
+// For concurrency, register multiple competing instances (e.g., "erp-poster-1", "erp-poster-2", "erp-poster-3")
+// and connect them with ConnectCompeting (see competing consumers guide).
+df.AddActorBlock<SystemItem, PostingResult, ErpPostingActor>("erp-poster");
+```
+
+Per-tenant configuration (e.g., different SAP subscription keys for different customers) is
+provided via `IOptionsSnapshot<T>` or a named configuration service — no new graph routes needed.
+
+### When a Static Route per Type Is Needed
+
+If different ERP types need different concurrency settings or independent observability, add a
+**thin static routing layer per ERP type** (not per tenant):
+
+```csharp
+// Route by ERP TYPE (2–3 routes, known at build time)
+g.UseBlock("routing-transformer")
+ .RouteBy(item => item.System?.Type ?? "unrouted")
+ .To("sap-poster",      type => type == "SAP")
+ .To("oracle-poster",   type => type == "Oracle")
+ .To("unrouted-poster", _ => true);  // Fallback
+```
+
+This creates a small, static set of routes by integration type. Per-tenant variation is still
+handled by configuration within each type's handler.
+
+### When Routes Truly Must Be Created at Runtime
+
+If new ERP integration types (not just new tenants) can be added at runtime without a deployment,
+implement a **dispatcher block with internal channels**:
+
+```csharp
+public class DynamicErpDispatcher : IStreamActor<SystemItem, PostingResult>
+{
+    // Creates per-system-type channels dynamically on first encounter
+    private readonly ConcurrentDictionary<string, SystemPipeline> _pipelines = new();
+    private readonly IErpHandlerFactory _factory;
+
+    public async IAsyncEnumerable<PostingResult> RunAsync(
+        IAsyncEnumerable<SystemItem> input,
+        IActorExecutionContext context)
+    {
+        var output = Channel.CreateBounded<PostingResult>(500);
+        // ... route each item to a per-type channel, created on demand
+        // ... merge all results through output channel
+        // (full implementation in research: /research/add-persistent-router-guidance/)
+    }
+}
+```
+
+**Trade-offs**: Internal pipelines are not visible to graph visualization or metrics. Manual
+observability (internal logging, metrics) must be added.
+
+### Decision Guide
+
+```
+Set of route destinations small (< 10) and known at build time?
+  └─ YES → Use SelectiveRoutingEdgeStrategy (this guide, above sections)
+
+Different integration TYPES with different concurrency needs?
+  └─ YES → Static routing by type + Generic handler within each type
+
+New tenants added at runtime (same integration type, new config)?
+  └─ YES → Generic handler + IOptionsSnapshot<T> for per-tenant config (no restart needed)
+
+New integration TYPES added at runtime without deployment?
+  └─ YES → Dispatcher block with internal channels (complex — use only if necessary)
+```
+
+**See**: [`migrating-from-persistent-router.md`](migrating-from-persistent-router.md) for a
+complete migration guide covering all approaches with worked examples.
+
+---
+
 ## Troubleshooting
+
 
 ### Problem: Unknown Route Key Exception
 
@@ -744,7 +905,7 @@ See [Handling Unknown Routes](#handling-unknown-routes) for details.
 
 - **[Broadcast Topology](topology-broadcast.md)** - Fan-out to all consumers
 - **[Competing Consumers](topology-competing-consumers.md)** - Load balancing
-- **[Control Flow Topologies](control-flow-topologies.md)** - Complete topology reference
+- **[Migrating from AddPersistentRouter](migrating-from-persistent-router.md)** - Dynamic routing migration guide
 
 ### Advanced Features
 
@@ -777,7 +938,7 @@ See [Handling Unknown Routes](#handling-unknown-routes) for details.
 | ✅ Routing by priority, region, type | ❌ Load balancing (use competing) |
 | ✅ Different handlers per category | ❌ All consumers need all items (use broadcast) |
 | ✅ Content-based decisions | ❌ Random distribution (use competing) |
-| ✅ High-volume scenarios | ❌ Dynamic routes at runtime (not in POC) |
+| ✅ High-volume scenarios | ❌ Unlimited dynamic routes at runtime — use dispatcher block pattern instead |
 
 ### Performance Benefits
 
@@ -790,6 +951,6 @@ See [Handling Unknown Routes](#handling-unknown-routes) for details.
 
 ---
 
-**Document Version**: 1.0  
+**Document Version**: 1.1  
 **Status**: ✅ Current  
-**Last Updated**: 2025-11-25
+**Last Updated**: 2026-03-17

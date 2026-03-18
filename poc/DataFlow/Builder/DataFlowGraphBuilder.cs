@@ -21,6 +21,7 @@ public class DataFlowGraphBuilder
     private readonly Dictionary<string, IBlock> _blocksByName = new(); // Track blocks by their registration name
     private readonly List<Edge> _edges = new();
     private readonly List<(string sourceName, string targetName, int bufferCapacity)> _pendingConnections = new(); // Connections to resolve during Build()
+    private readonly List<(string sourceName, IEnumerable<string> targetNames, int bufferCapacity)> _pendingCompetingConnections = new(); // Competing connections to resolve during Build()
     private readonly HashSet<IBlock> _simpleConnectedSources = new(); // Track sources connected via simple Connect/ConnectBroadcast/ConnectCompeting
     private EpochSourceNode? _epochSource;
     private readonly List<EpochProcessorNode> _epochProcessors = new();
@@ -276,15 +277,10 @@ public class DataFlowGraphBuilder
         IEnumerable<string> targetNames,
         int bufferCapacity = 100)
     {
-        var source = FindBlockByName(sourceName, "Source");
-        var targets = targetNames.Select(name => FindBlockByName(name, "Target")).ToList();
-        
-        if (targets.Count == 0)
-        {
-            throw new ArgumentException("At least one target block is required", nameof(targetNames));
-        }
-        
-        return ConnectCompeting(source, targets, bufferCapacity);
+        // Defer resolution to Build() so that blocks added via UseBlock() are available.
+        // This matches the behavior of Connect(string, string) which also defers resolution.
+        _pendingCompetingConnections.Add((sourceName, targetNames.ToList(), bufferCapacity));
+        return this;
     }
 
     /// <summary>
@@ -404,6 +400,24 @@ public class DataFlowGraphBuilder
             ValidateSourceNotAlreadyConnected(source);
             
             var edge = new Edge(source, target, BufferMode.Bounded, bufferCapacity);
+            graph.AddEdge(edge);
+            _simpleConnectedSources.Add(source);
+        }
+
+        // Resolve and add pending competing connections (from ConnectCompeting() calls with string names)
+        foreach (var (sourceName, targetNames, bufferCapacity) in _pendingCompetingConnections)
+        {
+            var source = FindBlockByName(sourceName, "Source");
+            var targets = targetNames.Select(name => FindBlockByName(name, "Target")).ToList();
+
+            if (targets.Count == 0)
+            {
+                throw new ArgumentException($"ConnectCompeting: no target blocks specified for source '{sourceName}'.");
+            }
+
+            ValidateSourceNotAlreadyConnected(source);
+
+            var edge = new Edge(source, targets, new CompetingEdgeStrategy(BufferMode.Bounded, bufferCapacity));
             graph.AddEdge(edge);
             _simpleConnectedSources.Add(source);
         }
