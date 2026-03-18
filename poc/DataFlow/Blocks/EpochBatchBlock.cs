@@ -2,6 +2,7 @@ namespace DataFlow.POC.Blocks;
 
 using DataFlow.POC.Core;
 using System.Runtime.CompilerServices;
+using System.Threading.Channels;
 
 /// <summary>
 /// Epoch-aware batch block that accumulates items into batches within epoch boundaries.
@@ -44,75 +45,156 @@ public sealed class EpochBatchBlock<T> : BlockBase<IEpochStream<T>, IEpochStream
         IEpochStream<T> epochStream,
         IExecutionContext context)
     {
-        var batch = new List<T>();
-        CancellationTokenSource? cts = null;
-        var windowTimer = _windowPeriod.HasValue
-            ? new System.Threading.Timer(
-                _ =>
+        if (!_windowPeriod.HasValue)
+        {
+            // Simple path: no timer, accumulate and yield when full or at end of epoch
+            var simpleBatch = new List<T>(_maxBatchSize);
+            await foreach (var item in epochStream.Items.WithCancellation(context.CancellationToken))
+            {
+                simpleBatch.Add(item);
+                if (simpleBatch.Count >= _maxBatchSize)
                 {
-                    if (cts != null && !cts.IsCancellationRequested)
-                    {
-                        try
-                        {
-                            cts.Cancel();
-                        }
-                        catch (ObjectDisposedException)
-                        {
-                            // Safe to ignore: CancellationTokenSource may have already been disposed if the block is shutting down
-                        }
-                    }
-                },
-                null,
-                Timeout.InfiniteTimeSpan,
-                Timeout.InfiniteTimeSpan)
-            : null;
+                    yield return simpleBatch.ToArray();
+                    simpleBatch.Clear();
+                }
+            }
+            if (simpleBatch.Count > 0)
+                yield return simpleBatch.ToArray();
+            yield break;
+        }
+
+        // Windowed path: use a channel so the background timer can proactively flush
+        // accumulated items without waiting for the next input item to arrive.
+        var batchChannel = Channel.CreateUnbounded<T[]>(new UnboundedChannelOptions { SingleReader = true });
+        var feedingTask = FeedBatchChannelAsync(epochStream, context, batchChannel.Writer);
 
         try
         {
-            cts = CancellationTokenSource.CreateLinkedTokenSource(context.CancellationToken);
-
-            await foreach (var item in epochStream.Items.WithCancellation(context.CancellationToken))
+            await foreach (var batch in batchChannel.Reader.ReadAllAsync(context.CancellationToken))
             {
-                // Start timer on first item in batch
-                if (batch.Count == 0 && _windowPeriod.HasValue && windowTimer != null)
-                {
-                    windowTimer.Change(_windowPeriod.Value, Timeout.InfiniteTimeSpan);
-                }
-
-                batch.Add(item);
-
-                // Check if batch is full or window expired
-                var batchIsFull = batch.Count >= _maxBatchSize;
-                var windowExpired = cts.IsCancellationRequested && !context.CancellationToken.IsCancellationRequested;
-
-                if (batchIsFull || windowExpired)
-                {
-                    // Emit batch
-                    yield return batch.ToArray();
-                    batch.Clear();
-
-                    // Stop timer
-                    windowTimer?.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
-
-                    // Reset cancellation if it was due to timer
-                    if (windowExpired)
-                    {
-                        cts.Dispose();
-                        cts = CancellationTokenSource.CreateLinkedTokenSource(context.CancellationToken);
-                    }
-                }
-            }
-
-            // Emit final batch if any items remain (within the epoch)
-            if (batch.Count > 0)
-            {
-                yield return batch.ToArray();
+                yield return batch;
             }
         }
         finally
         {
-            windowTimer?.Dispose();
-            cts?.Dispose();
+            // Await the feeding task to propagate any exception that occurred during input processing
+            await feedingTask;
+        }
+    }
+
+    /// <summary>
+    /// Reads items from the epoch stream, accumulates them into batches, and writes completed batches
+    /// to <paramref name="writer"/>.  A background timer task runs concurrently and flushes any
+    /// partially-accumulated batch when the window period elapses, ensuring proactive emission even
+    /// when item arrival is infrequent.
+    /// </summary>
+    private async Task FeedBatchChannelAsync(
+        IEpochStream<T> epochStream,
+        IExecutionContext context,
+        ChannelWriter<T[]> writer)
+    {
+        var batch = new List<T>(_maxBatchSize);
+        var batchLock = new SemaphoreSlim(1, 1);
+        using var timerCts = CancellationTokenSource.CreateLinkedTokenSource(context.CancellationToken);
+        var timerTask = RunWindowTimerAsync(batch, batchLock, writer, timerCts.Token);
+
+        try
+        {
+            await foreach (var item in epochStream.Items.WithCancellation(context.CancellationToken))
+            {
+                T[]? toFlush = null;
+
+                await batchLock.WaitAsync(context.CancellationToken);
+                try
+                {
+                    batch.Add(item);
+                    if (batch.Count >= _maxBatchSize)
+                    {
+                        toFlush = batch.ToArray();
+                        batch.Clear();
+                    }
+                }
+                finally
+                {
+                    batchLock.Release();
+                }
+
+                if (toFlush != null)
+                {
+                    await writer.WriteAsync(toFlush, context.CancellationToken);
+                }
+            }
+
+            // Input stream exhausted: stop the timer and flush any remaining items
+            await timerCts.CancelAsync();
+            try { await timerTask; } catch (OperationCanceledException) { }
+
+            await batchLock.WaitAsync(CancellationToken.None);
+            try
+            {
+                if (batch.Count > 0)
+                    await writer.WriteAsync(batch.ToArray(), CancellationToken.None);
+            }
+            finally
+            {
+                batchLock.Release();
+            }
+
+            writer.Complete();
+        }
+        catch (Exception ex)
+        {
+            timerCts.Cancel();
+            try { await timerTask; } catch (OperationCanceledException) { }
+            writer.TryComplete(ex);
+        }
+        finally
+        {
+            batchLock.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Background timer loop that wakes every <see cref="_windowPeriod"/> and flushes the current
+    /// partial batch to <paramref name="writer"/> if any items have accumulated.
+    /// </summary>
+    private async Task RunWindowTimerAsync(
+        List<T> batch,
+        SemaphoreSlim batchLock,
+        ChannelWriter<T[]> writer,
+        CancellationToken cancellationToken)
+    {
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            try
+            {
+                await Task.Delay(_windowPeriod!.Value, cancellationToken);
+
+                T[]? toFlush = null;
+
+                await batchLock.WaitAsync(CancellationToken.None);
+                try
+                {
+                    if (batch.Count > 0)
+                    {
+                        toFlush = batch.ToArray();
+                        batch.Clear();
+                    }
+                }
+                finally
+                {
+                    batchLock.Release();
+                }
+
+                if (toFlush != null)
+                {
+                    await writer.WriteAsync(toFlush, CancellationToken.None);
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                break;
+            }
         }
     }
 
