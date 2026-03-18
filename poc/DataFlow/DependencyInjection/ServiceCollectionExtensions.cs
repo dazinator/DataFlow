@@ -350,12 +350,12 @@ public class DataFlowBuilder
 
         if (maxBatchSize <= 0)
         {
-            throw new global::System.ArgumentOutOfRangeException(nameof(maxBatchSize), "maxBatchSize must be greater than 0.");
+            throw new ArgumentOutOfRangeException(nameof(maxBatchSize), maxBatchSize, "Max batch size must be greater than 0");
         }
 
-        if (windowPeriod is not null && windowPeriod.Value < global::System.TimeSpan.Zero)
+        if (windowPeriod.HasValue && windowPeriod.Value <= TimeSpan.Zero)
         {
-            throw new global::System.ArgumentOutOfRangeException(nameof(windowPeriod), "windowPeriod cannot be negative.");
+            throw new ArgumentOutOfRangeException(nameof(windowPeriod), windowPeriod, "Window period must be a positive duration");
         }
 
         var fullKey = ResolveKey(name);
