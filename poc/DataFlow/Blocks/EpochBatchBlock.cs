@@ -87,6 +87,10 @@ public sealed class EpochBatchBlock<T> : BlockBase<IEpochStream<T>, IEpochStream
     /// to <paramref name="writer"/>.  A background timer task runs concurrently and flushes any
     /// partially-accumulated batch when the window period elapses, ensuring proactive emission even
     /// when item arrival is infrequent.
+    ///
+    /// A plain <c>lock</c> guards the shared <paramref name="batch"/> list because the critical
+    /// section is purely synchronous (no awaits inside), making a synchronous mutex the correct
+    /// — and lower-overhead — primitive compared to <see cref="SemaphoreSlim"/>.
     /// </summary>
     private async Task FeedBatchChannelAsync(
         IEpochStream<T> epochStream,
@@ -94,7 +98,7 @@ public sealed class EpochBatchBlock<T> : BlockBase<IEpochStream<T>, IEpochStream
         ChannelWriter<T[]> writer)
     {
         var batch = new List<T>(_maxBatchSize);
-        var batchLock = new SemaphoreSlim(1, 1);
+        var batchLock = new object();
         using var timerCts = CancellationTokenSource.CreateLinkedTokenSource(context.CancellationToken);
         var timerTask = RunWindowTimerAsync(batch, batchLock, writer, timerCts.Token);
 
@@ -104,8 +108,7 @@ public sealed class EpochBatchBlock<T> : BlockBase<IEpochStream<T>, IEpochStream
             {
                 T[]? toFlush = null;
 
-                await batchLock.WaitAsync(context.CancellationToken);
-                try
+                lock (batchLock)
                 {
                     batch.Add(item);
                     if (batch.Count >= _maxBatchSize)
@@ -113,10 +116,6 @@ public sealed class EpochBatchBlock<T> : BlockBase<IEpochStream<T>, IEpochStream
                         toFlush = batch.ToArray();
                         batch.Clear();
                     }
-                }
-                finally
-                {
-                    batchLock.Release();
                 }
 
                 if (toFlush != null)
@@ -129,16 +128,18 @@ public sealed class EpochBatchBlock<T> : BlockBase<IEpochStream<T>, IEpochStream
             await timerCts.CancelAsync();
             try { await timerTask; } catch (OperationCanceledException) { }
 
-            await batchLock.WaitAsync(CancellationToken.None);
-            try
+            T[]? remainder = null;
+            lock (batchLock)
             {
                 if (batch.Count > 0)
-                    await writer.WriteAsync(batch.ToArray(), CancellationToken.None);
+                {
+                    remainder = batch.ToArray();
+                    batch.Clear();
+                }
             }
-            finally
-            {
-                batchLock.Release();
-            }
+
+            if (remainder != null)
+                await writer.WriteAsync(remainder, CancellationToken.None);
 
             writer.Complete();
         }
@@ -148,10 +149,6 @@ public sealed class EpochBatchBlock<T> : BlockBase<IEpochStream<T>, IEpochStream
             try { await timerTask; } catch (OperationCanceledException) { }
             writer.TryComplete(ex);
         }
-        finally
-        {
-            batchLock.Dispose();
-        }
     }
 
     /// <summary>
@@ -160,7 +157,7 @@ public sealed class EpochBatchBlock<T> : BlockBase<IEpochStream<T>, IEpochStream
     /// </summary>
     private async Task RunWindowTimerAsync(
         List<T> batch,
-        SemaphoreSlim batchLock,
+        object batchLock,
         ChannelWriter<T[]> writer,
         CancellationToken cancellationToken)
     {
@@ -172,18 +169,13 @@ public sealed class EpochBatchBlock<T> : BlockBase<IEpochStream<T>, IEpochStream
 
                 T[]? toFlush = null;
 
-                await batchLock.WaitAsync(CancellationToken.None);
-                try
+                lock (batchLock)
                 {
                     if (batch.Count > 0)
                     {
                         toFlush = batch.ToArray();
                         batch.Clear();
                     }
-                }
-                finally
-                {
-                    batchLock.Release();
                 }
 
                 if (toFlush != null)
