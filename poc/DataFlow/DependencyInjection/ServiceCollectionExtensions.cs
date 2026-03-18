@@ -380,6 +380,223 @@ public class DataFlowBuilder
     }
 
     /// <summary>
+    /// Register a <see cref="RateLimitBlock{T}"/> using a pre-constructed
+    /// <see cref="System.Threading.RateLimiting.RateLimiter"/> instance.
+    /// The block is a pure pass-through (<typeparamref name="T"/> → <typeparamref name="T"/>) that
+    /// throttles throughput by acquiring one permit per item before forwarding it downstream.
+    /// The <paramref name="rateLimiter"/> is disposed when the block is disposed.
+    ///
+    /// Example usage:
+    /// <code>
+    /// df.AddRateLimit&lt;Journal[]&gt;(
+    ///     "rate-limiter",
+    ///     new FixedWindowRateLimiter(new FixedWindowRateLimiterOptions
+    ///     {
+    ///         PermitLimit = 2,
+    ///         Window = TimeSpan.FromSeconds(1),
+    ///         QueueLimit = int.MaxValue,
+    ///     }));
+    ///
+    /// df.AddGraph("flow", g =>
+    /// {
+    ///     g.UseBlock("journal-batcher")
+    ///      .UseBlock("rate-limiter")
+    ///      .UseBlock("routing-transformer");
+    ///     g.Connect("journal-batcher", "rate-limiter");
+    ///     g.Connect("rate-limiter", "routing-transformer");
+    /// });
+    /// </code>
+    /// </summary>
+    /// <typeparam name="T">Item type flowing through the rate-limit block.</typeparam>
+    /// <param name="name">Unique name for this block.</param>
+    /// <param name="rateLimiter">The rate limiter instance to use.</param>
+    /// <returns>This builder for chaining.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="rateLimiter"/> is <see langword="null"/>.</exception>
+    public DataFlowBuilder AddRateLimit<T>(string name, System.Threading.RateLimiting.RateLimiter rateLimiter)
+    {
+        ValidateBlockName(name);
+        ArgumentNullException.ThrowIfNull(rateLimiter);
+
+        var fullKey = ResolveKey(name);
+        CheckDuplicateRegistration(fullKey, "Block");
+
+        // Register metadata with SEMANTIC types (input: T, output: T)
+        var metadata = new BlockTypeMetadata(typeof(T), typeof(T));
+        _registry.RegisterBlock(fullKey, metadata);
+
+        _services.AddKeyedScoped<IBlock>(fullKey, (sp, key) =>
+        {
+            var blockName = key as string ?? throw new InvalidOperationException("Block key must be a string");
+            var context = new BlockContext(blockName);
+            return new RateLimitBlock<T>(context, rateLimiter);
+        });
+
+        return this;
+    }
+
+    /// <summary>
+    /// Register a <see cref="RateLimitBlock{T}"/> backed by a
+    /// <see cref="System.Threading.RateLimiting.FixedWindowRateLimiter"/>.
+    /// The block is a pure pass-through (<typeparamref name="T"/> → <typeparamref name="T"/>) that
+    /// throttles throughput to <paramref name="permitLimit"/> items per <paramref name="window"/>.
+    ///
+    /// Example usage:
+    /// <code>
+    /// df.AddRateLimit&lt;Journal[]&gt;("rate-limiter", permitLimit: 2, window: TimeSpan.FromSeconds(1));
+    ///
+    /// df.AddGraph("flow", g =>
+    /// {
+    ///     g.UseBlock("journal-batcher")
+    ///      .UseBlock("rate-limiter")
+    ///      .UseBlock("routing-transformer");
+    ///     g.Connect("journal-batcher", "rate-limiter");
+    ///     g.Connect("rate-limiter", "routing-transformer");
+    /// });
+    /// </code>
+    ///
+    /// The registry stores the semantic data types (input: <typeparamref name="T"/>, output:
+    /// <typeparamref name="T"/>) so connection type-validation works correctly.
+    /// </summary>
+    /// <typeparam name="T">Item type flowing through the rate-limit block.</typeparam>
+    /// <param name="name">Unique name for this block.</param>
+    /// <param name="permitLimit">Maximum number of items permitted per window (must be &gt; 0).</param>
+    /// <param name="window">Duration of each rate-limit window (must be a positive duration).</param>
+    /// <param name="queueLimit">
+    /// Maximum number of items that may queue waiting for a permit.
+    /// Defaults to <see cref="int.MaxValue"/> (unbounded queue).
+    /// </param>
+    /// <returns>This builder for chaining.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown at registration time when <paramref name="permitLimit"/> is &lt;= 0 or
+    /// <paramref name="window"/> is not a positive duration.
+    /// </exception>
+    public DataFlowBuilder AddRateLimit<T>(
+        string name,
+        int permitLimit,
+        TimeSpan window,
+        int queueLimit = int.MaxValue)
+    {
+        ValidateBlockName(name);
+
+        if (permitLimit <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(permitLimit), permitLimit, "Permit limit must be greater than 0");
+        }
+
+        if (window <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(window), window, "Window must be a positive duration");
+        }
+
+        var fullKey = ResolveKey(name);
+        CheckDuplicateRegistration(fullKey, "Block");
+
+        // Register metadata with SEMANTIC types (input: T, output: T)
+        var metadata = new BlockTypeMetadata(typeof(T), typeof(T));
+        _registry.RegisterBlock(fullKey, metadata);
+
+        _services.AddKeyedScoped<IBlock>(fullKey, (sp, key) =>
+        {
+            var blockName = key as string ?? throw new InvalidOperationException("Block key must be a string");
+            var context = new BlockContext(blockName);
+            var limiter = new System.Threading.RateLimiting.FixedWindowRateLimiter(
+                new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = permitLimit,
+                    Window = window,
+                    QueueLimit = queueLimit,
+                    QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst,
+                });
+            return new RateLimitBlock<T>(context, limiter);
+        });
+
+        return this;
+    }
+
+    /// <summary>
+    /// Register a <see cref="RateLimitBlock{T}"/> backed by a
+    /// <see cref="System.Threading.RateLimiting.SlidingWindowRateLimiter"/>.
+    /// The block is a pure pass-through (<typeparamref name="T"/> → <typeparamref name="T"/>) that
+    /// throttles throughput using a sliding-window policy.
+    ///
+    /// Example usage:
+    /// <code>
+    /// df.AddSlidingWindowRateLimit&lt;Journal[]&gt;(
+    ///     "rate-limiter",
+    ///     permitLimit: 10,
+    ///     window: TimeSpan.FromSeconds(1),
+    ///     segmentsPerWindow: 5);
+    /// </code>
+    ///
+    /// The registry stores the semantic data types (input: <typeparamref name="T"/>, output:
+    /// <typeparamref name="T"/>) so connection type-validation works correctly.
+    /// </summary>
+    /// <typeparam name="T">Item type flowing through the rate-limit block.</typeparam>
+    /// <param name="name">Unique name for this block.</param>
+    /// <param name="permitLimit">Maximum number of items permitted per window (must be &gt; 0).</param>
+    /// <param name="window">Duration of the sliding window (must be a positive duration).</param>
+    /// <param name="segmentsPerWindow">Number of segments the window is divided into (must be &gt; 0).</param>
+    /// <param name="queueLimit">
+    /// Maximum number of items that may queue waiting for a permit.
+    /// Defaults to <see cref="int.MaxValue"/> (unbounded queue).
+    /// </param>
+    /// <returns>This builder for chaining.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown at registration time when <paramref name="permitLimit"/> or
+    /// <paramref name="segmentsPerWindow"/> is &lt;= 0, or when <paramref name="window"/>
+    /// is not a positive duration.
+    /// </exception>
+    public DataFlowBuilder AddSlidingWindowRateLimit<T>(
+        string name,
+        int permitLimit,
+        TimeSpan window,
+        int segmentsPerWindow = 1,
+        int queueLimit = int.MaxValue)
+    {
+        ValidateBlockName(name);
+
+        if (permitLimit <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(permitLimit), permitLimit, "Permit limit must be greater than 0");
+        }
+
+        if (window <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(window), window, "Window must be a positive duration");
+        }
+
+        if (segmentsPerWindow <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(segmentsPerWindow), segmentsPerWindow, "Segments per window must be greater than 0");
+        }
+
+        var fullKey = ResolveKey(name);
+        CheckDuplicateRegistration(fullKey, "Block");
+
+        // Register metadata with SEMANTIC types (input: T, output: T)
+        var metadata = new BlockTypeMetadata(typeof(T), typeof(T));
+        _registry.RegisterBlock(fullKey, metadata);
+
+        _services.AddKeyedScoped<IBlock>(fullKey, (sp, key) =>
+        {
+            var blockName = key as string ?? throw new InvalidOperationException("Block key must be a string");
+            var context = new BlockContext(blockName);
+            var limiter = new System.Threading.RateLimiting.SlidingWindowRateLimiter(
+                new System.Threading.RateLimiting.SlidingWindowRateLimiterOptions
+                {
+                    PermitLimit = permitLimit,
+                    Window = window,
+                    SegmentsPerWindow = segmentsPerWindow,
+                    QueueLimit = queueLimit,
+                    QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst,
+                });
+            return new RateLimitBlock<T>(context, limiter);
+        });
+
+        return this;
+    }
+
+    /// <summary>
     /// Register an EpochSourceBlock with type-safe API.
     /// All dependencies are automatically injected via constructor.
     /// Uses IBlockContext constructor injection for proper lifecycle management.

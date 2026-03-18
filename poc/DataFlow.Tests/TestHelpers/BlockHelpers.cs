@@ -4,6 +4,7 @@ using DataFlow.POC.Blocks;
 using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
 using DataFlow.POC.Registry;
+using System.Threading.RateLimiting;
 
 /// <summary>
 /// Helper methods for creating block instances in tests with consistent patterns.
@@ -325,6 +326,74 @@ public static class BlockHelpers
         }
     }
 
+    /// <summary>
+    /// Creates an epoch-wrapped rate-limit block that accepts plain input streams.
+    /// TEMPORARY: This wraps the input in a single epoch for easier test migration.
+    /// Uses a <see cref="FixedWindowRateLimiter"/> with the specified permit limit and window.
+    /// </summary>
+    public static IBlock<T, T> CreateRateLimit<T>(
+        string name,
+        int permitLimit,
+        TimeSpan window,
+        int queueLimit = int.MaxValue)
+    {
+        var limiter = new FixedWindowRateLimiter(new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = permitLimit,
+            Window = window,
+            QueueLimit = queueLimit,
+            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+        });
+        return new PlainToEpochRateLimitWrapper<T>(name, limiter);
+    }
+
+    /// <summary>
+    /// Creates an epoch-wrapped rate-limit block using a pre-constructed <see cref="RateLimiter"/>.
+    /// TEMPORARY: This wraps the input in a single epoch for easier test migration.
+    /// </summary>
+    public static IBlock<T, T> CreateRateLimit<T>(
+        string name,
+        RateLimiter rateLimiter)
+    {
+        return new PlainToEpochRateLimitWrapper<T>(name, rateLimiter);
+    }
+
+    /// <summary>
+    /// Wrapper block that converts plain input to epoch streams for rate-limit processing.
+    /// </summary>
+    private class PlainToEpochRateLimitWrapper<T> : BlockBase<T, T>, IDisposable
+    {
+        private readonly RateLimitBlock<T> _epochRateLimit;
+
+        public PlainToEpochRateLimitWrapper(string name, RateLimiter rateLimiter)
+            : base(new BlockContext(name))
+        {
+            _epochRateLimit = new RateLimitBlock<T>(new BlockContext(name + "-epoch"), rateLimiter);
+        }
+
+        public override async IAsyncEnumerable<T> ExecuteAsync(
+            IAsyncEnumerable<T> input,
+            IExecutionContext context)
+        {
+            // Wrap plain input in single epoch
+            var epochInput = input.WrapInSingleEpoch("test-source", context.CancellationToken);
+
+            // Process through epoch rate limit block
+            var epochOutput = _epochRateLimit.ExecuteAsync(epochInput, context);
+
+            // Unwrap epoch output to plain output
+            await foreach (var epochStream in epochOutput)
+            {
+                await foreach (var item in epochStream.Items)
+                {
+                    yield return item;
+                }
+            }
+        }
+
+        public void Dispose() => _epochRateLimit.Dispose();
+    }
+
     #endregion
 
     #region Batch Blocks (Removed - Use Epoch Batch Blocks)
@@ -458,6 +527,35 @@ public static class BlockHelpers
         TimeSpan windowPeriod)
     {
         return new EpochBatchBlock<T>(new BlockContext(name), maxBatchSize, windowPeriod);
+    }
+
+    /// <summary>
+    /// Creates a <see cref="RateLimitBlock{T}"/> using an explicit <see cref="RateLimiter"/>.
+    /// </summary>
+    public static RateLimitBlock<T> CreateEpochRateLimit<T>(
+        string name,
+        RateLimiter rateLimiter)
+    {
+        return new RateLimitBlock<T>(new BlockContext(name), rateLimiter);
+    }
+
+    /// <summary>
+    /// Creates a <see cref="RateLimitBlock{T}"/> backed by a <see cref="FixedWindowRateLimiter"/>.
+    /// </summary>
+    public static RateLimitBlock<T> CreateEpochRateLimit<T>(
+        string name,
+        int permitLimit,
+        TimeSpan window,
+        int queueLimit = int.MaxValue)
+    {
+        var limiter = new FixedWindowRateLimiter(new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = permitLimit,
+            Window = window,
+            QueueLimit = queueLimit,
+            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+        });
+        return new RateLimitBlock<T>(new BlockContext(name), limiter);
     }
 
     #endregion
