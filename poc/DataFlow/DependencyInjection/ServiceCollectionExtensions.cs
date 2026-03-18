@@ -384,18 +384,24 @@ public class DataFlowBuilder
     /// <see cref="System.Threading.RateLimiting.RateLimiter"/> instance.
     /// The block is a pure pass-through (<typeparamref name="T"/> → <typeparamref name="T"/>) that
     /// throttles throughput by acquiring one permit per item before forwarding it downstream.
-    /// The <paramref name="rateLimiter"/> is disposed when the block is disposed.
+    ///
+    /// <para>
+    /// <b>Ownership:</b> The caller retains ownership of <paramref name="rateLimiter"/> and is
+    /// responsible for disposing it. The block will <em>not</em> dispose the limiter when the
+    /// block scope ends. This allows the same limiter instance to be shared safely across multiple
+    /// graph executions and DI scopes.
+    /// </para>
     ///
     /// Example usage:
     /// <code>
-    /// df.AddRateLimit&lt;Journal[]&gt;(
-    ///     "rate-limiter",
-    ///     new FixedWindowRateLimiter(new FixedWindowRateLimiterOptions
-    ///     {
-    ///         PermitLimit = 2,
-    ///         Window = TimeSpan.FromSeconds(1),
-    ///         QueueLimit = int.MaxValue,
-    ///     }));
+    /// // Register once; the limiter is owned and disposed by the caller
+    /// using var limiter = new FixedWindowRateLimiter(new FixedWindowRateLimiterOptions
+    /// {
+    ///     PermitLimit = 2,
+    ///     Window = TimeSpan.FromSeconds(1),
+    ///     QueueLimit = int.MaxValue,
+    /// });
+    /// df.AddRateLimit&lt;Journal[]&gt;("rate-limiter", limiter);
     ///
     /// df.AddGraph("flow", g =>
     /// {
@@ -409,7 +415,10 @@ public class DataFlowBuilder
     /// </summary>
     /// <typeparam name="T">Item type flowing through the rate-limit block.</typeparam>
     /// <param name="name">Unique name for this block.</param>
-    /// <param name="rateLimiter">The rate limiter instance to use.</param>
+    /// <param name="rateLimiter">
+    /// The rate limiter instance to use. The caller retains ownership; this instance will
+    /// <em>not</em> be disposed when the block or its DI scope is disposed.
+    /// </param>
     /// <returns>This builder for chaining.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="rateLimiter"/> is <see langword="null"/>.</exception>
     public DataFlowBuilder AddRateLimit<T>(string name, System.Threading.RateLimiting.RateLimiter rateLimiter)
@@ -428,7 +437,10 @@ public class DataFlowBuilder
         {
             var blockName = key as string ?? throw new InvalidOperationException("Block key must be a string");
             var context = new BlockContext(blockName);
-            return new RateLimitBlock<T>(context, rateLimiter);
+            // ownsLimiter: false — the caller supplied this instance and retains disposal responsibility.
+            // This prevents the scoped block from disposing a shared limiter that must survive
+            // across multiple graph executions / DI scopes.
+            return new RateLimitBlock<T>(context, rateLimiter, ownsLimiter: false);
         });
 
         return this;
@@ -467,8 +479,9 @@ public class DataFlowBuilder
     /// </param>
     /// <returns>This builder for chaining.</returns>
     /// <exception cref="ArgumentOutOfRangeException">
-    /// Thrown at registration time when <paramref name="permitLimit"/> is &lt;= 0 or
-    /// <paramref name="window"/> is not a positive duration.
+    /// Thrown at registration time when <paramref name="permitLimit"/> is &lt;= 0,
+    /// <paramref name="window"/> is not a positive duration, or <paramref name="queueLimit"/>
+    /// is negative.
     /// </exception>
     public DataFlowBuilder AddRateLimit<T>(
         string name,
@@ -486,6 +499,11 @@ public class DataFlowBuilder
         if (window <= TimeSpan.Zero)
         {
             throw new ArgumentOutOfRangeException(nameof(window), window, "Window must be a positive duration");
+        }
+
+        if (queueLimit < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(queueLimit), queueLimit, "Queue limit must be 0 or greater");
         }
 
         var fullKey = ResolveKey(name);
@@ -543,8 +561,8 @@ public class DataFlowBuilder
     /// <returns>This builder for chaining.</returns>
     /// <exception cref="ArgumentOutOfRangeException">
     /// Thrown at registration time when <paramref name="permitLimit"/> or
-    /// <paramref name="segmentsPerWindow"/> is &lt;= 0, or when <paramref name="window"/>
-    /// is not a positive duration.
+    /// <paramref name="segmentsPerWindow"/> is &lt;= 0, <paramref name="window"/>
+    /// is not a positive duration, or <paramref name="queueLimit"/> is negative.
     /// </exception>
     public DataFlowBuilder AddSlidingWindowRateLimit<T>(
         string name,
@@ -568,6 +586,11 @@ public class DataFlowBuilder
         if (segmentsPerWindow <= 0)
         {
             throw new ArgumentOutOfRangeException(nameof(segmentsPerWindow), segmentsPerWindow, "Segments per window must be greater than 0");
+        }
+
+        if (queueLimit < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(queueLimit), queueLimit, "Queue limit must be 0 or greater");
         }
 
         var fullKey = ResolveKey(name);

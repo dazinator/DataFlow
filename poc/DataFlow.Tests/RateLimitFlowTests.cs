@@ -293,11 +293,75 @@ public class RateLimitFlowTests
     }
 
     [Fact]
+    public void AddRateLimit_Should_Throw_When_QueueLimit_Is_Negative()
+    {
+        var services = new ServiceCollection();
+        Should.Throw<ArgumentOutOfRangeException>(() =>
+            services.AddDataFlows("err4", df =>
+                df.AddRateLimit<int>("rl", permitLimit: 1, window: TimeSpan.FromSeconds(1), queueLimit: -1)));
+    }
+
+    [Fact]
+    public void AddSlidingWindowRateLimit_Should_Throw_When_QueueLimit_Is_Negative()
+    {
+        var services = new ServiceCollection();
+        Should.Throw<ArgumentOutOfRangeException>(() =>
+            services.AddDataFlows("err5", df =>
+                df.AddSlidingWindowRateLimit<int>("rl", permitLimit: 1, window: TimeSpan.FromSeconds(1), queueLimit: -1)));
+    }
+
+    [Fact]
     public void AddRateLimit_Should_Throw_When_RateLimiter_Is_Null()
     {
         var services = new ServiceCollection();
         Should.Throw<ArgumentNullException>(() =>
             services.AddDataFlows("err3", df =>
                 df.AddRateLimit<int>("rl", rateLimiter: null!)));
+    }
+
+    // ---------------------------------------------------------------------------
+    // Ownership: externally-supplied limiter must survive multiple scope disposals
+    // ---------------------------------------------------------------------------
+
+    [Fact]
+    public void AddRateLimit_With_Raw_Limiter_Should_Not_Dispose_Limiter_On_Scope_Disposal()
+    {
+        // Arrange — simulates two successive graph executions (two DI scopes).
+        // The limiter is owned externally, so scope disposal must NOT dispose it.
+        using var limiter = new FixedWindowRateLimiter(new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 10,
+            Window = TimeSpan.FromSeconds(1),
+            QueueLimit = int.MaxValue,
+            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+        });
+
+        var services = new ServiceCollection();
+        services.AddDataFlows("owns", df =>
+        {
+            df.AddRateLimit<int>("rate-limiter", limiter);
+        });
+
+        var sp = services.BuildServiceProvider();
+
+        // First scope resolution + disposal
+        {
+            using var scope1 = sp.CreateScope();
+            var block1 = scope1.ServiceProvider.GetRequiredKeyedService<IBlock>("owns:rate-limiter");
+            block1.ShouldNotBeNull();
+            // scope1 is disposed here — must NOT dispose the shared limiter
+        }
+
+        // Second scope resolution must succeed (limiter still alive)
+        {
+            using var scope2 = sp.CreateScope();
+            var block2 = scope2.ServiceProvider.GetRequiredKeyedService<IBlock>("owns:rate-limiter");
+            block2.ShouldNotBeNull();
+            block2.ShouldBeOfType<RateLimitBlock<int>>();
+        }
+
+        // Verify the limiter is still functional after both scopes have been disposed
+        var stats = limiter.GetStatistics();
+        stats.ShouldNotBeNull();
     }
 }
