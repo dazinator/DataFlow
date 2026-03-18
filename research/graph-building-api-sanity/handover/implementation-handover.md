@@ -31,12 +31,15 @@ private void EnsurePendingBlock(string name)
     var key = ResolveBlockKey(name);
     if (!_blocksByName.ContainsKey(name) &&
         !_blocksByName.ContainsKey(key) &&
-        !_pendingBlockNames.Contains(name))
+        !_pendingBlockNames.Contains(name) &&
+        !_pendingBlockNames.Contains(key))
     {
         _pendingBlockNames.Add(name);
     }
 }
 ```
+
+> Note: both `name` and its resolved `key` are checked in `_pendingBlockNames` to prevent duplicate entries when a block is referenced by both its short name and its fully-qualified key.
 
 Call `EnsurePendingBlock` for every source and target name in `Connect(string,string)` and in `ConnectCompeting(string, IEnumerable<string>)`.
 
@@ -61,9 +64,13 @@ public DataFlowGraphBuilder ConnectFanIn(
     if (string.IsNullOrWhiteSpace(targetName))
         throw new ArgumentException("Target block name cannot be null or whitespace", nameof(targetName));
 
+    var sourceList = sourceNames.ToList();
+    if (sourceList.Count == 0)
+        throw new ArgumentException("At least one source block name must be provided", nameof(sourceNames));
+
     EnsurePendingBlock(targetName);
 
-    foreach (var sourceName in sourceNames)
+    foreach (var sourceName in sourceList)
     {
         if (string.IsNullOrWhiteSpace(sourceName))
             throw new ArgumentException("Source block names cannot be null or whitespace");
