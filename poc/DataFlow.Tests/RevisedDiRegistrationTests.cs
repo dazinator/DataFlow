@@ -752,6 +752,169 @@ public class RevisedDiRegistrationTests
 
     #endregion
 
+    #region AddBatch Typed Helper Tests
+
+    [Fact]
+    public void AddBatch_RegistersEpochBatchBlock_ResolvedByKey()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+
+        // Act
+        services.AddDataFlows("global", df =>
+        {
+            df.AddBatch<int>("batcher", maxBatchSize: 100);
+        });
+
+        var sp = services.BuildServiceProvider();
+        var block = sp.GetRequiredKeyedService<IBlock>("global:batcher");
+
+        // Assert
+        Assert.NotNull(block);
+        Assert.Equal("global:batcher", block.Name);
+        Assert.IsType<EpochBatchBlock<int>>(block);
+    }
+
+    [Fact]
+    public void AddBatch_RegistersCorrectMetadata_InputT_OutputTArray()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+
+        // Act
+        services.AddDataFlows("global", df =>
+        {
+            df.AddBatch<int>("batcher", maxBatchSize: 50);
+        });
+
+        var sp = services.BuildServiceProvider();
+        var registry = sp.GetRequiredService<IBlockTypeRegistry>();
+        var metadata = registry.GetMetadata("global:batcher");
+
+        // Assert
+        Assert.Equal(typeof(int), metadata.InputType);
+        Assert.Equal(typeof(int[]), metadata.OutputType);
+    }
+
+    [Fact]
+    public void AddBatch_WithWindowPeriod_CreatesBlockSuccessfully()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+
+        // Act
+        services.AddDataFlows("global", df =>
+        {
+            df.AddBatch<string>("batcher", maxBatchSize: 10, windowPeriod: TimeSpan.FromSeconds(2));
+        });
+
+        var sp = services.BuildServiceProvider();
+        var block = sp.GetRequiredKeyedService<IBlock>("global:batcher");
+
+        // Assert
+        Assert.NotNull(block);
+        Assert.IsType<EpochBatchBlock<string>>(block);
+    }
+
+    [Fact]
+    public void AddBatch_WithNamespace_ResolvesUnderCorrectKey()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+
+        // Act
+        services.AddDataFlows("moduleA", df =>
+        {
+            df.AddBatch<int>("batcher", maxBatchSize: 200);
+        });
+
+        var sp = services.BuildServiceProvider();
+        var block = sp.GetRequiredKeyedService<IBlock>("moduleA:batcher");
+
+        // Assert
+        Assert.NotNull(block);
+        Assert.Equal("moduleA:batcher", block.Name);
+    }
+
+    [Fact]
+    public void AddBatch_WorksWithUseBlockAndConnectInGraph()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        services.AddSingleton<IServiceScopeFactory, MockServiceScopeFactory>();
+
+        services.AddDataFlows("global", df =>
+        {
+            df.AddActorBlock<object, int, TestSourceActor>("producer");
+            df.AddBatch<int>("batcher", maxBatchSize: 5);
+            df.AddActorBlock<int[], object, TestBatchConsumerActor>("consumer");
+
+            df.AddGraph("pipeline", g =>
+            {
+                g.UseBlock("producer")
+                 .UseBlock("batcher")
+                 .UseBlock("consumer");
+                g.Connect("producer", "batcher");
+                g.Connect("batcher", "consumer");
+            });
+        });
+
+        // Act
+        var sp = services.BuildServiceProvider();
+        var graph = sp.GetKeyedService<DataFlowGraph>("global:pipeline");
+
+        // Assert
+        Assert.NotNull(graph);
+    }
+
+    [Fact]
+    public void AddBatch_DuplicateName_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+
+        // Act & Assert
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+        {
+            services.AddDataFlows("global", df =>
+            {
+                df.AddBatch<int>("batcher", maxBatchSize: 10);
+                df.AddBatch<int>("batcher", maxBatchSize: 20); // duplicate
+            });
+        });
+
+        Assert.Contains("global:batcher", ex.Message);
+        Assert.Contains("already registered", ex.Message);
+    }
+
+    // Actors used in AddBatch graph-integration test
+    private class TestSourceActor : IStreamActor<object, int>
+    {
+        public async IAsyncEnumerable<int> RunAsync(
+            IAsyncEnumerable<object> input,
+            IActorExecutionContext context)
+        {
+            for (int i = 1; i <= 3; i++)
+            {
+                yield return i;
+            }
+            await Task.CompletedTask;
+        }
+    }
+
+    private class TestBatchConsumerActor : IStreamActor<int[], object>
+    {
+        public async IAsyncEnumerable<object> RunAsync(
+            IAsyncEnumerable<int[]> input,
+            IActorExecutionContext context)
+        {
+            await foreach (var _ in input) { }
+            yield break;
+        }
+    }
+
+    #endregion
+
     #region Test Helper Classes
 
     private class TestProducerBlock : BlockBase<object, int>
