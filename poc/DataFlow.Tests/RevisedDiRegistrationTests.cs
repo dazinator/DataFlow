@@ -887,6 +887,78 @@ public class RevisedDiRegistrationTests
         Assert.Contains("already registered", ex.Message);
     }
 
+    [Fact]
+    public void AddBatch_ZeroMaxBatchSize_ThrowsArgumentOutOfRangeException()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+
+        // Act & Assert
+        var ex = Assert.Throws<ArgumentOutOfRangeException>(() =>
+        {
+            services.AddDataFlows("global", df =>
+            {
+                df.AddBatch<int>("batcher", maxBatchSize: 0);
+            });
+        });
+
+        Assert.Equal("maxBatchSize", ex.ParamName);
+    }
+
+    [Fact]
+    public void AddBatch_NegativeMaxBatchSize_ThrowsArgumentOutOfRangeException()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+
+        // Act & Assert
+        var ex = Assert.Throws<ArgumentOutOfRangeException>(() =>
+        {
+            services.AddDataFlows("global", df =>
+            {
+                df.AddBatch<int>("batcher", maxBatchSize: -5);
+            });
+        });
+
+        Assert.Equal("maxBatchSize", ex.ParamName);
+    }
+
+    [Fact]
+    public void AddBatch_ZeroWindowPeriod_ThrowsArgumentOutOfRangeException()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+
+        // Act & Assert
+        var ex = Assert.Throws<ArgumentOutOfRangeException>(() =>
+        {
+            services.AddDataFlows("global", df =>
+            {
+                df.AddBatch<int>("batcher", maxBatchSize: 10, windowPeriod: TimeSpan.Zero);
+            });
+        });
+
+        Assert.Equal("windowPeriod", ex.ParamName);
+    }
+
+    [Fact]
+    public void AddBatch_NegativeWindowPeriod_ThrowsArgumentOutOfRangeException()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+
+        // Act & Assert
+        var ex = Assert.Throws<ArgumentOutOfRangeException>(() =>
+        {
+            services.AddDataFlows("global", df =>
+            {
+                df.AddBatch<int>("batcher", maxBatchSize: 10, windowPeriod: TimeSpan.FromSeconds(-1));
+            });
+        });
+
+        Assert.Equal("windowPeriod", ex.ParamName);
+    }
+
     // Actors used in AddBatch graph-integration test
     private class TestSourceActor : IStreamActor<object, int>
     {

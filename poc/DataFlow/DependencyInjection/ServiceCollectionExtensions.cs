@@ -309,9 +309,10 @@ public class DataFlowBuilder
     /// <summary>
     /// Register an <see cref="EpochBatchBlock{T}"/> with type-safe API.
     /// Batches incoming items into arrays within each epoch boundary.
-    /// A new batch is emitted when it reaches <paramref name="maxBatchSize"/> items or when
-    /// <paramref name="windowPeriod"/> elapses since the first item in the current batch,
-    /// whichever comes first. Any remaining items at the end of an epoch are also emitted.
+    /// A new batch is emitted when it reaches <paramref name="maxBatchSize"/> items.
+    /// When <paramref name="windowPeriod"/> is specified, the window timer starts on the first item
+    /// in a batch; the batch is flushed on the next item arrival after the window expires (not
+    /// proactively without input). Any remaining items at the end of an epoch are also emitted.
     ///
     /// Example usage:
     /// <code>
@@ -334,13 +335,28 @@ public class DataFlowBuilder
     /// <param name="name">Unique name for this batch block</param>
     /// <param name="maxBatchSize">Maximum number of items per batch (must be &gt; 0)</param>
     /// <param name="windowPeriod">
-    /// Optional time window after which a partial batch is emitted. When <see langword="null"/>
-    /// only <paramref name="maxBatchSize"/> governs when a batch is flushed.
+    /// Optional time window that triggers a batch flush on the next arriving item after the window
+    /// elapses. Must be a positive duration when provided. When <see langword="null"/> only
+    /// <paramref name="maxBatchSize"/> governs when a batch is flushed.
     /// </param>
     /// <returns>This builder for chaining</returns>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown at registration time when <paramref name="maxBatchSize"/> is &lt;= 0, or when
+    /// <paramref name="windowPeriod"/> is provided but is not a positive duration.
+    /// </exception>
     public DataFlowBuilder AddBatch<T>(string name, int maxBatchSize, TimeSpan? windowPeriod = null)
     {
         ValidateBlockName(name);
+
+        if (maxBatchSize <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maxBatchSize), maxBatchSize, "Max batch size must be greater than 0");
+        }
+
+        if (windowPeriod.HasValue && windowPeriod.Value <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(windowPeriod), windowPeriod, "Window period must be a positive duration");
+        }
 
         var fullKey = ResolveKey(name);
         CheckDuplicateRegistration(fullKey, "Block");
