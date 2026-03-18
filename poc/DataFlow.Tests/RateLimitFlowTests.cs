@@ -71,8 +71,10 @@ public class RateLimitFlowTests
     public async Task RateLimit_Block_Should_Throttle_Throughput()
     {
         // Arrange — permit 2 items per 200 ms window; send 5 items.
-        // With only 2 permits per window the remaining 3 items must wait for the next
-        // window, so total time should be at least 200 ms.
+        // Window 0 [0-200ms]: items 1+2 pass immediately (2 permits consumed).
+        // Window 1 [200-400ms]: items 3+4 must wait for the next window (~200ms).
+        // Window 2 [400-600ms]: item 5 must wait for another window (~200ms more).
+        // Therefore total elapsed time should be at least ~400 ms.
         var results = new List<int>();
         var sw = System.Diagnostics.Stopwatch.StartNew();
 
@@ -103,7 +105,8 @@ public class RateLimitFlowTests
         // Assert
         results.Count.ShouldBe(5);
         results.ShouldBe(new[] { 1, 2, 3, 4, 5 });
-        sw.ElapsedMilliseconds.ShouldBeGreaterThanOrEqualTo(200);
+        // At least two full windows must have elapsed (items 3+4 wait ~200ms, item 5 waits ~200ms more)
+        sw.ElapsedMilliseconds.ShouldBeGreaterThanOrEqualTo(350);
     }
 
     // ---------------------------------------------------------------------------

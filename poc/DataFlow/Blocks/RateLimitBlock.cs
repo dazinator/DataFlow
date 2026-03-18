@@ -1,7 +1,6 @@
 namespace DataFlow.POC.Blocks;
 
 using DataFlow.POC.Core;
-using System.Runtime.CompilerServices;
 using System.Threading.RateLimiting;
 
 /// <summary>
@@ -26,7 +25,7 @@ public sealed class RateLimitBlock<T> : BlockBase<IEpochStream<T>, IEpochStream<
     private readonly RateLimiter _rateLimiter;
 
     /// <summary>
-    /// Initialises a new <see cref="RateLimitBlock{T}"/> with an explicit
+    /// Initializes a new <see cref="RateLimitBlock{T}"/> with an explicit
     /// <see cref="RateLimiter"/> instance.
     /// </summary>
     /// <param name="context">Block context providing name and lifecycle information.</param>
@@ -60,8 +59,7 @@ public sealed class RateLimitBlock<T> : BlockBase<IEpochStream<T>, IEpochStream<
 
     private async IAsyncEnumerable<T> RateLimitEpochItems(
         IEpochStream<T> epochStream,
-        IExecutionContext context,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        IExecutionContext context)
     {
         await foreach (var item in epochStream.Items.WithCancellation(context.CancellationToken))
         {
