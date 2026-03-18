@@ -342,6 +342,16 @@ public class DataFlowBuilder
     {
         ValidateBlockName(name);
 
+        if (maxBatchSize <= 0)
+        {
+            throw new global::System.ArgumentOutOfRangeException(nameof(maxBatchSize), "maxBatchSize must be greater than 0.");
+        }
+
+        if (windowPeriod is not null && windowPeriod.Value < global::System.TimeSpan.Zero)
+        {
+            throw new global::System.ArgumentOutOfRangeException(nameof(windowPeriod), "windowPeriod cannot be negative.");
+        }
+
         var fullKey = ResolveKey(name);
         CheckDuplicateRegistration(fullKey, "Block");
 
