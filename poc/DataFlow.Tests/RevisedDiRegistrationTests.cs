@@ -817,6 +817,38 @@ public class RevisedDiRegistrationTests
     }
 
     [Fact]
+    public void AddBatch_WithNonPositiveMaxBatchSize_Throws()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+
+        // Act & Assert
+        Assert.Throws<System.ArgumentOutOfRangeException>(() =>
+        {
+            services.AddDataFlows("global", df =>
+            {
+                df.AddBatch<int>("batcher", maxBatchSize: 0);
+            });
+        });
+    }
+
+    [Fact]
+    public void AddBatch_WithNegativeWindowPeriod_Throws()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+
+        // Act & Assert
+        Assert.Throws<System.ArgumentOutOfRangeException>(() =>
+        {
+            services.AddDataFlows("global", df =>
+            {
+                df.AddBatch<string>("batcher", maxBatchSize: 10, windowPeriod: TimeSpan.FromSeconds(-1));
+            });
+        });
+    }
+
+    [Fact]
     public void AddBatch_WithNamespace_ResolvesUnderCorrectKey()
     {
         // Arrange
