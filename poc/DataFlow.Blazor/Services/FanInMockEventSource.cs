@@ -11,7 +11,7 @@ public class FanInMockEventSource : IEventSource
 {
     private readonly Random _random = Random.Shared;
 
-    public async IAsyncEnumerable<object> GetEventsAsync(
+    public async IAsyncEnumerable<IDataFlowEvent> GetEventsAsync(
         Guid invocationId,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {

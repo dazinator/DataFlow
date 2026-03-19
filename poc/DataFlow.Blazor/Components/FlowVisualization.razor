@@ -50,7 +50,7 @@
             }
 
             // Process real-time events
-            await foreach (var evt in eventSource.GetEventsAsync(InvocationId, cancellationToken))
+            await foreach (var evt in eventSource.GetEventsAsync(InvocationId, cancellationToken).WithCancellation(cancellationToken))
             {
                 _processor!.ProcessEvent(evt);
                 await InvokeAsync(StateHasChanged);

@@ -2,7 +2,9 @@ namespace DataFlow.POC.Core;
 
 using System.Diagnostics;
 using System.Threading.Channels;
+using DataFlow.Blazor.Events;
 using DataFlow.POC.Observability;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 /// <summary>
@@ -228,6 +230,9 @@ public class DataFlowGraph
             flowMetrics.Started();
         }
 
+        // Resolve optional event sink — null if the consumer hasn't registered Uniun.DataFlow.Blazor.Server
+        var eventSink = context.ServiceProvider.GetService<IFlowEventSink>();
+
         using (var flowActivity = ActivitySource.StartActivity(ActivityNames.FlowExecute))
         {
             if (flowActivity is not null)
@@ -243,6 +248,13 @@ public class DataFlowGraph
             else
             {
                 stopwatch = Stopwatch.StartNew();
+            }
+
+            // Emit FlowStartedEvent
+            if (eventSink is not null)
+            {
+                await eventSink.AppendAsync(context.InvocationId,
+                    new FlowStartedEvent(context.InvocationId, Name, DateTime.UtcNow));
             }
 
             try
@@ -281,6 +293,13 @@ public class DataFlowGraph
                 isSuccessful = true;
 
                 _logger.LogInformation("Completed execution of dataflow: {FlowName}", Name);
+
+                // Emit FlowCompletedEvent (success)
+                if (eventSink is not null)
+                {
+                    await eventSink.AppendAsync(context.InvocationId,
+                        new FlowCompletedEvent(context.InvocationId, Success: true, DateTime.UtcNow));
+                }
             }
             catch (Exception ex)
             {
@@ -288,13 +307,20 @@ public class DataFlowGraph
                 {
                     flowActivity.SetStatus(ActivityStatusCode.Error, ex.Message);
                     flowActivity.SetTag(ActivityNames.TagNames.ErrorType, ex.GetType().FullName);
-                    
+
                     if (ex is OperationCanceledException)
                     {
                         flowActivity.SetTag(ActivityNames.TagNames.Cancelled, "true");
                     }
                 }
-                
+
+                // Emit FlowCompletedEvent (failure)
+                if (eventSink is not null)
+                {
+                    await eventSink.AppendAsync(context.InvocationId,
+                        new FlowCompletedEvent(context.InvocationId, Success: false, DateTime.UtcNow, ex.Message));
+                }
+
                 throw;
             }
             finally
@@ -623,10 +649,20 @@ public class DataFlowGraph
                 stopwatch = Stopwatch.StartNew();
             }
 
+            // Resolve optional event sink
+            var eventSink = context.ServiceProvider.GetService<IFlowEventSink>();
+
             try
             {
                 logger.LogDebug("Block {BlockName} starting execution (Thread: {ThreadId})", _block.Name, Environment.CurrentManagedThreadId);
-                
+
+                // Emit BlockStartedEvent
+                if (eventSink is not null)
+                {
+                    await eventSink.AppendAsync(context.InvocationId,
+                        new BlockStartedEvent(_block.Name, _block.GetType().Name, DateTime.UtcNow));
+                }
+
                 var adapter = Adapter!;
                 
                 // Get the typed input stream for this block                
@@ -692,7 +728,14 @@ public class DataFlowGraph
                 _pipeline.CompleteOutgoingChannels(_block, _outgoingEdges, logger);
 
                 logger.LogDebug("Block {BlockName} completed successfully", _block.Name);
-                
+
+                // Emit BlockCompletedEvent (success)
+                if (eventSink is not null)
+                {
+                    await eventSink.AppendAsync(context.InvocationId,
+                        new BlockCompletedEvent(_block.Name, Success: true, DateTime.UtcNow));
+                }
+
                 activity?.SetStatus(ActivityStatusCode.Ok);
                 isSuccessful = true;
             }
@@ -702,7 +745,7 @@ public class DataFlowGraph
                 {
                     activity.SetStatus(ActivityStatusCode.Error, ex.Message);
                     activity.SetTag(ActivityNames.TagNames.ErrorType, ex.GetType().FullName);
-                    
+
                     if (ex is OperationCanceledException)
                     {
                         activity.SetTag(ActivityNames.TagNames.Cancelled, "true");
@@ -710,6 +753,13 @@ public class DataFlowGraph
                 }
 
                 logger.LogError(ex, "Block {BlockName} failed with error", _block.Name);
+
+                // Emit BlockCompletedEvent (failure)
+                if (eventSink is not null)
+                {
+                    await eventSink.AppendAsync(context.InvocationId,
+                        new BlockCompletedEvent(_block.Name, Success: false, DateTime.UtcNow, ex.Message));
+                }
 
                 // Complete typed channel writers with exception
                 _pipeline.CompleteOutgoingChannels(_block, _outgoingEdges, logger, ex);

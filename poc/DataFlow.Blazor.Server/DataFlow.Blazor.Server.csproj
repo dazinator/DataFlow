@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <PackageId>Uniun.DataFlow.Blazor.Server</PackageId>
+    <Title>Uniun DataFlow Blazor Server</Title>
+    <Authors>Darrell Tunnell</Authors>
+    <Company>Uniun Technology Ltd</Company>
+    <Product>Uniun</Product>
+    <Description>ASP.NET Core server integration for Uniun DataFlow Blazor visualization. Provides EF Core persistence, a SignalR hub, and a catch-up HTTP endpoint so the Blazor WASM client can replay and stream live DataFlow execution events.</Description>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/uniun-technology/dataflow</RepositoryUrl>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Access ASP.NET Core types (SignalR, Minimal APIs, HttpResults) without a web SDK -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../DataFlow.Blazor.Shared/DataFlow.Blazor.Shared.csproj" />
+  </ItemGroup>
+
+</Project>

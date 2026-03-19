@@ -58,7 +58,7 @@ public class EventProcessor
     /// <summary>
     /// Processes an event and updates the state accordingly.
     /// </summary>
-    public void ProcessEvent(object evt)
+    public void ProcessEvent(IDataFlowEvent evt)
     {
         switch (evt)
         {
