@@ -2,6 +2,7 @@ namespace DataFlow.POC.Blocks;
 
 using System;
 using System.Runtime.CompilerServices;
+using DataFlow.Blazor.Events;
 using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -75,7 +76,7 @@ public sealed class EpochActorBlock<TIn, TOut, TActor> : BlockBase<IEpochStream<
 
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
-                InitializeActorContext(context, () => rotationRequested = true, cancellationToken);
+                InitializeActorContext(context, scope.ServiceProvider, () => rotationRequested = true, cancellationToken);
                 var actor = scope.ServiceProvider.GetRequiredService<TActor>();
 
                 var actorInput = CreateActorInputStream(inputEnumerator, cancellationToken);
@@ -98,15 +99,20 @@ public sealed class EpochActorBlock<TIn, TOut, TActor> : BlockBase<IEpochStream<
 
     private void InitializeActorContext(
         IExecutionContext context,
+        IServiceProvider actorScopeProvider,
         Action onRotationRequested,
         CancellationToken cancellationToken)
     {
+        var sink = actorScopeProvider.GetService(typeof(IFlowEventSink)) as IFlowEventSink;
+        var emitter = sink is not null ? new BoundFlowEventEmitter(sink, context.InvocationId) : null;
+
         _context.Reset(
             cancellationToken,
             context.InvocationId,
             onRotationRequested,
             epochCoordinator: null,
-            triggerContext: context.TriggerContext);
+            triggerContext: context.TriggerContext,
+            events: emitter);
     }
 
 

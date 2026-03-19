@@ -26,7 +26,6 @@ public class FlowVisualizationDbContext : DbContext
     {
         modelBuilder.Entity<FlowEventRecord>(entity =>
         {
-            entity.HasIndex(e => new { e.FlowRunId, e.SequenceNumber }).IsUnique();
             entity.HasIndex(e => e.FlowRunId);
         });
 

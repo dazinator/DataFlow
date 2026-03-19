@@ -16,10 +16,10 @@ public class FlowSnapshotRecord
     public Guid FlowRunId { get; set; }
 
     /// <summary>
-    /// The SequenceNumber of the last event folded into this snapshot.
-    /// Used to compute the delta query: SequenceNumber > AsOfSequence.
+    /// The Id of the last FlowEventRecord folded into this snapshot.
+    /// Used to compute the delta query: Id > AsOfEventId.
     /// </summary>
-    public long AsOfSequence { get; set; }
+    public long AsOfEventId { get; set; }
 
     /// <summary>
     /// JSON-serialized FlowSnapshot.

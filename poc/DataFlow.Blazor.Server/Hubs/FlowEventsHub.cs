@@ -9,9 +9,9 @@ using Microsoft.EntityFrameworkCore;
 /// SignalR hub for real-time DataFlow event streaming.
 ///
 /// Client connection flow:
-/// 1. Client loads snapshot + delta via HTTP GET /flows/{id}/state → receives AsOfSequence
-/// 2. Client connects to this hub and calls Subscribe(flowRunId, asOfSequence)
-/// 3. Hub replays any events with SequenceNumber > asOfSequence (race-condition safe gap fill)
+/// 1. Client loads snapshot + delta via HTTP GET /flows/{id}/state → receives AsOfId
+/// 2. Client connects to this hub and calls Subscribe(flowRunId, asOfId)
+/// 3. Hub replays any events with Id > asOfId (race-condition safe gap fill)
 /// 4. Hub adds client to the flow's SignalR group
 /// 5. New events are pushed via EfCoreFlowEventSink → IHubContext → group
 ///
@@ -34,18 +34,18 @@ public class FlowEventsHub : Hub
     /// the HTTP response and the WebSocket handshake, then subscribes to live events.
     /// </summary>
     /// <param name="flowRunId">The flow run to subscribe to.</param>
-    /// <param name="fromSequence">The last sequence number the client has seen (from AsOfSequence in HTTP response).</param>
-    public async Task Subscribe(Guid flowRunId, long fromSequence)
+    /// <param name="fromId">The Id of the last event the client has seen (from AsOfId in HTTP response).</param>
+    public async Task Subscribe(Guid flowRunId, long fromId)
     {
         // Replay any events that arrived between HTTP call and WebSocket connection
         var missed = await _db.FlowEventRecords
-            .Where(e => e.FlowRunId == flowRunId && e.SequenceNumber > fromSequence)
-            .OrderBy(e => e.SequenceNumber)
+            .Where(e => e.FlowRunId == flowRunId && e.Id > fromId)
+            .OrderBy(e => e.Id)
             .ToListAsync();
 
         foreach (var record in missed)
         {
-            var dto = new FlowEventDto(record.SequenceNumber, record.EventType, record.Payload, record.OccurredAt);
+            var dto = new FlowEventDto(record.Id, record.EventType, record.Payload, record.OccurredAt);
             await Clients.Caller.SendAsync("EventAppended", dto);
         }
 

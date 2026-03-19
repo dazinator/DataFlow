@@ -1,5 +1,6 @@
 namespace DataFlow.POC.Core;
 
+using DataFlow.Blazor.Events;
 using DataFlow.POC.Checkpointing;
 using DataFlow.POC.Observability;
 
@@ -53,6 +54,11 @@ public interface IExecutionContext
     /// Allows actors to request parameters by name without checking specific trigger context types.
     /// </summary>
     IParameterProvider Parameters { get; }
+
+    /// <summary>
+    /// Emits DataFlow events for this flow run. Null if no event sink is registered.
+    /// </summary>
+    IFlowEventEmitter? Events { get; }
 }
 
 /// <summary>
@@ -102,9 +108,9 @@ public class ExecutionContext : IExecutionContext
     }
 
     public ExecutionContext(
-        IServiceProvider serviceProvider, 
-        CancellationToken cancellationToken, 
-        Guid invocationId, 
+        IServiceProvider serviceProvider,
+        CancellationToken cancellationToken,
+        Guid invocationId,
         ICheckpoint? recoveryCheckpoint,
         IDataFlowMetrics? metrics,
         ITriggerContext? triggerContext)
@@ -116,6 +122,9 @@ public class ExecutionContext : IExecutionContext
         Metrics = metrics;
         TriggerContext = triggerContext;
         Parameters = new TriggerContextParameterProvider(triggerContext);
+
+        var sink = serviceProvider.GetService(typeof(IFlowEventSink)) as IFlowEventSink;
+        Events = sink is not null ? new BoundFlowEventEmitter(sink, invocationId) : null;
     }
 
     public CancellationToken CancellationToken { get; }
@@ -125,4 +134,5 @@ public class ExecutionContext : IExecutionContext
     public IDataFlowMetrics? Metrics { get; }
     public ITriggerContext? TriggerContext { get; }
     public IParameterProvider Parameters { get; }
+    public IFlowEventEmitter? Events { get; }
 }

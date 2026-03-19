@@ -5,7 +5,7 @@ namespace DataFlow.Blazor.Api;
 /// Contains a materialized snapshot (if available) plus any events that occurred
 /// after the snapshot was taken. The Blazor client deserializes the snapshot,
 /// applies the delta events via FlowStateProjector, then subscribes to SignalR
-/// from AsOfSequence onward — eliminating any gap between HTTP and WebSocket.
+/// from AsOfId onward — eliminating any gap between HTTP and WebSocket.
 /// </summary>
 public record FlowStateResponse(
     /// <summary>
@@ -14,16 +14,16 @@ public record FlowStateResponse(
     string? SnapshotJson,
 
     /// <summary>
-    /// Events that occurred after the snapshot (sequence > snapshot.AsOfSequence).
+    /// Events that occurred after the snapshot (Id > snapshot.AsOfEventId).
     /// </summary>
     FlowEventDto[] DeltaEvents,
 
     /// <summary>
-    /// The highest sequence number seen. Pass this to the SignalR Subscribe call
+    /// The highest event Id seen. Pass this to the SignalR Subscribe call
     /// so the server can replay any events that arrived between the HTTP response
     /// and the WebSocket connection being established.
     /// </summary>
-    long AsOfSequence
+    long AsOfId
 );
 
 /// <summary>
@@ -31,7 +31,7 @@ public record FlowStateResponse(
 /// via the catch-up endpoint and SignalR.
 /// </summary>
 public record FlowEventDto(
-    long SequenceNumber,
+    long Id,
     string EventType,
     string Payload,
     DateTimeOffset OccurredAt

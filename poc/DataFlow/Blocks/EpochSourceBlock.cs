@@ -1,5 +1,6 @@
 namespace DataFlow.POC.Blocks;
 
+using DataFlow.Blazor.Events;
 using DataFlow.POC.Core;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -35,9 +36,9 @@ public sealed class EpochSourceBlock<T, TActor> : BlockBase<object, IEpochStream
     {
         // Source blocks ignore input - they generate data
         await using var scope = _scopeFactory.CreateAsyncScope();
-        
+
         // Initialize context WITH coordinator
-        InitializeActorContext(context, _coordinator);
+        InitializeActorContext(context, scope.ServiceProvider, _coordinator);
         
         // Resolve actor normally from application DI
         var actor = scope.ServiceProvider.GetRequiredService<TActor>();
@@ -50,13 +51,17 @@ public sealed class EpochSourceBlock<T, TActor> : BlockBase<object, IEpochStream
         }
     }
 
-    private void InitializeActorContext(IExecutionContext context, IEpochCoordinator coordinator)
+    private void InitializeActorContext(IExecutionContext context, IServiceProvider actorScopeProvider, IEpochCoordinator coordinator)
     {
+        var sink = actorScopeProvider.GetService(typeof(IFlowEventSink)) as IFlowEventSink;
+        var emitter = sink is not null ? new BoundFlowEventEmitter(sink, context.InvocationId) : null;
+
         _context.Reset(
             context.CancellationToken,
             context.InvocationId,
             () => { }, // Source actors don't rotate
             coordinator,
-            context.TriggerContext);
+            context.TriggerContext,
+            events: emitter);
     }
 }

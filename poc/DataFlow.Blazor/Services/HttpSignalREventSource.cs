@@ -32,7 +32,7 @@ public class HttpSignalREventSource : IEventSource, IAsyncDisposable
     // Cached per-invocation state (populated by GetSnapshotAsync)
     private FlowSnapshot? _cachedSnapshot;
     private FlowEventDto[]? _cachedDeltaEvents;
-    private long _asOfSequence;
+    private long _asOfId;
 
     public HttpSignalREventSource(HttpClient http, string hubUrl)
     {
@@ -48,7 +48,7 @@ public class HttpSignalREventSource : IEventSource, IAsyncDisposable
         if (response is null) return null;
 
         _cachedDeltaEvents = response.DeltaEvents;
-        _asOfSequence = response.AsOfSequence;
+        _asOfId = response.AsOfId;
 
         if (response.SnapshotJson is not null)
         {
@@ -89,8 +89,8 @@ public class HttpSignalREventSource : IEventSource, IAsyncDisposable
 
         await hub.StartAsync(cancellationToken);
 
-        // Pass asOfSequence so the server replays any gap between HTTP and WebSocket
-        await hub.SendAsync("Subscribe", invocationId, _asOfSequence, cancellationToken);
+        // Pass asOfId so the server replays any gap between HTTP and WebSocket
+        await hub.SendAsync("Subscribe", invocationId, _asOfId, cancellationToken);
 
         try
         {

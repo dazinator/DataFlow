@@ -649,8 +649,13 @@ public class DataFlowGraph
                 stopwatch = Stopwatch.StartNew();
             }
 
-            // Resolve optional event sink
-            var eventSink = context.ServiceProvider.GetService<IFlowEventSink>();
+            // Each block gets its own DI scope so it owns its own DbContext instance.
+            // This prevents concurrent blocks from sharing a non-thread-safe DbContext
+            // through a shared scoped IFlowEventSink.
+            var scopeFactory = context.ServiceProvider.GetService<IServiceScopeFactory>();
+            await using var blockScope = scopeFactory?.CreateAsyncScope();
+            var eventSink = blockScope?.ServiceProvider.GetService<IFlowEventSink>()
+                ?? context.ServiceProvider.GetService<IFlowEventSink>();
 
             try
             {

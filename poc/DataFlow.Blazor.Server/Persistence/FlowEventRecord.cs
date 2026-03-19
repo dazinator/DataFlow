@@ -5,8 +5,8 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 /// <summary>
 /// Append-only record of a single DataFlow event. Never mutated after insert.
-/// The SequenceNumber is the core primitive for the catch-up query:
-///   "give me all events WHERE FlowRunId = @id AND SequenceNumber > @lastSeen"
+/// Id (DB identity) is the catch-up cursor:
+///   "give me all events WHERE FlowRunId = @id AND Id > @lastSeen"
 /// </summary>
 [Table("FlowEventRecords")]
 public class FlowEventRecord
@@ -16,12 +16,6 @@ public class FlowEventRecord
     public long Id { get; set; }
 
     public Guid FlowRunId { get; set; }
-
-    /// <summary>
-    /// Monotonically increasing per-flow sequence number (1-based).
-    /// Assigned by the EfCoreFlowEventSink at append time.
-    /// </summary>
-    public long SequenceNumber { get; set; }
 
     /// <summary>
     /// Discriminator used for deserialization, e.g. nameof(BlockStartedEvent).

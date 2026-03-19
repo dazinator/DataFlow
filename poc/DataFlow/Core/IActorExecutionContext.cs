@@ -1,5 +1,7 @@
 namespace DataFlow.POC.Core;
 
+using DataFlow.Blazor.Events;
+
 /// <summary>
 /// Execution context for actors that support scope rotation.
 /// Provides cancellation and rotation request capabilities.
@@ -35,4 +37,10 @@ public interface IActorExecutionContext
     /// Use this to access trigger-specific information (e.g., tenant ID, message properties, request details).
     /// </summary>
     IParameterProvider Parameters { get; }
+
+    /// <summary>
+    /// Emits DataFlow events for this flow run. Null if no event sink is registered.
+    /// Resolved from the actor's own DI scope so each actor rotation gets a fresh instance.
+    /// </summary>
+    IFlowEventEmitter? Events { get; }
 }
