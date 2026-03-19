@@ -1057,6 +1057,27 @@ public class RevisedDiRegistrationTests
         }
     }
 
+    /// <summary>
+    /// A passthrough block that accepts an explicit name and passes int items through unchanged.
+    /// Unlike <see cref="NamedTransformerBlock"/> (which is <c>BlockBase&lt;int, string&gt;</c>),
+    /// this block is <c>BlockBase&lt;int, int&gt;</c>, making it usable as both a source and a
+    /// target in the same graph — required for fan-in tests where source output must match sink input.
+    /// </summary>
+    private class NamedPassthroughBlock : BlockBase<int, int>
+    {
+        public NamedPassthroughBlock(string name) : base(new BlockContext(name)) { }
+
+        public override async IAsyncEnumerable<int> ExecuteAsync(
+            IAsyncEnumerable<int> input,
+            IExecutionContext context)
+        {
+            await foreach (var item in input)
+            {
+                yield return item;
+            }
+        }
+    }
+
     private class TestGraphDefinition : IDataFlowDefinition
     {
         public void Configure(DataFlowGraphBuilder builder)
@@ -1106,6 +1127,178 @@ public class RevisedDiRegistrationTests
                 return null;
             }
         }
+    }
+
+    #endregion
+
+    #region Graph Builder API Improvements: Auto-register and ConnectFanIn
+
+    [Fact]
+    public void Connect_AutoRegistersBlocks_WithoutUseBlock()
+    {
+        // Arrange - blocks registered in DI but NOT via UseBlock()
+        var services = new ServiceCollection();
+        services.AddDataFlows("global", df =>
+        {
+            df.AddBlock("producer", sp => new TestProducerBlock());
+            df.AddBlock("transformer", sp => new TestTransformerBlock());
+
+            df.AddGraph("test", g =>
+            {
+                // No UseBlock() calls — Connect() alone should auto-register blocks
+                g.Connect("producer", "transformer");
+            });
+        });
+
+        // Act
+        var serviceProvider = services.BuildServiceProvider();
+        var graph = serviceProvider.GetKeyedService<DataFlowGraph>("global:test");
+
+        // Assert
+        Assert.NotNull(graph);
+        Assert.Equal(2, graph.Blocks.Count);
+    }
+
+    [Fact]
+    public void Connect_WithUseBlock_DoesNotDuplicateBlock()
+    {
+        // Arrange - UseBlock() called for the same block that also appears in Connect()
+        var services = new ServiceCollection();
+        services.AddDataFlows("global", df =>
+        {
+            df.AddBlock("producer", sp => new TestProducerBlock());
+            df.AddBlock("transformer", sp => new TestTransformerBlock());
+
+            df.AddGraph("test", g =>
+            {
+                g.UseBlock("producer")       // Explicit registration
+                 .UseBlock("transformer")    // Explicit registration
+                 .Connect("producer", "transformer"); // Also triggers EnsurePendingBlock (should deduplicate)
+            });
+        });
+
+        // Act
+        var serviceProvider = services.BuildServiceProvider();
+        var graph = serviceProvider.GetKeyedService<DataFlowGraph>("global:test");
+
+        // Assert — no duplicates; exactly 2 blocks even though names appear twice
+        Assert.NotNull(graph);
+        Assert.Equal(2, graph.Blocks.Count);
+    }
+
+    [Fact]
+    public void Connect_WithAddBlock_DoesNotReResolveFromDI()
+    {
+        // Arrange - one block added directly via AddBlock(), referenced again via Connect()
+        var directBlock = new TestTransformerBlock();
+        var services = new ServiceCollection();
+        services.AddDataFlows("global", df =>
+        {
+            df.AddBlock("producer", sp => new TestProducerBlock());
+
+            df.AddGraph("test", g =>
+            {
+                g.AddBlock(directBlock)            // Direct instance (not from DI)
+                 .Connect("producer", "transformer"); // "transformer" matches direct block's Name
+            });
+        });
+
+        // Act
+        var serviceProvider = services.BuildServiceProvider();
+        var graph = serviceProvider.GetKeyedService<DataFlowGraph>("global:test");
+
+        // Assert — direct block is used; not re-resolved from DI
+        Assert.NotNull(graph);
+        Assert.Contains(directBlock, graph.Blocks);
+    }
+
+    [Fact]
+    public void ConnectCompeting_AutoRegistersBlocks_WithoutUseBlock()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        services.AddDataFlows("global", df =>
+        {
+            df.AddBlock("producer", sp => new TestProducerBlock());
+            df.AddBlock("worker1", sp => new NamedTransformerBlock("worker1"));
+            df.AddBlock("worker2", sp => new NamedTransformerBlock("worker2"));
+
+            df.AddGraph("test", g =>
+            {
+                // No UseBlock() calls
+                g.ConnectCompeting("producer", new[] { "worker1", "worker2" });
+            });
+        });
+
+        // Act
+        var serviceProvider = services.BuildServiceProvider();
+        var graph = serviceProvider.GetKeyedService<DataFlowGraph>("global:test");
+
+        // Assert
+        Assert.NotNull(graph);
+        Assert.Equal(3, graph.Blocks.Count);
+    }
+
+    [Fact]
+    public void ConnectFanIn_CreatesPendingConnectionPerSource()
+    {
+        // Arrange — all blocks are int→int passthroughs so type constraints are satisfied
+        var services = new ServiceCollection();
+        services.AddDataFlows("global", df =>
+        {
+            df.AddBlock("source1", sp => new NamedPassthroughBlock("source1"));
+            df.AddBlock("source2", sp => new NamedPassthroughBlock("source2"));
+            df.AddBlock("source3", sp => new NamedPassthroughBlock("source3"));
+            df.AddBlock("sink", sp => new NamedPassthroughBlock("sink"));
+
+            df.AddGraph("test", g =>
+            {
+                // ConnectFanIn: 3 sources → 1 target
+                g.ConnectFanIn(new[] { "source1", "source2", "source3" }, "sink");
+            });
+        });
+
+        // Act
+        var serviceProvider = services.BuildServiceProvider();
+        var graph = serviceProvider.GetKeyedService<DataFlowGraph>("global:test");
+
+        // Assert — all 4 blocks resolved, 3 edges (one per source → sink)
+        Assert.NotNull(graph);
+        Assert.Equal(4, graph.Blocks.Count);
+        Assert.Equal(3, graph.Edges.Count);
+    }
+
+    [Fact]
+    public void ConnectFanIn_ThrowsWhenSourceNamesIsNull()
+    {
+        var builder = new DataFlowGraphBuilder("test");
+
+        var ex = Assert.Throws<ArgumentNullException>(() =>
+            builder.ConnectFanIn(null!, "sink"));
+
+        Assert.Equal("sourceNames", ex.ParamName);
+    }
+
+    [Fact]
+    public void ConnectFanIn_ThrowsWhenTargetNameIsEmpty()
+    {
+        var builder = new DataFlowGraphBuilder("test");
+
+        var ex = Assert.Throws<ArgumentException>(() =>
+            builder.ConnectFanIn(new[] { "source" }, ""));
+
+        Assert.Equal("targetName", ex.ParamName);
+    }
+
+    [Fact]
+    public void ConnectFanIn_ThrowsWhenSourceListIsEmpty()
+    {
+        var builder = new DataFlowGraphBuilder("test");
+
+        var ex = Assert.Throws<ArgumentException>(() =>
+            builder.ConnectFanIn(Array.Empty<string>(), "sink"));
+
+        Assert.Equal("sourceNames", ex.ParamName);
     }
 
     #endregion
