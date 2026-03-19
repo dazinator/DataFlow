@@ -1,4 +1,5 @@
 using DataFlow.Blazor.Server;
+using DataFlow.Blazor.Demo.Server.Flows;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -9,6 +10,9 @@ var builder = WebApplication.CreateBuilder(args);
 // -----------------------------------------------------------------------
 builder.Services.AddDataFlowVisualizationServer(options =>
     options.UseSqlite("Data Source=dataflow-viz.db"));
+
+// Demo flow runner — builds and executes the demo graphs
+builder.Services.AddSingleton<DemoFlowRunner>();
 
 // Serve the Blazor WASM client from this host
 builder.Services.AddControllersWithViews();
@@ -35,6 +39,27 @@ app.UseRouting();
 // -----------------------------------------------------------------------
 app.MapDataFlowEndpoints();
 app.MapHub<FlowEventsHub>("/hubs/flow-events");
+
+// -----------------------------------------------------------------------
+// Demo run endpoints — trigger a real backend DataFlow graph
+// POST /flows/run/linear    →  { invocationId }
+// POST /flows/run/branching →  { invocationId }
+// POST /flows/run/fanin     →  { invocationId }
+// -----------------------------------------------------------------------
+app.MapPost("/flows/run/{topology}", (string topology, DemoFlowRunner runner) =>
+{
+    var invocationId = topology.ToLowerInvariant() switch
+    {
+        "linear"    => runner.RunLinear(),
+        "branching" => runner.RunBranching(),
+        "fanin"     => runner.RunFanIn(),
+        _           => (Guid?)null
+    };
+
+    return invocationId is null
+        ? Results.BadRequest(new { error = $"Unknown topology '{topology}'. Use: linear, branching, fanin." })
+        : Results.Ok(new { invocationId });
+});
 
 app.MapRazorPages();
 app.MapControllers();

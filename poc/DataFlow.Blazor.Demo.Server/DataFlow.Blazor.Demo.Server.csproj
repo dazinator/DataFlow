@@ -16,6 +16,7 @@
   <ItemGroup>
     <ProjectReference Include="../DataFlow.Blazor.Demo/DataFlow.Blazor.Demo.csproj" />
     <ProjectReference Include="../DataFlow.Blazor.Server/DataFlow.Blazor.Server.csproj" />
+    <ProjectReference Include="../DataFlow/DataFlow.csproj" />
   </ItemGroup>
 
 </Project>

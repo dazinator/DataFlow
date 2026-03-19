@@ -1,0 +1,147 @@
+namespace DataFlow.Blazor.Demo.Server.Flows;
+
+using DataFlow.POC.Core;
+using Microsoft.Extensions.Logging;
+
+/// <summary>
+/// Builds and executes the three demo DataFlow topologies on the server.
+/// Each run fires-and-forgets in the background and returns a stable invocationId
+/// that the Blazor client uses to subscribe to the live event stream.
+/// </summary>
+public sealed class DemoFlowRunner
+{
+    private readonly IServiceProvider _services;
+    private readonly ILogger<DemoFlowRunner> _logger;
+    private readonly ILogger<DataFlowGraph> _graphLogger;
+
+    public DemoFlowRunner(
+        IServiceProvider services,
+        ILogger<DemoFlowRunner> logger,
+        ILogger<DataFlowGraph> graphLogger)
+    {
+        _services = services;
+        _logger = logger;
+        _graphLogger = graphLogger;
+    }
+
+    /// <summary>
+    /// Linear: Producer → Transform → Batch → Processor
+    /// </summary>
+    public Guid RunLinear()
+    {
+        var invocationId = Guid.NewGuid();
+        _ = Task.Run(() => ExecuteLinearAsync(invocationId));
+        return invocationId;
+    }
+
+    /// <summary>
+    /// Branching (fan-out): Producer → Router → [Processor-High, Processor-Low]
+    /// </summary>
+    public Guid RunBranching()
+    {
+        var invocationId = Guid.NewGuid();
+        _ = Task.Run(() => ExecuteBranchingAsync(invocationId));
+        return invocationId;
+    }
+
+    /// <summary>
+    /// Fan-in: [Producer-A, Producer-B] → Buffer → Batch → Processor
+    /// </summary>
+    public Guid RunFanIn()
+    {
+        var invocationId = Guid.NewGuid();
+        _ = Task.Run(() => ExecuteFanInAsync(invocationId));
+        return invocationId;
+    }
+
+    // -----------------------------------------------------------------------
+
+    private async Task ExecuteLinearAsync(Guid invocationId)
+    {
+        try
+        {
+            var producer = new DemoProducerBlock("producer", itemCount: 50, delayMs: 80);
+            var transform = new DemoTransformBlock("transform");
+            var batch = new DemoBatchBlock("batch", batchSize: 5);
+            var processor = new DemoProcessorBlock("processor", delayMs: 30);
+
+            var graph = new DataFlowGraph("linear-demo", _graphLogger);
+            graph.AddBlock(producer);
+            graph.AddBlock(transform);
+            graph.AddBlock(batch);
+            graph.AddBlock(processor);
+            graph.AddEdge(new Edge(producer, transform));
+            graph.AddEdge(new Edge(transform, batch));
+            graph.AddEdge(new Edge(batch, processor));
+
+            using var scope = _services.CreateScope();
+            var ctx = new DataFlow.POC.Core.ExecutionContext(scope.ServiceProvider, CancellationToken.None, invocationId);
+            await graph.ExecuteAsync(ctx);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Linear demo flow {InvocationId} failed", invocationId);
+        }
+    }
+
+    private async Task ExecuteBranchingAsync(Guid invocationId)
+    {
+        try
+        {
+            var producer = new DemoProducerBlock("producer", itemCount: 40, delayMs: 80);
+            var router = new DemoRouterBlock("router");
+            var procHigh = new DemoPriorityProcessorBlock("processor-high", "high", delayMs: 20);
+            var procLow = new DemoPriorityProcessorBlock("processor-low", "low", delayMs: 20);
+
+            var graph = new DataFlowGraph("branching-demo", _graphLogger);
+            graph.AddBlock(producer);
+            graph.AddBlock(router);
+            graph.AddBlock(procHigh);
+            graph.AddBlock(procLow);
+            graph.AddEdge(new Edge(producer, router));
+            // Broadcast router output to both processors
+            var broadcastStrategy = new BroadcastEdgeStrategy(BufferMode.Bounded, 100);
+            graph.AddEdge(new Edge(router, new[] { procHigh, procLow }, broadcastStrategy));
+
+            using var scope = _services.CreateScope();
+            var ctx = new DataFlow.POC.Core.ExecutionContext(scope.ServiceProvider, CancellationToken.None, invocationId);
+            await graph.ExecuteAsync(ctx);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Branching demo flow {InvocationId} failed", invocationId);
+        }
+    }
+
+    private async Task ExecuteFanInAsync(Guid invocationId)
+    {
+        try
+        {
+            var producerA = new DemoProducerBlock("producer-a", itemCount: 25, delayMs: 100);
+            var producerB = new DemoProducerBlock("producer-b", itemCount: 25, delayMs: 120);
+            var buffer = new DemoBufferBlock("buffer");
+            var batch = new DemoBatchBlock("batch", batchSize: 5);
+            var processor = new DemoProcessorBlock("processor", delayMs: 30);
+
+            var graph = new DataFlowGraph("fanin-demo", _graphLogger);
+            graph.AddBlock(producerA);
+            graph.AddBlock(producerB);
+            graph.AddBlock(buffer);
+            graph.AddBlock(batch);
+            graph.AddBlock(processor);
+            // Both producers feed the buffer (fan-in via multiple edges)
+            graph.AddEdge(new Edge(producerA, buffer));
+            graph.AddEdge(new Edge(producerB, buffer));
+            graph.AddEdge(new Edge(buffer, batch));
+            graph.AddEdge(new Edge(batch, processor));
+
+            using var scope = _services.CreateScope();
+            var ctx = new DataFlow.POC.Core.ExecutionContext(scope.ServiceProvider, CancellationToken.None, invocationId);
+            await graph.ExecuteAsync(ctx);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fan-in demo flow {InvocationId} failed", invocationId);
+        }
+    }
+}
