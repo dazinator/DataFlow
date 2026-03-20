@@ -1,5 +1,6 @@
 namespace DataFlow.Blazor.Demo.Server.Flows;
 
+using System.Text.Json;
 using DataFlow.POC.Core;
 using Microsoft.Extensions.Logging;
 
@@ -30,7 +31,8 @@ public sealed class DemoFlowRunner
     public Guid RunLinear()
     {
         var invocationId = Guid.NewGuid();
-        _ = Task.Run(() => ExecuteLinearAsync(invocationId));
+        var triggerParams = Serialize(new { topology = "linear", itemCount = 50, batchSize = 5, triggeredBy = "demo-ui" });
+        _ = Task.Run(() => ExecuteLinearAsync(invocationId, triggerParams));
         return invocationId;
     }
 
@@ -40,7 +42,8 @@ public sealed class DemoFlowRunner
     public Guid RunBranching()
     {
         var invocationId = Guid.NewGuid();
-        _ = Task.Run(() => ExecuteBranchingAsync(invocationId));
+        var triggerParams = Serialize(new { topology = "branching", itemCount = 40, routing = "priority", triggeredBy = "demo-ui" });
+        _ = Task.Run(() => ExecuteBranchingAsync(invocationId, triggerParams));
         return invocationId;
     }
 
@@ -50,13 +53,17 @@ public sealed class DemoFlowRunner
     public Guid RunFanIn()
     {
         var invocationId = Guid.NewGuid();
-        _ = Task.Run(() => ExecuteFanInAsync(invocationId));
+        var triggerParams = Serialize(new { topology = "fan-in", producerCount = 2, itemsPerProducer = 25, triggeredBy = "demo-ui" });
+        _ = Task.Run(() => ExecuteFanInAsync(invocationId, triggerParams));
         return invocationId;
     }
 
+    private static string Serialize(object value) =>
+        JsonSerializer.Serialize(value, new JsonSerializerOptions { WriteIndented = false });
+
     // -----------------------------------------------------------------------
 
-    private async Task ExecuteLinearAsync(Guid invocationId)
+    private async Task ExecuteLinearAsync(Guid invocationId, string? triggerParamsJson)
     {
         try
         {
@@ -75,7 +82,8 @@ public sealed class DemoFlowRunner
             graph.AddEdge(new Edge(batch, processor));
 
             using var scope = _services.CreateScope();
-            var ctx = new DataFlow.POC.Core.ExecutionContext(scope.ServiceProvider, CancellationToken.None, invocationId);
+            var ctx = new DataFlow.POC.Core.ExecutionContext(scope.ServiceProvider, CancellationToken.None, invocationId,
+                recoveryCheckpoint: null, metrics: null, triggerContext: null, triggerParamsJson: triggerParamsJson);
             await graph.ExecuteAsync(ctx);
         }
         catch (Exception ex)
@@ -84,7 +92,7 @@ public sealed class DemoFlowRunner
         }
     }
 
-    private async Task ExecuteBranchingAsync(Guid invocationId)
+    private async Task ExecuteBranchingAsync(Guid invocationId, string? triggerParamsJson)
     {
         try
         {
@@ -104,7 +112,8 @@ public sealed class DemoFlowRunner
             graph.AddEdge(new Edge(router, new[] { procHigh, procLow }, broadcastStrategy));
 
             using var scope = _services.CreateScope();
-            var ctx = new DataFlow.POC.Core.ExecutionContext(scope.ServiceProvider, CancellationToken.None, invocationId);
+            var ctx = new DataFlow.POC.Core.ExecutionContext(scope.ServiceProvider, CancellationToken.None, invocationId,
+                recoveryCheckpoint: null, metrics: null, triggerContext: null, triggerParamsJson: triggerParamsJson);
             await graph.ExecuteAsync(ctx);
         }
         catch (Exception ex)
@@ -113,7 +122,7 @@ public sealed class DemoFlowRunner
         }
     }
 
-    private async Task ExecuteFanInAsync(Guid invocationId)
+    private async Task ExecuteFanInAsync(Guid invocationId, string? triggerParamsJson)
     {
         try
         {
@@ -136,7 +145,8 @@ public sealed class DemoFlowRunner
             graph.AddEdge(new Edge(batch, processor));
 
             using var scope = _services.CreateScope();
-            var ctx = new DataFlow.POC.Core.ExecutionContext(scope.ServiceProvider, CancellationToken.None, invocationId);
+            var ctx = new DataFlow.POC.Core.ExecutionContext(scope.ServiceProvider, CancellationToken.None, invocationId,
+                recoveryCheckpoint: null, metrics: null, triggerContext: null, triggerParamsJson: triggerParamsJson);
             await graph.ExecuteAsync(ctx);
         }
         catch (Exception ex)

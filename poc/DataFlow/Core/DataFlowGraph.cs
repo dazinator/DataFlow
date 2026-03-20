@@ -250,11 +250,11 @@ public class DataFlowGraph
                 stopwatch = Stopwatch.StartNew();
             }
 
-            // Emit FlowStartedEvent
+            // Emit FlowStartedEvent (includes trigger params if provided)
             if (eventSink is not null)
             {
                 await eventSink.AppendAsync(context.InvocationId,
-                    new FlowStartedEvent(context.InvocationId, Name, DateTime.UtcNow));
+                    new FlowStartedEvent(context.InvocationId, Name, DateTime.UtcNow, context.TriggerParamsJson));
             }
 
             try

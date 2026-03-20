@@ -76,3 +76,35 @@
     font-size: 1.1rem;
     font-weight: 600;
 }
+
+.trigger-params-section {
+    margin-top: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.3);
+    padding-top: 0.75rem;
+}
+
+.trigger-params-summary {
+    font-size: 0.9rem;
+    font-weight: 600;
+    opacity: 0.9;
+    cursor: pointer;
+    user-select: none;
+}
+
+.trigger-params-summary:hover {
+    opacity: 1;
+}
+
+.trigger-params-json {
+    margin-top: 0.5rem;
+    padding: 0.75rem;
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: 4px;
+    font-size: 0.82rem;
+    font-family: 'Consolas', 'Monaco', monospace;
+    white-space: pre-wrap;
+    word-break: break-all;
+    color: #e8f4fd;
+    max-height: 300px;
+    overflow-y: auto;
+}

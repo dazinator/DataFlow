@@ -26,6 +26,7 @@ public class EventProcessor
         _state.FlowName = snapshot.FlowName;
         _state.StartTime = snapshot.StartTime;
         _state.State = snapshot.State;
+        _state.TriggerParamsJson = snapshot.TriggerParamsJson;
 
         foreach (var (blockName, blockSnapshot) in snapshot.Blocks)
         {
@@ -89,6 +90,7 @@ public class EventProcessor
         _state.FlowName = e.FlowName;
         _state.StartTime = e.Timestamp;
         _state.State = FlowState.Running;
+        _state.TriggerParamsJson = e.TriggerParamsJson;
     }
 
     private void ProcessFlowCompleted(FlowCompletedEvent e)

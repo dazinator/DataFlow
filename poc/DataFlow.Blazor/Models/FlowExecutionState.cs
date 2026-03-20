@@ -13,6 +13,7 @@ public class FlowExecutionState
     public DateTime? EndTime { get; set; }
     public FlowState State { get; set; } = FlowState.NotStarted;
     public string? ErrorMessage { get; set; }
+    public string? TriggerParamsJson { get; set; }
     
     public Dictionary<string, BlockState> Blocks { get; } = new();
     public Dictionary<string, ChannelState> Channels { get; } = new();

@@ -11,7 +11,8 @@ public record FlowSnapshot(
     DateTime? CompletedAt,
     string? ErrorMessage,
     Dictionary<string, BlockSnapshot> Blocks,
-    Dictionary<string, ChannelSnapshot> Channels
+    Dictionary<string, ChannelSnapshot> Channels,
+    string? TriggerParamsJson = null
 );
 
 public record BlockSnapshot(

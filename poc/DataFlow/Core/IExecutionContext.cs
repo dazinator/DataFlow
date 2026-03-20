@@ -59,6 +59,17 @@ public interface IExecutionContext
     /// Emits DataFlow events for this flow run. Null if no event sink is registered.
     /// </summary>
     IFlowEventEmitter? Events { get; }
+
+    /// <summary>
+    /// Optional JSON string representing the trigger parameters for this flow run.
+    /// When non-null, the value is captured in the <c>FlowStartedEvent</c> and
+    /// persisted in the initial snapshot so admins can inspect it via the UI.
+    /// <para>
+    /// <b>Security note:</b> this value is stored and forwarded to clients verbatim.
+    /// Sensitive values must be encrypted or omitted by the caller.
+    /// </para>
+    /// </summary>
+    string? TriggerParamsJson { get; }
 }
 
 /// <summary>
@@ -113,7 +124,8 @@ public class ExecutionContext : IExecutionContext
         Guid invocationId,
         ICheckpoint? recoveryCheckpoint,
         IDataFlowMetrics? metrics,
-        ITriggerContext? triggerContext)
+        ITriggerContext? triggerContext,
+        string? triggerParamsJson = null)
     {
         ServiceProvider = serviceProvider;
         CancellationToken = cancellationToken;
@@ -121,6 +133,7 @@ public class ExecutionContext : IExecutionContext
         RecoveryCheckpoint = recoveryCheckpoint;
         Metrics = metrics;
         TriggerContext = triggerContext;
+        TriggerParamsJson = triggerParamsJson;
         Parameters = new TriggerContextParameterProvider(triggerContext);
 
         var sink = serviceProvider.GetService(typeof(IFlowEventSink)) as IFlowEventSink;
@@ -135,4 +148,5 @@ public class ExecutionContext : IExecutionContext
     public ITriggerContext? TriggerContext { get; }
     public IParameterProvider Parameters { get; }
     public IFlowEventEmitter? Events { get; }
+    public string? TriggerParamsJson { get; }
 }

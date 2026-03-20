@@ -13,5 +13,6 @@ public record FlowSummaryDto(
     DateTime StartedAt,
     DateTime? CompletedAt,
     string? ErrorMessage,
-    int BlockCount
+    int BlockCount,
+    string? TriggerParamsJson = null
 );
