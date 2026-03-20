@@ -120,10 +120,16 @@ else
 
     private static string FormatDuration(FlowSummaryDto flow)
     {
-        var end = flow.CompletedAt ?? DateTime.UtcNow;
-        var span = end - flow.StartedAt;
         if (flow.Status == FlowState.Running)
-            return $"{span.TotalSeconds:F0}s…";
+        {
+            var running = DateTime.UtcNow - flow.StartedAt;
+            return $"{running.TotalSeconds:F0}s…";
+        }
+
+        if (flow.CompletedAt is null)
+            return "—"; // terminal state but no completion timestamp (incomplete history)
+
+        var span = flow.CompletedAt.Value - flow.StartedAt;
         if (span.TotalSeconds < 60)
             return span.TotalMilliseconds < 1000
                 ? $"{span.TotalMilliseconds:F0}ms"
