@@ -15,26 +15,72 @@ installation through to a working, themed component on screen.
 
 ---
 
-## Step 1 — Understand the target solution structure
+## Step 1 — Explore the codebase
 
-Before making any changes, read the solution to answer these questions:
+**Do not make any changes yet.** Use `Glob` and `Read` to build a picture of
+the solution. You are looking to answer:
 
-- Is this a **hosted Blazor WASM** solution (separate `.Client` and `.Server`
-  projects sharing one ASP.NET Core host), a **Blazor Server** app, or a
-  **standalone WASM** app?
-- Which project hosts the ASP.NET Core pipeline (`Program.cs` with
-  `WebApplication.CreateBuilder`)?
-- Which project is the Blazor client (`Program.cs` with
-  `WebAssemblyHostBuilder.CreateDefault`)?
-- Is there an existing EF Core `DbContext`? Which provider (SQLite, SQL Server,
-  PostgreSQL)?
-- Does the solution already reference any Uniun.DataFlow packages?
-
-Use `Glob` and `Read` to answer these before proceeding.
+- What is the hosting model? Hosted Blazor WASM (separate `.Client` / `.Server`
+  projects), Blazor Server, or standalone WASM?
+- Which `.csproj` is the ASP.NET Core host (contains `WebApplication.CreateBuilder`)?
+- Which `.csproj` is the Blazor client (contains `WebAssemblyHostBuilder`)?
+- Is there an existing `DbContext`? What is its name and EF Core provider
+  (SQLite, SQL Server, PostgreSQL, other)?
+- Does any project already reference `Uniun.DataFlow.*` packages? If so, which
+  ones and what versions?
+- Is there an existing nav menu, layout, or routing structure in the Blazor
+  client that the new page should slot into?
+- Is there an existing place in the codebase where DataFlow pipelines are
+  executed (a service, worker, controller)? What does it look like?
 
 ---
 
-## Step 2 — Install NuGet packages
+## Step 2 — Present findings and confirm the plan
+
+**Stop and talk to the user before writing any code.**
+
+Summarise what you found in Step 1 in a short, readable form, then present a
+proposed implementation plan. Flag any decisions that need the user's input.
+Do not proceed until the user confirms.
+
+Example structure for your message:
+
+---
+**What I found**
+
+| | |
+|---|---|
+| Hosting model | Hosted Blazor WASM (`MyApp.Server` + `MyApp.Client`) |
+| Existing DbContext | `AppDbContext` (SQL Server) in `MyApp.Server` |
+| DataFlow packages | `Uniun.DataFlow` 2.1.0 already referenced in `MyApp.Server` |
+| Pipeline execution | `InvoiceProcessingService.cs` — injected into a background worker |
+| Nav / routing | `NavMenu.razor` present; routes defined per-page with `@page` |
+
+**Proposed plan**
+
+1. Add `Uniun.DataFlow.Blazor.Server` to `MyApp.Server`
+2. Add `Uniun.DataFlow.Blazor` to `MyApp.Client`
+3. Use **Option B** (BYO DbContext) — merge entities into `AppDbContext`
+4. Wire `IFlowEventSink` into `InvoiceProcessingService`
+5. Add a `/flow-monitor/{invocationId}` page to `MyApp.Client`
+6. Add a nav link to the monitor page in `NavMenu.razor`
+
+**Questions before I start**
+
+- For the monitoring page route, is `/flow-monitor/{id}` appropriate, or would
+  you prefer a different path?
+- Should the nav link be visible to all users, or is there an auth policy I
+  should apply?
+- Any preference on where in `NavMenu.razor` the link should appear?
+---
+
+Adapt the questions to what you actually found. If everything is unambiguous,
+you can reduce the questions — but always show the plan and wait for a
+go-ahead before making file changes.
+
+---
+
+## Step 3 — Install NuGet packages
 
 ### Server / host project
 
@@ -63,7 +109,7 @@ This provides:
 
 ---
 
-## Step 3 — Server-side wiring (`Program.cs` of the ASP.NET Core host)
+## Step 4 — Server-side wiring (`Program.cs` of the ASP.NET Core host)
 
 ### Option A — dedicated DbContext (no existing EF setup)
 
@@ -146,7 +192,7 @@ dotnet ef database update --context MyAppDbContext
 
 ---
 
-## Step 4 — Client-side DI registration (`Program.cs` of the Blazor WASM project)
+## Step 5 — Client-side DI registration (`Program.cs` of the Blazor WASM project)
 
 ```csharp
 // Connects to the SignalR hub and the HTTP catch-up endpoint on the host.
@@ -165,7 +211,7 @@ builder.Services.AddScoped(sp =>
 
 ---
 
-## Step 5 — CSS setup in the host HTML
+## Step 6 — CSS setup in the host HTML
 
 Locate the host HTML file — `wwwroot/index.html` for hosted WASM,
 `Components/App.razor` for Blazor Server — and add both `<link>` tags inside
@@ -189,7 +235,7 @@ For a complete reference of every themeable CSS variable, see
 
 ---
 
-## Step 6 — Add `@using` to `_Imports.razor`
+## Step 7 — Add `@using` to `_Imports.razor`
 
 In the Blazor client project's `_Imports.razor`:
 
@@ -200,7 +246,7 @@ In the Blazor client project's `_Imports.razor`:
 
 ---
 
-## Step 7 — Drop the component onto a page
+## Step 8 — Drop the component onto a page
 
 Create a monitoring page or add to an existing one:
 
@@ -221,7 +267,7 @@ a service, or a route parameter.
 
 ---
 
-## Step 8 — Wire up `IFlowEventSink` in the DataFlow execution code
+## Step 9 — Wire up `IFlowEventSink` in the DataFlow execution code
 
 The visualization becomes live once the DataFlow engine emits events.
 `IFlowEventSink` is registered in the DI container by
@@ -271,7 +317,7 @@ public class PipelineRunner
 
 ---
 
-## Step 9 — Optional theming
+## Step 10 — Optional theming
 
 To match the application's colour scheme, override CSS variables in the app's
 own stylesheet (after the library stylesheets):
