@@ -24,7 +24,8 @@ public record BlockSnapshot(
     long ItemsProcessed,
     DateTime? StartTime,
     DateTime? EndTime,
-    string? ErrorMessage
+    string? ErrorMessage,
+    bool IsSource = false
 );
 
 public record ChannelSnapshot(

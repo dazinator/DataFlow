@@ -1,0 +1,235 @@
+@using System.Text.Json
+@using Microsoft.AspNetCore.Components
+@using Microsoft.Extensions.Options
+
+@inject IOptions<BlockDetailViewOptions> DetailViewOptions
+
+@if (Selection is not null && State is not null)
+{
+    <div class="detail-pane">
+        <div class="detail-pane-header">
+            <span class="detail-pane-title">@PaneTitle</span>
+            <button class="detail-pane-close" @onclick="Close" title="Close">✕</button>
+        </div>
+
+        <div class="detail-pane-body">
+            @if (Selection is TriggerSelected)
+            {
+                <div class="detail-section">
+                    <div class="detail-copy-row">
+                        <span class="detail-section-label">Trigger Parameters</span>
+                        <button class="detail-copy-btn" @onclick="CopyTriggerJson" title="Copy to clipboard">⎘</button>
+                    </div>
+                    <pre class="detail-json">@PrettyJson(State.TriggerParamsJson)</pre>
+                </div>
+            }
+            else if (Selection is BlockSelected selected)
+            {
+                @RenderBlockDetail(selected)
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public SelectedObject? Selection { get; set; }
+    [Parameter] public FlowExecutionState? State { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private string PaneTitle => Selection switch
+    {
+        TriggerSelected => "Trigger",
+        BlockSelected bs => bs.BlockName,
+        _ => ""
+    };
+
+    private Task Close() => OnClose.InvokeAsync();
+
+    private RenderFragment RenderBlockDetail(BlockSelected bs) => builder =>
+    {
+        if (State is null || !State.Blocks.TryGetValue(bs.BlockName, out var block)) return;
+
+        var customType = DetailViewOptions.Value.TryGet(block.BlockType);
+        if (customType is not null)
+        {
+            builder.OpenComponent(0, customType);
+            builder.AddAttribute(1, "BlockState", block);
+            builder.CloseComponent();
+            return;
+        }
+
+        // Default block summary card
+        builder.OpenElement(2, "div");
+        builder.AddAttribute(3, "class", "detail-section");
+
+        builder.OpenElement(4, "table");
+        builder.AddAttribute(5, "class", "detail-table");
+        builder.OpenElement(6, "tbody");
+
+        AddRow(builder, 10, "Name", block.BlockName, null);
+        AddRow(builder, 20, "Type", block.BlockType, "dt-mono");
+        AddRow(builder, 30, "Status", null, null, inner =>
+        {
+            inner.OpenElement(0, "span");
+            inner.AddAttribute(1, "class", $"block-state-badge {BlockStateCssClass(block.State)}");
+            inner.AddContent(2, block.State.ToString());
+            inner.CloseElement();
+        });
+        if (block.IsSource) AddRow(builder, 40, "Role", "Source", null);
+        if (block.StartTime.HasValue)
+            AddRow(builder, 50, "Start", block.StartTime.Value.ToLocalTime().ToString("HH:mm:ss.fff"), null);
+        if (block.Duration.HasValue)
+            AddRow(builder, 60, "Duration", FormatDuration(block.Duration.Value), null);
+        if (block.ItemsProcessed > 0)
+            AddRow(builder, 70, "Items", block.ItemsProcessed.ToString("N0"), null);
+        if (block.ErrorMessage is not null)
+            AddRow(builder, 80, "Error", block.ErrorMessage, "dt-mono dt-error", null, "dt-label dt-error");
+
+        builder.CloseElement(); // tbody
+        builder.CloseElement(); // table
+        builder.CloseElement(); // .detail-section
+
+        // Block event history
+        var blockEvents = State.EventLog
+            .Where(e => IsBlockEvent(e, bs.BlockName))
+            .ToList();
+
+        if (blockEvents.Count > 0)
+        {
+            builder.OpenElement(100, "div");
+            builder.AddAttribute(101, "class", "detail-section");
+
+            builder.OpenElement(102, "span");
+            builder.AddAttribute(103, "class", "detail-section-label");
+            builder.AddContent(104, "Event History");
+            builder.CloseElement();
+
+            builder.OpenElement(105, "table");
+            builder.AddAttribute(106, "class", "detail-table event-table");
+
+            builder.OpenElement(107, "thead");
+            builder.OpenElement(108, "tr");
+            foreach (var h in new[] { "Time", "Event", "Detail" })
+            {
+                builder.OpenElement(109, "th");
+                builder.AddContent(110, h);
+                builder.CloseElement();
+            }
+            builder.CloseElement(); // tr
+            builder.CloseElement(); // thead
+
+            builder.OpenElement(111, "tbody");
+            int seq = 200;
+            foreach (var evt in blockEvents)
+            {
+                builder.OpenElement(seq++, "tr");
+
+                builder.OpenElement(seq++, "td");
+                builder.AddAttribute(seq++, "class", "dt-mono");
+                builder.AddContent(seq++, EventTime(evt));
+                builder.CloseElement();
+
+                builder.OpenElement(seq++, "td");
+                builder.AddContent(seq++, EventLabel(evt));
+                builder.CloseElement();
+
+                builder.OpenElement(seq++, "td");
+                builder.AddAttribute(seq++, "class", "dt-mono");
+                builder.AddContent(seq++, EventDetail(evt));
+                builder.CloseElement();
+
+                builder.CloseElement(); // tr
+            }
+            builder.CloseElement(); // tbody
+            builder.CloseElement(); // table
+            builder.CloseElement(); // .detail-section
+        }
+    };
+
+    private static void AddRow(
+        Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder b,
+        int seq,
+        string label,
+        string? value,
+        string? valueClass,
+        RenderFragment? valueContent = null,
+        string? labelClass = null)
+    {
+        b.OpenElement(seq, "tr");
+        b.OpenElement(seq + 1, "td");
+        b.AddAttribute(seq + 2, "class", labelClass ?? "dt-label");
+        b.AddContent(seq + 3, label);
+        b.CloseElement();
+        b.OpenElement(seq + 4, "td");
+        b.AddAttribute(seq + 5, "class", $"dt-value {valueClass}".TrimEnd());
+        if (valueContent is not null)
+            valueContent(b);
+        else
+            b.AddContent(seq + 6, value);
+        b.CloseElement();
+        b.CloseElement(); // tr
+    }
+
+    private static string PrettyJson(string? json)
+    {
+        if (string.IsNullOrEmpty(json)) return "(none)";
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            return JsonSerializer.Serialize(doc.RootElement, new JsonSerializerOptions { WriteIndented = true });
+        }
+        catch { return json; }
+    }
+
+    private async Task CopyTriggerJson()
+    {
+        await Task.CompletedTask;
+    }
+
+    private static string BlockStateCssClass(Events.BlockState state) => state switch
+    {
+        Events.BlockState.Running   => "bsb-running",
+        Events.BlockState.Completed => "bsb-completed",
+        Events.BlockState.Failed    => "bsb-failed",
+        _                           => "bsb-idle"
+    };
+
+    private static string FormatDuration(TimeSpan d)
+    {
+        if (d.TotalHours >= 1) return $"{d.Hours}h {d.Minutes}m {d.Seconds}s";
+        if (d.TotalMinutes >= 1) return $"{d.Minutes}m {d.Seconds}s";
+        return $"{d.Seconds}.{d.Milliseconds:000}s";
+    }
+
+    private static bool IsBlockEvent(IDataFlowEvent evt, string blockName) => evt switch
+    {
+        BlockStartedEvent e   => e.BlockName == blockName,
+        BlockCompletedEvent e => e.BlockName == blockName,
+        BlockProgressEvent e  => e.BlockName == blockName,
+        _ => false
+    };
+
+    private static string EventTime(IDataFlowEvent evt) => evt switch
+    {
+        BlockStartedEvent e   => e.Timestamp.ToLocalTime().ToString("HH:mm:ss.fff"),
+        BlockCompletedEvent e => e.Timestamp.ToLocalTime().ToString("HH:mm:ss.fff"),
+        BlockProgressEvent e  => e.Timestamp.ToLocalTime().ToString("HH:mm:ss.fff"),
+        _ => ""
+    };
+
+    private static string EventLabel(IDataFlowEvent evt) => evt switch
+    {
+        BlockStartedEvent   => "Started",
+        BlockCompletedEvent => "Completed",
+        BlockProgressEvent  => "Progress",
+        _ => evt.GetType().Name
+    };
+
+    private static string EventDetail(IDataFlowEvent evt) => evt switch
+    {
+        BlockStartedEvent e   => e.IsSource ? "source" : "",
+        BlockCompletedEvent e => e.Success ? "✓" : $"✗ {e.ErrorMessage}",
+        BlockProgressEvent e  => $"{e.ItemsProcessed:N0} items",
+        _ => ""
+    };
+}

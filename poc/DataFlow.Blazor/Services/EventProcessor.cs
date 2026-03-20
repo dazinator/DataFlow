@@ -35,6 +35,7 @@ public class EventProcessor
                 BlockName = blockSnapshot.BlockName,
                 BlockType = blockSnapshot.BlockType,
                 State = blockSnapshot.State,
+                IsSource = blockSnapshot.IsSource,
                 ItemsProcessed = blockSnapshot.ItemsProcessed,
                 StartTime = blockSnapshot.StartTime,
                 EndTime = blockSnapshot.EndTime,
@@ -61,6 +62,8 @@ public class EventProcessor
     /// </summary>
     public void ProcessEvent(IDataFlowEvent evt)
     {
+        _state.EventLog.Add(evt);
+
         switch (evt)
         {
             case FlowStartedEvent e:
@@ -112,6 +115,7 @@ public class EventProcessor
             _state.Blocks[e.BlockName] = blockState;
         }
 
+        blockState.IsSource = e.IsSource;
         blockState.StartTime = e.Timestamp;
         blockState.State = Events.BlockState.Running;
     }

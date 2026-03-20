@@ -3,7 +3,8 @@ namespace DataFlow.Blazor.Events;
 public record BlockStartedEvent(
     string BlockName,
     string BlockType,
-    DateTime Timestamp
+    DateTime Timestamp,
+    bool IsSource = false
 ) : IDataFlowEvent;
 
 public record BlockCompletedEvent(

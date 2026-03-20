@@ -663,8 +663,9 @@ public class DataFlowGraph
                 // Emit BlockStartedEvent
                 if (eventSink is not null)
                 {
+                    var isSource = !_incomingEdges.ContainsKey(_block) || _incomingEdges[_block].Count == 0;
                     await eventSink.AppendAsync(context.InvocationId,
-                        new BlockStartedEvent(_block.Name, _block.GetType().Name, DateTime.UtcNow));
+                        new BlockStartedEvent(_block.Name, _block.GetType().Name, DateTime.UtcNow, IsSource: isSource));
                 }
 
                 var adapter = Adapter!;
@@ -683,7 +684,7 @@ public class DataFlowGraph
 
                 // Collect output routers from edges and buffer nodes
                 var outputRouters = new List<ITypedEdgeRouter>();
-                Func<object, List<ITypedEdgeRouter>, CancellationToken, Task>? epochStreamDelegate = null;
+                Func<object, List<ITypedEdgeRouter>, CancellationToken, Task<long>>? epochStreamDelegate = null;
 
                 // Add routers from regular edges
                 if (_outgoingEdges.ContainsKey(_block) && _outgoingEdges[_block].Count > 0)
@@ -704,28 +705,36 @@ public class DataFlowGraph
                 }
 
                 // Route output
+                long itemsEmitted;
                 if (outputRouters.Count > 0)
                 {
                    logger.LogDebug("Block {BlockName} routing output to {RouterCount} routers", _block.Name, outputRouters.Count);
                     // Enumerate typed output and route without boxing
                     // Use pre-compiled epoch stream delegate if available (eliminates type checks)
-                    await ReflectionHelper.EnumerateAndRouteTypedStreamAsync(
-                        typedOutput, 
-                        adapter.OutputItemType, 
+                    itemsEmitted = await ReflectionHelper.EnumerateAndRouteTypedStreamAsync(
+                        typedOutput,
+                        adapter.OutputItemType,
                         outputRouters,
                         epochStreamDelegate,
                         context.CancellationToken);
-                    
+
                     logger.LogDebug("Block {BlockName} completed routing output", _block.Name);
                 }
                 else
                 {
                     logger.LogDebug("Block {BlockName} is terminal, enumerating to completion", _block.Name);
-                    
+
                     // Terminal block - enumerate output to completion
-                    await ReflectionHelper.EnumerateTypedStreamAsync(typedOutput, adapter.OutputItemType, context.CancellationToken);
-                    
+                    itemsEmitted = await ReflectionHelper.EnumerateTypedStreamAsync(typedOutput, adapter.OutputItemType, context.CancellationToken);
+
                     logger.LogDebug("Block {BlockName} completed enumeration", _block.Name);
+                }
+
+                // Emit final BlockProgressEvent if any items were emitted
+                if (itemsEmitted > 0 && eventSink is not null)
+                {
+                    await eventSink.AppendAsync(context.InvocationId,
+                        new BlockProgressEvent(_block.Name, itemsEmitted, DateTime.UtcNow));
                 }
 
                 // Complete all outgoing typed channels
@@ -803,7 +812,7 @@ public class DataFlowGraph
         /// If not null, this edge routes epoch streams and the delegate should be used
         /// instead of generic routing logic. Compiled once at graph build time.
         /// </summary>
-        public Func<object, List<ITypedEdgeRouter>, CancellationToken, Task>? EpochStreamRoutingDelegate { get; set; }
+        public Func<object, List<ITypedEdgeRouter>, CancellationToken, Task<long>>? EpochStreamRoutingDelegate { get; set; }
         
         /// <summary>
         /// Pre-compiled container routing delegate for epoch streams.

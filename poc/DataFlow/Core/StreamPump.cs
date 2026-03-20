@@ -15,21 +15,22 @@ internal static class StreamPump
     /// Cache for compiled epoch stream routing delegates to avoid repeated reflection.
     /// Key is the item type (TItem), value is the compiled delegate.
     /// </summary>
-    private static readonly ConcurrentDictionary<Type, Func<object, List<ITypedEdgeRouter>, CancellationToken, Task>>
+    private static readonly ConcurrentDictionary<Type, Func<object, List<ITypedEdgeRouter>, CancellationToken, Task<long>>>
         _epochRoutingCache = new();
 
     /// <summary>
     /// Cache for compiled terminal epoch stream enumeration delegates to avoid repeated reflection.
     /// Key is the item type (TItem), value is the compiled delegate.
     /// </summary>
-    private static readonly ConcurrentDictionary<Type, Func<object, CancellationToken, Task>>
+    private static readonly ConcurrentDictionary<Type, Func<object, CancellationToken, Task<long>>>
         _epochTerminalCache = new();
 
     /// <summary>
     /// Creates or retrieves a cached delegate that drives an epoch stream through the given routers.
     /// Called by ReflectionHelper.CreateEpochStreamRoutingDelegate to build the per-edge pre-compiled delegate.
+    /// Returns the number of items emitted.
     /// </summary>
-    internal static Func<object, List<ITypedEdgeRouter>, CancellationToken, Task> CreateEpochRoutingDelegate(Type itemType)
+    internal static Func<object, List<ITypedEdgeRouter>, CancellationToken, Task<long>> CreateEpochRoutingDelegate(Type itemType)
     {
         return _epochRoutingCache.GetOrAdd(itemType, type =>
         {
@@ -39,7 +40,7 @@ internal static class StreamPump
                 ?? throw new InvalidOperationException($"Could not find method {nameof(EnumerateAndRouteEpochStreamAsync)}");
 
             var genericMethod = method.MakeGenericMethod(type);
-            return (stream, rtrs, ct) => (Task)genericMethod.Invoke(null, new object[] { stream, rtrs, ct })!;
+            return (stream, rtrs, ct) => (Task<long>)genericMethod.Invoke(null, new object[] { stream, rtrs, ct })!;
         });
     }
 
@@ -52,7 +53,7 @@ internal static class StreamPump
     ///           await ((TypedEdgeRouter&lt;T&gt;)router).RouteTypedItemAsync(item, cancellationToken);
     ///   }
     /// </summary>
-    internal static async Task EnumerateAndRouteTypedStreamGenericAsync<T>(
+    internal static async Task<long> EnumerateAndRouteTypedStreamGenericAsync<T>(
         object typedStream,
         List<ITypedEdgeRouter> routers,
         CancellationToken cancellationToken)
@@ -68,14 +69,16 @@ internal static class StreamPump
             var routingDelegate = CreateEpochRoutingDelegate(itemType);
 
             // Use the cached delegate to route the epoch stream
-            await routingDelegate(typedStream, routers, cancellationToken);
-            return;
+            return await routingDelegate(typedStream, routers, cancellationToken);
         }
 
         // Standard routing for non-epoch stream types
+        long itemsEmitted = 0;
         var stream = (IAsyncEnumerable<T>)typedStream;
         await foreach (var item in stream.WithCancellation(cancellationToken))
         {
+            itemsEmitted++;
+
             // Route to all routers concurrently - this enables parallel broadcast/routing
             // Each router writes to its channel(s) in parallel, avoiding serialization bottleneck
             if (routers.Count == 1)
@@ -112,13 +115,14 @@ internal static class StreamPump
                 await Task.WhenAll(routingTasks).ConfigureAwait(false);
             }
         }
+        return itemsEmitted;
     }
 
     /// <summary>
     /// Enumerates a typed stream to completion (for terminal blocks).
     /// When T is IEpochStream&lt;TItem&gt;, also enumerates inner items to drive the pipeline to completion.
     /// </summary>
-    internal static async Task EnumerateTypedStreamGenericAsync<T>(
+    internal static async Task<long> EnumerateTypedStreamGenericAsync<T>(
         object typedStream,
         CancellationToken cancellationToken)
     {
@@ -141,18 +145,19 @@ internal static class StreamPump
                 }
 
                 var genericMethod = method.MakeGenericMethod(type);
-                return (stream, ct) => (Task)genericMethod.Invoke(null, new object[] { stream, ct })!;
+                return (stream, ct) => (Task<long>)genericMethod.Invoke(null, new object[] { stream, ct })!;
             });
 
-            await terminalDelegate(typedStream, cancellationToken);
-            return;
+            return await terminalDelegate(typedStream, cancellationToken);
         }
 
+        long itemsEmitted = 0;
         var stream = (IAsyncEnumerable<T>)typedStream;
         await foreach (var item in stream.WithCancellation(cancellationToken))
         {
-            // Enumerate to completion - terminal blocks
+            itemsEmitted++;
         }
+        return itemsEmitted;
     }
 
     /// <summary>
@@ -160,10 +165,11 @@ internal static class StreamPump
     /// Consumes both the outer stream of epoch containers and the inner items within each epoch,
     /// ensuring the actor's RunAsync is fully executed even when there are no downstream blocks.
     /// </summary>
-    private static async Task EnumerateEpochStreamTerminalAsync<TItem>(
+    private static async Task<long> EnumerateEpochStreamTerminalAsync<TItem>(
         object typedStream,
         CancellationToken cancellationToken)
     {
+        long itemsEmitted = 0;
         var stream = (IAsyncEnumerable<IEpochStream<TItem>>)typedStream;
         await foreach (var epochStream in stream.WithCancellation(cancellationToken))
         {
@@ -171,7 +177,7 @@ internal static class StreamPump
             {
                 await foreach (var item in epochStream.Items.WithCancellation(cancellationToken))
                 {
-                    // Consume items to drive the actor's RunAsync to completion
+                    itemsEmitted++;
                 }
             }
             finally
@@ -179,6 +185,7 @@ internal static class StreamPump
                 await epochStream.DisposeAsync();
             }
         }
+        return itemsEmitted;
     }
 
     /// <summary>
@@ -258,11 +265,12 @@ internal static class StreamPump
     /// This fixes the architectural mismatch where edges route containers instead of items.
     /// </summary>
     /// <typeparam name="TItem">The type of items within epoch streams</typeparam>
-    private static async Task EnumerateAndRouteEpochStreamAsync<TItem>(
+    private static async Task<long> EnumerateAndRouteEpochStreamAsync<TItem>(
         object typedStream,
         List<ITypedEdgeRouter> routers,
         CancellationToken cancellationToken)
     {
+        long itemsEmitted = 0;
         var stream = (IAsyncEnumerable<IEpochStream<TItem>>)typedStream;
 
         await foreach (var epochStream in stream.WithCancellation(cancellationToken))
@@ -284,6 +292,7 @@ internal static class StreamPump
                 // Uses pre-built topology for zero-lookup routing
                 await foreach (var item in epochStream.Items.WithCancellation(cancellationToken))
                 {
+                    itemsEmitted++;
                     await RouteItemToDownstreamChannelsAsync(
                         item, topologyByEdge, totalMaxWriteTasks, cancellationToken);
                 }
@@ -319,6 +328,7 @@ internal static class StreamPump
                 await epochStream.DisposeAsync();
             }
         }
+        return itemsEmitted;
     }
 
     /// <summary>

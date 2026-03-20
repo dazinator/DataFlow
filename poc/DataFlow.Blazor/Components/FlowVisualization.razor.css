@@ -14,3 +14,54 @@
     font-size: 1.2em;
     color: var(--df-text-loading);
 }
+
+/* Thin bar above the diagram — holds trigger icon / future toolbar items */
+.diagram-header-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.5rem;
+    background: var(--df-surface-muted);
+    border: 1px solid var(--df-surface-border);
+    border-bottom: none;
+    border-radius: var(--df-radius) var(--df-radius) 0 0;
+    min-height: 32px;
+}
+
+.trigger-icon-btn {
+    background: none;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    padding: 2px 8px;
+    color: var(--df-text-muted);
+    transition: background 0.1s, border-color 0.1s, color 0.1s;
+}
+
+.trigger-icon-btn:hover {
+    background: var(--df-surface-hover);
+    border-color: var(--df-surface-border);
+    color: var(--df-text-body);
+}
+
+.trigger-icon-btn.active {
+    background: #e8f0fe;
+    border-color: #3d74f4;
+    color: #1a56db;
+}
+
+/* Diagram row: SVG grows, detail pane fixed width */
+.diagram-area {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    border: 1px solid var(--df-surface-border);
+    border-radius: 0 0 var(--df-radius) var(--df-radius);
+}
+
+.diagram-svg-wrap {
+    flex: 1;
+    overflow: auto;
+    min-width: 0;
+}

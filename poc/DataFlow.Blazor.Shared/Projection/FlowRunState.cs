@@ -36,6 +36,7 @@ public record BlockRunState
     public DateTime? StartedAt { get; init; }
     public DateTime? CompletedAt { get; init; }
     public string? ErrorMessage { get; init; }
+    public bool IsSource { get; init; }
 }
 
 public record ChannelRunState

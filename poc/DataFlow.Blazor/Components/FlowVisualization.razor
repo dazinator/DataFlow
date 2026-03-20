@@ -6,7 +6,34 @@
     @if (_state != null)
     {
         <FlowStatusPanel State="_state" />
-        <FlowDiagram State="_state" />
+
+        @* Thin header bar — holds trigger icon and future toolbar items *@
+        @if (!string.IsNullOrEmpty(_state.TriggerParamsJson))
+        {
+            <div class="diagram-header-bar">
+                <button class="trigger-icon-btn @(_selection is TriggerSelected ? "active" : "")"
+                        title="Trigger parameters"
+                        @onclick="ToggleTrigger">
+                    ⚡ Trigger
+                </button>
+            </div>
+        }
+
+        @* Diagram + detail pane side-by-side *@
+        <div class="diagram-area">
+            <div class="diagram-svg-wrap">
+                <FlowDiagram State="_state"
+                             Selection="_selection"
+                             OnSelectionChanged="OnSelectionChanged" />
+            </div>
+
+            @if (_selection is not null)
+            {
+                <DetailPane State="_state"
+                            Selection="_selection"
+                            OnClose="ClosePane" />
+            }
+        </div>
     }
     else
     {
@@ -24,6 +51,7 @@
     private FlowExecutionState? _state;
     private EventProcessor? _processor;
     private CancellationTokenSource? _cts;
+    private SelectedObject? _selection;
 
     protected override async Task OnInitializedAsync()
     {
@@ -40,7 +68,7 @@
         try
         {
             var eventSource = EventSourceOverride ?? EventSource;
-            
+
             // Try to get snapshot first for fast initial load
             var snapshot = await eventSource.GetSnapshotAsync(InvocationId, cancellationToken);
             if (snapshot != null)
@@ -68,6 +96,15 @@
             Console.WriteLine($"Error processing events: {ex.Message}");
         }
     }
+
+    private void ToggleTrigger()
+    {
+        _selection = _selection is TriggerSelected ? null : new TriggerSelected();
+    }
+
+    private void OnSelectionChanged(SelectedObject? next) => _selection = next;
+
+    private void ClosePane() => _selection = null;
 
     public void Dispose()
     {

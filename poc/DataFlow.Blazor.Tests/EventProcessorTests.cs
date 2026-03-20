@@ -141,20 +141,20 @@ public class EventProcessorTests
     }
 
     [Fact]
-    public void EventProcessor_CalculatesTotalItemsProcessed()
+    public void EventProcessor_CalculatesTotalSourceItemsIngested()
     {
-        // Arrange
+        // Arrange - block1 is a source, block2 is a downstream transform
         var processor = new EventProcessor(Guid.NewGuid());
-        processor.ProcessEvent(new BlockStartedEvent("block1", "ProducerBlock", DateTime.UtcNow));
-        processor.ProcessEvent(new BlockStartedEvent("block2", "TransformBlock", DateTime.UtcNow));
+        processor.ProcessEvent(new BlockStartedEvent("block1", "ProducerBlock", DateTime.UtcNow, IsSource: true));
+        processor.ProcessEvent(new BlockStartedEvent("block2", "TransformBlock", DateTime.UtcNow, IsSource: false));
         processor.ProcessEvent(new BlockProgressEvent("block1", 100, DateTime.UtcNow));
         processor.ProcessEvent(new BlockProgressEvent("block2", 200, DateTime.UtcNow));
 
-        // Act
-        var totalItems = processor.State.TotalItemsProcessed;
+        // Act — only source blocks count; transform items are double-counted if summed across all blocks
+        var totalItems = processor.State.TotalSourceItemsIngested;
 
         // Assert
-        Assert.Equal(300, totalItems);
+        Assert.Equal(100, totalItems);
     }
 
     [Fact]

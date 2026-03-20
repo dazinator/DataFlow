@@ -17,6 +17,7 @@ public class FlowExecutionState
     
     public Dictionary<string, BlockState> Blocks { get; } = new();
     public Dictionary<string, ChannelState> Channels { get; } = new();
+    public List<IDataFlowEvent> EventLog { get; } = new();
 
     /// <summary>
     /// Gets the total duration of the flow execution.
@@ -32,9 +33,11 @@ public class FlowExecutionState
     }
 
     /// <summary>
-    /// Gets the total number of items processed across all blocks.
+    /// Gets the total number of items ingested by source blocks (blocks with no incoming edges).
+    /// This is the correct flow-level total — summing all blocks double-counts items that pass
+    /// through multiple stages.
     /// </summary>
-    public long TotalItemsProcessed => Blocks.Values.Sum(b => b.ItemsProcessed);
+    public long TotalSourceItemsIngested => Blocks.Values.Where(b => b.IsSource).Sum(b => b.ItemsProcessed);
 }
 
 /// <summary>
@@ -45,6 +48,7 @@ public class BlockState
     public string BlockName { get; set; } = string.Empty;
     public string BlockType { get; set; } = string.Empty;
     public Events.BlockState State { get; set; } = Events.BlockState.Idle;
+    public bool IsSource { get; set; }
     public long ItemsProcessed { get; set; }
     public DateTime? StartTime { get; set; }
     public DateTime? EndTime { get; set; }

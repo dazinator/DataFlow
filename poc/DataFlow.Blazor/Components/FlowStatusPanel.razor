@@ -1,4 +1,3 @@
-@using System.Text.Json
 @implements IAsyncDisposable
 
 <div class="flow-status-panel">
@@ -26,40 +25,20 @@
             </div>
         }
 
-        <div class="metric">
-            <span class="metric-label">Items Processed:</span>
-            <span class="metric-value">@State.TotalItemsProcessed.ToString("N0")</span>
-        </div>
-
-        <div class="metric">
-            <span class="metric-label">Blocks:</span>
-            <span class="metric-value">@State.Blocks.Count</span>
-        </div>
+        @if (State.TotalSourceItemsIngested > 0)
+        {
+            <div class="metric">
+                <span class="metric-label">Items Ingested:</span>
+                <span class="metric-value">@State.TotalSourceItemsIngested.ToString("N0")</span>
+            </div>
+        }
     </div>
 
 </div>
 
-@if (!string.IsNullOrEmpty(State.TriggerParamsJson))
-{
-    <div class="trigger-params-card">
-        <button class="trigger-params-toggle" @onclick="ToggleParams">
-            <span class="trigger-params-chevron @(_paramsOpen ? "open" : "")">›</span>
-            <span class="trigger-params-title">Trigger Parameters</span>
-            <span class="trigger-params-hint">@(State.TriggerParamsJson!.Length) chars</span>
-        </button>
-        @if (_paramsOpen)
-        {
-            <pre class="trigger-params-json">@PrettyPrintJson(State.TriggerParamsJson)</pre>
-        }
-    </div>
-}
-
 @code {
     [Parameter]
     public FlowExecutionState State { get; set; } = null!;
-
-    private bool _paramsOpen = false;
-    private void ToggleParams() => _paramsOpen = !_paramsOpen;
 
     private CancellationTokenSource _cts = new();
 
@@ -115,16 +94,4 @@
         return $"{duration.Seconds}.{duration.Milliseconds:000}s";
     }
 
-    private static string PrettyPrintJson(string json)
-    {
-        try
-        {
-            using var doc = JsonDocument.Parse(json);
-            return JsonSerializer.Serialize(doc.RootElement, new JsonSerializerOptions { WriteIndented = true });
-        }
-        catch
-        {
-            return json; // return as-is if not valid JSON
-        }
-    }
 }

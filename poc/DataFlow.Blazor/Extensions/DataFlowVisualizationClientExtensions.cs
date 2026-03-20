@@ -1,6 +1,7 @@
 namespace DataFlow.Blazor.Extensions;
 
 using DataFlow.Blazor.Events;
+using DataFlow.Blazor.Models;
 using DataFlow.Blazor.Services;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -45,6 +46,8 @@ public static class DataFlowVisualizationClientExtensions
             var http = sp.GetRequiredService<HttpClient>();
             return new HttpFlowListSource(http);
         });
+
+        services.AddOptions<BlockDetailViewOptions>();
 
         return services;
     }

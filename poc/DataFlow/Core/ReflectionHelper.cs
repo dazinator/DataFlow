@@ -59,7 +59,7 @@ public static class ReflectionHelper
     /// This should be called once at graph build time if the edge routes epoch streams.
     /// Returns null if the type is not an epoch stream type.
     /// </summary>
-    public static Func<object, List<ITypedEdgeRouter>, CancellationToken, Task>? CreateEpochStreamRoutingDelegate(Type edgeDataType)
+    public static Func<object, List<ITypedEdgeRouter>, CancellationToken, Task<long>>? CreateEpochStreamRoutingDelegate(Type edgeDataType)
     {
         if (!IsEpochStreamType(edgeDataType))
         {
@@ -244,39 +244,35 @@ public static class ReflectionHelper
     /// <param name="routers">The routers to route items through</param>
     /// <param name="epochStreamDelegate">Pre-compiled epoch stream routing delegate (if available from graph build time)</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    public static async Task EnumerateAndRouteTypedStreamAsync(
+    public static async Task<long> EnumerateAndRouteTypedStreamAsync(
         object typedStream,
         Type itemType,
         List<ITypedEdgeRouter> routers,
-        Func<object, List<ITypedEdgeRouter>, CancellationToken, Task>? epochStreamDelegate,
+        Func<object, List<ITypedEdgeRouter>, CancellationToken, Task<long>>? epochStreamDelegate,
         CancellationToken cancellationToken)
     {
         // If we have a pre-compiled epoch stream delegate, use it directly
         // This path eliminates all type checking and reflection during execution
         if (epochStreamDelegate != null)
         {
-            await epochStreamDelegate(typedStream, routers, cancellationToken);
-            return;
+            return await epochStreamDelegate(typedStream, routers, cancellationToken);
         }
-        
+
         // Fallback: compile the delegate at runtime (for backwards compatibility or buffer nodes)
         // Equivalent to: await StreamPump.EnumerateAndRouteTypedStreamGenericAsync<T>(typedStream, routers, cancellationToken);
         var method = typeof(StreamPump).GetMethod(
             nameof(StreamPump.EnumerateAndRouteTypedStreamGenericAsync),
             BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Public);
-        
+
         if (method == null)
         {
             throw new InvalidOperationException($"Could not find method {nameof(StreamPump.EnumerateAndRouteTypedStreamGenericAsync)}");
         }
-        
+
         var genericMethod = method.MakeGenericMethod(itemType);
-        var task = (Task?)genericMethod.Invoke(null, new object[] { typedStream, routers, cancellationToken });
-        
-        if (task != null)
-        {
-            await task;
-        }
+        var task = (Task<long>?)genericMethod.Invoke(null, new object[] { typedStream, routers, cancellationToken });
+
+        return task != null ? await task : 0L;
     }
     
     /// <summary>
@@ -287,7 +283,7 @@ public static class ReflectionHelper
     ///       // Items are enumerated but not used
     ///   }
     /// </summary>
-    public static async Task EnumerateTypedStreamAsync(
+    public static async Task<long> EnumerateTypedStreamAsync(
         object typedStream,
         Type itemType,
         CancellationToken cancellationToken)
@@ -296,19 +292,16 @@ public static class ReflectionHelper
         var method = typeof(StreamPump).GetMethod(
             nameof(StreamPump.EnumerateTypedStreamGenericAsync),
             BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Public);
-        
+
         if (method == null)
         {
             throw new InvalidOperationException($"Could not find method {nameof(StreamPump.EnumerateTypedStreamGenericAsync)}");
         }
-        
+
         var genericMethod = method.MakeGenericMethod(itemType);
-        var task = (Task?)genericMethod.Invoke(null, new object[] { typedStream, cancellationToken });
-        
-        if (task != null)
-        {
-            await task;
-        }
+        var task = (Task<long>?)genericMethod.Invoke(null, new object[] { typedStream, cancellationToken });
+
+        return task != null ? await task : 0L;
     }
     
     /// <summary>

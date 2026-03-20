@@ -22,7 +22,6 @@ else
                 <th style="padding: 0.5rem 0.75rem;">Status</th>
                 <th style="padding: 0.5rem 0.75rem;">Started</th>
                 <th style="padding: 0.5rem 0.75rem;">Duration</th>
-                <th style="padding: 0.5rem 0.75rem;">Blocks</th>
                 <th style="padding: 0.5rem 0.75rem;"></th>
             </tr>
         </thead>
@@ -50,7 +49,6 @@ else
                     <td style="padding: 0.5rem 0.75rem; color: #495057;">
                         @FormatDuration(flow)
                     </td>
-                    <td style="padding: 0.5rem 0.75rem; color: #495057;">@flow.BlockCount</td>
                     <td style="padding: 0.5rem 0.75rem; text-align: right;">
                         @if (flow.ErrorMessage is not null)
                         {

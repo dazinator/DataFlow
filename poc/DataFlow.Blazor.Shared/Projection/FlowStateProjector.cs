@@ -34,13 +34,14 @@ public static class FlowStateProjector
         {
             Blocks = state.Blocks.SetItem(e.BlockName,
                 state.Blocks.TryGetValue(e.BlockName, out var existing)
-                    ? existing with { Status = BlockState.Running, StartedAt = e.Timestamp }
+                    ? existing with { Status = BlockState.Running, StartedAt = e.Timestamp, IsSource = e.IsSource }
                     : new BlockRunState
                     {
                         BlockName = e.BlockName,
                         BlockType = e.BlockType,
                         Status = BlockState.Running,
-                        StartedAt = e.Timestamp
+                        StartedAt = e.Timestamp,
+                        IsSource = e.IsSource
                     })
         },
 
@@ -98,7 +99,8 @@ public static class FlowStateProjector
                 kv.Value.ItemsProcessed,
                 kv.Value.StartedAt,
                 kv.Value.CompletedAt,
-                kv.Value.ErrorMessage)),
+                kv.Value.ErrorMessage,
+                kv.Value.IsSource)),
         Channels: state.Channels.ToDictionary(
             kv => kv.Key,
             kv => new ChannelSnapshot(
@@ -133,7 +135,8 @@ public static class FlowStateProjector
                     ItemsProcessed = kv.Value.ItemsProcessed,
                     StartedAt = kv.Value.StartTime,
                     CompletedAt = kv.Value.EndTime,
-                    ErrorMessage = kv.Value.ErrorMessage
+                    ErrorMessage = kv.Value.ErrorMessage,
+                    IsSource = kv.Value.IsSource
                 }),
         Channels = snapshot.Channels
             .ToImmutableDictionary(
