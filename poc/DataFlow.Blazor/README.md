@@ -53,29 +53,40 @@ In your Blazor page:
 
 The visualization will automatically connect to the event source and display real-time updates.
 
-## CSS Dependencies
+## CSS setup
 
-**None required!** The DataFlow.Blazor library is **self-contained** with all styling built into the components via scoped CSS. You don't need to:
-- ❌ Import any CSS files
-- ❌ Add Bootstrap or other CSS frameworks
-- ❌ Configure any build steps
+Add both `<link>` tags to your host HTML file (`wwwroot/index.html` for hosted
+WASM, `Components/App.razor` for Blazor Server) inside `<head>`:
 
-Simply add the component to your page and it works out of the box. The component includes:
-- ✅ Scoped CSS for all visual elements (`.razor.css` files)
-- ✅ SVG-based diagram with inline styling
-- ✅ Responsive layout that adapts to container width
-- ✅ Color schemes and animations built-in
+```html
+<!-- 1. Scoped component styles — always required -->
+<link rel="stylesheet"
+      href="_content/Uniun.DataFlow.Blazor/Uniun.DataFlow.Blazor.styles.css" />
 
-**Optional**: If you want to customize colors or spacing, you can override CSS custom properties in your app's global CSS:
+<!-- 2. Default theme variables — required for colours, fonts, and radii -->
+<link rel="stylesheet"
+      href="_content/Uniun.DataFlow.Blazor/dataflow-blazor.css" />
+```
+
+No external CSS frameworks (Bootstrap, Tailwind, etc.) are needed.
+
+### Theming
+
+All visual tokens — colours, radii, shadows, and fonts — are exposed as CSS
+custom properties (`--df-*`). Override any of them in your own stylesheet
+(loaded **after** the library):
 
 ```css
-/* Optional customization in app.css */
+/* app.css */
 :root {
-    --flow-running-color: #ffc107;  /* Default yellow for running state */
-    --flow-completed-color: #28a745;  /* Default green for completed */
-    --flow-failed-color: #dc3545;  /* Default red for failed */
+    --df-panel-header-from: #1a1a2e;
+    --df-panel-header-to:   #16213e;
+    --df-radius:            4px;
 }
 ```
+
+See [`docs/guides/blazor-theming.md`](../../docs/guides/blazor-theming.md) for
+the full variable reference and a worked dark-theme example.
 
 ## Event Model
 
