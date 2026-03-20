@@ -29,7 +29,7 @@ internal static class FlowListEndpoints
             CancellationToken cancellationToken) =>
         {
             var snapshots = await db.FlowSnapshotRecords
-                .OrderByDescending(s => s.CreatedAt)
+                .OrderByDescending(s => s.AsOfEventId)
                 .ToListAsync(cancellationToken);
 
             var summaries = snapshots
