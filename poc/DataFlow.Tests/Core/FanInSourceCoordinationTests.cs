@@ -668,16 +668,18 @@ public class FanInSourceCoordinationTests : IAsyncDisposable
     {
         private readonly ServiceProvider _serviceProvider;
         public CancellationToken CancellationToken { get; set; } = CancellationToken.None;
-        public IServiceProvider ServiceProvider => _serviceProvider;
+        public IServiceScopeFactory? ScopeFactory { get; }
         public Guid InvocationId { get; } = Guid.NewGuid();
         public ICheckpoint? RecoveryCheckpoint { get; } = null;
         public POC.Observability.IDataFlowMetrics? Metrics { get; } = null;
         public ITriggerContext? TriggerContext { get; } = null;
         public IParameterProvider Parameters => new TriggerContextParameterProvider(TriggerContext);
+        public string? TriggerParamsJson => null;
 
         public TestExecutionContext()
         {
             _serviceProvider = new ServiceCollection().BuildServiceProvider();
+            ScopeFactory = _serviceProvider.GetService<IServiceScopeFactory>();
         }
 
         public async ValueTask DisposeAsync()

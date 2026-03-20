@@ -407,15 +407,16 @@ public class EpochGraphIntegrationTests : IAsyncDisposable
     private class TestExecutionContext : IExecutionContext
     {
         private readonly CancellationTokenSource _cts = new();
-        
+
         public CancellationToken CancellationToken => _cts.Token;
-        public IServiceProvider ServiceProvider => throw new NotImplementedException();
+        public IServiceScopeFactory? ScopeFactory => null;
         public Guid InvocationId { get; } = Guid.NewGuid();
         public ICheckpoint? RecoveryCheckpoint { get; } = null;
         public POC.Observability.IDataFlowMetrics? Metrics { get; } = null;
         public ITriggerContext? TriggerContext { get; } = null;
         public IParameterProvider Parameters => new TriggerContextParameterProvider(TriggerContext);
-        
+        public string? TriggerParamsJson => null;
+
         public void Cancel() => _cts.Cancel();
     }
 }

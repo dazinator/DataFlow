@@ -167,6 +167,8 @@ public class EventProcessorTests
             FlowName: "Snapshot Flow",
             StartTime: DateTime.UtcNow,
             State: FlowState.Running,
+            CompletedAt: null,
+            ErrorMessage: null,
             Blocks: new Dictionary<string, BlockSnapshot>
             {
                 ["producer"] = new BlockSnapshot(

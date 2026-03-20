@@ -1,8 +1,8 @@
 namespace DataFlow.POC.Core;
 
-using DataFlow.Blazor.Events;
 using DataFlow.POC.Checkpointing;
 using DataFlow.POC.Observability;
+using Microsoft.Extensions.DependencyInjection;
 
 /// <summary>
 /// Marker interface for trigger context types.
@@ -21,9 +21,10 @@ public interface IExecutionContext
     CancellationToken CancellationToken { get; }
 
     /// <summary>
-    /// Service provider for dependency resolution.
+    /// Factory for creating DI scopes. Null when no DI infrastructure is registered (e.g. in tests).
+    /// Each block and graph-level event emission should create its own scope from this factory.
     /// </summary>
-    IServiceProvider ServiceProvider { get; }
+    IServiceScopeFactory? ScopeFactory { get; }
 
     /// <summary>
     /// Unique identifier for this execution context.
@@ -54,11 +55,6 @@ public interface IExecutionContext
     /// Allows actors to request parameters by name without checking specific trigger context types.
     /// </summary>
     IParameterProvider Parameters { get; }
-
-    /// <summary>
-    /// Emits DataFlow events for this flow run. Null if no event sink is registered.
-    /// </summary>
-    IFlowEventEmitter? Events { get; }
 
     /// <summary>
     /// Optional JSON string representing the trigger parameters for this flow run.
@@ -94,27 +90,27 @@ public class ExecutionContext : IExecutionContext
     }
 
     public ExecutionContext(IServiceProvider serviceProvider, CancellationToken cancellationToken)
-        : this(serviceProvider, cancellationToken, Guid.NewGuid(), null, null, null)
+        : this(serviceProvider.GetService<IServiceScopeFactory>(), cancellationToken, Guid.NewGuid(), null, null, null)
     {
     }
 
     public ExecutionContext(IServiceProvider serviceProvider, CancellationToken cancellationToken, Guid invocationId)
-        : this(serviceProvider, cancellationToken, invocationId, null, null, null)
+        : this(serviceProvider.GetService<IServiceScopeFactory>(), cancellationToken, invocationId, null, null, null)
     {
     }
 
     public ExecutionContext(IServiceProvider serviceProvider, CancellationToken cancellationToken, Guid invocationId, ICheckpoint? recoveryCheckpoint)
-        : this(serviceProvider, cancellationToken, invocationId, recoveryCheckpoint, null, null)
+        : this(serviceProvider.GetService<IServiceScopeFactory>(), cancellationToken, invocationId, recoveryCheckpoint, null, null)
     {
     }
 
     public ExecutionContext(
-        IServiceProvider serviceProvider, 
-        CancellationToken cancellationToken, 
-        Guid invocationId, 
+        IServiceProvider serviceProvider,
+        CancellationToken cancellationToken,
+        Guid invocationId,
         ICheckpoint? recoveryCheckpoint,
         IDataFlowMetrics? metrics)
-        : this(serviceProvider, cancellationToken, invocationId, recoveryCheckpoint, metrics, null)
+        : this(serviceProvider.GetService<IServiceScopeFactory>(), cancellationToken, invocationId, recoveryCheckpoint, metrics, null)
     {
     }
 
@@ -126,8 +122,20 @@ public class ExecutionContext : IExecutionContext
         IDataFlowMetrics? metrics,
         ITriggerContext? triggerContext,
         string? triggerParamsJson = null)
+        : this(serviceProvider.GetService<IServiceScopeFactory>(), cancellationToken, invocationId, recoveryCheckpoint, metrics, triggerContext, triggerParamsJson)
     {
-        ServiceProvider = serviceProvider;
+    }
+
+    public ExecutionContext(
+        IServiceScopeFactory? scopeFactory,
+        CancellationToken cancellationToken,
+        Guid invocationId,
+        ICheckpoint? recoveryCheckpoint,
+        IDataFlowMetrics? metrics,
+        ITriggerContext? triggerContext,
+        string? triggerParamsJson = null)
+    {
+        ScopeFactory = scopeFactory;
         CancellationToken = cancellationToken;
         InvocationId = invocationId;
         RecoveryCheckpoint = recoveryCheckpoint;
@@ -135,18 +143,14 @@ public class ExecutionContext : IExecutionContext
         TriggerContext = triggerContext;
         TriggerParamsJson = triggerParamsJson;
         Parameters = new TriggerContextParameterProvider(triggerContext);
-
-        var sink = serviceProvider.GetService(typeof(IFlowEventSink)) as IFlowEventSink;
-        Events = sink is not null ? new BoundFlowEventEmitter(sink, invocationId) : null;
     }
 
     public CancellationToken CancellationToken { get; }
-    public IServiceProvider ServiceProvider { get; }
+    public IServiceScopeFactory? ScopeFactory { get; }
     public Guid InvocationId { get; }
     public ICheckpoint? RecoveryCheckpoint { get; }
     public IDataFlowMetrics? Metrics { get; }
     public ITriggerContext? TriggerContext { get; }
     public IParameterProvider Parameters { get; }
-    public IFlowEventEmitter? Events { get; }
     public string? TriggerParamsJson { get; }
 }

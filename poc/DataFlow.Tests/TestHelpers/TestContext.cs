@@ -58,6 +58,7 @@ public static class TestContext
         public IEpochCoordinator? EpochCoordinator => null;
         public ITriggerContext? TriggerContext { get; }
         public IParameterProvider Parameters { get; }
+        public DataFlow.Blazor.Events.IFlowEventEmitter? Events => null;
         public void RequestRotation() { }
     }
 }

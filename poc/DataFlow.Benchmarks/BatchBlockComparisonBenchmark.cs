@@ -228,11 +228,12 @@ public class BatchBlockComparisonBenchmark
     private class BenchmarkExecutionContext : IExecutionContext
     {
         public CancellationToken CancellationToken { get; } = CancellationToken.None;
-        public IServiceProvider ServiceProvider { get; } = new ServiceCollection().BuildServiceProvider();
+        public IServiceScopeFactory? ScopeFactory => null;
         public Guid InvocationId { get; } = Guid.NewGuid();
         public ICheckpoint? RecoveryCheckpoint { get; } = null;
         public IDataFlowMetrics? Metrics { get; } = null;
         public ITriggerContext? TriggerContext { get; } = null;
         public IParameterProvider Parameters => new TriggerContextParameterProvider(TriggerContext);
+        public string? TriggerParamsJson => null;
     }
 }

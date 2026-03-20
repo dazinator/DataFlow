@@ -231,7 +231,8 @@ public class DataFlowGraph
         }
 
         // Resolve optional event sink — null if the consumer hasn't registered Uniun.DataFlow.Blazor.Server
-        var eventSink = context.ServiceProvider.GetService<IFlowEventSink>();
+        await using var flowScope = context.ScopeFactory?.CreateAsyncScope();
+        var eventSink = flowScope?.ServiceProvider.GetService<IFlowEventSink>();
 
         using (var flowActivity = ActivitySource.StartActivity(ActivityNames.FlowExecute))
         {
@@ -652,10 +653,8 @@ public class DataFlowGraph
             // Each block gets its own DI scope so it owns its own DbContext instance.
             // This prevents concurrent blocks from sharing a non-thread-safe DbContext
             // through a shared scoped IFlowEventSink.
-            var scopeFactory = context.ServiceProvider.GetService<IServiceScopeFactory>();
-            await using var blockScope = scopeFactory?.CreateAsyncScope();
-            var eventSink = blockScope?.ServiceProvider.GetService<IFlowEventSink>()
-                ?? context.ServiceProvider.GetService<IFlowEventSink>();
+            await using var blockScope = context.ScopeFactory?.CreateAsyncScope();
+            var eventSink = blockScope?.ServiceProvider.GetService<IFlowEventSink>();
 
             try
             {
