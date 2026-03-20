@@ -248,6 +248,10 @@ Renders a polling table of all flow runs (running and completed) with status bad
 duration, and a View button that navigates to a detail page. Refreshes every 3 seconds
 automatically.
 
+When a run has `AttemptNumber > 1` (i.e. it is a retry of a queue-driven flow), an amber
+**attempt N** badge is shown next to the flow name. Hovering the badge shows the full
+`CorrelationId` for cross-referencing.
+
 ```razor
 <FlowRunsList />
 ```
@@ -382,12 +386,67 @@ These are mapped automatically by `MapDataFlowEndpoints()`.
     "startedAt": "2026-03-20T14:01:03Z",
     "completedAt": "2026-03-20T14:01:07Z",
     "errorMessage": null,
-    "blockCount": 4
+    "blockCount": 4,
+    "triggerParamsJson": null,
+    "correlationId": null,
+    "attemptNumber": 1
   }
 ]
 ```
 
 `status` is one of: `NotStarted` | `Running` | `Completed` | `Failed`
+
+`correlationId` is `null` for standalone runs. For queue-driven flows it holds the stable
+message identity shared across all retry attempts. `attemptNumber` is 1-based and increments
+with each redelivery — see [Queue-based invocation with retry correlation](#queue-based-invocation-with-retry-correlation) below.
+
+---
+
+---
+
+## Queue-based Invocation with Retry Correlation
+
+When flows are driven by a message broker (Azure Service Bus, RabbitMQ, etc.) the broker
+may redeliver the same message if the consumer crashes before acknowledging. Each delivery
+should produce an independent event stream, but the visualization can surface that they
+are retries of the same logical work item.
+
+Pass two optional fields when constructing the `ExecutionContext`:
+
+| Field | Source | Description |
+|---|---|---|
+| `correlationId` | `message.MessageId` (or equivalent) | Stable identity of the work item — shared across all retries |
+| `attemptNumber` | `message.DeliveryCount` (1-based) | Which delivery this is |
+
+```csharp
+// Azure Service Bus example
+public async Task ProcessMessageAsync(ServiceBusReceivedMessage message, ...)
+{
+    var invocationId = Guid.NewGuid();           // always fresh per attempt
+    var correlationId = Guid.Parse(message.MessageId);
+    var attemptNumber = message.DeliveryCount;   // 1 on first delivery
+
+    using var scope = _services.CreateScope();
+    var ctx = new ExecutionContext(
+        scope.ServiceProvider,
+        cancellationToken,
+        invocationId,
+        correlationId: correlationId,
+        attemptNumber: attemptNumber);
+
+    var graph = new DataFlowGraph("invoice-processing", _logger);
+    // ... add blocks and edges ...
+
+    await graph.ExecuteAsync(ctx);
+}
+```
+
+The visualization will:
+- Show each attempt as a separate row in `<FlowRunsList>` (each has its own independent event stream)
+- Display an amber **attempt N** badge next to the flow name for any run where `AttemptNumber > 1`
+
+Standalone / ad-hoc runs that don't pass these fields default to `correlationId = null` and
+`attemptNumber = 1` — no badge is shown and behaviour is identical to before.
 
 ---
 

@@ -83,6 +83,20 @@ Key points:
 | `BlockProgressEvent` | Block business logic via `IFlowEventEmitter` | As items are processed |
 | `ChannelStatsEvent` | Block business logic via `IFlowEventEmitter` | Periodic buffer stats |
 
+### `FlowStartedEvent` fields
+
+| Field | Type | Description |
+|---|---|---|
+| `InvocationId` | `Guid` | Unique ID for this execution attempt (= `FlowRunId` throughout) |
+| `FlowName` | `string` | Human-readable graph name |
+| `Timestamp` | `DateTime` | UTC start time |
+| `TriggerParamsJson` | `string?` | Optional JSON payload passed by the caller |
+| `CorrelationId` | `Guid?` | Stable work-item identity from the originating message broker (null for standalone runs) |
+| `AttemptNumber` | `int` | 1-based delivery attempt counter for this `CorrelationId` (always 1 for standalone runs) |
+
+`InvocationId` is always a fresh `Guid.NewGuid()` per execution. `CorrelationId` is the stable
+identity that groups retries — see [Retry Correlation](#retry-correlation) below.
+
 ---
 
 ## DI Scope Management
@@ -231,24 +245,29 @@ HTTP response and the WebSocket handshake.
 ```mermaid
 erDiagram
     FlowEventRecords {
-        long    Id          PK "DB identity — catch-up cursor"
-        guid    FlowRunId   FK "indexed"
-        string  EventType      "e.g. BlockStartedEvent"
-        string  Payload        "JSON-serialized event"
+        long    Id             PK "DB identity — catch-up cursor"
+        guid    FlowRunId      FK "indexed"
+        string  EventType         "e.g. BlockStartedEvent"
+        string  Payload           "JSON-serialized event"
         datetime OccurredAt
-        guid    TenantId    "nullable"
+        guid    TenantId       "nullable"
+        guid    CorrelationId  "nullable, indexed — from FlowStartedEvent only"
     }
 
     FlowSnapshotRecords {
         guid    FlowRunId   PK
         long    AsOfEventId    "Id of last event folded"
-        string  SnapshotJson   "JSON FlowSnapshot"
+        string  SnapshotJson   "JSON FlowSnapshot (includes CorrelationId + AttemptNumber)"
         datetime CreatedAt
         guid    TenantId    "nullable"
     }
 
     FlowEventRecords ||--o| FlowSnapshotRecords : "folded into"
 ```
+
+`CorrelationId` is denormalized onto `FlowEventRecord` only for the `FlowStartedEvent` row.
+This allows the query "all attempts for this message" — `WHERE CorrelationId = @id` — without
+deserializing any JSON payloads.
 
 **Why `Id` not `SequenceNumber`?**
 
@@ -295,6 +314,96 @@ graph LR
 **Server** folds events during snapshot materialisation.
 **Client** starts from the snapshot (if any), folds delta events, then applies each
 incoming SignalR push in real time — no server roundtrip needed for live updates.
+
+---
+
+## Retry Correlation
+
+### The problem
+
+In queue-based systems a flow may be invoked multiple times for the same logical work item
+— the broker redelivers the message if the consumer crashes before acknowledging. Each
+delivery produces an independent event stream (its own `FlowRunId`), but they all represent
+the same unit of work.
+
+Without correlation, the only clue that two runs are related is a shared `FlowName` and
+approximate start times. The visualization shows them as completely separate rows.
+
+### Design
+
+Two concepts are kept deliberately separate:
+
+| Concept | Identity | Lifetime |
+|---|---|---|
+| **Work item** (`CorrelationId`) | Stable — comes from the message broker | Shared across all retry attempts |
+| **Execution attempt** (`FlowRunId` / `InvocationId`) | Fresh `Guid.NewGuid()` per run | Scoped to one execution |
+| **Attempt counter** (`AttemptNumber`) | 1-based integer | Increments per delivery |
+
+This split means each attempt has its own isolated, clean event stream. The projector needs
+no changes — a second `FlowStartedEvent` for a different `FlowRunId` starts a fresh
+`FlowRunState` as usual. Retries never pollute each other's event log.
+
+### Data flow
+
+```
+broker message (MessageId="abc", DeliveryCount=2)
+    │
+    ▼
+queue consumer
+    │  sets CorrelationId = MessageId
+    │  sets AttemptNumber  = DeliveryCount
+    ▼
+FlowStartedEvent { InvocationId=<new guid>, CorrelationId="abc", AttemptNumber=2, ... }
+    │
+    ▼
+FlowEventRecord  { FlowRunId=<new guid>, CorrelationId="abc", ... }   ← indexed
+FlowSnapshotRecord { FlowRunId=<new guid>, SnapshotJson includes CorrelationId + AttemptNumber }
+    │
+    ▼
+GET /flows  →  FlowSummaryDto { CorrelationId="abc", AttemptNumber=2 }
+    │
+    ▼
+FlowRunsList  →  shows "attempt 2" badge next to flow name
+```
+
+### How to set these fields
+
+Pass `CorrelationId` and `AttemptNumber` when constructing `FlowStartedEvent`. The graph
+emits this event automatically from the values it reads off `IExecutionContext` — the
+context carries them from the point of invocation:
+
+```csharp
+// In your queue consumer / message handler:
+var invocationId = Guid.NewGuid();   // always fresh
+var correlationId = message.MessageId;     // stable from broker
+var attemptNumber = message.DeliveryCount; // 1-based from broker
+
+using var scope = _services.CreateScope();
+var ctx = new ExecutionContext(
+    scope.ServiceProvider,
+    cancellationToken,
+    invocationId,
+    correlationId: correlationId,
+    attemptNumber: attemptNumber);
+
+await graph.ExecuteAsync(ctx);
+```
+
+Standalone / ad-hoc runs (no message broker) leave both fields at their defaults
+(`null` / `1`) — no UI change, no data overhead.
+
+### Querying all attempts for a work item
+
+Because `CorrelationId` is indexed on `FlowEventRecords`, finding all attempts for a
+given message is a single query:
+
+```csharp
+var attempts = await db.FlowEventRecords
+    .Where(e => e.CorrelationId == correlationId && e.EventType == nameof(FlowStartedEvent))
+    .OrderBy(e => e.Id)
+    .Select(e => e.FlowRunId)
+    .ToListAsync();
+```
 
 ---
 
