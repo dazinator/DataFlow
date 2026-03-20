@@ -127,6 +127,7 @@ public class EventProcessor
             blockState.EndTime = e.Timestamp;
             blockState.State = e.Success ? Events.BlockState.Completed : Events.BlockState.Failed;
             blockState.ErrorMessage = e.ErrorMessage;
+            blockState.OutputRatePerSecond = 0; // block finished — no more output
         }
     }
 
@@ -134,6 +135,18 @@ public class EventProcessor
     {
         if (_state.Blocks.TryGetValue(e.BlockName, out var blockState))
         {
+            // Compute output rate from the delta since the previous progress tick.
+            if (blockState.LastProgressTimestamp.HasValue)
+            {
+                var elapsed = (e.Timestamp - blockState.LastProgressTimestamp.Value).TotalSeconds;
+                if (elapsed > 0)
+                {
+                    var delta = e.ItemsProcessed - blockState.PreviousItemsForRate;
+                    blockState.OutputRatePerSecond = delta / elapsed;
+                }
+            }
+            blockState.PreviousItemsForRate = e.ItemsProcessed;
+            blockState.LastProgressTimestamp = e.Timestamp;
             blockState.ItemsProcessed = e.ItemsProcessed;
         }
     }

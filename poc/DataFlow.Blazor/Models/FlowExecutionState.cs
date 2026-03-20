@@ -55,6 +55,16 @@ public class BlockState
     public string? ErrorMessage { get; set; }
 
     /// <summary>
+    /// Current output throughput in items/second, derived from consecutive 500 ms BlockProgressEvent ticks.
+    /// Reset to 0 when the block completes.
+    /// </summary>
+    public double OutputRatePerSecond { get; set; }
+
+    // Internals used by EventProcessor to compute the rate — not for external consumers.
+    internal long PreviousItemsForRate { get; set; }
+    internal DateTime? LastProgressTimestamp { get; set; }
+
+    /// <summary>
     /// Gets the duration of the block execution.
     /// </summary>
     public TimeSpan? Duration

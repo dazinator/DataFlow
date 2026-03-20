@@ -249,17 +249,19 @@ public static class ReflectionHelper
         Type itemType,
         List<ITypedEdgeRouter> routers,
         Func<object, List<ITypedEdgeRouter>, CancellationToken, Task<long>>? epochStreamDelegate,
+        long[]? progressCounter,
         CancellationToken cancellationToken)
     {
-        // If we have a pre-compiled epoch stream delegate, use it directly
-        // This path eliminates all type checking and reflection during execution
+        // If we have a pre-compiled epoch stream delegate, use it directly.
+        // Note: epoch stream delegates have a fixed signature and cannot thread progressCounter,
+        // so live 500ms ticks are not emitted for epoch-stream edges.
         if (epochStreamDelegate != null)
         {
             return await epochStreamDelegate(typedStream, routers, cancellationToken);
         }
 
         // Fallback: compile the delegate at runtime (for backwards compatibility or buffer nodes)
-        // Equivalent to: await StreamPump.EnumerateAndRouteTypedStreamGenericAsync<T>(typedStream, routers, cancellationToken);
+        // Equivalent to: await StreamPump.EnumerateAndRouteTypedStreamGenericAsync<T>(typedStream, routers, progressCounter, cancellationToken);
         var method = typeof(StreamPump).GetMethod(
             nameof(StreamPump.EnumerateAndRouteTypedStreamGenericAsync),
             BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Public);
@@ -270,7 +272,7 @@ public static class ReflectionHelper
         }
 
         var genericMethod = method.MakeGenericMethod(itemType);
-        var task = (Task<long>?)genericMethod.Invoke(null, new object[] { typedStream, routers, cancellationToken });
+        var task = (Task<long>?)genericMethod.Invoke(null, new object[] { typedStream, routers, progressCounter, cancellationToken });
 
         return task != null ? await task : 0L;
     }
@@ -286,9 +288,10 @@ public static class ReflectionHelper
     public static async Task<long> EnumerateTypedStreamAsync(
         object typedStream,
         Type itemType,
+        long[]? progressCounter,
         CancellationToken cancellationToken)
     {
-        // Equivalent to: await StreamPump.EnumerateTypedStreamGenericAsync<T>(typedStream, cancellationToken);
+        // Equivalent to: await StreamPump.EnumerateTypedStreamGenericAsync<T>(typedStream, progressCounter, cancellationToken);
         var method = typeof(StreamPump).GetMethod(
             nameof(StreamPump.EnumerateTypedStreamGenericAsync),
             BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Public);
@@ -299,7 +302,7 @@ public static class ReflectionHelper
         }
 
         var genericMethod = method.MakeGenericMethod(itemType);
-        var task = (Task<long>?)genericMethod.Invoke(null, new object[] { typedStream, cancellationToken });
+        var task = (Task<long>?)genericMethod.Invoke(null, new object[] { typedStream, progressCounter, cancellationToken });
 
         return task != null ? await task : 0L;
     }

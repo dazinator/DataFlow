@@ -704,33 +704,54 @@ public class DataFlowGraph
                         .FirstOrDefault(d => d != null);
                 }
 
-                // Route output
-                long itemsEmitted;
+                // Route output with live 500 ms progress reporting.
+                // A shared counter is incremented atomically inside the pump loop; a PeriodicTimer
+                // reads it and emits intermediate BlockProgressEvent ticks while the pump runs.
+                var progressCounter = new long[1];
+
+                Task<long> pumpTask;
                 if (outputRouters.Count > 0)
                 {
                    logger.LogDebug("Block {BlockName} routing output to {RouterCount} routers", _block.Name, outputRouters.Count);
-                    // Enumerate typed output and route without boxing
-                    // Use pre-compiled epoch stream delegate if available (eliminates type checks)
-                    itemsEmitted = await ReflectionHelper.EnumerateAndRouteTypedStreamAsync(
+                    pumpTask = ReflectionHelper.EnumerateAndRouteTypedStreamAsync(
                         typedOutput,
                         adapter.OutputItemType,
                         outputRouters,
                         epochStreamDelegate,
+                        progressCounter,
                         context.CancellationToken);
-
-                    logger.LogDebug("Block {BlockName} completed routing output", _block.Name);
                 }
                 else
                 {
                     logger.LogDebug("Block {BlockName} is terminal, enumerating to completion", _block.Name);
-
-                    // Terminal block - enumerate output to completion
-                    itemsEmitted = await ReflectionHelper.EnumerateTypedStreamAsync(typedOutput, adapter.OutputItemType, context.CancellationToken);
-
-                    logger.LogDebug("Block {BlockName} completed enumeration", _block.Name);
+                    pumpTask = ReflectionHelper.EnumerateTypedStreamAsync(
+                        typedOutput, adapter.OutputItemType, progressCounter, context.CancellationToken);
                 }
 
-                // Emit final BlockProgressEvent if any items were emitted
+                // Run the 500 ms progress timer concurrently with the pump.
+                // Linked to context.CancellationToken so it also stops on flow cancellation.
+                using var timerCts = CancellationTokenSource.CreateLinkedTokenSource(context.CancellationToken);
+                var progressTimerTask = eventSink is not null
+                    ? RunBlockProgressTimerAsync(_block.Name, progressCounter, eventSink, context.InvocationId, timerCts.Token)
+                    : Task.CompletedTask;
+
+                long itemsEmitted;
+                try
+                {
+                    itemsEmitted = await pumpTask;
+                    if (outputRouters.Count > 0)
+                        logger.LogDebug("Block {BlockName} completed routing output", _block.Name);
+                    else
+                        logger.LogDebug("Block {BlockName} completed enumeration", _block.Name);
+                }
+                finally
+                {
+                    // Always stop the timer when the pump finishes (success or error).
+                    timerCts.Cancel();
+                    try { await progressTimerTask; } catch (OperationCanceledException) { }
+                }
+
+                // Emit the definitive final BlockProgressEvent with the exact pump count.
                 if (itemsEmitted > 0 && eventSink is not null)
                 {
                     await eventSink.AppendAsync(context.InvocationId,
@@ -794,6 +815,38 @@ public class DataFlowGraph
                 
                 blockMetrics?.Completed(blockDuration, isSuccessful);
             }
+        }
+
+        /// <summary>
+        /// Fires a BlockProgressEvent every 500 ms while the pump is running.
+        /// Stopped by cancelling <paramref name="cancellationToken"/> once the pump finishes.
+        /// Sink errors are swallowed so the timer never crashes the block execution.
+        /// </summary>
+        private static async Task RunBlockProgressTimerAsync(
+            string blockName,
+            long[] progressCounter,
+            IFlowEventSink eventSink,
+            Guid invocationId,
+            CancellationToken cancellationToken)
+        {
+            using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(500));
+            try
+            {
+                while (await timer.WaitForNextTickAsync(cancellationToken))
+                {
+                    var count = Volatile.Read(ref progressCounter[0]);
+                    if (count > 0)
+                    {
+                        try
+                        {
+                            await eventSink.AppendAsync(invocationId,
+                                new BlockProgressEvent(blockName, count, DateTime.UtcNow));
+                        }
+                        catch { /* sink errors must not crash the flow */ }
+                    }
+                }
+            }
+            catch (OperationCanceledException) { }
         }
     }
 

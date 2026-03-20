@@ -56,6 +56,7 @@ internal static class StreamPump
     internal static async Task<long> EnumerateAndRouteTypedStreamGenericAsync<T>(
         object typedStream,
         List<ITypedEdgeRouter> routers,
+        long[]? progressCounter,
         CancellationToken cancellationToken)
     {
         // Check if T is IEpochStream<TItem> for some TItem
@@ -78,6 +79,7 @@ internal static class StreamPump
         await foreach (var item in stream.WithCancellation(cancellationToken))
         {
             itemsEmitted++;
+            if (progressCounter != null) Interlocked.Increment(ref progressCounter[0]);
 
             // Route to all routers concurrently - this enables parallel broadcast/routing
             // Each router writes to its channel(s) in parallel, avoiding serialization bottleneck
@@ -124,6 +126,7 @@ internal static class StreamPump
     /// </summary>
     internal static async Task<long> EnumerateTypedStreamGenericAsync<T>(
         object typedStream,
+        long[]? progressCounter,
         CancellationToken cancellationToken)
     {
         // When T is IEpochStream<TItem>, enumerating only the outer stream is not enough.
@@ -156,6 +159,7 @@ internal static class StreamPump
         await foreach (var item in stream.WithCancellation(cancellationToken))
         {
             itemsEmitted++;
+            if (progressCounter != null) Interlocked.Increment(ref progressCounter[0]);
         }
         return itemsEmitted;
     }
