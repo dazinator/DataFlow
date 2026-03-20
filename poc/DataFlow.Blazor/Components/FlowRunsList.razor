@@ -1,0 +1,140 @@
+@using DataFlow.Blazor.Api
+@using DataFlow.Blazor.Events
+@using DataFlow.Blazor.Services
+@inject IFlowListSource FlowListSource
+@inject NavigationManager Nav
+@implements IAsyncDisposable
+
+@if (_flows is null)
+{
+    <p style="color: #6c757d;">Loading flows...</p>
+}
+else if (_flows.Length == 0)
+{
+    <p style="color: #6c757d;">No flows have run yet. Use the buttons above to start one.</p>
+}
+else
+{
+    <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+        <thead>
+            <tr style="border-bottom: 2px solid #dee2e6; text-align: left;">
+                <th style="padding: 0.5rem 0.75rem;">Flow</th>
+                <th style="padding: 0.5rem 0.75rem;">Status</th>
+                <th style="padding: 0.5rem 0.75rem;">Started</th>
+                <th style="padding: 0.5rem 0.75rem;">Duration</th>
+                <th style="padding: 0.5rem 0.75rem;">Blocks</th>
+                <th style="padding: 0.5rem 0.75rem;"></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var flow in _flows)
+            {
+                <tr style="border-bottom: 1px solid #dee2e6; @RowStyle(flow.Status)">
+                    <td style="padding: 0.5rem 0.75rem; font-weight: 500;">@flow.FlowName</td>
+                    <td style="padding: 0.5rem 0.75rem;">
+                        <span style="@BadgeStyle(flow.Status)">@StatusLabel(flow.Status)</span>
+                    </td>
+                    <td style="padding: 0.5rem 0.75rem; color: #495057;">
+                        @flow.StartedAt.ToLocalTime().ToString("HH:mm:ss")
+                    </td>
+                    <td style="padding: 0.5rem 0.75rem; color: #495057;">
+                        @FormatDuration(flow)
+                    </td>
+                    <td style="padding: 0.5rem 0.75rem; color: #495057;">@flow.BlockCount</td>
+                    <td style="padding: 0.5rem 0.75rem; text-align: right;">
+                        @if (flow.ErrorMessage is not null)
+                        {
+                            <span title="@flow.ErrorMessage" style="color: #dc3545; margin-right: 0.5rem; cursor: help;">⚠</span>
+                        }
+                        <button class="btn btn-sm btn-outline-primary"
+                                @onclick="() => NavigateToFlow(flow.FlowRunId)">
+                            View →
+                        </button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private FlowSummaryDto[]? _flows;
+    private PeriodicTimer? _timer;
+    private CancellationTokenSource _cts = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshAsync();
+        _ = PollAsync();
+    }
+
+    private async Task RefreshAsync()
+    {
+        try
+        {
+            _flows = await FlowListSource.GetFlowsAsync(_cts.Token);
+            StateHasChanged();
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    private async Task PollAsync()
+    {
+        _timer = new PeriodicTimer(TimeSpan.FromSeconds(3));
+        try
+        {
+            while (await _timer.WaitForNextTickAsync(_cts.Token))
+            {
+                await RefreshAsync();
+            }
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    private void NavigateToFlow(Guid flowRunId) =>
+        Nav.NavigateTo($"/flows/{flowRunId}");
+
+    private static string StatusLabel(FlowState s) => s switch
+    {
+        FlowState.Running   => "● Running",
+        FlowState.Completed => "✓ Done",
+        FlowState.Failed    => "✗ Failed",
+        _                   => "· Pending"
+    };
+
+    private static string BadgeStyle(FlowState s)
+    {
+        var (bg, color, border) = s switch
+        {
+            FlowState.Running   => ("#fff9e6", "#856404", "#ffc107"),
+            FlowState.Completed => ("#d1e7dd", "#0a5235", "#28a745"),
+            FlowState.Failed    => ("#f8d7da", "#842029", "#dc3545"),
+            _                   => ("#f8f9fa", "#6c757d", "#6c757d")
+        };
+        return $"background:{bg}; color:{color}; border:1px solid {border}; " +
+               "border-radius:4px; padding:2px 8px; font-size:0.8rem; white-space:nowrap;";
+    }
+
+    private static string RowStyle(FlowState s) =>
+        s == FlowState.Running ? "background: #fffdf0;" : "";
+
+    private static string FormatDuration(FlowSummaryDto flow)
+    {
+        var end = flow.CompletedAt ?? DateTime.UtcNow;
+        var span = end - flow.StartedAt;
+        if (flow.Status == FlowState.Running)
+            return $"{span.TotalSeconds:F0}s…";
+        if (span.TotalSeconds < 60)
+            return span.TotalMilliseconds < 1000
+                ? $"{span.TotalMilliseconds:F0}ms"
+                : $"{span.TotalSeconds:F1}s";
+        return $"{(int)span.TotalMinutes}m {span.Seconds}s";
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await _cts.CancelAsync();
+        _timer?.Dispose();
+        _cts.Dispose();
+    }
+}

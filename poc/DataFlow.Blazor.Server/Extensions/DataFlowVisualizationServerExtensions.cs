@@ -61,6 +61,7 @@ public static class DataFlowVisualizationServerExtensions
     public static IEndpointRouteBuilder MapDataFlowEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapFlowStateEndpoints();
+        app.MapFlowListEndpoints();
         return app;
     }
 }

@@ -20,6 +20,7 @@ public class SnapshotPolicy
     }
 
     public bool ShouldSnapshot(IDataFlowEvent evt, long currentSequence) =>
+        evt is FlowStartedEvent ||
         evt is FlowCompletedEvent ||
         (_periodicInterval > 0 && currentSequence > 0 && currentSequence % _periodicInterval == 0);
 }

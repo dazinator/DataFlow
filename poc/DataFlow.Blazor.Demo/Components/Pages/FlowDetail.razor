@@ -1,0 +1,16 @@
+@page "/flows/{InvocationId:guid}"
+@using DataFlow.Blazor.Components
+@inject NavigationManager Nav
+
+<PageTitle>Flow Detail</PageTitle>
+
+<div style="margin-bottom: 1rem;">
+    <a href="/" style="color: #0d6efd; text-decoration: none;">← All Flows</a>
+</div>
+
+<FlowVisualization InvocationId="InvocationId" />
+
+@code {
+    [Parameter]
+    public Guid InvocationId { get; set; }
+}

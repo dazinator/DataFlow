@@ -8,6 +8,8 @@ public record FlowSnapshot(
     string FlowName,
     DateTime StartTime,
     FlowState State,
+    DateTime? CompletedAt,
+    string? ErrorMessage,
     Dictionary<string, BlockSnapshot> Blocks,
     Dictionary<string, ChannelSnapshot> Channels
 );

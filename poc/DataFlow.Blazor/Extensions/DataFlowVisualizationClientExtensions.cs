@@ -40,6 +40,12 @@ public static class DataFlowVisualizationClientExtensions
             return new HttpSignalREventSource(http, hubUrl);
         });
 
+        services.AddScoped<IFlowListSource>(sp =>
+        {
+            var http = sp.GetRequiredService<HttpClient>();
+            return new HttpFlowListSource(http);
+        });
+
         return services;
     }
 }

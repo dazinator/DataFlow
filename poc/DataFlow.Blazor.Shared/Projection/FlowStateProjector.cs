@@ -81,6 +81,8 @@ public static class FlowStateProjector
         FlowName: state.FlowName,
         StartTime: state.StartedAt ?? DateTime.UtcNow,
         State: state.Status,
+        CompletedAt: state.CompletedAt,
+        ErrorMessage: state.ErrorMessage,
         Blocks: state.Blocks.ToDictionary(
             kv => kv.Key,
             kv => new BlockSnapshot(
@@ -109,6 +111,8 @@ public static class FlowStateProjector
         FlowName = snapshot.FlowName,
         Status = snapshot.State,
         StartedAt = snapshot.StartTime,
+        CompletedAt = snapshot.CompletedAt,
+        ErrorMessage = snapshot.ErrorMessage,
         Blocks = snapshot.Blocks
             .ToImmutableDictionary(
                 kv => kv.Key,
