@@ -23,6 +23,11 @@ public interface IExecutionContext
     /// <summary>
     /// Service provider for dependency resolution.
     /// </summary>
+    /// <remarks>
+    /// Prefer dedicated context properties (<see cref="Events"/>, <see cref="Metrics"/>, etc.)
+    /// over resolving services directly. This property will be removed in a future version.
+    /// </remarks>
+    [Obsolete("Access services via dedicated IExecutionContext properties (Events, Metrics, etc.). ServiceProvider will be removed in a future version.")]
     IServiceProvider ServiceProvider { get; }
 
     /// <summary>
@@ -141,6 +146,7 @@ public class ExecutionContext : IExecutionContext
     }
 
     public CancellationToken CancellationToken { get; }
+    [Obsolete("Access services via dedicated IExecutionContext properties (Events, Metrics, etc.). ServiceProvider will be removed in a future version.")]
     public IServiceProvider ServiceProvider { get; }
     public Guid InvocationId { get; }
     public ICheckpoint? RecoveryCheckpoint { get; }
