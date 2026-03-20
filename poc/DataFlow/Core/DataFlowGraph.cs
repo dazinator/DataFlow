@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Threading.Channels;
 using DataFlow.Blazor.Events;
 using DataFlow.POC.Observability;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 /// <summary>
@@ -229,7 +230,8 @@ public class DataFlowGraph
             flowMetrics.Started();
         }
 
-        var events = context.Events;
+        // Resolve optional event sink — null if the consumer hasn't registered Uniun.DataFlow.Blazor.Server
+        var eventSink = context.ServiceProvider.GetService<IFlowEventSink>();
 
         using (var flowActivity = ActivitySource.StartActivity(ActivityNames.FlowExecute))
         {
@@ -249,9 +251,9 @@ public class DataFlowGraph
             }
 
             // Emit FlowStartedEvent (includes trigger params if provided)
-            if (events is not null)
+            if (eventSink is not null)
             {
-                await events.EmitAsync(
+                await eventSink.AppendAsync(context.InvocationId,
                     new FlowStartedEvent(context.InvocationId, Name, DateTime.UtcNow, context.TriggerParamsJson));
             }
 
@@ -293,9 +295,9 @@ public class DataFlowGraph
                 _logger.LogInformation("Completed execution of dataflow: {FlowName}", Name);
 
                 // Emit FlowCompletedEvent (success)
-                if (events is not null)
+                if (eventSink is not null)
                 {
-                    await events.EmitAsync(
+                    await eventSink.AppendAsync(context.InvocationId,
                         new FlowCompletedEvent(context.InvocationId, Success: true, DateTime.UtcNow));
                 }
             }
@@ -313,9 +315,9 @@ public class DataFlowGraph
                 }
 
                 // Emit FlowCompletedEvent (failure)
-                if (events is not null)
+                if (eventSink is not null)
                 {
-                    await events.EmitAsync(
+                    await eventSink.AppendAsync(context.InvocationId,
                         new FlowCompletedEvent(context.InvocationId, Success: false, DateTime.UtcNow, ex.Message));
                 }
 
@@ -647,16 +649,22 @@ public class DataFlowGraph
                 stopwatch = Stopwatch.StartNew();
             }
 
-            var events = context.Events;
+            // Each block gets its own DI scope so it owns its own DbContext instance.
+            // This prevents concurrent blocks from sharing a non-thread-safe DbContext
+            // through a shared scoped IFlowEventSink.
+            var scopeFactory = context.ServiceProvider.GetService<IServiceScopeFactory>();
+            await using var blockScope = scopeFactory?.CreateAsyncScope();
+            var eventSink = blockScope?.ServiceProvider.GetService<IFlowEventSink>()
+                ?? context.ServiceProvider.GetService<IFlowEventSink>();
 
             try
             {
                 logger.LogDebug("Block {BlockName} starting execution (Thread: {ThreadId})", _block.Name, Environment.CurrentManagedThreadId);
 
                 // Emit BlockStartedEvent
-                if (events is not null)
+                if (eventSink is not null)
                 {
-                    await events.EmitAsync(
+                    await eventSink.AppendAsync(context.InvocationId,
                         new BlockStartedEvent(_block.Name, _block.GetType().Name, DateTime.UtcNow));
                 }
 
@@ -727,9 +735,9 @@ public class DataFlowGraph
                 logger.LogDebug("Block {BlockName} completed successfully", _block.Name);
 
                 // Emit BlockCompletedEvent (success)
-                if (events is not null)
+                if (eventSink is not null)
                 {
-                    await events.EmitAsync(
+                    await eventSink.AppendAsync(context.InvocationId,
                         new BlockCompletedEvent(_block.Name, Success: true, DateTime.UtcNow));
                 }
 
@@ -752,9 +760,9 @@ public class DataFlowGraph
                 logger.LogError(ex, "Block {BlockName} failed with error", _block.Name);
 
                 // Emit BlockCompletedEvent (failure)
-                if (events is not null)
+                if (eventSink is not null)
                 {
-                    await events.EmitAsync(
+                    await eventSink.AppendAsync(context.InvocationId,
                         new BlockCompletedEvent(_block.Name, Success: false, DateTime.UtcNow, ex.Message));
                 }
 
