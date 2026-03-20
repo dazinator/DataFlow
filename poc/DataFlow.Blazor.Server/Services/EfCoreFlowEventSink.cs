@@ -1,29 +1,35 @@
 namespace DataFlow.Blazor.Server.Services;
 
 using System.Text.Json;
+using DataFlow.Blazor.Api;
 using DataFlow.Blazor.Events;
 using DataFlow.Blazor.Projection;
 using DataFlow.Blazor.Server.Persistence;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
-using DataFlow.Blazor.Api;
 
 /// <summary>
 /// EF Core implementation of IFlowEventSink.
 /// Appends events to FlowEventRecords, materializes snapshots per SnapshotPolicy,
 /// and pushes real-time notifications via SignalR to connected Blazor clients.
+///
+/// <typeparam name="TContext">
+/// The DbContext type to use for persistence. Must have
+/// <see cref="DataFlowModelBuilderExtensions.AddDataFlowVisualizationEntities"/> called
+/// in its OnModelCreating.
+/// </typeparam>
 /// </summary>
-public class EfCoreFlowEventSink : IFlowEventSink
+public class EfCoreFlowEventSink<TContext> : IFlowEventSink where TContext : DbContext
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    private readonly FlowVisualizationDbContext _db;
-    private readonly IHubContext<FlowEventsHub> _hub;
+    private readonly TContext _db;
+    private readonly IHubContext<FlowEventsHub<TContext>> _hub;
     private readonly SnapshotPolicy _snapshotPolicy;
 
     public EfCoreFlowEventSink(
-        FlowVisualizationDbContext db,
-        IHubContext<FlowEventsHub> hub,
+        TContext db,
+        IHubContext<FlowEventsHub<TContext>> hub,
         SnapshotPolicy snapshotPolicy)
     {
         _db = db;
@@ -44,7 +50,7 @@ public class EfCoreFlowEventSink : IFlowEventSink
             CorrelationId = (evt as FlowStartedEvent)?.CorrelationId
         };
 
-        _db.FlowEventRecords.Add(record);
+        _db.Set<FlowEventRecord>().Add(record);
         await _db.SaveChangesAsync(cancellationToken);
 
         // Push to SignalR group immediately (record.Id is now DB-assigned)
@@ -62,7 +68,7 @@ public class EfCoreFlowEventSink : IFlowEventSink
 
     private async Task MaterializeSnapshotAsync(Guid flowRunId, long upToEventId, CancellationToken cancellationToken)
     {
-        var allEvents = await _db.FlowEventRecords
+        var allEvents = await _db.Set<FlowEventRecord>()
             .Where(e => e.FlowRunId == flowRunId && e.Id <= upToEventId)
             .OrderBy(e => e.Id)
             .ToListAsync(cancellationToken);
@@ -78,12 +84,12 @@ public class EfCoreFlowEventSink : IFlowEventSink
         var snapshot = FlowStateProjector.ToSnapshot(state);
         var snapshotJson = JsonSerializer.Serialize(snapshot, JsonOptions);
 
-        var existing = await _db.FlowSnapshotRecords
+        var existing = await _db.Set<FlowSnapshotRecord>()
             .FindAsync([flowRunId], cancellationToken);
 
         if (existing is null)
         {
-            _db.FlowSnapshotRecords.Add(new FlowSnapshotRecord
+            _db.Set<FlowSnapshotRecord>().Add(new FlowSnapshotRecord
             {
                 FlowRunId = flowRunId,
                 AsOfEventId = upToEventId,

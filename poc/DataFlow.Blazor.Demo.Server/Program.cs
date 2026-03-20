@@ -55,12 +55,12 @@ app.UseStaticFiles();
 app.UseRouting();
 
 // -----------------------------------------------------------------------
-// DataFlow Visualization — HTTP catch-up endpoint + SignalR hub
+// DataFlow Visualization — HTTP catch-up endpoints + SignalR hub
+// GET /flows                    →  flow run list
 // GET /flows/{flowRunId}/state  →  snapshot + delta events
 // WS  /hubs/flow-events         →  live event stream
 // -----------------------------------------------------------------------
 app.MapDataFlowEndpoints();
-app.MapHub<FlowEventsHub>("/hubs/flow-events");
 
 // -----------------------------------------------------------------------
 // Demo run endpoints — trigger a real backend DataFlow graph

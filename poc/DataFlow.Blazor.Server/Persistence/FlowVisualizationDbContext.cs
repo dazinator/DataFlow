@@ -4,15 +4,16 @@ using Microsoft.EntityFrameworkCore;
 
 /// <summary>
 /// Standalone EF Core DbContext for DataFlow visualization persistence.
+/// Use this when you don't have an existing DbContext to merge into.
 ///
-/// Usage — register in your ASP.NET Core host:
+/// Register in Program.cs:
 /// <code>
 /// builder.Services.AddDataFlowVisualizationServer(options =>
 ///     options.UseSqlite("Data Source=dataflow-viz.db"));
 /// </code>
 ///
-/// Or use your existing DbContext by calling AddEntityFrameworkStores&lt;TContext&gt;()
-/// and inheriting from this context / adding the DbSets manually.
+/// To use your own existing DbContext instead, see
+/// <see cref="DataFlowModelBuilderExtensions.AddDataFlowVisualizationEntities"/>.
 /// </summary>
 public class FlowVisualizationDbContext : DbContext
 {
@@ -23,16 +24,5 @@ public class FlowVisualizationDbContext : DbContext
     public DbSet<FlowSnapshotRecord> FlowSnapshotRecords => Set<FlowSnapshotRecord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
-    {
-        modelBuilder.Entity<FlowEventRecord>(entity =>
-        {
-            entity.HasIndex(e => e.FlowRunId);
-            entity.HasIndex(e => e.CorrelationId);
-        });
-
-        modelBuilder.Entity<FlowSnapshotRecord>(entity =>
-        {
-            entity.HasKey(e => e.FlowRunId);
-        });
-    }
+        => modelBuilder.AddDataFlowVisualizationEntities();
 }

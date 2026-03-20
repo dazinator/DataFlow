@@ -15,16 +15,17 @@ using Microsoft.EntityFrameworkCore;
 /// 4. Hub adds client to the flow's SignalR group
 /// 5. New events are pushed via EfCoreFlowEventSink → IHubContext → group
 ///
-/// Register in Program.cs:
-/// <code>
-/// app.MapHub&lt;FlowEventsHub&gt;("/hubs/flow-events");
-/// </code>
+/// Mapped automatically by MapDataFlowEndpoints() — no need to call MapHub separately.
+///
+/// <typeparam name="TContext">
+/// The DbContext type, matching the one registered via AddDataFlowVisualizationServer.
+/// </typeparam>
 /// </summary>
-public class FlowEventsHub : Hub
+public class FlowEventsHub<TContext> : Hub where TContext : DbContext
 {
-    private readonly FlowVisualizationDbContext _db;
+    private readonly TContext _db;
 
-    public FlowEventsHub(FlowVisualizationDbContext db)
+    public FlowEventsHub(TContext db)
     {
         _db = db;
     }
@@ -38,7 +39,7 @@ public class FlowEventsHub : Hub
     public async Task Subscribe(Guid flowRunId, long fromId)
     {
         // Replay any events that arrived between HTTP call and WebSocket connection
-        var missed = await _db.FlowEventRecords
+        var missed = await _db.Set<FlowEventRecord>()
             .Where(e => e.FlowRunId == flowRunId && e.Id > fromId)
             .OrderBy(e => e.Id)
             .ToListAsync();

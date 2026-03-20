@@ -13,7 +13,8 @@ using Microsoft.EntityFrameworkCore;
 /// </summary>
 internal static class FlowStateEndpoints
 {
-    internal static IEndpointRouteBuilder MapFlowStateEndpoints(this IEndpointRouteBuilder app)
+    internal static IEndpointRouteBuilder MapFlowStateEndpoints<TContext>(this IEndpointRouteBuilder app)
+        where TContext : DbContext
     {
         /// <summary>
         /// Returns a materialized snapshot (if available) plus all delta events since that snapshot.
@@ -21,16 +22,16 @@ internal static class FlowStateEndpoints
         /// </summary>
         app.MapGet("/flows/{flowRunId:guid}/state", async (
             Guid flowRunId,
-            FlowVisualizationDbContext db,
+            TContext db,
             CancellationToken cancellationToken) =>
         {
-            var snapshot = await db.FlowSnapshotRecords
+            var snapshot = await db.Set<FlowSnapshotRecord>()
                 .Where(s => s.FlowRunId == flowRunId)
                 .FirstOrDefaultAsync(cancellationToken);
 
             var fromId = snapshot?.AsOfEventId ?? 0;
 
-            var deltaRecords = await db.FlowEventRecords
+            var deltaRecords = await db.Set<FlowEventRecord>()
                 .Where(e => e.FlowRunId == flowRunId && e.Id > fromId)
                 .OrderBy(e => e.Id)
                 .ToListAsync(cancellationToken);

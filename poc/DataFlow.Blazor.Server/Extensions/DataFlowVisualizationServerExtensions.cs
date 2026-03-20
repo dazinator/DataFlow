@@ -12,15 +12,14 @@ using Microsoft.Extensions.DependencyInjection;
 /// <summary>
 /// ASP.NET Core integration for DataFlow Blazor visualization.
 ///
-/// Minimal setup in Program.cs:
+/// --- Option A: dedicated DbContext (simplest, no existing EF setup required) ---
 /// <code>
-/// // 1. Register server services (choose your EF Core provider)
+/// // 1. Register services — choose your EF Core provider
 /// builder.Services.AddDataFlowVisualizationServer(options =>
 ///     options.UseSqlite("Data Source=dataflow-viz.db"));
 ///
 /// // 2. Map endpoints and SignalR hub
 /// app.MapDataFlowEndpoints();
-/// app.MapHub&lt;FlowEventsHub&gt;("/hubs/flow-events");
 ///
 /// // 3. (Optional) ensure the schema exists on startup
 /// using (var scope = app.Services.CreateScope())
@@ -28,14 +27,31 @@ using Microsoft.Extensions.DependencyInjection;
 ///         .Database.EnsureCreated();
 /// </code>
 ///
-/// The DataFlow engine will automatically emit events if IFlowEventSink is resolvable
+/// --- Option B: bring your own DbContext ---
+/// <code>
+/// // 1a. Register your DbContext as normal
+/// builder.Services.AddDbContext&lt;MyAppDbContext&gt;(options =>
+///     options.UseSqlServer(connectionString));
+///
+/// // 1b. Call AddDataFlowVisualizationEntities() in your DbContext's OnModelCreating:
+/// //     modelBuilder.AddDataFlowVisualizationEntities();
+///
+/// // 2. Register DataFlow services, pointing at your context
+/// builder.Services.AddDataFlowVisualizationServer&lt;MyAppDbContext&gt;();
+///
+/// // 3. Map endpoints and SignalR hub
+/// app.MapDataFlowEndpoints&lt;MyAppDbContext&gt;();
+/// </code>
+///
+/// The DataFlow engine emits events automatically if IFlowEventSink is resolvable
 /// from the IExecutionContext.ServiceProvider during graph execution.
 /// </summary>
 public static class DataFlowVisualizationServerExtensions
 {
     /// <summary>
-    /// Registers DataFlow visualization server services: EF Core DbContext,
-    /// IFlowEventSink (EF Core implementation), SignalR, and snapshot policy.
+    /// Registers DataFlow visualization services using a dedicated
+    /// <see cref="FlowVisualizationDbContext"/>. Use this when you don't have an
+    /// existing DbContext to merge into.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureDb">Configure the EF Core provider (e.g. UseSqlite, UseSqlServer).</param>
@@ -48,20 +64,54 @@ public static class DataFlowVisualizationServerExtensions
         int periodicSnapshotInterval = 100)
     {
         services.AddDbContext<FlowVisualizationDbContext>(configureDb);
+        return services.AddDataFlowVisualizationServer<FlowVisualizationDbContext>(periodicSnapshotInterval);
+    }
+
+    /// <summary>
+    /// Registers DataFlow visualization services using an existing <typeparamref name="TContext"/>.
+    /// The context must have <see cref="DataFlowModelBuilderExtensions.AddDataFlowVisualizationEntities"/>
+    /// called in its OnModelCreating, and must already be registered in the service collection.
+    /// </summary>
+    /// <typeparam name="TContext">Your application's DbContext type.</typeparam>
+    /// <param name="services">The service collection.</param>
+    /// <param name="periodicSnapshotInterval">
+    /// Materialize a snapshot every N events during long-running flows (default 100, 0 = disabled).
+    /// </param>
+    public static IServiceCollection AddDataFlowVisualizationServer<TContext>(
+        this IServiceCollection services,
+        int periodicSnapshotInterval = 100)
+        where TContext : DbContext
+    {
         services.AddSignalR();
         services.AddSingleton(new SnapshotPolicy(periodicSnapshotInterval));
-        services.AddScoped<IFlowEventSink, EfCoreFlowEventSink>();
+        services.AddScoped<IFlowEventSink, EfCoreFlowEventSink<TContext>>();
         return services;
     }
 
     /// <summary>
-    /// Maps the DataFlow visualization catch-up HTTP endpoint:
-    ///   GET /flows/{flowRunId}/state
+    /// Maps DataFlow HTTP endpoints and the SignalR hub using the dedicated
+    /// <see cref="FlowVisualizationDbContext"/>. Call after <see cref="AddDataFlowVisualizationServer(IServiceCollection, Action{DbContextOptionsBuilder}, int)"/>.
     /// </summary>
-    public static IEndpointRouteBuilder MapDataFlowEndpoints(this IEndpointRouteBuilder app)
+    /// <param name="hubPath">SignalR hub path (default: /hubs/flow-events). Must match the client registration.</param>
+    public static IEndpointRouteBuilder MapDataFlowEndpoints(
+        this IEndpointRouteBuilder app,
+        string hubPath = "/hubs/flow-events")
+        => app.MapDataFlowEndpoints<FlowVisualizationDbContext>(hubPath);
+
+    /// <summary>
+    /// Maps DataFlow HTTP endpoints and the SignalR hub using <typeparamref name="TContext"/>.
+    /// Call after <see cref="AddDataFlowVisualizationServer{TContext}(IServiceCollection, int)"/>.
+    /// </summary>
+    /// <typeparam name="TContext">Your application's DbContext type.</typeparam>
+    /// <param name="hubPath">SignalR hub path (default: /hubs/flow-events). Must match the client registration.</param>
+    public static IEndpointRouteBuilder MapDataFlowEndpoints<TContext>(
+        this IEndpointRouteBuilder app,
+        string hubPath = "/hubs/flow-events")
+        where TContext : DbContext
     {
-        app.MapFlowStateEndpoints();
-        app.MapFlowListEndpoints();
+        app.MapFlowStateEndpoints<TContext>();
+        app.MapFlowListEndpoints<TContext>();
+        app.MapHub<FlowEventsHub<TContext>>(hubPath);
         return app;
     }
 }

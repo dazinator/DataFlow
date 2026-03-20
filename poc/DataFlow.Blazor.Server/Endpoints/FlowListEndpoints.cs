@@ -17,7 +17,8 @@ internal static class FlowListEndpoints
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    internal static IEndpointRouteBuilder MapFlowListEndpoints(this IEndpointRouteBuilder app)
+    internal static IEndpointRouteBuilder MapFlowListEndpoints<TContext>(this IEndpointRouteBuilder app)
+        where TContext : DbContext
     {
         /// <summary>
         /// Returns a summary of all flow runs, ordered most-recent first.
@@ -25,10 +26,10 @@ internal static class FlowListEndpoints
         /// one event appear (FlowStartedEvent triggers a snapshot immediately).
         /// </summary>
         app.MapGet("/flows", async (
-            FlowVisualizationDbContext db,
+            TContext db,
             CancellationToken cancellationToken) =>
         {
-            var snapshots = await db.FlowSnapshotRecords
+            var snapshots = await db.Set<FlowSnapshotRecord>()
                 .OrderByDescending(s => s.AsOfEventId)
                 .ToListAsync(cancellationToken);
 

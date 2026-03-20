@@ -44,10 +44,11 @@ dotnet add <ServerProject>.csproj package Uniun.DataFlow.Blazor.Server
 
 This pulls in `Uniun.DataFlow.Blazor.Shared` transitively. It provides:
 - `IFlowEventSink` — receives events from the DataFlow engine
-- `EfCoreFlowEventSink` — EF Core persistence implementation
-- `FlowEventsHub` — SignalR hub for live streaming to the client
-- `FlowVisualizationDbContext` — minimal schema (events + snapshots tables)
+- `EfCoreFlowEventSink<TContext>` — EF Core persistence implementation
+- `FlowEventsHub<TContext>` — SignalR hub for live streaming to the client
+- `FlowVisualizationDbContext` — minimal schema for apps without an existing DbContext
 - `AddDataFlowVisualizationServer()` / `MapDataFlowEndpoints()` extension methods
+- `DataFlowModelBuilderExtensions.AddDataFlowVisualizationEntities()` — for merging into an existing DbContext
 
 ### Blazor WASM client project
 
@@ -64,10 +65,12 @@ This provides:
 
 ## Step 3 — Server-side wiring (`Program.cs` of the ASP.NET Core host)
 
+### Option A — dedicated DbContext (no existing EF setup)
+
 Add the following **before** `builder.Build()`:
 
 ```csharp
-// Choose your EF Core provider to match the rest of the solution.
+// Choose your EF Core provider.
 // SQLite — good for dev / lightweight deployments:
 builder.Services.AddDataFlowVisualizationServer(options =>
     options.UseSqlite("Data Source=dataflow-viz.db"));
@@ -84,11 +87,8 @@ builder.Services.AddDataFlowVisualizationServer(options =>
 Add the following **after** `builder.Build()`:
 
 ```csharp
-// Map the catch-up HTTP endpoint (GET /flows/{id}/state) and the flow list endpoint
+// Maps HTTP endpoints (GET /flows, GET /flows/{id}/state) and the SignalR hub
 app.MapDataFlowEndpoints();
-
-// Map the SignalR hub — path must match the client registration
-app.MapHub<FlowEventsHub>("/hubs/flow-events");
 ```
 
 Optionally, ensure the schema is created on first run:
@@ -104,15 +104,56 @@ using (var scope = app.Services.CreateScope())
 > For production SQL Server / PostgreSQL, generate an EF migration:
 > `dotnet ef migrations add AddDataFlowVisualization --context FlowVisualizationDbContext`
 
+### Option B — bring your own DbContext (app already has EF Core)
+
+First, call the entity configuration extension in your DbContext's `OnModelCreating`:
+
+```csharp
+public class MyAppDbContext : DbContext
+{
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+        modelBuilder.AddDataFlowVisualizationEntities(); // registers the two tables
+        // ... rest of your model config ...
+    }
+}
+```
+
+Then in `Program.cs`, before `builder.Build()`:
+
+```csharp
+// Your existing DbContext registration — unchanged
+builder.Services.AddDbContext<MyAppDbContext>(options =>
+    options.UseSqlServer(connectionString));
+
+// Point DataFlow at your context — no second DbContext or connection string needed
+builder.Services.AddDataFlowVisualizationServer<MyAppDbContext>();
+```
+
+And after `builder.Build()`:
+
+```csharp
+app.MapDataFlowEndpoints<MyAppDbContext>();
+```
+
+Generate a migration as you normally would for your context:
+
+```bash
+dotnet ef migrations add AddDataFlowVisualization --context MyAppDbContext
+dotnet ef database update --context MyAppDbContext
+```
+
 ---
 
 ## Step 4 — Client-side DI registration (`Program.cs` of the Blazor WASM project)
 
 ```csharp
-// Connects to the SignalR hub and the HTTP catch-up endpoint on the host
+// Connects to the SignalR hub and the HTTP catch-up endpoint on the host.
+// hubPath must match the path passed to MapDataFlowEndpoints() (default: /hubs/flow-events)
 builder.Services.AddDataFlowVisualizationClient(
     baseUrl: builder.HostEnvironment.BaseAddress,
-    hubPath: "/hubs/flow-events");   // must match MapHub<> path on the server
+    hubPath: "/hubs/flow-events");
 ```
 
 If the solution does **not** yet have an `HttpClient` registered (rare for WASM but check):
@@ -254,8 +295,9 @@ Read through each item and verify it is done, or note why it doesn't apply:
 
 - [ ] `Uniun.DataFlow.Blazor.Server` added to server project
 - [ ] `Uniun.DataFlow.Blazor` added to Blazor client project
-- [ ] `AddDataFlowVisualizationServer(options => options.Use…(…))` in server `Program.cs`
-- [ ] `app.MapDataFlowEndpoints()` and `app.MapHub<FlowEventsHub>(…)` in server `Program.cs`
+- [ ] `AddDataFlowVisualizationServer(…)` (or `AddDataFlowVisualizationServer<TContext>()`) in server `Program.cs`
+- [ ] `app.MapDataFlowEndpoints()` (or `app.MapDataFlowEndpoints<TContext>()`) in server `Program.cs`
+- [ ] If BYO-context: `modelBuilder.AddDataFlowVisualizationEntities()` called in `OnModelCreating`
 - [ ] EF schema creation/migration applied
 - [ ] `AddDataFlowVisualizationClient(baseUrl: …)` in client `Program.cs`
 - [ ] Both `<link>` tags in host HTML
@@ -273,7 +315,8 @@ Read through each item and verify it is done, or note why it doesn't apply:
 |---|---|
 | Component renders but has no styling | Missing `<link>` tags in host HTML |
 | Colours are default but theming overrides not working | App stylesheet loaded **before** library stylesheet — swap order |
-| SignalR connection refused | `MapHub<FlowEventsHub>` path doesn't match `hubPath` in `AddDataFlowVisualizationClient` |
+| SignalR connection refused | `hubPath` in `MapDataFlowEndpoints` doesn't match `hubPath` in `AddDataFlowVisualizationClient` |
+| BYO-context: EF can't find the tables | `modelBuilder.AddDataFlowVisualizationEntities()` not called in `OnModelCreating`, or migration not applied |
 | "Loading flow visualization…" never resolves | `IEventSource` not registered, or server endpoints not mapped |
 | EF exception on first run | EF provider package not installed, or `EnsureCreated()` not called |
 | No events appear despite the pipeline running | `IFlowEventSink` not resolved from `IExecutionContext.ServiceProvider` — check DI wiring |
