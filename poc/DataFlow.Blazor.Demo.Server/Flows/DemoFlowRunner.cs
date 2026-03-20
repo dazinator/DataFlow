@@ -67,10 +67,10 @@ public sealed class DemoFlowRunner
     {
         try
         {
-            var producer = new DemoProducerBlock("producer", itemCount: 50, delayMs: 80);
+            var producer = new DemoProducerBlock("producer", itemCount: 50, delayMs: 200);
             var transform = new DemoTransformBlock("transform");
             var batch = new DemoBatchBlock("batch", batchSize: 5);
-            var processor = new DemoProcessorBlock("processor", delayMs: 30);
+            var processor = new DemoProcessorBlock("processor", delayMs: 60);
 
             var graph = new DataFlowGraph("linear-demo", _graphLogger);
             graph.AddBlock(producer);
@@ -96,10 +96,10 @@ public sealed class DemoFlowRunner
     {
         try
         {
-            var producer = new DemoProducerBlock("producer", itemCount: 40, delayMs: 80);
+            var producer = new DemoProducerBlock("producer", itemCount: 40, delayMs: 200);
             var router = new DemoRouterBlock("router");
-            var procHigh = new DemoPriorityProcessorBlock("processor-high", "high", delayMs: 20);
-            var procLow = new DemoPriorityProcessorBlock("processor-low", "low", delayMs: 20);
+            var procHigh = new DemoPriorityProcessorBlock("processor-high", "high", delayMs: 60);
+            var procLow = new DemoPriorityProcessorBlock("processor-low", "low", delayMs: 60);
 
             var graph = new DataFlowGraph("branching-demo", _graphLogger);
             graph.AddBlock(producer);
@@ -126,11 +126,11 @@ public sealed class DemoFlowRunner
     {
         try
         {
-            var producerA = new DemoProducerBlock("producer-a", itemCount: 25, delayMs: 100);
-            var producerB = new DemoProducerBlock("producer-b", itemCount: 25, delayMs: 120);
+            var producerA = new DemoProducerBlock("producer-a", itemCount: 25, delayMs: 270);
+            var producerB = new DemoProducerBlock("producer-b", itemCount: 25, delayMs: 300);
             var buffer = new DemoBufferBlock("buffer");
             var batch = new DemoBatchBlock("batch", batchSize: 5);
-            var processor = new DemoProcessorBlock("processor", delayMs: 30);
+            var processor = new DemoProcessorBlock("processor", delayMs: 60);
 
             var graph = new DataFlowGraph("fanin-demo", _graphLogger);
             graph.AddBlock(producerA);
