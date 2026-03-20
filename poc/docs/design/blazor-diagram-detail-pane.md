@@ -21,7 +21,7 @@ visible from the diagram itself. Remove from both surfaces.
 - `FlowStatusPanel.razor` — remove the `Blocks` metric `<div>`
 - `FlowRunsList.razor` — remove the `<th>Blocks</th>` column and the corresponding `<td>`
 
-### 2. Items Processed always shows 0
+### 2. Items Processed always shows 0 — replace with Source Items Ingested
 
 `FlowExecutionState.TotalItemsProcessed` sums `BlockState.ItemsProcessed` across all blocks.
 `BlockState.ItemsProcessed` is updated only by `BlockProgressEvent`. Nothing in the core
@@ -30,22 +30,60 @@ core goes through `DataFlowMetrics.ItemsProcessed()` which writes to an OpenTele
 (`dataflow.block.items.processed`), not to the Blazor event sink. So this field will always
 read 0 in practice.
 
-Additionally the concept is semantically ambiguous at the flow level: most blocks see the
-same data items (a transform block processes every item the source emits), so summing across
-blocks double-counts. The only meaningful source of a "total items" number would be a source
-block, not an aggregate.
+The sum-across-all-blocks concept is also semantically wrong: most blocks process the same
+items as the blocks upstream of them (a transform block sees every item the source emitted),
+so a naïve total double-counts. The correct flow-level total is the count of items fed *into*
+the flow — i.e. the sum of items emitted by **source blocks** only (blocks with no incoming
+edges). For the fan-in case this is exactly what you want:
 
-**Decision: remove `Items Processed` from the header until the metric is actually wired.**
+```
+producer-a  (100 items)  ──┐
+                            ├──▶ buffer ──▶ batch ──▶ processor
+producer-b  (50 items)   ──┘
 
-If `BlockProgressEvent` is ever emitted by core, the per-block display in the diagram can
-stay — but the flow-level total in `FlowStatusPanel` should be removed regardless for the
-semantic reasons above. The per-block "0 items" text in the diagram nodes should also be
-hidden when the value is 0 (i.e. only render it once a non-zero `BlockProgressEvent` has
-been received for that block).
+Flow-level total = 150  (producer-a + producer-b, not 600 from summing all four blocks)
+```
+
+**Decision: replace `Items Processed` with `Source Items Ingested` at the flow level.**
+
+#### What changes in the event model
+
+`BlockStartedEvent` already carries `BlockType` (a string). Add a boolean `IsSource` flag:
+
+```csharp
+public record BlockStartedEvent(
+    string BlockName,
+    string BlockType,
+    DateTime Timestamp,
+    bool IsSource = false      // ← new, defaults false for backwards compat
+) : IDataFlowEvent;
+```
+
+The core emitter (`DataFlowGraph.BlockRuntimeModel`) knows at `BlockStarted` time whether
+the block has incoming edges (it is a graph property). It sets `IsSource = true` for blocks
+where `GetIncomingEdges(block)` is empty. No new event type is needed.
+
+`BlockProgressEvent` is reused unchanged — it is emitted for all blocks. The source/non-source
+distinction is captured once, at `BlockStarted`, and stored in `BlockState.IsSource`.
+
+#### What changes in state/display
+
+- `BlockState` gains `bool IsSource { get; set; }`, set when `BlockStartedEvent` is processed.
+- `FlowExecutionState.TotalSourceItemsIngested` = `Blocks.Values.Where(b => b.IsSource).Sum(b => b.ItemsProcessed)`
+- `TotalItemsProcessed` is removed.
+- `FlowStatusPanel` replaces "Items Processed" with "Items Ingested" sourced from
+  `TotalSourceItemsIngested`. This metric is only meaningful once `BlockProgressEvent` is
+  actually emitted for source blocks; until then it shows 0 and should be hidden (same
+  conditional-on-nonzero rule as per-block display).
+- Per-block "0 items" text in the diagram is still hidden when `ItemsProcessed == 0` (applies
+  to all blocks, not just sources).
 
 **Files affected:**
-- `FlowStatusPanel.razor` — remove `Items Processed` metric `<div>`
-- `FlowExecutionState.cs` — `TotalItemsProcessed` can be removed once it has no consumers
+- `BlockEvents.cs` — add `IsSource = false` to `BlockStartedEvent`
+- `BlockState` (in `FlowExecutionState.cs`) — add `IsSource` property
+- `FlowExecutionState.cs` — replace `TotalItemsProcessed` with `TotalSourceItemsIngested`
+- `EventProcessor.cs` — set `BlockState.IsSource` when processing `BlockStartedEvent`
+- `FlowStatusPanel.razor` — rename label to "Items Ingested", hide when 0
 - `FlowDiagram.razor` — conditionally render per-block items text: only if `ItemsProcessed > 0`
 
 ### 3. Trigger Parameters placement is poor
@@ -193,19 +231,20 @@ become much more useful).
 Ordered by dependency:
 
 1. **Remove block count** from `FlowStatusPanel` and `FlowRunsList`
-2. **Remove Items Processed** from `FlowStatusPanel` header; conditionally hide per-block
-   "0 items" text in `FlowDiagram`
-3. **Remove trigger params card** from `FlowStatusPanel`
-4. **Add `EventLog` to `FlowExecutionState`**; append in `EventProcessor.ProcessEvent`
-5. **Add `SelectedObject` discriminated union** (new small file in `Models/`)
-6. **Add `DetailPane.razor`** with trigger view and block view sub-components
-7. **Add click handlers to `FlowDiagram`**; add `OnSelectionChanged` callback parameter;
+2. **Add `IsSource` to `BlockStartedEvent`**; set `BlockState.IsSource` in `EventProcessor`
+3. **Replace `TotalItemsProcessed` with `TotalSourceItemsIngested`** in `FlowExecutionState`;
+   rename/conditionalize metric in `FlowStatusPanel`; hide per-block "0 items" in `FlowDiagram`
+4. **Remove trigger params card** from `FlowStatusPanel`
+5. **Add `EventLog` to `FlowExecutionState`**; append in `EventProcessor.ProcessEvent`
+6. **Add `SelectedObject` discriminated union** (new small file in `Models/`)
+7. **Add `DetailPane.razor`** with trigger view and block view sub-components
+8. **Add click handlers to `FlowDiagram`**; add `OnSelectionChanged` callback parameter;
    add visual selection highlight to the clicked block
-8. **Add diagram header bar** with trigger icon to `FlowVisualization`
-9. **Wire detail pane** into `FlowVisualization` layout (flex row with SVG + pane)
+9. **Add diagram header bar** with trigger icon to `FlowVisualization`
+10. **Wire detail pane** into `FlowVisualization` layout (flex row with SVG + pane)
 
-Steps 1–3 are independent cleanup. Steps 4–9 are the new feature and should be done in
-order.
+Steps 1–4 are independent cleanup and event model changes. Steps 5–10 are the new feature
+and should be done in order.
 
 ---
 
@@ -213,10 +252,11 @@ order.
 
 | File | Change |
 |------|--------|
-| `FlowStatusPanel.razor` | Remove Blocks metric, Items Processed metric, trigger params card |
+| `FlowStatusPanel.razor` | Remove Blocks metric; rename Items Processed → Items Ingested (source only, hidden when 0); remove trigger params card |
 | `FlowRunsList.razor` | Remove Blocks column |
-| `FlowExecutionState.cs` | Add `EventLog`; remove `TotalItemsProcessed` |
-| `EventProcessor.cs` | Append to `EventLog` |
+| `BlockEvents.cs` | Add `IsSource = false` to `BlockStartedEvent` |
+| `FlowExecutionState.cs` | Add `IsSource` to `BlockState`; replace `TotalItemsProcessed` with `TotalSourceItemsIngested`; add `EventLog` |
+| `EventProcessor.cs` | Set `BlockState.IsSource` from event; append to `EventLog` |
 | `FlowDiagram.razor` | Add `@onclick` on blocks, `OnSelectionChanged` callback, selection highlight, conditional items text |
 | `FlowVisualization.razor` | Add header bar, flex layout, wire detail pane |
 | `Models/SelectedObject.cs` | New — discriminated union |
