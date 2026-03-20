@@ -20,11 +20,33 @@ builder.Services.AddRazorPages();
 
 var app = builder.Build();
 
-// Ensure the SQLite schema is created on first run
+// Ensure the SQLite schema is created on first run, then apply any
+// additive column migrations that EnsureCreated won't apply to existing DBs.
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<DataFlow.Blazor.Server.Persistence.FlowVisualizationDbContext>();
     db.Database.EnsureCreated();
+
+    // Additive column migration — safe to run on both new and existing databases.
+    // EnsureCreated is a no-op on existing DBs, so we apply any new columns manually.
+    var connection = db.Database.GetDbConnection();
+    connection.Open();
+    using (var cmd = connection.CreateCommand())
+    {
+        cmd.CommandText = "PRAGMA table_info(FlowEventRecords)";
+        using var reader = cmd.ExecuteReader();
+        var hasCorrelationId = false;
+        while (reader.Read())
+            if (reader.GetString(1) == "CorrelationId") { hasCorrelationId = true; break; }
+
+        if (!hasCorrelationId)
+        {
+            using var alter = connection.CreateCommand();
+            alter.CommandText = "ALTER TABLE FlowEventRecords ADD COLUMN CorrelationId TEXT NULL";
+            alter.ExecuteNonQuery();
+        }
+    }
+    connection.Close();
 }
 
 app.UseHttpsRedirection();
