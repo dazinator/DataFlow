@@ -1,10 +1,10 @@
 .flow-status-panel {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    background: linear-gradient(135deg, var(--df-panel-header-from) 0%, var(--df-panel-header-to) 100%);
+    color: var(--df-panel-header-text);
     padding: 1.5rem;
-    border-radius: 8px;
+    border-radius: var(--df-radius);
     margin-bottom: 1rem;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--df-shadow-md);
 }
 
 .status-section {
@@ -22,28 +22,28 @@
 
 .status-badge {
     padding: 0.5rem 1rem;
-    border-radius: 20px;
+    border-radius: var(--df-radius-badge);
     font-weight: 600;
     font-size: 0.9rem;
     text-transform: uppercase;
 }
 
 .status-idle {
-    background-color: #6c757d;
+    background-color: var(--df-status-idle);
 }
 
 .status-running {
-    background-color: #ffc107;
-    color: #000;
+    background-color: var(--df-status-running);
+    color: var(--df-status-running-text);
     animation: pulse 2s ease-in-out infinite;
 }
 
 .status-completed {
-    background-color: #28a745;
+    background-color: var(--df-status-completed);
 }
 
 .status-failed {
-    background-color: #dc3545;
+    background-color: var(--df-status-failed);
 }
 
 @keyframes pulse {
@@ -78,11 +78,11 @@
 }
 
 .trigger-params-card {
-    border: 1px solid #dee2e6;
-    border-radius: 8px;
+    border: 1px solid var(--df-surface-border);
+    border-radius: var(--df-radius);
     margin-bottom: 1rem;
     overflow: hidden;
-    background: #fff;
+    background: var(--df-surface-bg);
 }
 
 .trigger-params-toggle {
@@ -91,18 +91,18 @@
     align-items: center;
     gap: 0.5rem;
     padding: 0.65rem 1rem;
-    background: #f8f9fa;
+    background: var(--df-surface-muted);
     border: none;
     cursor: pointer;
     text-align: left;
-    color: #495057;
+    color: var(--df-text-muted);
     font-size: 0.875rem;
     font-weight: 500;
     transition: background 0.15s;
 }
 
 .trigger-params-toggle:hover {
-    background: #e9ecef;
+    background: var(--df-surface-hover);
 }
 
 .trigger-params-chevron {
@@ -111,7 +111,7 @@
     display: inline-block;
     transition: transform 0.2s ease;
     transform: rotate(0deg);
-    color: #868e96;
+    color: var(--df-text-subtle);
 }
 
 .trigger-params-chevron.open {
@@ -124,20 +124,20 @@
 
 .trigger-params-hint {
     font-size: 0.75rem;
-    color: #adb5bd;
+    color: var(--df-text-faint);
     font-weight: 400;
 }
 
 .trigger-params-json {
     margin: 0;
     padding: 1rem;
-    background: #f8f9fa;
-    border-top: 1px solid #dee2e6;
+    background: var(--df-surface-muted);
+    border-top: 1px solid var(--df-surface-border);
     font-size: 0.82rem;
-    font-family: 'Consolas', 'Monaco', monospace;
+    font-family: var(--df-font-mono);
     white-space: pre-wrap;
     word-break: break-all;
-    color: #212529;
+    color: var(--df-text-body);
     max-height: 300px;
     overflow-y: auto;
     line-height: 1.5;

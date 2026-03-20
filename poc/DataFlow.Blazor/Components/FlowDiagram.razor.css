@@ -1,9 +1,9 @@
 .flow-diagram {
     flex: 1;
-    background-color: #f8f9fa;
-    border-radius: 8px;
+    background-color: var(--df-diagram-bg);
+    border-radius: var(--df-radius);
     overflow: hidden;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--df-shadow-sm);
     position: relative;
 }
 
@@ -13,32 +13,32 @@
 }
 
 ::deep .node {
-    background: white;
-    border: 2px solid #dee2e6;
-    border-radius: 8px;
+    background: var(--df-surface-bg);
+    border: 2px solid var(--df-surface-border);
+    border-radius: var(--df-radius);
     padding: 1rem;
     min-width: 150px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--df-shadow-sm);
 }
 
 ::deep .node.status-idle {
-    border-color: #6c757d;
+    border-color: var(--df-status-idle);
 }
 
 ::deep .node.status-running {
-    border-color: #ffc107;
-    background: #fff9e6;
+    border-color: var(--df-status-running);
+    background: var(--df-status-running-bg);
     animation: node-pulse 2s ease-in-out infinite;
 }
 
 ::deep .node.status-completed {
-    border-color: #28a745;
-    background: #e8f5e9;
+    border-color: var(--df-status-completed);
+    background: var(--df-status-completed-bg);
 }
 
 ::deep .node.status-failed {
-    border-color: #dc3545;
-    background: #ffebee;
+    border-color: var(--df-status-failed);
+    background: var(--df-status-failed-bg);
 }
 
 @keyframes node-pulse {

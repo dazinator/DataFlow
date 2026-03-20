@@ -3,7 +3,7 @@
     height: 100vh;
     display: flex;
     flex-direction: column;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: var(--df-font-sans);
 }
 
 .loading {
@@ -12,5 +12,5 @@
     align-items: center;
     height: 100vh;
     font-size: 1.2em;
-    color: #666;
+    color: var(--df-text-loading);
 }
