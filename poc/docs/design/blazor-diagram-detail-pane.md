@@ -181,6 +181,28 @@ Below the summary, a **filtered event table** showing all events from
 This requires `FlowExecutionState` to retain the raw event log (not just the aggregated
 state). See [Event log retention](#event-log-retention) below.
 
+#### Custom block detail components via DynamicComponent
+
+The default summary card is generic, but applications may want to render a richer, block-type
+specific view (e.g. a source block showing current epoch, a batch block showing batch sizes).
+Blazor's `DynamicComponent` supports this cleanly.
+
+The library exposes a registration service:
+
+```csharp
+// Application startup
+builder.Services.Configure<BlockDetailViewOptions>(opts =>
+    opts.Register("EpochSourceBlock", typeof(MySourceDetailView)));
+```
+
+`DetailPane` checks the registry for the selected block's `BlockType`. If a matching
+component type is found, it renders via `DynamicComponent` passing a `Parameters` dictionary
+with at least `{ "BlockState", blockState }`. The custom component is expected to accept
+a `[Parameter] BlockState BlockState` parameter. If no custom component is registered, the
+default summary card is rendered as a fallback.
+
+`DynamicComponent` is already in Blazor's standard library — no extra package needed.
+
 ---
 
 ## Event Log Retention
@@ -198,6 +220,97 @@ can be added later.
 
 ---
 
+## BlockProgressEvent: Emission Strategy
+
+Two questions: who counts, and how is the count delivered?
+
+### Who counts (transparent infrastructure, not actors)
+
+Adding `context.ReportProgress(n)` calls to individual actors would pollute actor code with
+infrastructure concerns, be inconsistent across block types, and would need to be re-done
+for every new block. The counting should be transparent.
+
+`DataFlowGraph.BlockRuntimeModel` is the right place. It already owns the per-block lifecycle
+(`BlockStartedEvent`, `BlockCompletedEvent`) and calls `ReflectionHelper.EnumerateAndRouteTypedStreamAsync`
+— the single choke point through which all block output flows before being written to
+downstream channels. Adding an `Interlocked.Increment` on a `long` counter per output item
+here is ~1 ns per item: negligible alongside any real I/O or computation.
+
+`BlockRuntimeModel` also already has `_incomingEdges` in scope, so it can set `IsSource`
+on `BlockStartedEvent` without any new lookups (a block is a source when `_incomingEdges`
+for it is empty).
+
+### How the count is delivered (periodic batch, not per-item events)
+
+Emitting a `BlockProgressEvent` for every single output item would flood the event stream
+at the same rate as item throughput (potentially thousands/sec). Instead:
+
+- `BlockRuntimeModel` increments a `long _itemsEmitted` field (via `Interlocked.Increment`)
+  in the enumeration loop — zero allocations, minimal cost.
+- A lightweight timer fires every **500 ms** (configurable). It snapshots the current counter
+  and emits a `BlockProgressEvent` with the delta since the last snapshot. This bounds
+  event volume to 2 events/block/second regardless of throughput.
+- On `BlockCompleted`, one final `BlockProgressEvent` is emitted with the definitive total,
+  ensuring the last partial window is never lost.
+
+This is identical in spirit to how `DataFlowMetrics._activeChannelCount` uses an
+`ObservableGauge` with a provider callback — the metric system samples on its own schedule,
+not on the item schedule.
+
+---
+
+## Live Metrics: Event Stream vs. Polling API
+
+There is a fundamental mismatch between two kinds of data:
+
+| Kind | Examples | Natural model |
+|------|----------|---------------|
+| Discrete lifecycle events | block started/completed/failed, flow started | Event stream (SSE) |
+| Continuously-changing state | buffer fill level, items-processed running total | Polled snapshot |
+
+Forcing continuously-changing state through the event stream requires rate-limiting logic
+in the emitter (the periodic-batch approach above), adds event volume to the SSE connection,
+and makes the Blazor component replay a stream of deltas to reconstruct current state.
+A polling endpoint returns current state directly.
+
+### Buffer utilisation: polling over a metrics endpoint
+
+Rather than routing `ChannelStatsEvent` through the event stream, a better fit is:
+
+1. `MonitoredChannel<T>` (or the graph's channel factory) maintains per-channel `Reader.Count`
+   snapshots in a concurrent dictionary keyed by channel name — updated on a 500 ms timer.
+2. A lightweight `/api/flows/{invocationId}/channels` endpoint returns the current snapshot
+   dictionary as JSON.
+3. The Blazor diagram component polls this endpoint at its own preferred rate (e.g. 1 s),
+   completely decoupled from how fast items move through channels.
+
+Benefits: no rate-limiting complexity on the emission side; no channel stats in the
+SSE stream; the diagram can adjust polling frequency based on whether it's visible; works
+even if the SSE connection is slow.
+
+The `ChannelStatsEvent` type and `ChannelState` in `FlowExecutionState` can remain as-is —
+they would still be useful if channel stats are populated via the polling path (the Blazor
+component writes them into `FlowExecutionState` after each poll response, so the diagram
+rendering code does not change).
+
+### BlockProgressEvent: keep in the event stream
+
+Item counts are already bounded (periodic batch, max 2 events/block/sec) and they are
+semantically log-like (monotonically increasing, part of the run history). Keeping them in
+the event stream means the event log in `FlowExecutionState` captures the full progress
+history for the detail pane's event table. The polling approach would only give current
+state, losing the history.
+
+### Summary
+
+| Data | Delivery | Reason |
+|------|----------|--------|
+| Block lifecycle (started, completed, failed) | SSE event stream | Discrete, log-like |
+| Item counts (`BlockProgressEvent`) | SSE event stream (rate-limited batch) | Log-like history useful; already bounded |
+| Buffer utilisation | Polling API | Continuously changing current-value; streaming would require aggressive rate limiting |
+
+---
+
 ## Channel Stats / MonitoredChannel (Research Note)
 
 `ChannelStatsEvent` exists in the event model and `ChannelState` is already tracked in
@@ -206,23 +319,20 @@ However, nothing in the core runtime currently emits `ChannelStatsEvent`.
 
 The core uses raw `Channel.CreateBounded<T>()` in several places (`EpochBufferBlock`,
 `ReflectionHelper`, `TypedChannelFactory`). There is no wrapper that could hook into
-the Blazor event sink.
+either the event sink or a polling snapshot store.
 
-A `MonitoredChannel<T>` wrapper concept would:
-1. Wrap a `Channel.CreateBounded<T>()` with periodic sampling of `Reader.Count`
-2. Emit `ChannelStatsEvent` through `IFlowEventSink` at a sampled interval
-3. Be optional — when no sink is registered the overhead is zero
+Based on the metrics architecture decision above, the preferred path is:
 
-The design challenge is rate control: channel counts can change at item-processing frequency
-which could be thousands of events per second. A reasonable approach would be to sample at
-a fixed wall-clock interval (e.g. 500ms) rather than on every write, emitting at most one
-`ChannelStatsEvent` per channel per interval. This keeps event volume bounded independent
-of throughput.
+1. A `MonitoredChannel<T>` wrapper that maintains a current-depth snapshot updated on a
+   500 ms timer (zero overhead on the read/write hot path).
+2. The graph's channel registry exposes a snapshot method callable by the polling endpoint.
+3. The polling endpoint is a thin controller returning the snapshot dictionary as JSON.
+4. The Blazor component polls and writes results into `FlowExecutionState.ChannelStates`,
+   which the diagram already reads for buffer labels.
 
-This is deferred — it needs a separate design pass that covers how the channel factory
-receives the sink reference. It is not part of the detail pane feature but is a natural
-follow-on once the pane is in place (buffer utilisation heat-map on the diagram edges would
-become much more useful).
+This is deferred — it needs a separate design pass covering how the channel factory and
+the polling endpoint share the snapshot registry. It is not part of the detail pane
+feature but is a natural follow-on.
 
 ---
 
@@ -260,5 +370,6 @@ and should be done in order.
 | `FlowDiagram.razor` | Add `@onclick` on blocks, `OnSelectionChanged` callback, selection highlight, conditional items text |
 | `FlowVisualization.razor` | Add header bar, flex layout, wire detail pane |
 | `Models/SelectedObject.cs` | New — discriminated union |
-| `Components/DetailPane.razor` | New — detail pane component |
+| `Components/DetailPane.razor` | New — detail pane component; uses `DynamicComponent` for custom block views |
 | `Components/DetailPane.razor.css` | New — pane styles |
+| `Models/BlockDetailViewOptions.cs` | New — registration service for custom block detail component types |
