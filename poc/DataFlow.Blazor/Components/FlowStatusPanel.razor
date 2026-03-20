@@ -37,18 +37,29 @@
         </div>
     </div>
 
-    @if (!string.IsNullOrEmpty(State.TriggerParamsJson))
-    {
-        <details class="trigger-params-section">
-            <summary class="trigger-params-summary">Trigger Parameters</summary>
-            <pre class="trigger-params-json">@PrettyPrintJson(State.TriggerParamsJson)</pre>
-        </details>
-    }
 </div>
+
+@if (!string.IsNullOrEmpty(State.TriggerParamsJson))
+{
+    <div class="trigger-params-card">
+        <button class="trigger-params-toggle" @onclick="ToggleParams">
+            <span class="trigger-params-chevron @(_paramsOpen ? "open" : "")">›</span>
+            <span class="trigger-params-title">Trigger Parameters</span>
+            <span class="trigger-params-hint">@(State.TriggerParamsJson!.Length) chars</span>
+        </button>
+        @if (_paramsOpen)
+        {
+            <pre class="trigger-params-json">@PrettyPrintJson(State.TriggerParamsJson)</pre>
+        }
+    </div>
+}
 
 @code {
     [Parameter]
     public FlowExecutionState State { get; set; } = null!;
+
+    private bool _paramsOpen = false;
+    private void ToggleParams() => _paramsOpen = !_paramsOpen;
 
     private CancellationTokenSource _cts = new();
 
