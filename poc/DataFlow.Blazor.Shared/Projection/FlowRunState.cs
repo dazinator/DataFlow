@@ -17,6 +17,8 @@ public record FlowRunState
     public DateTime? CompletedAt { get; init; }
     public string? ErrorMessage { get; init; }
     public string? TriggerParamsJson { get; init; }
+    public Guid? CorrelationId { get; init; }
+    public int AttemptNumber { get; init; } = 1;
     public ImmutableDictionary<string, BlockRunState> Blocks { get; init; } =
         ImmutableDictionary<string, BlockRunState>.Empty;
     public ImmutableDictionary<string, ChannelRunState> Channels { get; init; } =

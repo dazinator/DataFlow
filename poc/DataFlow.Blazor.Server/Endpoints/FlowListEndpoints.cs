@@ -46,7 +46,9 @@ internal static class FlowListEndpoints
                         CompletedAt: snapshot.CompletedAt,
                         ErrorMessage: snapshot.ErrorMessage,
                         BlockCount: snapshot.Blocks.Count,
-                        TriggerParamsJson: snapshot.TriggerParamsJson);
+                        TriggerParamsJson: snapshot.TriggerParamsJson,
+                        CorrelationId: snapshot.CorrelationId,
+                        AttemptNumber: snapshot.AttemptNumber);
                 })
                 .Where(s => s is not null)
                 .ToArray();

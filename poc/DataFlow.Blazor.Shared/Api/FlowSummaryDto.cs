@@ -14,5 +14,7 @@ public record FlowSummaryDto(
     DateTime? CompletedAt,
     string? ErrorMessage,
     int BlockCount,
-    string? TriggerParamsJson = null
+    string? TriggerParamsJson = null,
+    Guid? CorrelationId = null,
+    int AttemptNumber = 1
 );

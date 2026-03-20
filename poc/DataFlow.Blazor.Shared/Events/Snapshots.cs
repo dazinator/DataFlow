@@ -12,7 +12,9 @@ public record FlowSnapshot(
     string? ErrorMessage,
     Dictionary<string, BlockSnapshot> Blocks,
     Dictionary<string, ChannelSnapshot> Channels,
-    string? TriggerParamsJson = null
+    string? TriggerParamsJson = null,
+    Guid? CorrelationId = null,
+    int AttemptNumber = 1
 );
 
 public record BlockSnapshot(

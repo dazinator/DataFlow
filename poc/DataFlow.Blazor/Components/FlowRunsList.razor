@@ -30,7 +30,17 @@ else
             @foreach (var flow in _flows)
             {
                 <tr style="border-bottom: 1px solid #dee2e6; @RowStyle(flow.Status)">
-                    <td style="padding: 0.5rem 0.75rem; font-weight: 500;">@flow.FlowName</td>
+                    <td style="padding: 0.5rem 0.75rem; font-weight: 500;">
+                        @flow.FlowName
+                        @if (flow.AttemptNumber > 1)
+                        {
+                            <span title="Retry attempt @flow.AttemptNumber for correlation @flow.CorrelationId"
+                                  style="margin-left:0.4rem; background:#fff3cd; color:#856404; border:1px solid #ffc107;
+                                         border-radius:4px; padding:1px 6px; font-size:0.75rem; font-weight:400;">
+                                attempt @flow.AttemptNumber
+                            </span>
+                        }
+                    </td>
                     <td style="padding: 0.5rem 0.75rem;">
                         <span style="@BadgeStyle(flow.Status)">@StatusLabel(flow.Status)</span>
                     </td>

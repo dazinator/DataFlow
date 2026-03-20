@@ -39,7 +39,9 @@ public class EfCoreFlowEventSink : IFlowEventSink
             EventType = evt.GetType().Name,
             // Serialize using the concrete runtime type so all properties are included
             Payload = JsonSerializer.Serialize(evt, evt.GetType(), JsonOptions),
-            OccurredAt = DateTimeOffset.UtcNow
+            OccurredAt = DateTimeOffset.UtcNow,
+            // Denormalize CorrelationId onto the record for efficient cross-attempt queries
+            CorrelationId = (evt as FlowStartedEvent)?.CorrelationId
         };
 
         _db.FlowEventRecords.Add(record);

@@ -18,7 +18,9 @@ public static class FlowStateProjector
             FlowName = e.FlowName,
             Status = FlowState.Running,
             StartedAt = e.Timestamp,
-            TriggerParamsJson = e.TriggerParamsJson
+            TriggerParamsJson = e.TriggerParamsJson,
+            CorrelationId = e.CorrelationId,
+            AttemptNumber = e.AttemptNumber
         },
 
         FlowCompletedEvent e => state with
@@ -85,6 +87,8 @@ public static class FlowStateProjector
         CompletedAt: state.CompletedAt,
         ErrorMessage: state.ErrorMessage,
         TriggerParamsJson: state.TriggerParamsJson,
+        CorrelationId: state.CorrelationId,
+        AttemptNumber: state.AttemptNumber,
         Blocks: state.Blocks.ToDictionary(
             kv => kv.Key,
             kv => new BlockSnapshot(
@@ -116,6 +120,8 @@ public static class FlowStateProjector
         CompletedAt = snapshot.CompletedAt,
         ErrorMessage = snapshot.ErrorMessage,
         TriggerParamsJson = snapshot.TriggerParamsJson,
+        CorrelationId = snapshot.CorrelationId,
+        AttemptNumber = snapshot.AttemptNumber,
         Blocks = snapshot.Blocks
             .ToImmutableDictionary(
                 kv => kv.Key,

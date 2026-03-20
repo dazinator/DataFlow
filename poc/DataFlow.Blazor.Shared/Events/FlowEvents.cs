@@ -14,7 +14,18 @@ public record FlowStartedEvent(
     /// trigger params to the execution context.
     /// </para>
     /// </summary>
-    string? TriggerParamsJson = null
+    string? TriggerParamsJson = null,
+    /// <summary>
+    /// Stable identity of the originating work item (e.g. a queue message ID).
+    /// Shared across all retry attempts for the same logical unit of work.
+    /// Null for standalone / ad-hoc invocations.
+    /// </summary>
+    Guid? CorrelationId = null,
+    /// <summary>
+    /// 1-based delivery attempt counter for this CorrelationId.
+    /// Always 1 for standalone invocations; increments on each retry.
+    /// </summary>
+    int AttemptNumber = 1
 ) : IDataFlowEvent;
 
 public record FlowCompletedEvent(

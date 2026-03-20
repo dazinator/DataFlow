@@ -27,6 +27,7 @@ public class FlowVisualizationDbContext : DbContext
         modelBuilder.Entity<FlowEventRecord>(entity =>
         {
             entity.HasIndex(e => e.FlowRunId);
+            entity.HasIndex(e => e.CorrelationId);
         });
 
         modelBuilder.Entity<FlowSnapshotRecord>(entity =>
