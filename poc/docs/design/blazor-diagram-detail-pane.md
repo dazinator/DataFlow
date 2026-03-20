@@ -220,6 +220,95 @@ can be added later.
 
 ---
 
+## Refactoring: Extract StreamPump from ReflectionHelper
+
+Before adding the item counter, a prerequisite refactor is needed to give the counter a
+clean home.
+
+### The two concerns currently mixed in ReflectionHelper
+
+`ReflectionHelper` currently contains two completely different things:
+
+**1. Type bridge (reflection concern)** — public static methods that accept `Type` parameters
+and use `MethodInfo.MakeGenericMethod()` and expression trees to dispatch to the correct
+generic overload at runtime. This is unavoidable complexity: C# requires it when the type
+parameter is only known at runtime. Examples: `EnumerateAndRouteTypedStreamAsync(object,
+Type, ...)`, `CreateEpochStreamRoutingDelegate(Type)`, `GetTypedStreamFromChannelReader(...)`.
+
+**2. Pump logic (execution concern)** — private generic methods that contain the actual
+`await foreach` loops and routing dispatch. These have zero reflection dependency; they
+could be in any class. Examples: `EnumerateAndRouteTypedStreamGenericAsync<T>`,
+`EnumerateAndRouteEpochStreamAsync<TItem>`, `RouteItemToDownstreamChannelsAsync<TItem>`,
+`MergeAsyncEnumerables<T>`, `CreateDownstreamEpochStreams<TItem>`.
+
+The item counter, the periodic timer, and any future pump-level instrumentation all belong
+in concern 2. Mixing them with concern 1 is what makes the code feel wrong.
+
+### The name: StreamPump
+
+The right term is **pump**. A pump actively drives items from a source to a sink — it pulls
+from an `IAsyncEnumerable<T>` and pushes into downstream `ChannelWriter<T>` targets. This
+is distinct from a *connector* (passive link) or a *router* (decides where items go —
+`TypedEdgeRouter` already plays that role). The pump *drives the flow*.
+
+The existing runtime model naming (`BlockRuntimeModel`, `EdgeRuntimeModel`,
+`ExecutionPipeline`) naturally extends to `StreamPump` — it is the execution-time component
+that runs between a block's output stream and the downstream channels.
+
+Two pump variants map to the two code paths already in `ReflectionHelper`:
+- **`StreamPump<T>`** — drives a plain `IAsyncEnumerable<T>` through routers into channel
+  writers. The hot path: one atomic increment per item, fan-out via `Task.WhenAll`.
+- **`EpochStreamPump<TItem>`** — wraps `StreamPump<TItem>` with epoch lifecycle management:
+  creates per-epoch downstream `ChannelBackedEpochStream<TItem>` instances, routes the
+  containers to downstream blocks before routing items, then completes/disposes them.
+
+### Proposed file layout
+
+```
+DataFlow/Core/
+  StreamPump.cs        ← new: all generic pump logic, no reflection
+  ReflectionHelper.cs  ← reduced to type bridge only (dispatch to StreamPump<T>)
+```
+
+`ReflectionHelper`'s public methods remain identical in signature — they are the dispatch
+layer that calls `StreamPump<T>` once the type is resolved. No call sites in
+`DataFlowGraph.BlockRuntimeModel` change.
+
+### Where the item counter lives
+
+`StreamPump<T>` is an instance class (not static) because `BlockRuntimeModel` needs to
+read the counter after (or during) execution:
+
+```csharp
+// Inside BlockRuntimeModel.RunAsync:
+var pump = new StreamPump<T>(routers, epochStreamDelegate);
+await pump.DriveAsync(typedOutput, cancellationToken);
+// pump.ItemsEmitted is now the definitive count — emit BlockProgressEvent
+```
+
+The counter field is `long _itemsEmitted` incremented via `Interlocked.Increment` in the
+`await foreach` loop. The periodic timer reads it via `Volatile.Read`. No allocations,
+no lock contention.
+
+`ReflectionHelper.EnumerateAndRouteTypedStreamAsync` becomes a thin wrapper that
+instantiates the correct `StreamPump<T>` and calls `DriveAsync` — the same one-time
+reflection cost it already has today.
+
+### What stays in ReflectionHelper
+
+Only methods that are *inherently* about type resolution:
+- `CreateEpochStreamRoutingDelegate` / `CreateContainerRoutingDelegate` (expression tree compilation)
+- `CreateTypedRouterFactory` (expression tree compilation)
+- `CreateEmptyTypedStream` / `GetTypedStreamFromChannelReader` / `MergeTypedStreams` (MakeGenericMethod dispatch)
+- `CompleteTypedWriter` (reflection invoke)
+- The public `EnumerateAndRouteTypedStreamAsync` / `EnumerateTypedStreamAsync` entry points (dispatch only — delegate immediately to `StreamPump<T>`)
+
+The private `*Generic*` and `EnumerateAndRoute*Async` methods, `EdgeRoutingTopology<TItem>`,
+`CreateDownstreamEpochStreams`, `RouteEpochStreamContainersAsync`, and
+`RouteItemToDownstreamChannelsAsync` all move to `StreamPump.cs`.
+
+---
+
 ## BlockProgressEvent: Emission Strategy
 
 Two questions: who counts, and how is the count delivered?
@@ -230,28 +319,27 @@ Adding `context.ReportProgress(n)` calls to individual actors would pollute acto
 infrastructure concerns, be inconsistent across block types, and would need to be re-done
 for every new block. The counting should be transparent.
 
-`DataFlowGraph.BlockRuntimeModel` is the right place. It already owns the per-block lifecycle
-(`BlockStartedEvent`, `BlockCompletedEvent`) and calls `ReflectionHelper.EnumerateAndRouteTypedStreamAsync`
-— the single choke point through which all block output flows before being written to
-downstream channels. Adding an `Interlocked.Increment` on a `long` counter per output item
-here is ~1 ns per item: negligible alongside any real I/O or computation.
+With the `StreamPump` refactor above, the counter has a clean home: `StreamPump<T>` holds
+a `long _itemsEmitted` field incremented via `Interlocked.Increment` in its `await foreach`
+loop. This is the single place through which every block output item flows before being
+written to downstream channels. ~1 ns per item: negligible alongside any real I/O.
 
-`BlockRuntimeModel` also already has `_incomingEdges` in scope, so it can set `IsSource`
-on `BlockStartedEvent` without any new lookups (a block is a source when `_incomingEdges`
-for it is empty).
+`BlockRuntimeModel` creates the `StreamPump` instance, runs it, then owns the post-execution
+counter value. It also already has `_incomingEdges` in scope at `BlockStarted` time, so
+setting `IsSource` on `BlockStartedEvent` requires no new lookups.
 
 ### How the count is delivered (periodic batch, not per-item events)
 
 Emitting a `BlockProgressEvent` for every single output item would flood the event stream
 at the same rate as item throughput (potentially thousands/sec). Instead:
 
-- `BlockRuntimeModel` increments a `long _itemsEmitted` field (via `Interlocked.Increment`)
-  in the enumeration loop — zero allocations, minimal cost.
-- A lightweight timer fires every **500 ms** (configurable). It snapshots the current counter
-  and emits a `BlockProgressEvent` with the delta since the last snapshot. This bounds
-  event volume to 2 events/block/second regardless of throughput.
-- On `BlockCompleted`, one final `BlockProgressEvent` is emitted with the definitive total,
-  ensuring the last partial window is never lost.
+- `BlockRuntimeModel` starts a lightweight timer alongside the pump (e.g. every **500 ms**).
+  The timer reads `pump.ItemsEmitted` via `Volatile.Read` and emits a `BlockProgressEvent`
+  with the total so far. This bounds event volume to 2 events/block/second regardless of
+  throughput.
+- On `BlockCompleted`, the timer is stopped and one final `BlockProgressEvent` is emitted
+  with the definitive count from `pump.ItemsEmitted`, ensuring the last partial window is
+  never lost.
 
 This is identical in spirit to how `DataFlowMetrics._activeChannelCount` uses an
 `ObservableGauge` with a provider callback — the metric system samples on its own schedule,
@@ -340,21 +428,37 @@ feature but is a natural follow-on.
 
 Ordered by dependency:
 
+**DataFlow core (prerequisite):**
+
+0. **Extract `StreamPump`** from `ReflectionHelper` — move all generic pump logic to
+   `DataFlow/Core/StreamPump.cs`; reduce `ReflectionHelper` to type-bridge only. No
+   behaviour change, no call-site changes.
+
+**Blazor cleanup (independent of each other):**
+
 1. **Remove block count** from `FlowStatusPanel` and `FlowRunsList`
 2. **Add `IsSource` to `BlockStartedEvent`**; set `BlockState.IsSource` in `EventProcessor`
 3. **Replace `TotalItemsProcessed` with `TotalSourceItemsIngested`** in `FlowExecutionState`;
    rename/conditionalize metric in `FlowStatusPanel`; hide per-block "0 items" in `FlowDiagram`
 4. **Remove trigger params card** from `FlowStatusPanel`
-5. **Add `EventLog` to `FlowExecutionState`**; append in `EventProcessor.ProcessEvent`
-6. **Add `SelectedObject` discriminated union** (new small file in `Models/`)
-7. **Add `DetailPane.razor`** with trigger view and block view sub-components
-8. **Add click handlers to `FlowDiagram`**; add `OnSelectionChanged` callback parameter;
-   add visual selection highlight to the clicked block
-9. **Add diagram header bar** with trigger icon to `FlowVisualization`
-10. **Wire detail pane** into `FlowVisualization` layout (flex row with SVG + pane)
 
-Steps 1–4 are independent cleanup and event model changes. Steps 5–10 are the new feature
-and should be done in order.
+**BlockProgressEvent wiring (depends on step 0):**
+
+5. **Add `long ItemsEmitted` counter to `StreamPump`**; increment via `Interlocked` in the
+   pump loop
+6. **Add periodic timer in `BlockRuntimeModel`** to emit `BlockProgressEvent` from
+   `pump.ItemsEmitted`; emit final count at `BlockCompleted`
+
+**Detail pane feature (depends on steps 2–4):**
+
+7. **Add `EventLog` to `FlowExecutionState`**; append in `EventProcessor.ProcessEvent`
+8. **Add `SelectedObject` discriminated union** (new small file in `Models/`)
+9. **Add `DetailPane.razor`** with trigger view, default block card, and `DynamicComponent`
+   fallback; add `BlockDetailViewOptions` registration service
+10. **Add click handlers to `FlowDiagram`**; add `OnSelectionChanged` callback parameter;
+    add visual selection highlight to the clicked block
+11. **Add diagram header bar** with trigger icon to `FlowVisualization`
+12. **Wire detail pane** into `FlowVisualization` layout (flex row with SVG + pane)
 
 ---
 
@@ -362,6 +466,9 @@ and should be done in order.
 
 | File | Change |
 |------|--------|
+| `DataFlow/Core/StreamPump.cs` | New — all generic pump logic extracted from `ReflectionHelper`; `long ItemsEmitted` counter |
+| `DataFlow/Core/ReflectionHelper.cs` | Reduced to type-bridge only; delegates to `StreamPump<T>` |
+| `DataFlow/Core/DataFlowGraph.cs` | `BlockRuntimeModel`: set `IsSource` on `BlockStartedEvent`; add timer + emit `BlockProgressEvent` from `StreamPump.ItemsEmitted` |
 | `FlowStatusPanel.razor` | Remove Blocks metric; rename Items Processed → Items Ingested (source only, hidden when 0); remove trigger params card |
 | `FlowRunsList.razor` | Remove Blocks column |
 | `BlockEvents.cs` | Add `IsSource = false` to `BlockStartedEvent` |
