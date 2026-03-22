@@ -72,10 +72,11 @@ app.MapPost("/flows/run/{topology}", (string topology, DemoFlowRunner runner) =>
 {
     var invocationId = topology.ToLowerInvariant() switch
     {
-        "linear"    => runner.RunLinear(),
-        "branching" => runner.RunBranching(),
-        "fanin"     => runner.RunFanIn(),
-        _           => (Guid?)null
+        "linear"       => runner.RunLinear(),
+        "branching"    => runner.RunBranching(),
+        "fanin"        => runner.RunFanIn(),
+        "backpressure" => runner.RunBackpressure(),
+        _              => (Guid?)null
     };
 
     return invocationId is null

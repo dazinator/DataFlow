@@ -1,0 +1,63 @@
+@page "/flow-viz-backpressure"
+@using DataFlow.Blazor.Components
+@using System.Net.Http.Json
+@inject HttpClient Http
+
+<PageTitle>Backpressure Demo</PageTitle>
+
+<h1>DataFlow Visualization - Backpressure Demo</h1>
+
+<p>This demo shows a <strong>fast producer feeding a slow consumer</strong> through a small bounded buffer (capacity&nbsp;10).</p>
+<p><strong>Topology:</strong> Producer (20ms/item) → [buffer: 10] → Consumer (300ms/item)</p>
+<p>The buffer fills within seconds and stays near capacity, triggering the amber/red health indicators.</p>
+
+<div style="margin: 1rem 0;">
+    <button class="btn btn-primary" @onclick="StartNewFlow" disabled="@_isRunning">
+        Start New Flow
+    </button>
+    @if (_errorMessage is not null)
+    {
+        <span style="color: red; margin-left: 1rem;">@_errorMessage</span>
+    }
+</div>
+
+@if (_currentInvocationId != null)
+{
+    <FlowVisualization InvocationId="_currentInvocationId.Value" />
+}
+
+@code {
+    private Guid? _currentInvocationId;
+    private bool _isRunning;
+    private string? _errorMessage;
+
+    private async Task StartNewFlow()
+    {
+        _isRunning = true;
+        _errorMessage = null;
+        _currentInvocationId = null;
+        StateHasChanged();
+
+        try
+        {
+            var result = await Http.PostAsJsonAsync("/flows/run/backpressure", (object?)null);
+            if (result.IsSuccessStatusCode)
+            {
+                var body = await result.Content.ReadFromJsonAsync<RunResult>();
+                _currentInvocationId = body?.InvocationId;
+            }
+            else
+            {
+                _errorMessage = $"Server error: {result.StatusCode}";
+                _isRunning = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+            _isRunning = false;
+        }
+    }
+
+    private record RunResult(Guid InvocationId);
+}

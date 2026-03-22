@@ -152,6 +152,29 @@ public sealed class DemoPriorityProcessorBlock : BlockBase<(int Value, string Pr
 }
 
 /// <summary>
+/// Slow terminal sink — processes each item individually with a large delay.
+/// Used in the backpressure demo to ensure the upstream buffer stays full.
+/// </summary>
+public sealed class DemoSlowConsumerBlock : BlockBase<int, object>
+{
+    private readonly int _delayMs;
+
+    public DemoSlowConsumerBlock(string name, int delayMs = 300) : base(new BlockContext(name))
+    {
+        _delayMs = delayMs;
+    }
+
+    public override async IAsyncEnumerable<object> ExecuteAsync(
+        IAsyncEnumerable<int> input,
+        IExecutionContext context)
+    {
+        await foreach (var item in input.WithCancellation(context.CancellationToken))
+            await Task.Delay(_delayMs, context.CancellationToken);
+        yield break;
+    }
+}
+
+/// <summary>
 /// Merges integer items from multiple sources (fan-in buffer point).
 /// Simply passes items through, acting as a labelled merge node.
 /// </summary>

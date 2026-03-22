@@ -48,6 +48,19 @@ public sealed class DemoFlowRunner
     }
 
     /// <summary>
+    /// Backpressure: Producer (fast) → Consumer (slow) with a small bounded buffer.
+    /// Producer emits 80 items at 20ms each (~50/sec); consumer processes at 300ms each (~3/sec).
+    /// The 10-item buffer fills within seconds and stays near capacity, exercising the amber/red health indicators.
+    /// </summary>
+    public Guid RunBackpressure()
+    {
+        var invocationId = Guid.NewGuid();
+        var triggerParams = Serialize(new { topology = "backpressure", itemCount = 80, bufferCapacity = 10, consumerDelayMs = 300, triggeredBy = "demo-ui" });
+        _ = Task.Run(() => ExecuteBackpressureAsync(invocationId, triggerParams));
+        return invocationId;
+    }
+
+    /// <summary>
     /// Fan-in: [Producer-A, Producer-B] → Buffer → Batch → Processor
     /// </summary>
     public Guid RunFanIn()
@@ -124,6 +137,29 @@ public sealed class DemoFlowRunner
         catch (Exception ex)
         {
             _logger.LogError(ex, "Branching demo flow {InvocationId} failed", invocationId);
+        }
+    }
+
+    private async Task ExecuteBackpressureAsync(Guid invocationId, string? triggerParamsJson)
+    {
+        try
+        {
+            var producer = new DemoProducerBlock("producer", itemCount: 80, delayMs: 20);
+            var consumer = new DemoSlowConsumerBlock("consumer", delayMs: 300);
+
+            var graph = new DataFlowGraph("backpressure-demo", _graphLogger);
+            graph.AddBlock(producer);
+            graph.AddBlock(consumer);
+            graph.AddEdge(new Edge(producer, consumer, BufferMode.Bounded, bufferCapacity: 10));
+
+            using var scope = _services.CreateScope();
+            var ctx = new DataFlow.POC.Core.ExecutionContext(scope.ServiceProvider, CancellationToken.None, invocationId,
+                recoveryCheckpoint: null, metrics: null, triggerContext: null, triggerParamsJson: triggerParamsJson);
+            await graph.ExecuteAsync(ctx);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Backpressure demo flow {InvocationId} failed", invocationId);
         }
     }
 
