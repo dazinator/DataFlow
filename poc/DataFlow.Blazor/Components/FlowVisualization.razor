@@ -111,7 +111,12 @@
             {
                 _processor!.ProcessEvent(evt);
 
-                if ((DateTime.UtcNow - lastRender).TotalMilliseconds >= MinRenderIntervalMs)
+                // Terminal/structural events always render immediately so the UI doesn't
+                // get stuck (e.g. flow stays "RUNNING" because the completion event was
+                // absorbed by the rate-limiter and the stream never formally ends).
+                var forceRender = evt is FlowCompletedEvent or BlockCompletedEvent;
+
+                if (forceRender || (DateTime.UtcNow - lastRender).TotalMilliseconds >= MinRenderIntervalMs)
                 {
                     lastRender = DateTime.UtcNow;
                     await InvokeAsync(StateHasChanged);
