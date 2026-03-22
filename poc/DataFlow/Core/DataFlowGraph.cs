@@ -295,6 +295,20 @@ public class DataFlowGraph
 
                 _logger.LogInformation("Completed execution of dataflow: {FlowName}", Name);
 
+                // Emit final ChannelStatsEvent for every buffer so the UI reflects the
+                // drained state at completion (all blocks have finished, so counts are 0).
+                if (eventSink is not null)
+                {
+                    var finalMonitors = pipeline.EdgeRuntimeModels.Values
+                        .SelectMany(e => e.BufferMonitors.Values);
+                    foreach (var monitor in finalMonitors)
+                    {
+                        await eventSink.AppendAsync(context.InvocationId,
+                            new ChannelStatsEvent(monitor.SourceBlock, monitor.TargetBlock,
+                                monitor.Capacity, monitor.CurrentCount, DateTime.UtcNow));
+                    }
+                }
+
                 // Emit FlowCompletedEvent (success)
                 if (eventSink is not null)
                 {
