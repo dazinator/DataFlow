@@ -17,6 +17,7 @@ public class FlowExecutionState
     
     public Dictionary<string, BlockState> Blocks { get; } = new();
     public Dictionary<string, ChannelState> Channels { get; } = new();
+    public Dictionary<(string Source, string Target), EdgeState> Edges { get; } = new();
     public List<IDataFlowEvent> EventLog { get; } = new();
 
     /// <summary>
@@ -117,4 +118,17 @@ public class ChannelState
     /// Indicates if the buffer is approaching full capacity (>80%).
     /// </summary>
     public bool IsNearCapacity => BufferUtilizationPercent > 80;
+}
+
+/// <summary>
+/// Represents the runtime throughput state of a single directed edge.
+/// </summary>
+public class EdgeState
+{
+    public string SourceBlock { get; set; } = string.Empty;
+    public string TargetBlock { get; set; } = string.Empty;
+    public long ItemsTransmitted { get; set; }
+    public double TransmitRatePerSecond { get; set; }
+    internal long PreviousItemsForRate { get; set; }
+    internal DateTime? LastProgressTimestamp { get; set; }
 }

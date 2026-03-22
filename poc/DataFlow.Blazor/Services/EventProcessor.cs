@@ -84,6 +84,9 @@ public class EventProcessor
             case ChannelStatsEvent e:
                 ProcessChannelStats(e);
                 break;
+            case EdgeProgressEvent e:
+                ProcessEdgeProgress(e);
+                break;
         }
     }
 
@@ -129,6 +132,10 @@ public class EventProcessor
             blockState.ErrorMessage = e.ErrorMessage;
             blockState.OutputRatePerSecond = 0; // block finished — no more output
         }
+
+        // Reset transmit rates for all edges originating from this block.
+        foreach (var key in _state.Edges.Keys.Where(k => k.Source == e.BlockName).ToList())
+            _state.Edges[key].TransmitRatePerSecond = 0;
     }
 
     private void ProcessBlockProgress(BlockProgressEvent e)
@@ -149,6 +156,29 @@ public class EventProcessor
             blockState.LastProgressTimestamp = e.Timestamp;
             blockState.ItemsProcessed = e.ItemsProcessed;
         }
+    }
+
+    private void ProcessEdgeProgress(EdgeProgressEvent e)
+    {
+        var key = (e.SourceBlock, e.TargetBlock);
+        if (!_state.Edges.TryGetValue(key, out var edgeState))
+        {
+            edgeState = new EdgeState { SourceBlock = e.SourceBlock, TargetBlock = e.TargetBlock };
+            _state.Edges[key] = edgeState;
+        }
+
+        if (edgeState.LastProgressTimestamp.HasValue)
+        {
+            var elapsed = (e.Timestamp - edgeState.LastProgressTimestamp.Value).TotalSeconds;
+            if (elapsed > 0)
+            {
+                var delta = e.ItemsTransmitted - edgeState.PreviousItemsForRate;
+                edgeState.TransmitRatePerSecond = delta / elapsed;
+            }
+        }
+        edgeState.PreviousItemsForRate = e.ItemsTransmitted;
+        edgeState.LastProgressTimestamp = e.Timestamp;
+        edgeState.ItemsTransmitted = e.ItemsTransmitted;
     }
 
     private void ProcessChannelStats(ChannelStatsEvent e)

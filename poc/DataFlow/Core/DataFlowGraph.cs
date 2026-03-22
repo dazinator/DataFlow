@@ -732,7 +732,7 @@ public class DataFlowGraph
                 // Linked to context.CancellationToken so it also stops on flow cancellation.
                 using var timerCts = CancellationTokenSource.CreateLinkedTokenSource(context.CancellationToken);
                 var progressTimerTask = eventSink is not null
-                    ? RunBlockProgressTimerAsync(_block.Name, progressCounter, eventSink, context.InvocationId, timerCts.Token)
+                    ? RunBlockProgressTimerAsync(_block.Name, progressCounter, outputRouters, eventSink, context.InvocationId, timerCts.Token)
                     : Task.CompletedTask;
 
                 long itemsEmitted;
@@ -756,6 +756,23 @@ public class DataFlowGraph
                 {
                     await eventSink.AppendAsync(context.InvocationId,
                         new BlockProgressEvent(_block.Name, itemsEmitted, DateTime.UtcNow));
+                }
+
+                // Emit definitive final EdgeProgressEvent for each outgoing edge.
+                if (eventSink is not null)
+                {
+                    foreach (var router in outputRouters)
+                    {
+                        foreach (var targetBlock in router.TargetBlocks)
+                        {
+                            var edgeCount = router.GetItemsWrittenToTarget(targetBlock);
+                            if (edgeCount > 0)
+                            {
+                                await eventSink.AppendAsync(context.InvocationId,
+                                    new EdgeProgressEvent(_block.Name, targetBlock.Name, edgeCount, DateTime.UtcNow));
+                            }
+                        }
+                    }
                 }
 
                 // Complete all outgoing typed channels
@@ -825,6 +842,7 @@ public class DataFlowGraph
         private static async Task RunBlockProgressTimerAsync(
             string blockName,
             long[] progressCounter,
+            List<ITypedEdgeRouter> outputRouters,
             IFlowEventSink eventSink,
             Guid invocationId,
             CancellationToken cancellationToken)
@@ -834,15 +852,36 @@ public class DataFlowGraph
             {
                 while (await timer.WaitForNextTickAsync(cancellationToken))
                 {
+                    var now = DateTime.UtcNow;
+
+                    // Block-level progress (total items emitted by this block).
                     var count = Volatile.Read(ref progressCounter[0]);
                     if (count > 0)
                     {
                         try
                         {
                             await eventSink.AppendAsync(invocationId,
-                                new BlockProgressEvent(blockName, count, DateTime.UtcNow));
+                                new BlockProgressEvent(blockName, count, now));
                         }
                         catch { /* sink errors must not crash the flow */ }
+                    }
+
+                    // Per-edge progress: how many items reached each specific target.
+                    foreach (var router in outputRouters)
+                    {
+                        foreach (var targetBlock in router.TargetBlocks)
+                        {
+                            var edgeCount = router.GetItemsWrittenToTarget(targetBlock);
+                            if (edgeCount > 0)
+                            {
+                                try
+                                {
+                                    await eventSink.AppendAsync(invocationId,
+                                        new EdgeProgressEvent(blockName, targetBlock.Name, edgeCount, now));
+                                }
+                                catch { /* sink errors must not crash the flow */ }
+                            }
+                        }
                     }
                 }
             }

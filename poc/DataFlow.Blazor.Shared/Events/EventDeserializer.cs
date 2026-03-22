@@ -19,6 +19,7 @@ public static class EventDeserializer
         nameof(BlockCompletedEvent) => JsonSerializer.Deserialize<BlockCompletedEvent>(payload, Options),
         nameof(BlockProgressEvent)  => JsonSerializer.Deserialize<BlockProgressEvent>(payload, Options),
         nameof(ChannelStatsEvent)   => JsonSerializer.Deserialize<ChannelStatsEvent>(payload, Options),
+        nameof(EdgeProgressEvent)   => JsonSerializer.Deserialize<EdgeProgressEvent>(payload, Options),
         _ => null
     };
 }

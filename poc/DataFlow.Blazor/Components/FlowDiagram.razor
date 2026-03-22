@@ -34,12 +34,32 @@
                               stroke="#666" stroke-width="2" marker-end="url(#arrowhead)" />
                     }
 
-                    @* Edge throughput label: output rate and cumulative total from the source block *@
-                    @if (State.Blocks.TryGetValue(sourceBlock, out var srcBlock) && srcBlock.ItemsProcessed > 0)
+                    @* Edge throughput label.
+                       Prefer per-edge EdgeState (accurate for selective/routed edges).
+                       Fall back to source-block total (correct for broadcast). *@
+                    @{
+                        var edgeKey = (sourceBlock, targetBlock);
+                        var hasEdgeState = State.Edges.TryGetValue(edgeKey, out var edgeState)
+                            && edgeState!.ItemsTransmitted > 0;
+                        State.Blocks.TryGetValue(sourceBlock, out var srcBlock);
+                        var hasSrcBlock = srcBlock != null && srcBlock.ItemsProcessed > 0;
+                    }
+                    @if (hasEdgeState || hasSrcBlock)
                     {
                         var midX = (x1 + x2) / 2;
                         var midY = (y1 + y2) / 2 - 24;
-                        var labelText = FormatEdgeLabel(srcBlock);
+                        var isCompleted = srcBlock?.State is Events.BlockState.Completed or Events.BlockState.Failed;
+                        string labelText;
+                        if (hasEdgeState)
+                        {
+                            labelText = isCompleted
+                                ? FormatCount(edgeState!.ItemsTransmitted)
+                                : $"↑ {(long)Math.Round(edgeState!.TransmitRatePerSecond)}/s · {FormatCount(edgeState.ItemsTransmitted)}";
+                        }
+                        else
+                        {
+                            labelText = FormatEdgeLabel(srcBlock!);
+                        }
                         <rect x="@(midX - 46)" y="@(midY - 12)" width="92" height="18"
                               fill="white" stroke="#ddd" stroke-width="1" rx="3" opacity="0.93" />
                         <svg:text x="@midX" y="@midY" text-anchor="middle" font-size="11" fill="#444">@labelText</svg:text>

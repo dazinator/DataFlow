@@ -19,3 +19,10 @@ public record BlockProgressEvent(
     long ItemsProcessed,
     DateTime Timestamp
 ) : IDataFlowEvent;
+
+public record EdgeProgressEvent(
+    string SourceBlock,
+    string TargetBlock,
+    long ItemsTransmitted,
+    DateTime Timestamp
+) : IDataFlowEvent;
