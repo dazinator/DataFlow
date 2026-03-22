@@ -23,7 +23,7 @@ public record BlockSnapshot(
     string BlockType,
     BlockState State,
     long ItemsConsumed,
-    long ItemsOutput,
+    long ItemsProduced,
     DateTime? StartTime,
     DateTime? EndTime,
     string? ErrorMessage,

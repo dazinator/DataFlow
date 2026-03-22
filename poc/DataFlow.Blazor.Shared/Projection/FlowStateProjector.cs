@@ -60,7 +60,7 @@ public static class FlowStateProjector
             Blocks = state.Blocks.SetItem(e.BlockName, block with
             {
                 ItemsConsumed = e.ItemsConsumed,
-                ItemsOutput = e.ItemsOutput
+                ItemsProduced = e.ItemsProduced
             })
         },
 
@@ -158,7 +158,7 @@ public static class FlowStateProjector
                 kv.Value.BlockType,
                 kv.Value.Status,
                 kv.Value.ItemsConsumed,
-                kv.Value.ItemsOutput,
+                kv.Value.ItemsProduced,
                 kv.Value.StartedAt,
                 kv.Value.CompletedAt,
                 kv.Value.ErrorMessage,
@@ -208,7 +208,7 @@ public static class FlowStateProjector
                     BlockType = kv.Value.BlockType,
                     Status = kv.Value.State,
                     ItemsConsumed = kv.Value.ItemsConsumed,
-                    ItemsOutput = kv.Value.ItemsOutput,
+                    ItemsProduced = kv.Value.ItemsProduced,
                     StartedAt = kv.Value.StartTime,
                     CompletedAt = kv.Value.EndTime,
                     ErrorMessage = kv.Value.ErrorMessage,

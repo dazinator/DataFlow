@@ -48,27 +48,27 @@ public class MockEventSource : IEventSource
             await Task.Delay(200, cancellationToken);
 
             // Producer progress (source: consumed=0)
-            yield return new BlockMetricsEvent("producer", ItemsConsumed: 0, ItemsOutput: i * 50, DateTime.UtcNow);
+            yield return new BlockMetricsEvent("producer", ItemsConsumed: 0, ItemsProduced: i * 50, DateTime.UtcNow);
             yield return new ChannelStatsEvent("producer", "transform", 100, _random.Next(20, 80), DateTime.UtcNow);
 
             // Transform progress (slightly behind; 1:1 transformer)
             if (i > 1)
             {
-                yield return new BlockMetricsEvent("transform", ItemsConsumed: (i - 1) * 48, ItemsOutput: (i - 1) * 48, DateTime.UtcNow);
+                yield return new BlockMetricsEvent("transform", ItemsConsumed: (i - 1) * 48, ItemsProduced: (i - 1) * 48, DateTime.UtcNow);
                 yield return new ChannelStatsEvent("transform", "batch", 100, _random.Next(15, 70), DateTime.UtcNow);
             }
 
             // Batch progress (even more behind; batches 48→10 items)
             if (i > 2)
             {
-                yield return new BlockMetricsEvent("batch", ItemsConsumed: (i - 2) * 48, ItemsOutput: (i - 2) * 10, DateTime.UtcNow);
+                yield return new BlockMetricsEvent("batch", ItemsConsumed: (i - 2) * 48, ItemsProduced: (i - 2) * 10, DateTime.UtcNow);
                 yield return new ChannelStatsEvent("batch", "processor", 50, _random.Next(5, 40), DateTime.UtcNow);
             }
 
             // Processor progress (terminal sink: consumed=N, output=0)
             if (i > 3)
             {
-                yield return new BlockMetricsEvent("processor", ItemsConsumed: (i - 3) * 10, ItemsOutput: 0, DateTime.UtcNow);
+                yield return new BlockMetricsEvent("processor", ItemsConsumed: (i - 3) * 10, ItemsProduced: 0, DateTime.UtcNow);
             }
         }
 

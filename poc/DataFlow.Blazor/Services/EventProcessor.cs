@@ -37,7 +37,7 @@ public class EventProcessor
                 State = blockSnapshot.State,
                 IsSource = blockSnapshot.IsSource,
                 ItemsConsumed = blockSnapshot.ItemsConsumed,
-                ItemsOutput = blockSnapshot.ItemsOutput,
+                ItemsProduced = blockSnapshot.ItemsProduced,
                 StartTime = blockSnapshot.StartTime,
                 EndTime = blockSnapshot.EndTime,
                 ErrorMessage = blockSnapshot.ErrorMessage
@@ -164,7 +164,7 @@ public class EventProcessor
             blockState.EndTime = e.Timestamp;
             blockState.State = e.Success ? Events.BlockState.Completed : Events.BlockState.Failed;
             blockState.ErrorMessage = e.ErrorMessage;
-            blockState.OutputRatePerSecond = 0; // block finished — no more output
+            blockState.ProductionRatePerSecond = 0; // block finished — no more production
             blockState.InputRatePerSecond = 0;
         }
 
@@ -183,16 +183,16 @@ public class EventProcessor
                 var elapsed = (e.Timestamp - blockState.LastProgressTimestamp.Value).TotalSeconds;
                 if (elapsed > 0)
                 {
-                    blockState.OutputRatePerSecond =
-                        (e.ItemsOutput - blockState.PreviousItemsOutputForRate) / elapsed;
+                    blockState.ProductionRatePerSecond =
+                        (e.ItemsProduced - blockState.PreviousItemsProducedForRate) / elapsed;
                     blockState.InputRatePerSecond =
                         (e.ItemsConsumed - blockState.PreviousItemsConsumedForRate) / elapsed;
                 }
             }
-            blockState.PreviousItemsOutputForRate = e.ItemsOutput;
+            blockState.PreviousItemsProducedForRate = e.ItemsProduced;
             blockState.PreviousItemsConsumedForRate = e.ItemsConsumed;
             blockState.LastProgressTimestamp = e.Timestamp;
-            blockState.ItemsOutput = e.ItemsOutput;
+            blockState.ItemsProduced = e.ItemsProduced;
             blockState.ItemsConsumed = e.ItemsConsumed;
         }
     }

@@ -107,9 +107,9 @@
         if (block.Duration.HasValue)
             AddRow(builder, 60, "Duration", FormatDuration(block.Duration.Value), null);
         if (block.ItemsConsumed > 0)
-            AddRow(builder, 69, "Items In",  block.ItemsConsumed.ToString("N0"), null);
-        if (block.ItemsOutput > 0)
-            AddRow(builder, 70, "Items Out", block.ItemsOutput.ToString("N0"), null);
+            AddRow(builder, 69, "Consumed", block.ItemsConsumed.ToString("N0"), null);
+        if (block.ItemsProduced > 0)
+            AddRow(builder, 70, "Produced", block.ItemsProduced.ToString("N0"), null);
         if (block.ErrorMessage is not null)
             AddRow(builder, 80, "Error", block.ErrorMessage, "dt-mono dt-error", null, "dt-label dt-error");
 

@@ -95,7 +95,7 @@ public class EventProcessorTests
         // Arrange
         var processor = new EventProcessor(Guid.NewGuid());
         var startEvt = new BlockStartedEvent("producer", "ProducerBlock", DateTime.UtcNow);
-        var metricsEvt = new BlockMetricsEvent("producer", ItemsConsumed: 0, ItemsOutput: 100, DateTime.UtcNow);
+        var metricsEvt = new BlockMetricsEvent("producer", ItemsConsumed: 0, ItemsProduced: 100, DateTime.UtcNow);
 
         // Act
         processor.ProcessEvent(startEvt);
@@ -103,7 +103,7 @@ public class EventProcessorTests
 
         // Assert
         Assert.Equal(0,   processor.State.Blocks["producer"].ItemsConsumed);
-        Assert.Equal(100, processor.State.Blocks["producer"].ItemsOutput);
+        Assert.Equal(100, processor.State.Blocks["producer"].ItemsProduced);
     }
 
     [Fact]
@@ -149,11 +149,11 @@ public class EventProcessorTests
         var processor = new EventProcessor(Guid.NewGuid());
         processor.ProcessEvent(new BlockStartedEvent("block1", "ProducerBlock", DateTime.UtcNow, IsSource: true));
         processor.ProcessEvent(new BlockStartedEvent("block2", "TransformBlock", DateTime.UtcNow, IsSource: false));
-        processor.ProcessEvent(new BlockMetricsEvent("block1", ItemsConsumed: 0, ItemsOutput: 100, DateTime.UtcNow));
-        processor.ProcessEvent(new BlockMetricsEvent("block2", ItemsConsumed: 200, ItemsOutput: 200, DateTime.UtcNow));
+        processor.ProcessEvent(new BlockMetricsEvent("block1", ItemsConsumed: 0, ItemsProduced: 100, DateTime.UtcNow));
+        processor.ProcessEvent(new BlockMetricsEvent("block2", ItemsConsumed: 200, ItemsProduced: 200, DateTime.UtcNow));
 
         // Act — only source blocks count; transform items are double-counted if summed across all blocks.
-        // Source blocks have consumed=0 and output=N; TotalSourceItemsIngested sums ItemsOutput for sources.
+        // Source blocks have consumed=0 and output=N; TotalSourceItemsIngested sums ItemsProduced for sources.
         var totalItems = processor.State.TotalSourceItemsIngested;
 
         // Assert
@@ -179,7 +179,7 @@ public class EventProcessorTests
                     BlockType: "ProducerBlock",
                     State: Events.BlockState.Running,
                     ItemsConsumed: 0,
-                    ItemsOutput: 500,
+                    ItemsProduced: 500,
                     StartTime: DateTime.UtcNow,
                     EndTime: null,
                     ErrorMessage: null
@@ -194,6 +194,6 @@ public class EventProcessorTests
         // Assert
         Assert.Equal("Snapshot Flow", processor.State.FlowName);
         Assert.True(processor.State.Blocks.ContainsKey("producer"));
-        Assert.Equal(500, processor.State.Blocks["producer"].ItemsOutput);
+        Assert.Equal(500, processor.State.Blocks["producer"].ItemsProduced);
     }
 }

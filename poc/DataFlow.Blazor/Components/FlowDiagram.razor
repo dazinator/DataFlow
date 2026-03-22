@@ -5,6 +5,7 @@
         @{
             var topology = FlowTopology.Analyze(State.Blocks, State.Channels);
             var positions = CalculateBlockPositions(topology);
+            var flowDone = State.State is FlowState.Completed or FlowState.Failed;
         }
 
         @* Draw connections (edges) first so they appear behind nodes *@
@@ -34,52 +35,16 @@
                               stroke="#666" stroke-width="2" marker-end="url(#arrowhead)" />
                     }
 
-                    @* Edge throughput label.
-                       Prefer per-edge EdgeState (accurate for selective/routed edges).
-                       Fall back to source-block total (correct for broadcast). *@
-                    @{
-                        var edgeKey = (sourceBlock, targetBlock);
-                        var hasEdgeState = State.Edges.TryGetValue(edgeKey, out var edgeState)
-                            && edgeState!.ItemsTransmitted > 0;
-                        State.Blocks.TryGetValue(sourceBlock, out var srcBlock);
-                        var hasSrcBlock = srcBlock != null && srcBlock.ItemsOutput > 0;
-                    }
-                    @if (hasEdgeState || hasSrcBlock)
-                    {
-                        var midX = (x1 + x2) / 2;
-                        var midY = (y1 + y2) / 2 - 24;
-                        var isCompleted = srcBlock?.State is Events.BlockState.Completed or Events.BlockState.Failed;
-                        string labelText;
-                        if (hasEdgeState)
-                        {
-                            if (isCompleted)
-                            {
-                                var hasPeak = edgeState!.MaxTransmitRatePerSecond > 0;
-                                labelText = hasPeak
-                                    ? $"{FormatCount(edgeState.ItemsTransmitted)} · ↑{(long)Math.Round(edgeState.MaxTransmitRatePerSecond)}/s pk"
-                                    : FormatCount(edgeState.ItemsTransmitted);
-                            }
-                            else
-                            {
-                                labelText = $"↑ {(long)Math.Round(edgeState!.TransmitRatePerSecond)}/s · {FormatCount(edgeState.ItemsTransmitted)}";
-                            }
-                        }
-                        else
-                        {
-                            labelText = FormatEdgeLabel(srcBlock!);
-                        }
-                        var labelWidth = labelText.Length * 7 + 12;
-                        <rect x="@(midX - labelWidth / 2.0)" y="@(midY - 12)" width="@labelWidth" height="18"
-                              fill="white" stroke="#ddd" stroke-width="1" rx="3" opacity="0.93" />
-                        <svg:text x="@midX" y="@midY" text-anchor="middle" font-size="11" fill="#444">@labelText</svg:text>
-                    }
-
-                    @* Buffer health pill — per-edge, colour-coded by utilisation *@
+                    @* Buffer health pill — hidden when flow is done and buffer is empty *@
                     @if (State.Channels.TryGetValue((sourceBlock, targetBlock), out var channelState))
                     {
-                        var midX = (x1 + x2) / 2;
-                        var midY = (y1 + y2) / 2 + 8;
-                        <BufferPill Channel="channelState" X="midX" Y="midY" />
+                        var hideEmpty = flowDone && channelState.CurrentCount == 0;
+                        if (!hideEmpty)
+                        {
+                            var midX = (x1 + x2) / 2;
+                            var midY = (y1 + y2) / 2;
+                            <BufferPill Channel="channelState" X="midX" Y="midY" />
+                        }
                     }
                 </g>
             }
@@ -105,6 +70,17 @@
             var strokeWidth = isSelected ? "4" : "3";
             var capturedName = blockName;
 
+            @* Determine which stat lines to show *@
+            var isRunning = blockState.State is Events.BlockState.Running;
+            var showConsumed = blockState.ItemsConsumed > 0;
+            var showProduced = blockState.ItemsProduced > 0;
+            var hasStats = showConsumed || showProduced;
+
+            @* Vertical layout: name, type, then 0-2 stat lines *@
+            @* Compress name/type upward when stats are present *@
+            var nameY    = hasStats ? -20 : -15;
+            var typeY    = hasStats ? -7  :  5;
+
             <g class="block @statusClass" transform="translate(@x, @y)"
                style="cursor: pointer;"
                @onclick="() => SelectBlock(capturedName)">
@@ -119,14 +95,31 @@
                       fill="@fillColor" stroke="@borderColor" stroke-width="@strokeWidth" />
 
                 @* Block name *@
-                <text x="0" y="-15" text-anchor="middle" font-weight="600" font-size="14" fill="#333">
+                <text x="0" y="@nameY" text-anchor="middle" font-weight="600" font-size="14" fill="#333">
                     @blockName
                 </text>
 
                 @* Block type *@
-                <text x="0" y="5" text-anchor="middle" font-size="11" fill="#666">
+                <text x="0" y="@typeY" text-anchor="middle" font-size="11" fill="#666">
                     @blockState.BlockType
                 </text>
+
+                @* Stat lines — consumption then production *@
+                @if (hasStats)
+                {
+                    var statLines = new System.Collections.Generic.List<string>();
+                    if (showConsumed) statLines.Add(FormatConsumedStat(blockState, isRunning));
+                    if (showProduced) statLines.Add(FormatProducedStat(blockState, isRunning));
+
+                    @* Centre the stat lines in the lower half of the block *@
+                    var lineCount = statLines.Count;
+                    var firstY = lineCount == 1 ? 16 : 10;
+                    for (int si = 0; si < lineCount; si++)
+                    {
+                        var lineY = firstY + si * 13;
+                        <text x="0" y="@lineY" text-anchor="middle" font-size="10" fill="#555">@statLines[si]</text>
+                    }
+                }
 
                 @* Status indicator *@
                 <circle cx="65" cy="-40" r="6" fill="@GetStatusIndicatorColor(blockState.State)" />
@@ -190,6 +183,30 @@
         return positions;
     }
 
+    /// <summary>Formats the consumed stat line for a block node.</summary>
+    private static string FormatConsumedStat(Models.BlockState block, bool isRunning)
+    {
+        var count = FormatCount(block.ItemsConsumed);
+        if (isRunning)
+        {
+            var rate = (long)Math.Round(block.InputRatePerSecond);
+            return $"↓ {count} · {rate}/s";
+        }
+        return $"↓ {count} consumed";
+    }
+
+    /// <summary>Formats the produced stat line for a block node.</summary>
+    private static string FormatProducedStat(Models.BlockState block, bool isRunning)
+    {
+        var count = FormatCount(block.ItemsProduced);
+        if (isRunning)
+        {
+            var rate = (long)Math.Round(block.ProductionRatePerSecond);
+            return $"↑ {count} · {rate}/s";
+        }
+        return $"↑ {count} produced";
+    }
+
     private string GetBlockStatusClass(Events.BlockState state)
     {
         return state switch
@@ -232,28 +249,6 @@
             Events.BlockState.Failed => "#dc3545",
             _ => "#6c757d"
         };
-    }
-
-    /// <summary>
-    /// Generates an SVG path string for a quadratic Bézier curve between two points.
-    /// Creates a smooth curved path suitable for visualizing branching connections.
-    /// </summary>
-    /// <param name="x1">Starting X coordinate</param>
-    /// <param name="y1">Starting Y coordinate</param>
-    /// <param name="x2">Ending X coordinate</param>
-    /// <param name="y2">Ending Y coordinate</param>
-    /// <returns>SVG path string in format "M x1 y1 Q cx cy, cx cy T x2 y2"</returns>
-    /// <summary>
-    /// Formats the edge throughput label for a source block: "↑ 32/s · 1.2k"
-    /// </summary>
-    private static string FormatEdgeLabel(Models.BlockState srcBlock)
-    {
-        // Once the block has finished, rate is no longer meaningful — show only the total.
-        if (srcBlock.State is Events.BlockState.Completed or Events.BlockState.Failed)
-            return FormatCount(srcBlock.ItemsOutput);
-
-        var rate = (long)Math.Round(srcBlock.OutputRatePerSecond);
-        return $"↑ {rate}/s · {FormatCount(srcBlock.ItemsOutput)}";
     }
 
     private static string FormatCount(long count) =>
