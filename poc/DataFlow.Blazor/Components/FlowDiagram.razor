@@ -4,7 +4,7 @@
     <svg width="100%" height="600" style="border: 1px solid #dee2e6; border-radius: 8px; background: white;">
         @{
             var topology = FlowTopology.Analyze(State.Blocks, State.Channels);
-            var positions = CalculateBlockPositions(topology);
+            var positions = GetOrComputePositions(topology);
             var flowDone = State.State is FlowState.Completed or FlowState.Failed;
         }
 
@@ -136,6 +136,33 @@
 
     [Parameter]
     public EventCallback<SelectedObject?> OnSelectionChanged { get; set; }
+
+    // Layout cache — positions are only recomputed when the topology structure changes
+    // (blocks or edges added/removed).  Recalculating on every render causes the graph
+    // to jump mid-stream as new nodes land before their connecting edges arrive.
+    private Dictionary<string, (double x, double y)>? _cachedPositions;
+    private string _cachedTopologyKey = "";
+
+    private Dictionary<string, (double x, double y)> GetOrComputePositions(FlowTopology topology)
+    {
+        var key = BuildTopologyKey(topology);
+        if (key != _cachedTopologyKey || _cachedPositions is null)
+        {
+            _cachedTopologyKey = key;
+            _cachedPositions = CalculateBlockPositions(topology);
+        }
+        return _cachedPositions;
+    }
+
+    private static string BuildTopologyKey(FlowTopology topology)
+    {
+        // A compact fingerprint: sorted block names + sorted edge pairs.
+        var blocks = string.Join(",", topology.BlockPositions.Keys.OrderBy(x => x));
+        var edges = string.Join(";", topology.Connections
+            .SelectMany(kv => kv.Value.Select(t => $"{kv.Key}>{t}"))
+            .OrderBy(x => x));
+        return $"{blocks}|{edges}";
+    }
 
     private async Task SelectBlock(string blockName)
     {

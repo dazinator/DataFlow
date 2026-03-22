@@ -100,15 +100,26 @@
                 await InvokeAsync(StateHasChanged);
             }
 
-            // Process real-time events
+            // Process real-time events with batched rendering.
+            // Coalescing rapid startup bursts (multiple BlockStartedEvents before any
+            // ChannelStatsEvents) into a single render prevents the topology from laying
+            // out in a column and then jumping when edges arrive.
+            var lastRender = DateTime.UtcNow; // suppress an immediate first-event render
+            const int MinRenderIntervalMs = 200;
+
             await foreach (var evt in eventSource.GetEventsAsync(InvocationId, cancellationToken).WithCancellation(cancellationToken))
             {
                 _processor!.ProcessEvent(evt);
-                await InvokeAsync(StateHasChanged);
 
-                // Throttle UI updates to avoid overwhelming the browser
-                await Task.Delay(50, cancellationToken);
+                if ((DateTime.UtcNow - lastRender).TotalMilliseconds >= MinRenderIntervalMs)
+                {
+                    lastRender = DateTime.UtcNow;
+                    await InvokeAsync(StateHasChanged);
+                }
             }
+
+            // Always render the final state once the stream ends.
+            await InvokeAsync(StateHasChanged);
         }
         catch (OperationCanceledException)
         {
