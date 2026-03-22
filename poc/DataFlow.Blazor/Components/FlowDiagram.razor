@@ -222,6 +222,10 @@
     /// </summary>
     private static string FormatEdgeLabel(Models.BlockState srcBlock)
     {
+        // Once the block has finished, rate is no longer meaningful — show only the total.
+        if (srcBlock.State is Events.BlockState.Completed or Events.BlockState.Failed)
+            return FormatCount(srcBlock.ItemsProcessed);
+
         var rate = (long)Math.Round(srcBlock.OutputRatePerSecond);
         return $"↑ {rate}/s · {FormatCount(srcBlock.ItemsProcessed)}";
     }

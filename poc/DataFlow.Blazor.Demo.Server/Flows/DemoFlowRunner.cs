@@ -107,9 +107,14 @@ public sealed class DemoFlowRunner
             graph.AddBlock(procHigh);
             graph.AddBlock(procLow);
             graph.AddEdge(new Edge(producer, router));
-            // Broadcast router output to both processors
-            var broadcastStrategy = new BroadcastEdgeStrategy(BufferMode.Bounded, 100);
-            graph.AddEdge(new Edge(router, new[] { procHigh, procLow }, broadcastStrategy));
+            // Route items to the matching processor based on the Priority tag.
+            // Each processor receives only its own items (~20 high, ~20 low).
+            var routeStrategy = new SelectiveRoutingEdgeStrategy<(int Value, string Priority)>(
+                new Dictionary<string, IBlock> { ["high"] = procHigh, ["low"] = procLow },
+                item => item.Priority,
+                BufferMode.Bounded,
+                100);
+            graph.AddEdge(new Edge(router, new[] { procHigh, procLow }, routeStrategy));
 
             using var scope = _services.CreateScope();
             var ctx = new DataFlow.POC.Core.ExecutionContext(scope.ServiceProvider, CancellationToken.None, invocationId,
