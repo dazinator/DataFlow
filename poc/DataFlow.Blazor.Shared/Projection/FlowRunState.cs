@@ -34,7 +34,10 @@ public record BlockRunState
     public string BlockName { get; init; } = string.Empty;
     public string BlockType { get; init; } = string.Empty;
     public BlockState Status { get; init; } = BlockState.Idle;
-    public long ItemsProcessed { get; init; }
+    /// <summary>Items pulled from this block's input channel(s). 0 for source blocks.</summary>
+    public long ItemsConsumed { get; init; }
+    /// <summary>Items written to this block's output channel(s). 0 for pure sink blocks.</summary>
+    public long ItemsOutput { get; init; }
     public DateTime? StartedAt { get; init; }
     public DateTime? CompletedAt { get; init; }
     public string? ErrorMessage { get; init; }

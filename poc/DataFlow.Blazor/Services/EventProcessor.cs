@@ -36,7 +36,8 @@ public class EventProcessor
                 BlockType = blockSnapshot.BlockType,
                 State = blockSnapshot.State,
                 IsSource = blockSnapshot.IsSource,
-                ItemsProcessed = blockSnapshot.ItemsProcessed,
+                ItemsConsumed = blockSnapshot.ItemsConsumed,
+                ItemsOutput = blockSnapshot.ItemsOutput,
                 StartTime = blockSnapshot.StartTime,
                 EndTime = blockSnapshot.EndTime,
                 ErrorMessage = blockSnapshot.ErrorMessage
@@ -111,8 +112,8 @@ public class EventProcessor
             case BlockCompletedEvent e:
                 ProcessBlockCompleted(e);
                 break;
-            case BlockProgressEvent e:
-                ProcessBlockProgress(e);
+            case BlockMetricsEvent e:
+                ProcessBlockMetrics(e);
                 break;
             case ChannelStatsEvent e:
                 ProcessChannelStats(e);
@@ -164,6 +165,7 @@ public class EventProcessor
             blockState.State = e.Success ? Events.BlockState.Completed : Events.BlockState.Failed;
             blockState.ErrorMessage = e.ErrorMessage;
             blockState.OutputRatePerSecond = 0; // block finished — no more output
+            blockState.InputRatePerSecond = 0;
         }
 
         // Reset transmit rates for all edges originating from this block.
@@ -171,23 +173,27 @@ public class EventProcessor
             _state.Edges[key].TransmitRatePerSecond = 0;
     }
 
-    private void ProcessBlockProgress(BlockProgressEvent e)
+    private void ProcessBlockMetrics(BlockMetricsEvent e)
     {
         if (_state.Blocks.TryGetValue(e.BlockName, out var blockState))
         {
-            // Compute output rate from the delta since the previous progress tick.
+            // Compute rates from deltas since the previous progress tick.
             if (blockState.LastProgressTimestamp.HasValue)
             {
                 var elapsed = (e.Timestamp - blockState.LastProgressTimestamp.Value).TotalSeconds;
                 if (elapsed > 0)
                 {
-                    var delta = e.ItemsProcessed - blockState.PreviousItemsForRate;
-                    blockState.OutputRatePerSecond = delta / elapsed;
+                    blockState.OutputRatePerSecond =
+                        (e.ItemsOutput - blockState.PreviousItemsOutputForRate) / elapsed;
+                    blockState.InputRatePerSecond =
+                        (e.ItemsConsumed - blockState.PreviousItemsConsumedForRate) / elapsed;
                 }
             }
-            blockState.PreviousItemsForRate = e.ItemsProcessed;
+            blockState.PreviousItemsOutputForRate = e.ItemsOutput;
+            blockState.PreviousItemsConsumedForRate = e.ItemsConsumed;
             blockState.LastProgressTimestamp = e.Timestamp;
-            blockState.ItemsProcessed = e.ItemsProcessed;
+            blockState.ItemsOutput = e.ItemsOutput;
+            blockState.ItemsConsumed = e.ItemsConsumed;
         }
     }
 

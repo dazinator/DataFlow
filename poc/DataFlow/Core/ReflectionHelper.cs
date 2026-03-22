@@ -24,6 +24,13 @@ public static class ReflectionHelper
     /// </summary>
     private static readonly ConcurrentDictionary<Type, Func<ITypedEdgeRouter, object, IBlock, CancellationToken, Task>>
         _containerRoutingCache = new();
+
+    /// <summary>
+    /// Cache for input-counter wrapping delegates, keyed by item type.
+    /// Built once on first use; subsequent calls are a dictionary lookup + delegate invoke.
+    /// </summary>
+    private static readonly ConcurrentDictionary<Type, Func<object, long[], object>>
+        _inputCounterWrapperCache = new();
     
     /// <summary>
     /// Returns a pre-compiled container routing delegate for the given item type, if available.
@@ -144,6 +151,34 @@ public static class ReflectionHelper
         });
     }
     
+    /// <summary>
+    /// Wraps <paramref name="typedInput"/> (an <c>IAsyncEnumerable&lt;T&gt;</c> boxed as object)
+    /// with a thin counting shim that atomically increments <paramref name="inputCounter"/>[0]
+    /// for every item yielded. Returns <see langword="null"/> when <paramref name="typedInput"/>
+    /// is <see langword="null"/> (source blocks have no input).
+    ///
+    /// The wrapping delegate is compiled once per item type and cached; the hot-path cost per
+    /// item is a single <see cref="System.Threading.Interlocked.Increment"/> call.
+    /// </summary>
+    internal static object? WrapWithInputCounter(object? typedInput, Type inputItemType, long[] inputCounter)
+    {
+        if (typedInput == null) return null;
+
+        var wrapper = _inputCounterWrapperCache.GetOrAdd(inputItemType, static type =>
+        {
+            var method = typeof(StreamPump).GetMethod(
+                nameof(StreamPump.CreateCountingAsyncEnumerable),
+                BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Public)
+                ?? throw new InvalidOperationException(
+                    $"Could not find method {nameof(StreamPump.CreateCountingAsyncEnumerable)}");
+
+            var genericMethod = method.MakeGenericMethod(type);
+            return (input, counter) => genericMethod.Invoke(null, new object[] { input, counter })!;
+        });
+
+        return wrapper(typedInput, inputCounter);
+    }
+
     /// <summary>
     /// Creates an empty typed stream for source blocks with no input.
     /// Equivalent to: return AsyncEnumerable.Empty&lt;T&gt;();

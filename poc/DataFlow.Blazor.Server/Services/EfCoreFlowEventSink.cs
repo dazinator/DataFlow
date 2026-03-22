@@ -22,7 +22,7 @@ using Microsoft.EntityFrameworkCore;
 ///         <see cref="FlowSnapshot"/> — including edge rate watermarks and channel buffer
 ///         watermarks — is written to <see cref="FlowSnapshotRecord"/>.</item>
 ///   <item>Once <see cref="FlowCompletedEvent"/> is received the snapshot is final.
-///         High-frequency telemetry events (<see cref="BlockProgressEvent"/>,
+///         High-frequency telemetry events (<see cref="BlockMetricsEvent"/>,
 ///         <see cref="EdgeProgressEvent"/>, <see cref="ChannelStatsEvent"/>) are then
 ///         deleted from <see cref="FlowEventRecord"/>. These represent ~90% of all rows
 ///         during a run. Because the snapshot already encodes every watermark value,
@@ -103,7 +103,7 @@ public class EfCoreFlowEventSink<TContext> : IFlowEventSink where TContext : DbC
     /// </summary>
     private static readonly HashSet<string> TelemetryEventTypes =
     [
-        nameof(BlockProgressEvent),
+        nameof(BlockMetricsEvent),
         nameof(EdgeProgressEvent),
         nameof(ChannelStatsEvent)
     ];

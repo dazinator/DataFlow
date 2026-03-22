@@ -38,7 +38,7 @@ public class FlowExecutionState
     /// This is the correct flow-level total — summing all blocks double-counts items that pass
     /// through multiple stages.
     /// </summary>
-    public long TotalSourceItemsIngested => Blocks.Values.Where(b => b.IsSource).Sum(b => b.ItemsProcessed);
+    public long TotalSourceItemsIngested => Blocks.Values.Where(b => b.IsSource).Sum(b => b.ItemsOutput);
 }
 
 /// <summary>
@@ -50,19 +50,22 @@ public class BlockState
     public string BlockType { get; set; } = string.Empty;
     public Events.BlockState State { get; set; } = Events.BlockState.Idle;
     public bool IsSource { get; set; }
-    public long ItemsProcessed { get; set; }
+    /// <summary>Items pulled from this block's input channel(s). 0 for source blocks.</summary>
+    public long ItemsConsumed { get; set; }
+    /// <summary>Items written to this block's output channel(s). 0 for pure sink blocks.</summary>
+    public long ItemsOutput { get; set; }
     public DateTime? StartTime { get; set; }
     public DateTime? EndTime { get; set; }
     public string? ErrorMessage { get; set; }
 
-    /// <summary>
-    /// Current output throughput in items/second, derived from consecutive 500 ms BlockProgressEvent ticks.
-    /// Reset to 0 when the block completes.
-    /// </summary>
+    /// <summary>Current output throughput in items/second. Reset to 0 when the block completes.</summary>
     public double OutputRatePerSecond { get; set; }
+    /// <summary>Current input ingestion rate in items/second. Reset to 0 when the block completes.</summary>
+    public double InputRatePerSecond { get; set; }
 
-    // Internals used by EventProcessor to compute the rate — not for external consumers.
-    internal long PreviousItemsForRate { get; set; }
+    // Internals used by EventProcessor to compute rates — not for external consumers.
+    internal long PreviousItemsOutputForRate { get; set; }
+    internal long PreviousItemsConsumedForRate { get; set; }
     internal DateTime? LastProgressTimestamp { get; set; }
 
     /// <summary>
@@ -79,7 +82,13 @@ public class BlockState
     }
 
     /// <summary>
-    /// Gets the throughput (items/second) for this block.
+    /// Total items handled: consumed for non-source blocks, output for source blocks.
+    /// Useful for overall throughput calculations.
+    /// </summary>
+    public long TotalItemsHandled => ItemsConsumed > 0 ? ItemsConsumed : ItemsOutput;
+
+    /// <summary>
+    /// Gets the throughput (items/second) based on <see cref="TotalItemsHandled"/>.
     /// </summary>
     public double? ItemsPerSecond
     {
@@ -87,7 +96,7 @@ public class BlockState
         {
             var duration = Duration;
             if (duration == null || duration.Value.TotalSeconds == 0) return null;
-            return ItemsProcessed / duration.Value.TotalSeconds;
+            return TotalItemsHandled / duration.Value.TotalSeconds;
         }
     }
 }

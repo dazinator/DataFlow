@@ -43,28 +43,28 @@ public class BranchingMockEventSource : IEventSource
         {
             await Task.Delay(200, cancellationToken);
 
-            // Producer progress
-            yield return new BlockProgressEvent("producer", i * 50, DateTime.UtcNow);
+            // Producer progress (source: consumed=0)
+            yield return new BlockMetricsEvent("producer", ItemsConsumed: 0, ItemsOutput: i * 50, DateTime.UtcNow);
             yield return new ChannelStatsEvent("producer", "router", 100, _random.Next(20, 80), DateTime.UtcNow);
 
-            // Router progress (two output channels — one per downstream processor)
+            // Router progress (1:1 pass-through; routes all items to two downstream processors)
             if (i > 1)
             {
-                yield return new BlockProgressEvent("router", (i - 1) * 50, DateTime.UtcNow);
+                yield return new BlockMetricsEvent("router", ItemsConsumed: (i - 1) * 50, ItemsOutput: (i - 1) * 50, DateTime.UtcNow);
                 yield return new ChannelStatsEvent("router", "processor-high", 100, _random.Next(5, 40), DateTime.UtcNow);
                 yield return new ChannelStatsEvent("router", "processor-low", 100, _random.Next(5, 40), DateTime.UtcNow);
             }
 
-            // High priority processor (processes ~70% of items)
+            // High priority processor (terminal sink: ~70% of items)
             if (i > 2)
             {
-                yield return new BlockProgressEvent("processor-high", (int)((i - 2) * 35), DateTime.UtcNow);
+                yield return new BlockMetricsEvent("processor-high", ItemsConsumed: (int)((i - 2) * 35), ItemsOutput: 0, DateTime.UtcNow);
             }
 
-            // Low priority processor (processes ~30% of items)
+            // Low priority processor (terminal sink: ~30% of items)
             if (i > 2)
             {
-                yield return new BlockProgressEvent("processor-low", (int)((i - 2) * 15), DateTime.UtcNow);
+                yield return new BlockMetricsEvent("processor-low", ItemsConsumed: (int)((i - 2) * 15), ItemsOutput: 0, DateTime.UtcNow);
             }
         }
 

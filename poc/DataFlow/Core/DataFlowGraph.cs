@@ -702,16 +702,26 @@ public class DataFlowGraph
                 }
 
                 var adapter = Adapter!;
-                
-                // Get the typed input stream for this block                
+
+                // Two shared counters incremented atomically on the hot path:
+                //   inputCounter  — items pulled from this block's input channel(s)
+                //   outputCounter — items written to this block's output channel(s)
+                var inputCounter  = new long[1];
+                var outputCounter = new long[1];
+
+                // Get the typed input stream for this block, wrapped with a counting shim
+                // so every item pull atomically increments inputCounter.
+                // For source blocks GetBlockInputStream returns null; WrapWithInputCounter
+                // passes null through unchanged (inputCounter stays 0).
                 var typedInput = _pipeline.GetBlockInputStream(_block, _incomingEdges, adapter.InputItemType);
+                var countedInput = ReflectionHelper.WrapWithInputCounter(typedInput, adapter.InputItemType, inputCounter);
                 logger.LogDebug("Block {BlockName} got input stream", _block.Name);
 
                 // Execute the block using adapter - returns typed stream as object (NO BOXING per item)
-                var typedOutput = await adapter.ExecuteUntypedAsync(typedInput, context);
-                
+                var typedOutput = await adapter.ExecuteUntypedAsync(countedInput, context);
+
                 logger.LogDebug("Block {BlockName} execute completed, starting enumeration", _block.Name);
-                
+
                 // Store typed output for downstream blocks
                 Output = typedOutput;
 
@@ -742,10 +752,8 @@ public class DataFlowGraph
                 }
 
                 // Route output with live 500 ms progress reporting.
-                // A shared counter is incremented atomically inside the pump loop; a PeriodicTimer
-                // reads it and emits intermediate BlockProgressEvent ticks while the pump runs.
-                var progressCounter = new long[1];
-
+                // The inputCounter / outputCounter arrays were created above alongside the input wrapping.
+                // A PeriodicTimer reads both and emits BlockMetricsEvent ticks while the pump runs.
                 Task<long> pumpTask;
                 if (outputRouters.Count > 0)
                 {
@@ -755,21 +763,21 @@ public class DataFlowGraph
                         adapter.OutputItemType,
                         outputRouters,
                         epochStreamDelegate,
-                        progressCounter,
+                        outputCounter,
                         context.CancellationToken);
                 }
                 else
                 {
                     logger.LogDebug("Block {BlockName} is terminal, enumerating to completion", _block.Name);
                     pumpTask = ReflectionHelper.EnumerateTypedStreamAsync(
-                        typedOutput, adapter.OutputItemType, progressCounter, context.CancellationToken);
+                        typedOutput, adapter.OutputItemType, outputCounter, context.CancellationToken);
                 }
 
                 // Run the 500 ms progress timer concurrently with the pump.
                 // Linked to context.CancellationToken so it also stops on flow cancellation.
                 using var timerCts = CancellationTokenSource.CreateLinkedTokenSource(context.CancellationToken);
                 var progressTimerTask = eventSink is not null
-                    ? RunBlockProgressTimerAsync(_block.Name, progressCounter, outputRouters, bufferMonitors, eventSink, context.InvocationId, timerCts.Token)
+                    ? RunBlockProgressTimerAsync(_block.Name, outputCounter, inputCounter, outputRouters, bufferMonitors, eventSink, context.InvocationId, timerCts.Token)
                     : Task.CompletedTask;
 
                 long itemsEmitted;
@@ -788,11 +796,12 @@ public class DataFlowGraph
                     try { await progressTimerTask; } catch (OperationCanceledException) { }
                 }
 
-                // Emit the definitive final BlockProgressEvent with the exact pump count.
-                if (itemsEmitted > 0 && eventSink is not null)
+                // Emit the definitive final BlockMetricsEvent with exact pump counts.
+                var finalInputCount = Volatile.Read(ref inputCounter[0]);
+                if ((itemsEmitted > 0 || finalInputCount > 0) && eventSink is not null)
                 {
                     await eventSink.AppendAsync(context.InvocationId,
-                        new BlockProgressEvent(_block.Name, itemsEmitted, DateTime.UtcNow));
+                        new BlockMetricsEvent(_block.Name, finalInputCount, itemsEmitted, DateTime.UtcNow));
                 }
 
                 // Emit definitive final EdgeProgressEvent for each outgoing edge.
@@ -872,13 +881,14 @@ public class DataFlowGraph
         }
 
         /// <summary>
-        /// Fires a BlockProgressEvent every 500 ms while the pump is running.
+        /// Fires a BlockMetricsEvent every 500 ms while the pump is running.
         /// Stopped by cancelling <paramref name="cancellationToken"/> once the pump finishes.
         /// Sink errors are swallowed so the timer never crashes the block execution.
         /// </summary>
         private static async Task RunBlockProgressTimerAsync(
             string blockName,
-            long[] progressCounter,
+            long[] outputCounter,
+            long[] inputCounter,
             List<ITypedEdgeRouter> outputRouters,
             List<IBufferMonitor> bufferMonitors,
             IFlowEventSink eventSink,
@@ -892,14 +902,15 @@ public class DataFlowGraph
                 {
                     var now = DateTime.UtcNow;
 
-                    // Block-level progress (total items emitted by this block).
-                    var count = Volatile.Read(ref progressCounter[0]);
-                    if (count > 0)
+                    // Block-level metrics: items consumed from input and items written to output.
+                    var outputCount = Volatile.Read(ref outputCounter[0]);
+                    var inputCount  = Volatile.Read(ref inputCounter[0]);
+                    if (outputCount > 0 || inputCount > 0)
                     {
                         try
                         {
                             await eventSink.AppendAsync(invocationId,
-                                new BlockProgressEvent(blockName, count, now));
+                                new BlockMetricsEvent(blockName, inputCount, outputCount, now));
                         }
                         catch { /* sink errors must not crash the flow */ }
                     }

@@ -55,9 +55,13 @@ public static class FlowStateProjector
             })
         },
 
-        BlockProgressEvent e when state.Blocks.TryGetValue(e.BlockName, out var block) => state with
+        BlockMetricsEvent e when state.Blocks.TryGetValue(e.BlockName, out var block) => state with
         {
-            Blocks = state.Blocks.SetItem(e.BlockName, block with { ItemsProcessed = e.ItemsProcessed })
+            Blocks = state.Blocks.SetItem(e.BlockName, block with
+            {
+                ItemsConsumed = e.ItemsConsumed,
+                ItemsOutput = e.ItemsOutput
+            })
         },
 
         EdgeProgressEvent e => state with
@@ -153,7 +157,8 @@ public static class FlowStateProjector
                 kv.Value.BlockName,
                 kv.Value.BlockType,
                 kv.Value.Status,
-                kv.Value.ItemsProcessed,
+                kv.Value.ItemsConsumed,
+                kv.Value.ItemsOutput,
                 kv.Value.StartedAt,
                 kv.Value.CompletedAt,
                 kv.Value.ErrorMessage,
@@ -202,7 +207,8 @@ public static class FlowStateProjector
                     BlockName = kv.Value.BlockName,
                     BlockType = kv.Value.BlockType,
                     Status = kv.Value.State,
-                    ItemsProcessed = kv.Value.ItemsProcessed,
+                    ItemsConsumed = kv.Value.ItemsConsumed,
+                    ItemsOutput = kv.Value.ItemsOutput,
                     StartedAt = kv.Value.StartTime,
                     CompletedAt = kv.Value.EndTime,
                     ErrorMessage = kv.Value.ErrorMessage,

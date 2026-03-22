@@ -14,9 +14,18 @@ public record BlockCompletedEvent(
     string? ErrorMessage = null
 ) : IDataFlowEvent;
 
-public record BlockProgressEvent(
+/// <summary>
+/// Periodic (500 ms) and final metric snapshot for a block.
+/// <para><b>ItemsConsumed</b> — items pulled from the block's input channel(s) so far.
+/// Always 0 for source blocks (no input). For epoch-stream inputs the count reflects
+/// epoch-stream containers, not inner items.</para>
+/// <para><b>ItemsOutput</b> — items written into the block's output channel(s) so far.
+/// Always 0 for pure sink blocks (no outgoing edges).</para>
+/// </summary>
+public record BlockMetricsEvent(
     string BlockName,
-    long ItemsProcessed,
+    long ItemsConsumed,
+    long ItemsOutput,
     DateTime Timestamp
 ) : IDataFlowEvent;
 

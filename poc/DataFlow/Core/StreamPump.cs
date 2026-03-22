@@ -252,6 +252,35 @@ internal static class StreamPump
     }
 
     /// <summary>
+    /// Wraps a typed IAsyncEnumerable&lt;T&gt; so that each item yielded atomically increments
+    /// <paramref name="counter"/>[0]. Called once per block (not per item), so the reflection
+    /// cost is amortized; the per-item cost is a single <see cref="Interlocked.Increment"/> call.
+    /// </summary>
+    internal static IAsyncEnumerable<T> CreateCountingAsyncEnumerable<T>(object typedInput, long[] counter)
+        => new CountingAsyncEnumerable<T>((IAsyncEnumerable<T>)typedInput, counter);
+
+    private sealed class CountingAsyncEnumerable<T> : IAsyncEnumerable<T>
+    {
+        private readonly IAsyncEnumerable<T> _inner;
+        private readonly long[] _counter;
+
+        internal CountingAsyncEnumerable(IAsyncEnumerable<T> inner, long[] counter)
+        {
+            _inner = inner;
+            _counter = counter;
+        }
+
+        public async IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken ct = default)
+        {
+            await foreach (var item in _inner.WithCancellation(ct).ConfigureAwait(false))
+            {
+                Interlocked.Increment(ref _counter[0]);
+                yield return item;
+            }
+        }
+    }
+
+    /// <summary>
     /// Helper method to read from a source and write to a channel.
     /// Each source runs concurrently, enabling parallel reading from multiple upstream blocks.
     /// </summary>

@@ -42,7 +42,7 @@
                         var hasEdgeState = State.Edges.TryGetValue(edgeKey, out var edgeState)
                             && edgeState!.ItemsTransmitted > 0;
                         State.Blocks.TryGetValue(sourceBlock, out var srcBlock);
-                        var hasSrcBlock = srcBlock != null && srcBlock.ItemsProcessed > 0;
+                        var hasSrcBlock = srcBlock != null && srcBlock.ItemsOutput > 0;
                     }
                     @if (hasEdgeState || hasSrcBlock)
                     {
@@ -250,10 +250,10 @@
     {
         // Once the block has finished, rate is no longer meaningful — show only the total.
         if (srcBlock.State is Events.BlockState.Completed or Events.BlockState.Failed)
-            return FormatCount(srcBlock.ItemsProcessed);
+            return FormatCount(srcBlock.ItemsOutput);
 
         var rate = (long)Math.Round(srcBlock.OutputRatePerSecond);
-        return $"↑ {rate}/s · {FormatCount(srcBlock.ItemsProcessed)}";
+        return $"↑ {rate}/s · {FormatCount(srcBlock.ItemsOutput)}";
     }
 
     private static string FormatCount(long count) =>
