@@ -33,5 +33,7 @@ public record ChannelSnapshot(
     string TargetBlock,
     int BufferCapacity,
     int CurrentCount,
-    DateTime LastUpdate
+    DateTime LastUpdate,
+    int MaxCount = 0,
+    int MinCount = int.MaxValue
 );

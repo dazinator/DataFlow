@@ -45,5 +45,7 @@ public record ChannelRunState
     public string TargetBlock { get; init; } = string.Empty;
     public int BufferCapacity { get; init; }
     public int CurrentCount { get; init; }
+    public int MaxCount { get; init; }
+    public int MinCount { get; init; } = int.MaxValue;
     public DateTime LastUpdate { get; init; }
 }

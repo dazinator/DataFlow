@@ -68,6 +68,12 @@ public static class FlowStateProjector
                 TargetBlock = e.TargetBlock,
                 BufferCapacity = e.BufferCapacity,
                 CurrentCount = e.CurrentCount,
+                MaxCount = Math.Max(
+                    state.Channels.TryGetValue($"{e.SourceBlock}->{e.TargetBlock}", out var prev) ? prev.MaxCount : 0,
+                    e.CurrentCount),
+                MinCount = Math.Min(
+                    state.Channels.TryGetValue($"{e.SourceBlock}->{e.TargetBlock}", out var prev2) ? prev2.MinCount : int.MaxValue,
+                    e.CurrentCount),
                 LastUpdate = e.Timestamp
             })
         },
@@ -109,7 +115,9 @@ public static class FlowStateProjector
                 kv.Value.TargetBlock,
                 kv.Value.BufferCapacity,
                 kv.Value.CurrentCount,
-                kv.Value.LastUpdate))
+                kv.Value.LastUpdate,
+                kv.Value.MaxCount,
+                kv.Value.MinCount))
     );
 
     /// <summary>
@@ -149,6 +157,8 @@ public static class FlowStateProjector
                     TargetBlock = kv.Value.TargetBlock,
                     BufferCapacity = kv.Value.BufferCapacity,
                     CurrentCount = kv.Value.CurrentCount,
+                    MaxCount = kv.Value.MaxCount,
+                    MinCount = kv.Value.MinCount,
                     LastUpdate = kv.Value.LastUpdate
                 })
     };

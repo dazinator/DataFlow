@@ -13,7 +13,8 @@
             <thead>
                 <tr>
                     <th class="dt-label">Edge</th>
-                    <th class="dt-label">Fill</th>
+                    <th class="dt-label">Current</th>
+                    <th class="dt-label">Peak</th>
                     <th class="dt-label">Status</th>
                 </tr>
             </thead>
@@ -25,13 +26,18 @@
                     var tier   = ch.HealthTier;
                     var badge  = tier switch { 2 => "bsb-failed", 1 => "bsb-running", _ => "bsb-completed" };
                     var label  = tier switch { 2 => "High", 1 => "Medium", _ => "OK" };
-                    var fill   = ch.BufferCapacity > 0
+                    var current = ch.BufferCapacity > 0
                         ? $"{ch.CurrentCount}/{ch.BufferCapacity} ({ch.BufferUtilizationPercent:F0}%)"
-                        : $"{ch.CurrentCount} items";
+                        : $"{ch.CurrentCount}";
+                    var peakPct = ch.BufferCapacity > 0 ? (double)ch.MaxCount / ch.BufferCapacity * 100 : 0;
+                    var peak = ch.BufferCapacity > 0
+                        ? $"{ch.MaxCount}/{ch.BufferCapacity} ({peakPct:F0}%)"
+                        : $"{ch.MaxCount}";
 
                     <tr>
                         <td class="dt-mono dt-value">@source → @target</td>
-                        <td class="dt-value">@fill</td>
+                        <td class="dt-value">@current</td>
+                        <td class="dt-value">@peak</td>
                         <td class="dt-value">
                             <span class="block-state-badge @badge">@label</span>
                         </td>

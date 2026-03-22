@@ -101,6 +101,8 @@ public class ChannelState
     public string TargetBlock { get; set; } = string.Empty;
     public int BufferCapacity { get; set; }
     public int CurrentCount { get; set; }
+    public int MaxCount { get; set; }
+    public int MinCount { get; set; } = int.MaxValue;
     public DateTime LastUpdate { get; set; }
 
     /// <summary>

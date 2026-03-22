@@ -52,6 +52,8 @@ public class EventProcessor
                 TargetBlock = channelSnapshot.TargetBlock,
                 BufferCapacity = channelSnapshot.BufferCapacity,
                 CurrentCount = channelSnapshot.CurrentCount,
+                MaxCount = channelSnapshot.MaxCount,
+                MinCount = channelSnapshot.MinCount,
                 LastUpdate = channelSnapshot.LastUpdate
             };
             _state.Channels[(channelSnapshot.SourceBlock, channelSnapshot.TargetBlock)] = channelState;
@@ -197,6 +199,11 @@ public class EventProcessor
 
         channelState.BufferCapacity = e.BufferCapacity;
         channelState.CurrentCount = e.CurrentCount;
+        channelState.MaxCount = Math.Max(channelState.MaxCount, e.CurrentCount);
+        if (channelState.MinCount == int.MaxValue)
+            channelState.MinCount = e.CurrentCount;
+        else
+            channelState.MinCount = Math.Min(channelState.MinCount, e.CurrentCount);
         channelState.LastUpdate = e.Timestamp;
     }
 }
