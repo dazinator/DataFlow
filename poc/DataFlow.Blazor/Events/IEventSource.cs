@@ -20,4 +20,19 @@ public interface IEventSource
     /// For the HTTP+SignalR implementation this is derived from the catch-up endpoint response.
     /// </summary>
     Task<FlowSnapshot?> GetSnapshotAsync(Guid invocationId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Returns structural events (FlowStarted/Completed, BlockStarted/Completed) that are
+    /// already encoded in the snapshot — i.e. events that won't appear in GetEventsAsync
+    /// because they occurred before the snapshot point.
+    ///
+    /// These should be applied to EventLog ONLY (not re-processed for state), so that
+    /// the event history pane is populated for flows loaded from a completed snapshot.
+    ///
+    /// The default implementation returns an empty list, which is correct for mock sources
+    /// that emit events sequentially from the start (EventLog is populated normally via
+    /// ProcessEvent). Only HTTP+SignalR sources need to override this.
+    /// </summary>
+    Task<IReadOnlyList<IDataFlowEvent>> GetAuditLogAsync(Guid invocationId, CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyList<IDataFlowEvent>>([]);
 }

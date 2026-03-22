@@ -32,6 +32,7 @@ public class HttpSignalREventSource : IEventSource, IAsyncDisposable
     // Cached per-invocation state (populated by GetSnapshotAsync)
     private FlowSnapshot? _cachedSnapshot;
     private FlowEventDto[]? _cachedDeltaEvents;
+    private FlowEventDto[]? _cachedAuditEvents;
     private long _asOfId;
 
     public HttpSignalREventSource(HttpClient http, string hubUrl)
@@ -48,6 +49,7 @@ public class HttpSignalREventSource : IEventSource, IAsyncDisposable
         if (response is null) return null;
 
         _cachedDeltaEvents = response.DeltaEvents;
+        _cachedAuditEvents = response.AuditEvents;
         _asOfId = response.AsOfId;
 
         if (response.SnapshotJson is not null)
@@ -104,6 +106,23 @@ public class HttpSignalREventSource : IEventSource, IAsyncDisposable
             channel.Writer.TryComplete();
             await hub.DisposeAsync();
         }
+    }
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<IDataFlowEvent>> GetAuditLogAsync(
+        Guid invocationId,
+        CancellationToken cancellationToken = default)
+    {
+        if (_cachedAuditEvents is null or { Length: 0 })
+            return Task.FromResult<IReadOnlyList<IDataFlowEvent>>([]);
+
+        var events = _cachedAuditEvents
+            .Select(dto => EventDeserializer.Deserialize(dto.EventType, dto.Payload))
+            .Where(e => e is not null)
+            .Select(e => e!)
+            .ToList();
+
+        return Task.FromResult<IReadOnlyList<IDataFlowEvent>>(events);
     }
 
     public async ValueTask DisposeAsync()

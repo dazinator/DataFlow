@@ -13,6 +13,15 @@ using Microsoft.EntityFrameworkCore;
 /// </summary>
 internal static class FlowStateEndpoints
 {
+    // Only these types belong in the audit log — telemetry (Progress/ChannelStats) is excluded.
+    private static readonly HashSet<string> StructuralEventTypes =
+    [
+        "FlowStartedEvent",
+        "FlowCompletedEvent",
+        "BlockStartedEvent",
+        "BlockCompletedEvent"
+    ];
+
     internal static IEndpointRouteBuilder MapFlowStateEndpoints<TContext>(this IEndpointRouteBuilder app)
         where TContext : DbContext
     {
@@ -44,10 +53,27 @@ internal static class FlowStateEndpoints
                 ? deltaRecords[^1].Id
                 : fromId;
 
+            // Structural events already folded into the snapshot (Id <= asOfId).
+            // Sent separately so the client can populate EventLog without re-applying
+            // state changes (replaying BlockStartedEvent would reset blocks to Running).
+            var auditRecords = fromId > 0
+                ? await db.Set<FlowEventRecord>()
+                    .Where(e => e.FlowRunId == flowRunId
+                             && e.Id <= fromId
+                             && StructuralEventTypes.Contains(e.EventType))
+                    .OrderBy(e => e.Id)
+                    .ToListAsync(cancellationToken)
+                : [];
+
+            var auditEvents = auditRecords
+                .Select(r => new FlowEventDto(r.Id, r.EventType, r.Payload, r.OccurredAt))
+                .ToArray();
+
             return Results.Ok(new FlowStateResponse(
                 SnapshotJson: snapshot?.SnapshotJson,
                 DeltaEvents: deltaEvents,
-                AsOfId: asOfId));
+                AsOfId: asOfId,
+                AuditEvents: auditEvents));
         })
         .WithName("GetFlowState")
         .WithTags("DataFlow");

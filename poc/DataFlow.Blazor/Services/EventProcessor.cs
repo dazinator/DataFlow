@@ -79,6 +79,18 @@ public class EventProcessor
     }
 
     /// <summary>
+    /// Appends already-processed audit events to EventLog without re-applying state changes.
+    /// Use this for structural events that are already encoded in the snapshot — replaying
+    /// them through <see cref="ProcessEvent"/> would regress state (e.g. reset a completed
+    /// block back to Running when BlockStartedEvent is replayed after the snapshot).
+    /// </summary>
+    public void ApplyAuditLog(IReadOnlyList<IDataFlowEvent> events)
+    {
+        foreach (var evt in events)
+            _state.EventLog.Add(evt);
+    }
+
+    /// <summary>
     /// Processes an event and updates the state accordingly.
     /// </summary>
     public void ProcessEvent(IDataFlowEvent evt)

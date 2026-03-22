@@ -90,6 +90,13 @@
             if (snapshot != null)
             {
                 _processor!.ApplySnapshot(snapshot);
+
+                // Populate EventLog with structural events already folded into the snapshot.
+                // These are applied to the log only — not re-processed for state — so that
+                // viewing a completed flow still shows event history without regressing state.
+                var auditLog = await eventSource.GetAuditLogAsync(InvocationId, cancellationToken);
+                _processor.ApplyAuditLog(auditLog);
+
                 await InvokeAsync(StateHasChanged);
             }
 

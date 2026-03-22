@@ -158,13 +158,16 @@
 .bsb-failed    { background: #f8d7da; color: #842029; border: 1px solid #dc3545; }
 .bsb-idle      { background: #f8f9fa; color: #6c757d; border: 1px solid #dee2e6; }
 
-/* Throughput mini-table: equal-width stat columns */
+/* Throughput mini-table: stat columns are right-aligned with a guaranteed minimum
+   width so "Peak / Avg / Min" headers don't collapse to their text width */
 .throughput-table th,
 .throughput-table td {
     text-align: right;
+    min-width: 52px;
 }
 
 .throughput-table th:first-child,
 .throughput-table td:first-child {
     text-align: left;
+    min-width: unset;
 }

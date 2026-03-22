@@ -15,6 +15,7 @@ public record FlowStateResponse(
 
     /// <summary>
     /// Events that occurred after the snapshot (Id > snapshot.AsOfEventId).
+    /// Applied via full ProcessEvent — updates both state and EventLog.
     /// </summary>
     FlowEventDto[] DeltaEvents,
 
@@ -23,7 +24,15 @@ public record FlowStateResponse(
     /// so the server can replay any events that arrived between the HTTP response
     /// and the WebSocket connection being established.
     /// </summary>
-    long AsOfId
+    long AsOfId,
+
+    /// <summary>
+    /// Structural events (FlowStarted/Completed, BlockStarted/Completed) with
+    /// Id &lt;= AsOfId — i.e. already folded into the snapshot.
+    /// Applied to EventLog ONLY (no state updates) so the event history pane
+    /// remains populated for completed flows loaded from a fresh page.
+    /// </summary>
+    FlowEventDto[] AuditEvents
 );
 
 /// <summary>
