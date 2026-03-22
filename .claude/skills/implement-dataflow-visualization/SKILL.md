@@ -103,7 +103,8 @@ dotnet add <ClientProject>.csproj package Uniun.DataFlow.Blazor
 ```
 
 This provides:
-- `<FlowVisualization>` — root component, drop onto any page
+- `<FlowVisualization>` — root live-visualization component, drop onto any page
+- `<FlowRunsList>` — ready-made table listing all flow runs with status and links
 - `IEventSource` / `HttpSignalREventSource` — client-side event streaming
 - `AddDataFlowVisualizationClient()` extension method
 
@@ -129,6 +130,10 @@ builder.Services.AddDataFlowVisualizationServer(options =>
 builder.Services.AddDataFlowVisualizationServer(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DataFlow")));
 ```
+
+An optional second parameter `periodicSnapshotInterval` (default `100`) controls
+how often a state snapshot is materialised during long-running flows. Pass `0` to
+disable periodic snapshots.
 
 Add the following **after** `builder.Build()`:
 
@@ -246,7 +251,9 @@ In the Blazor client project's `_Imports.razor`:
 
 ---
 
-## Step 8 — Drop the component onto a page
+## Step 8 — Drop the components onto pages
+
+### Live visualization for a single run
 
 Create a monitoring page or add to an existing one:
 
@@ -262,8 +269,19 @@ Create a monitoring page or add to an existing one:
 }
 ```
 
-Or render it for a known invocation ID obtained from navigation state,
-a service, or a route parameter.
+### All-runs history table (optional)
+
+`<FlowRunsList />` is a self-contained component with no required parameters.
+It polls `GET /flows` every few seconds and renders a table of all runs with
+status, duration, and a "View →" link that navigates to each run's detail page.
+
+```razor
+@page "/flows"
+@using DataFlow.Blazor.Components
+
+<h1>Flow Runs</h1>
+<FlowRunsList />
+```
 
 ---
 
@@ -292,24 +310,56 @@ public class PipelineRunner
         var invocationId = Guid.NewGuid();
         var emitter = new BoundFlowEventEmitter(_sink, invocationId);
 
-        // Emit flow started
         await emitter.EmitAsync(new FlowStartedEvent(
-            invocationId, "My Pipeline", DateTime.UtcNow));
+            invocationId, "My Pipeline", DateTime.UtcNow,
+            TriggerParamsJson: null));       // see security note below
 
-        // Run your pipeline blocks — emit progress events per block:
-        await emitter.EmitAsync(new BlockStartedEvent("extract", "HttpSourceBlock", DateTime.UtcNow));
-        // ... do work ...
-        await emitter.EmitAsync(new BlockProgressEvent("extract", itemsProcessed, DateTime.UtcNow));
-        await emitter.EmitAsync(new BlockCompletedEvent("extract", success: true, DateTime.UtcNow));
+        await emitter.EmitAsync(new BlockStartedEvent(
+            "extract", "HttpSourceBlock", DateTime.UtcNow,
+            IsSource: true));               // IsSource=true for blocks with no input edge
 
-        // Emit flow completed
-        await emitter.EmitAsync(new FlowCompletedEvent(invocationId, success: true, DateTime.UtcNow));
+        // Periodic progress — emitted every ~500 ms during execution:
+        await emitter.EmitAsync(new BlockMetricsEvent(
+            "extract", ItemsConsumed: 0, ItemsProduced: itemsEmitted, DateTime.UtcNow));
+
+        // Buffer health — emit whenever a channel's count changes:
+        await emitter.EmitAsync(new ChannelStatsEvent(
+            "extract", "transform", BufferCapacity: 100, CurrentCount: 12, DateTime.UtcNow));
+
+        // Edge throughput — emitted in parallel with BlockMetricsEvent:
+        await emitter.EmitAsync(new EdgeProgressEvent(
+            "extract", "transform", ItemsTransmitted: itemsEmitted, DateTime.UtcNow));
+
+        await emitter.EmitAsync(new BlockCompletedEvent(
+            "extract", success: true, DateTime.UtcNow));
+
+        await emitter.EmitAsync(new FlowCompletedEvent(
+            invocationId, success: true, DateTime.UtcNow));
 
         // Navigate the user (or provide a link) to:
         //   /flow-monitor/{invocationId}
     }
 }
 ```
+
+### Event reference
+
+| Event | When to emit |
+|---|---|
+| `FlowStartedEvent(InvocationId, FlowName, Timestamp, TriggerParamsJson?, CorrelationId?, AttemptNumber)` | Once, at flow start |
+| `BlockStartedEvent(BlockName, BlockType, Timestamp, IsSource)` | Once per block when it begins executing. Set `IsSource = true` for source blocks (no input edge) — used to compute "Items Ingested" in the header. |
+| `BlockMetricsEvent(BlockName, ItemsConsumed, ItemsProduced, Timestamp)` | Periodically (~500 ms) and on completion. Cumulative totals, not deltas. `ItemsConsumed = 0` for source blocks; `ItemsProduced = 0` for pure sinks. |
+| `ChannelStatsEvent(SourceBlock, TargetBlock, BufferCapacity, CurrentCount, Timestamp)` | Periodically per edge. Drives the buffer health pill (green/amber/red) shown on each connection. |
+| `EdgeProgressEvent(SourceBlock, TargetBlock, ItemsTransmitted, Timestamp)` | Periodically per edge. Cumulative count — used to compute edge throughput rate. |
+| `BlockCompletedEvent(BlockName, Success, Timestamp, ErrorMessage?)` | Once per block when it finishes (success or failure). `ErrorMessage` is shown in the detail pane on failure. |
+| `FlowCompletedEvent(InvocationId, Success, Timestamp, ErrorMessage?)` | Once, when the entire flow finishes. |
+
+### Retry / correlation support
+
+`FlowStartedEvent` accepts optional `CorrelationId` (a stable ID shared across
+all retry attempts for the same logical work item) and `AttemptNumber` (1-based).
+When provided, `<FlowRunsList />` groups retries under the same correlation and
+shows attempt badges.
 
 > **Security note**: `TriggerParamsJson` on `FlowStartedEvent` is stored
 > verbatim and sent to all connected browser clients. Never include secrets,
@@ -366,6 +416,9 @@ Read through each item and verify it is done, or note why it doesn't apply:
 | "Loading flow visualization…" never resolves | `IEventSource` not registered, or server endpoints not mapped |
 | EF exception on first run | EF provider package not installed, or `EnsureCreated()` not called |
 | No events appear despite the pipeline running | `IFlowEventSink` not resolved from `IExecutionContext.ServiceProvider` — check DI wiring |
+| Flow stuck showing RUNNING after completion | `FlowCompletedEvent` not emitted — ensure it is always sent, even on exception paths |
+| Buffer health pills absent | `ChannelStatsEvent` not being emitted — check edge event wiring |
+| Block stat counts not showing | `BlockMetricsEvent` not emitted, or `ItemsConsumed`/`ItemsProduced` both zero |
 
 ---
 
