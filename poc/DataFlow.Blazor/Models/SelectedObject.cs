@@ -19,3 +19,8 @@ public record BlockSelected(string BlockName) : SelectedObject;
 /// The buffers toolbar icon was clicked — show the buffer summary panel.
 /// </summary>
 public record BuffersSelected : SelectedObject;
+
+/// <summary>
+/// The event history toolbar icon was clicked — show the full flow-level event history.
+/// </summary>
+public record EventHistorySelected : SelectedObject;

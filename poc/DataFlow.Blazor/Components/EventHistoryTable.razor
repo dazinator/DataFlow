@@ -1,0 +1,130 @@
+@using DataFlow.Blazor.Events
+
+@*
+    Reusable event history table for DataFlow visualizations.
+
+    Use FlowScope="true" when showing events from across an entire flow (the label
+    column includes the block name so rows are self-identifying).  Leave it false
+    (default) when the surrounding context already identifies the block — the label
+    column then shows just the verb ("Started", "Completed").
+
+    Example — flow-level panel:
+        <EventHistoryTable Events="allFlowEvents" FlowScope="true" />
+
+    Example — inside a block detail card:
+        <EventHistoryTable Title="Event History" Events="blockEvents" />
+*@
+
+@if (Events is { Count: > 0 })
+{
+    <div class="dfeh-root">
+        @if (!string.IsNullOrEmpty(Title))
+        {
+            <div class="dfeh-header">@Title</div>
+        }
+
+        <table class="dfeh-table">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Event</th>
+                    <th>Detail</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var evt in Events)
+                {
+                    <tr class="@(IsErrorEvent(evt) ? "dfeh-row-error" : "")">
+                        <td class="dfeh-mono dfeh-time">@GetTime(evt)</td>
+                        <td class="@(IsFlowEvent(evt) ? "dfeh-flow-event" : "")">@GetLabel(evt)</td>
+                        <td class="dfeh-mono @(IsErrorEvent(evt) ? "dfeh-error" : "")">@GetDetail(evt)</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+else if (ShowEmpty)
+{
+    <div class="dfeh-root">
+        @if (!string.IsNullOrEmpty(Title))
+        {
+            <div class="dfeh-header">@Title</div>
+        }
+        <p class="dfeh-empty">No events recorded.</p>
+    </div>
+}
+
+@code {
+    /// <summary>
+    /// The events to display, already filtered and ordered by the caller.
+    /// Accepts any <see cref="IDataFlowEvent"/> — only recognised structural types
+    /// (FlowStarted/Completed, BlockStarted/Completed) produce formatted output;
+    /// unrecognised types fall back to the event type name.
+    /// </summary>
+    [Parameter] public IReadOnlyList<IDataFlowEvent>? Events { get; set; }
+
+    /// <summary>
+    /// Optional section heading rendered above the table.
+    /// Pass null or empty to suppress the heading (e.g. when the surrounding
+    /// panel already provides a title).
+    /// </summary>
+    [Parameter] public string? Title { get; set; }
+
+    /// <summary>
+    /// When <c>true</c> the Event column shows "blockName verb" (e.g. "producer started")
+    /// so each row is self-identifying — use this for a flow-level view containing events
+    /// from multiple blocks.
+    ///
+    /// When <c>false</c> (default) the Event column shows only the verb ("Started",
+    /// "Completed") — appropriate inside a block detail card where the block name is
+    /// already visible in the surrounding context.
+    /// </summary>
+    [Parameter] public bool FlowScope { get; set; }
+
+    /// <summary>
+    /// When <c>true</c> and <see cref="Events"/> is empty or null, renders an empty-state
+    /// message instead of rendering nothing.  Useful for standalone usage outside a
+    /// detail pane where silence would be confusing.
+    /// </summary>
+    [Parameter] public bool ShowEmpty { get; set; }
+
+    private static string GetTime(IDataFlowEvent evt) => evt switch
+    {
+        FlowStartedEvent e   => e.Timestamp.ToLocalTime().ToString("HH:mm:ss.fff"),
+        FlowCompletedEvent e => e.Timestamp.ToLocalTime().ToString("HH:mm:ss.fff"),
+        BlockStartedEvent e  => e.Timestamp.ToLocalTime().ToString("HH:mm:ss.fff"),
+        BlockCompletedEvent e => e.Timestamp.ToLocalTime().ToString("HH:mm:ss.fff"),
+        _ => ""
+    };
+
+    private string GetLabel(IDataFlowEvent evt) => evt switch
+    {
+        FlowStartedEvent   => "Flow started",
+        FlowCompletedEvent => "Flow completed",
+        BlockStartedEvent e  => FlowScope ? $"{e.BlockName} started"   : "Started",
+        BlockCompletedEvent e => FlowScope ? $"{e.BlockName} completed" : "Completed",
+        _ => evt.GetType().Name
+    };
+
+    private string GetDetail(IDataFlowEvent evt) => evt switch
+    {
+        FlowStartedEvent   => "",
+        FlowCompletedEvent e => e.Success ? "✓" : $"✗ {e.ErrorMessage}",
+        BlockStartedEvent e  => FlowScope
+            ? (e.IsSource ? "source" : "")
+            : (e.IsSource ? "source" : ""),
+        BlockCompletedEvent e => e.Success ? "✓" : $"✗ {e.ErrorMessage}",
+        _ => ""
+    };
+
+    private static bool IsFlowEvent(IDataFlowEvent evt) =>
+        evt is FlowStartedEvent or FlowCompletedEvent;
+
+    private static bool IsErrorEvent(IDataFlowEvent evt) => evt switch
+    {
+        FlowCompletedEvent e  => !e.Success,
+        BlockCompletedEvent e => !e.Success,
+        _ => false
+    };
+}

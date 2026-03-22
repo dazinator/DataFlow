@@ -27,6 +27,13 @@
             {
                 <BufferSummaryPanel State="State" />
             }
+            else if (Selection is EventHistorySelected)
+            {
+                @* Flow-level event history — all structural events, no title (pane header already says "Event History") *@
+                <EventHistoryTable Events="FlowLevelEvents()"
+                                   FlowScope="true"
+                                   ShowEmpty="true" />
+            }
             else if (Selection is BlockSelected selected)
             {
                 @RenderBlockDetail(selected)
@@ -42,13 +49,26 @@
 
     private string PaneTitle => Selection switch
     {
-        TriggerSelected  => "Trigger",
-        BuffersSelected  => "Buffers",
-        BlockSelected bs => bs.BlockName,
-        _                => ""
+        TriggerSelected      => "Trigger",
+        BuffersSelected      => "Buffers",
+        EventHistorySelected => "Event History",
+        BlockSelected bs     => bs.BlockName,
+        _                    => ""
     };
 
     private Task Close() => OnClose.InvokeAsync();
+
+    /// <summary>
+    /// Structural events for the full flow, filtered from the live event log.
+    /// Excludes high-frequency telemetry ticks (progress/channel-stats) which are
+    /// broadcast for live rendering but carry no audit value.
+    /// </summary>
+    private IReadOnlyList<IDataFlowEvent> FlowLevelEvents() =>
+        State?.EventLog
+            .Where(e => e is FlowStartedEvent or FlowCompletedEvent
+                           or BlockStartedEvent or BlockCompletedEvent)
+            .ToList()
+        ?? [];
 
     private RenderFragment RenderBlockDetail(BlockSelected bs) => builder =>
     {
@@ -63,7 +83,7 @@
             return;
         }
 
-        // Default block summary card
+        // ── Block metadata table ──────────────────────────────────────────────
         builder.OpenElement(2, "div");
         builder.AddAttribute(3, "class", "detail-section");
 
@@ -71,8 +91,8 @@
         builder.AddAttribute(5, "class", "detail-table");
         builder.OpenElement(6, "tbody");
 
-        AddRow(builder, 10, "Name", block.BlockName, null);
-        AddRow(builder, 20, "Type", block.BlockType, "dt-mono");
+        AddRow(builder, 10, "Name",   block.BlockName,  null);
+        AddRow(builder, 20, "Type",   block.BlockType,  "dt-mono");
         AddRow(builder, 30, "Status", null, null, inner =>
         {
             inner.OpenElement(0, "span");
@@ -80,7 +100,8 @@
             inner.AddContent(2, block.State.ToString());
             inner.CloseElement();
         });
-        if (block.IsSource) AddRow(builder, 40, "Role", "Source", null);
+        if (block.IsSource)
+            AddRow(builder, 40, "Role", "Source", null);
         if (block.StartTime.HasValue)
             AddRow(builder, 50, "Start", block.StartTime.Value.ToLocalTime().ToString("HH:mm:ss.fff"), null);
         if (block.Duration.HasValue)
@@ -90,79 +111,84 @@
         if (block.ErrorMessage is not null)
             AddRow(builder, 80, "Error", block.ErrorMessage, "dt-mono dt-error", null, "dt-label dt-error");
 
-        // Outgoing edge throughput stats (peak / avg / min) — only shown when observed
-        var outEdges = State.Edges.Where(kv => kv.Key.Source == bs.BlockName).ToList();
-        foreach (var (edgeKey, edge) in outEdges)
-        {
-            if (edge.MaxTransmitRatePerSecond > 0)
-            {
-                var prefix = outEdges.Count > 1 ? $"→{edgeKey.Target} " : "";
-                AddRow(builder, 85, $"{prefix}Peak rate",  $"{(long)Math.Round(edge.MaxTransmitRatePerSecond)}/s", "dt-mono");
-                AddRow(builder, 86, $"{prefix}Avg rate",   $"{(long)Math.Round(edge.AverageTransmitRatePerSecond)}/s", "dt-mono");
-                if (edge.MinTransmitRatePerSecond < double.MaxValue)
-                    AddRow(builder, 87, $"{prefix}Min rate", $"{(long)Math.Round(edge.MinTransmitRatePerSecond)}/s", "dt-mono");
-            }
-        }
-
         builder.CloseElement(); // tbody
         builder.CloseElement(); // table
         builder.CloseElement(); // .detail-section
 
-        // Block event history
-        var blockEvents = State.EventLog
-            .Where(e => IsBlockEvent(e, bs.BlockName))
+        // ── Throughput mini-table ─────────────────────────────────────────────
+        var outEdges = State.Edges
+            .Where(kv => kv.Key.Source == bs.BlockName && kv.Value.MaxTransmitRatePerSecond > 0)
             .ToList();
 
-        if (blockEvents.Count > 0)
+        if (outEdges.Count > 0)
         {
-            builder.OpenElement(100, "div");
-            builder.AddAttribute(101, "class", "detail-section");
+            bool multiEdge = outEdges.Count > 1;
 
-            builder.OpenElement(102, "span");
-            builder.AddAttribute(103, "class", "detail-section-label");
-            builder.AddContent(104, "Event History");
+            builder.OpenElement(200, "div");
+            builder.AddAttribute(201, "class", "detail-section");
+
+            builder.OpenElement(202, "span");
+            builder.AddAttribute(203, "class", "detail-section-label");
+            builder.AddContent(204, "Throughput");
             builder.CloseElement();
 
-            builder.OpenElement(105, "table");
-            builder.AddAttribute(106, "class", "detail-table event-table");
+            builder.OpenElement(205, "table");
+            builder.AddAttribute(206, "class", "detail-table throughput-table");
 
-            builder.OpenElement(107, "thead");
-            builder.OpenElement(108, "tr");
-            foreach (var h in new[] { "Time", "Event", "Detail" })
-            {
-                builder.OpenElement(109, "th");
-                builder.AddContent(110, h);
-                builder.CloseElement();
-            }
+            // thead
+            builder.OpenElement(207, "thead");
+            builder.OpenElement(208, "tr");
+            if (multiEdge) { builder.OpenElement(209, "th"); builder.AddContent(210, "Edge"); builder.CloseElement(); }
+            foreach (var h in new[] { "Peak", "Avg", "Min" })
+            { builder.OpenElement(211, "th"); builder.AddContent(212, h); builder.CloseElement(); }
             builder.CloseElement(); // tr
             builder.CloseElement(); // thead
 
-            builder.OpenElement(111, "tbody");
-            int seq = 200;
-            foreach (var evt in blockEvents)
+            // tbody
+            builder.OpenElement(213, "tbody");
+            int ts = 300;
+            foreach (var (edgeKey, edge) in outEdges)
             {
-                builder.OpenElement(seq++, "tr");
-
-                builder.OpenElement(seq++, "td");
-                builder.AddAttribute(seq++, "class", "dt-mono");
-                builder.AddContent(seq++, EventTime(evt));
-                builder.CloseElement();
-
-                builder.OpenElement(seq++, "td");
-                builder.AddContent(seq++, EventLabel(evt));
-                builder.CloseElement();
-
-                builder.OpenElement(seq++, "td");
-                builder.AddAttribute(seq++, "class", "dt-mono");
-                builder.AddContent(seq++, EventDetail(evt));
-                builder.CloseElement();
-
+                builder.OpenElement(ts++, "tr");
+                if (multiEdge)
+                {
+                    builder.OpenElement(ts++, "td");
+                    builder.AddAttribute(ts++, "class", "dt-mono dt-value");
+                    builder.AddContent(ts++, $"→{edgeKey.Target}");
+                    builder.CloseElement();
+                }
+                foreach (var val in new[]
+                {
+                    $"{(long)Math.Round(edge.MaxTransmitRatePerSecond)}/s",
+                    $"{(long)Math.Round(edge.AverageTransmitRatePerSecond)}/s",
+                    edge.MinTransmitRatePerSecond < double.MaxValue
+                        ? $"{(long)Math.Round(edge.MinTransmitRatePerSecond)}/s"
+                        : "—"
+                })
+                {
+                    builder.OpenElement(ts++, "td");
+                    builder.AddAttribute(ts++, "class", "dt-mono dt-value");
+                    builder.AddContent(ts++, val);
+                    builder.CloseElement();
+                }
                 builder.CloseElement(); // tr
             }
             builder.CloseElement(); // tbody
             builder.CloseElement(); // table
             builder.CloseElement(); // .detail-section
         }
+
+        // ── Block event history ───────────────────────────────────────────────
+        var blockEvents = (IReadOnlyList<IDataFlowEvent>)State.EventLog
+            .Where(e => e is BlockStartedEvent bs2 && bs2.BlockName == bs.BlockName
+                     || e is BlockCompletedEvent bc && bc.BlockName == bs.BlockName)
+            .ToList();
+
+        builder.OpenComponent(500, typeof(EventHistoryTable));
+        builder.AddAttribute(501, "Events", blockEvents);
+        builder.AddAttribute(502, "Title", "Event History");
+        builder.AddAttribute(503, "FlowScope", false);
+        builder.CloseComponent();
     };
 
     private static void AddRow(
@@ -174,17 +200,15 @@
         RenderFragment? valueContent = null,
         string? labelClass = null)
     {
-        b.OpenElement(seq, "tr");
+        b.OpenElement(seq,     "tr");
         b.OpenElement(seq + 1, "td");
         b.AddAttribute(seq + 2, "class", labelClass ?? "dt-label");
         b.AddContent(seq + 3, label);
         b.CloseElement();
         b.OpenElement(seq + 4, "td");
         b.AddAttribute(seq + 5, "class", $"dt-value {valueClass}".TrimEnd());
-        if (valueContent is not null)
-            valueContent(b);
-        else
-            b.AddContent(seq + 6, value);
+        if (valueContent is not null) valueContent(b);
+        else b.AddContent(seq + 6, value);
         b.CloseElement();
         b.CloseElement(); // tr
     }
@@ -215,36 +239,8 @@
 
     private static string FormatDuration(TimeSpan d)
     {
-        if (d.TotalHours >= 1) return $"{d.Hours}h {d.Minutes}m {d.Seconds}s";
+        if (d.TotalHours >= 1)   return $"{d.Hours}h {d.Minutes}m {d.Seconds}s";
         if (d.TotalMinutes >= 1) return $"{d.Minutes}m {d.Seconds}s";
         return $"{d.Seconds}.{d.Milliseconds:000}s";
     }
-
-    private static bool IsBlockEvent(IDataFlowEvent evt, string blockName) => evt switch
-    {
-        BlockStartedEvent e   => e.BlockName == blockName,
-        BlockCompletedEvent e => e.BlockName == blockName,
-        _ => false
-    };
-
-    private static string EventTime(IDataFlowEvent evt) => evt switch
-    {
-        BlockStartedEvent e   => e.Timestamp.ToLocalTime().ToString("HH:mm:ss.fff"),
-        BlockCompletedEvent e => e.Timestamp.ToLocalTime().ToString("HH:mm:ss.fff"),
-        _ => ""
-    };
-
-    private static string EventLabel(IDataFlowEvent evt) => evt switch
-    {
-        BlockStartedEvent   => "Started",
-        BlockCompletedEvent => "Completed",
-        _ => evt.GetType().Name
-    };
-
-    private static string EventDetail(IDataFlowEvent evt) => evt switch
-    {
-        BlockStartedEvent e   => e.IsSource ? "source" : "",
-        BlockCompletedEvent e => e.Success ? "✓" : $"✗ {e.ErrorMessage}",
-        _ => ""
-    };
 }

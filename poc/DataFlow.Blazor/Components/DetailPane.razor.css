@@ -58,11 +58,15 @@
 }
 
 .detail-section-label {
+    display: block;
     font-size: 0.75rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: var(--df-text-muted);
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--df-surface-border);
+    margin-bottom: 2px;
 }
 
 .detail-copy-row {
@@ -154,12 +158,13 @@
 .bsb-failed    { background: #f8d7da; color: #842029; border: 1px solid #dc3545; }
 .bsb-idle      { background: #f8f9fa; color: #6c757d; border: 1px solid #dee2e6; }
 
-.event-table td {
-    padding: 0.25rem 0.5rem;
-    border-bottom: 1px solid var(--df-surface-border);
-    vertical-align: top;
+/* Throughput mini-table: equal-width stat columns */
+.throughput-table th,
+.throughput-table td {
+    text-align: right;
 }
 
-.event-table tr:last-child td {
-    border-bottom: none;
+.throughput-table th:first-child,
+.throughput-table td:first-child {
+    text-align: left;
 }

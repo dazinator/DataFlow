@@ -27,6 +27,11 @@
                         ◫ Buffers
                     </button>
                 }
+                <button class="trigger-icon-btn @(_selection is EventHistorySelected ? "active" : "")"
+                        title="Flow event history"
+                        @onclick="ToggleEventHistory">
+                    ☰ History
+                </button>
             </div>
         }
 
@@ -116,6 +121,11 @@
     private void ToggleBuffers()
     {
         _selection = _selection is BuffersSelected ? null : new BuffersSelected();
+    }
+
+    private void ToggleEventHistory()
+    {
+        _selection = _selection is EventHistorySelected ? null : new EventHistorySelected();
     }
 
     private void OnSelectionChanged(SelectedObject? next) => _selection = next;
