@@ -1,0 +1,64 @@
+@page "/flow-viz-failure"
+@using DataFlow.Blazor.Components
+@using System.Net.Http.Json
+@inject HttpClient Http
+
+<PageTitle>Failure Demo</PageTitle>
+
+<h1>DataFlow Visualization - Failure Demo</h1>
+
+<p>This demo shows what happens when a block <strong>throws an exception mid-stream</strong>.</p>
+<p><strong>Topology:</strong> Producer (20 items, 150ms/item) → Validator (fails on item 5)</p>
+<p>The validator processes items 1–4 successfully, then raises an <code>InvalidOperationException</code> on item 5.
+   Watch the block turn red and the error message appear in the detail pane.</p>
+
+<div style="margin: 1rem 0;">
+    <button class="btn btn-danger" @onclick="StartNewFlow" disabled="@_isRunning">
+        Start New Flow
+    </button>
+    @if (_errorMessage is not null)
+    {
+        <span style="color: red; margin-left: 1rem;">@_errorMessage</span>
+    }
+</div>
+
+@if (_currentInvocationId != null)
+{
+    <FlowVisualization InvocationId="_currentInvocationId.Value" />
+}
+
+@code {
+    private Guid? _currentInvocationId;
+    private bool _isRunning;
+    private string? _errorMessage;
+
+    private async Task StartNewFlow()
+    {
+        _isRunning = true;
+        _errorMessage = null;
+        _currentInvocationId = null;
+        StateHasChanged();
+
+        try
+        {
+            var result = await Http.PostAsJsonAsync("/flows/run/failure", (object?)null);
+            if (result.IsSuccessStatusCode)
+            {
+                var body = await result.Content.ReadFromJsonAsync<RunResult>();
+                _currentInvocationId = body?.InvocationId;
+            }
+            else
+            {
+                _errorMessage = $"Server error: {result.StatusCode}";
+                _isRunning = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+            _isRunning = false;
+        }
+    }
+
+    private record RunResult(Guid InvocationId);
+}

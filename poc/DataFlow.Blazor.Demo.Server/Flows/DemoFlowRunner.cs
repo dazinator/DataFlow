@@ -61,6 +61,18 @@ public sealed class DemoFlowRunner
     }
 
     /// <summary>
+    /// Failure demo: Producer → Validator (throws after 5 items).
+    /// Shows how block/flow failure events surface in the visualization.
+    /// </summary>
+    public Guid RunFailure()
+    {
+        var invocationId = Guid.NewGuid();
+        var triggerParams = Serialize(new { topology = "failure", itemCount = 20, failAfter = 5, triggeredBy = "demo-ui" });
+        _ = Task.Run(() => ExecuteFailureAsync(invocationId, triggerParams));
+        return invocationId;
+    }
+
+    /// <summary>
     /// Fan-in: [Producer-A, Producer-B] → Buffer → Batch → Processor
     /// </summary>
     public Guid RunFanIn()
@@ -160,6 +172,29 @@ public sealed class DemoFlowRunner
         catch (Exception ex)
         {
             _logger.LogError(ex, "Backpressure demo flow {InvocationId} failed", invocationId);
+        }
+    }
+
+    private async Task ExecuteFailureAsync(Guid invocationId, string? triggerParamsJson)
+    {
+        try
+        {
+            var producer = new DemoProducerBlock("producer", itemCount: 20, delayMs: 150);
+            var validator = new DemoFaultyProcessorBlock("validator", failAfter: 5, delayMs: 200);
+
+            var graph = new DataFlowGraph("failure-demo", _graphLogger);
+            graph.AddBlock(producer);
+            graph.AddBlock(validator);
+            graph.AddEdge(new Edge(producer, validator));
+
+            using var scope = _services.CreateScope();
+            var ctx = new DataFlow.POC.Core.ExecutionContext(scope.ServiceProvider, CancellationToken.None, invocationId,
+                recoveryCheckpoint: null, metrics: null, triggerContext: null, triggerParamsJson: triggerParamsJson);
+            await graph.ExecuteAsync(ctx);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failure demo flow {InvocationId} failed", invocationId);
         }
     }
 

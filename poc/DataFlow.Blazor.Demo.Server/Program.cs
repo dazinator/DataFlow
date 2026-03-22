@@ -76,11 +76,12 @@ app.MapPost("/flows/run/{topology}", (string topology, DemoFlowRunner runner) =>
         "branching"    => runner.RunBranching(),
         "fanin"        => runner.RunFanIn(),
         "backpressure" => runner.RunBackpressure(),
+        "failure"      => runner.RunFailure(),
         _              => (Guid?)null
     };
 
     return invocationId is null
-        ? Results.BadRequest(new { error = $"Unknown topology '{topology}'. Use: linear, branching, fanin." })
+        ? Results.BadRequest(new { error = $"Unknown topology '{topology}'. Use: linear, branching, fanin, backpressure, failure." })
         : Results.Ok(new { invocationId });
 });
 

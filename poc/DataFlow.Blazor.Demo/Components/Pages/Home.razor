@@ -17,6 +17,12 @@
     <button class="btn btn-primary" @onclick='() => RunFlow("fanin")'>
         Run Fan-In
     </button>
+    <button class="btn btn-primary" @onclick='() => RunFlow("backpressure")'>
+        Run Backpressure
+    </button>
+    <button class="btn btn-danger" @onclick='() => RunFlow("failure")'>
+        Run Failure
+    </button>
     @if (_error is not null)
     {
         <span style="color: #dc3545; align-self: center; margin-left: 0.5rem;">@_error</span>

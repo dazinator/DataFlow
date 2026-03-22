@@ -175,6 +175,39 @@ public sealed class DemoSlowConsumerBlock : BlockBase<int, object>
 }
 
 /// <summary>
+/// Processes items normally up to a threshold, then throws to simulate a mid-stream failure.
+/// Used in the failure demo to show how exceptions surface in the visualization.
+/// </summary>
+public sealed class DemoFaultyProcessorBlock : BlockBase<int, object>
+{
+    private readonly int _failAfter;
+    private readonly int _delayMs;
+
+    public DemoFaultyProcessorBlock(string name, int failAfter = 5, int delayMs = 200)
+        : base(new BlockContext(name))
+    {
+        _failAfter = failAfter;
+        _delayMs = delayMs;
+    }
+
+    public override async IAsyncEnumerable<object> ExecuteAsync(
+        IAsyncEnumerable<int> input,
+        IExecutionContext context)
+    {
+        var processed = 0;
+        await foreach (var item in input.WithCancellation(context.CancellationToken))
+        {
+            await Task.Delay(_delayMs, context.CancellationToken);
+            processed++;
+            if (processed >= _failAfter)
+                throw new InvalidOperationException(
+                    $"Validation failed on item {item}: value {item} exceeds the allowed threshold of {_failAfter}.");
+        }
+        yield break;
+    }
+}
+
+/// <summary>
 /// Merges integer items from multiple sources (fan-in buffer point).
 /// Simply passes items through, acting as a labelled merge node.
 /// </summary>
