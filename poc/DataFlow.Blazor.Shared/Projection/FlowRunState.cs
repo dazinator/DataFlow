@@ -41,6 +41,22 @@ public record BlockRunState
     public bool IsSource { get; init; }
 }
 
+/// <summary>
+/// Projection of an edge's runtime statistics, accumulated by folding
+/// <see cref="EdgeProgressEvent"/>s via <see cref="FlowStateProjector"/>.
+///
+/// <para><b>Snapshot-safe fields</b> (<c>public</c>) — serialised into <see cref="EdgeSnapshot"/>
+/// and restored on the other side of a snapshot/restore cycle.  These are the values that
+/// appear in the UI when viewing a completed flow: peak rate, trough rate, running average,
+/// and total items transmitted.</para>
+///
+/// <para><b>Fold-state fields</b> (<c>internal</c>) — carried forward in memory during event
+/// folding so each tick can compute <c>Δitems / Δtime</c>, but intentionally omitted from the
+/// snapshot.  On snapshot restore <c>PrevTimestamp</c> is <c>null</c>, which causes
+/// <see cref="FlowStateProjector.ApplyEdgeProgress"/> to skip the rate calculation for the
+/// first post-snapshot event tick.  This one-sample gap is acceptable; for a completed flow
+/// (the common reload case) there are no post-snapshot ticks at all.</para>
+/// </summary>
 public record EdgeRunState
 {
     public string SourceBlock { get; init; } = string.Empty;
@@ -51,7 +67,7 @@ public record EdgeRunState
     public double RateSampleSum { get; init; }
     public int RateSampleCount { get; init; }
     public double AverageRatePerSecond => RateSampleCount > 0 ? RateSampleSum / RateSampleCount : 0;
-    // Carried forward for rate delta computation during fold — not persisted in snapshot
+    // Fold-state only — not persisted in EdgeSnapshot (see class summary).
     internal long PrevItemsForRate { get; init; }
     internal DateTime? PrevTimestamp { get; init; }
 }

@@ -94,7 +94,18 @@ public static class FlowStateProjector
     public static FlowRunState Fold(FlowRunState seed, IEnumerable<IDataFlowEvent> events)
         => events.Aggregate(seed, Apply);
 
-    private static EdgeRunState ApplyEdgeProgress(EdgeRunState prev, EdgeProgressEvent e)
+    /// <summary>
+    /// Folds one <see cref="EdgeProgressEvent"/> into the running <see cref="EdgeRunState"/>.
+    ///
+    /// Rate is computed as <c>(ΔItems) / (ΔSeconds)</c> between consecutive ticks.
+    /// The result updates the peak, trough, and running-average watermarks.
+    ///
+    /// The first event for an edge (or the first event after a snapshot restore) always
+    /// skips the rate calculation because <see cref="EdgeRunState.PrevTimestamp"/> is
+    /// <c>null</c> — there is no prior tick to diff against.  This is intentional: adding a
+    /// sentinel "rate = 0" sample would artificially drag the average down.
+    /// </summary>
+    internal static EdgeRunState ApplyEdgeProgress(EdgeRunState prev, EdgeProgressEvent e)
     {
         var next = prev with
         {

@@ -13,6 +13,26 @@ using Microsoft.EntityFrameworkCore;
 /// Appends events to FlowEventRecords, materializes snapshots per SnapshotPolicy,
 /// and pushes real-time notifications via SignalR to connected Blazor clients.
 ///
+/// <para><b>Storage lifecycle for a flow run:</b></para>
+/// <list type="number">
+///   <item>Every event is persisted to <see cref="FlowEventRecord"/> and immediately broadcast
+///         to all connected SignalR clients in the flow's group.</item>
+///   <item>When <see cref="SnapshotPolicy"/> fires (on start, completion, and periodically),
+///         all events are re-folded via <see cref="FlowStateProjector"/> and the resulting
+///         <see cref="FlowSnapshot"/> — including edge rate watermarks and channel buffer
+///         watermarks — is written to <see cref="FlowSnapshotRecord"/>.</item>
+///   <item>Once <see cref="FlowCompletedEvent"/> is received the snapshot is final.
+///         High-frequency telemetry events (<see cref="BlockProgressEvent"/>,
+///         <see cref="EdgeProgressEvent"/>, <see cref="ChannelStatsEvent"/>) are then
+///         deleted from <see cref="FlowEventRecord"/>. These represent ~90% of all rows
+///         during a run. Because the snapshot already encodes every watermark value,
+///         no information is lost — future viewers reconstruct the full display from the
+///         snapshot alone.</item>
+/// </list>
+///
+/// <para>Only structural events (FlowStarted/Completed, BlockStarted/Completed) are
+/// retained permanently; they form the audit trail for the event history pane.</para>
+///
 /// <typeparam name="TContext">
 /// The DbContext type to use for persistence. Must have
 /// <see cref="DataFlowModelBuilderExtensions.AddDataFlowVisualizationEntities"/> called
@@ -74,6 +94,13 @@ public class EfCoreFlowEventSink<TContext> : IFlowEventSink where TContext : DbC
         }
     }
 
+    /// <summary>
+    /// The three high-frequency event types emitted on every tick (~500 ms per block/edge/channel).
+    /// They are useful during a live run — live clients receive them via SignalR to update the rate
+    /// and buffer pills — but their only durable value is feeding the watermark fold. Once the final
+    /// snapshot captures those watermarks (see <see cref="PruneTelemetryEventsAsync"/>), the
+    /// individual ticks are redundant.
+    /// </summary>
     private static readonly HashSet<string> TelemetryEventTypes =
     [
         nameof(BlockProgressEvent),
@@ -81,6 +108,18 @@ public class EfCoreFlowEventSink<TContext> : IFlowEventSink where TContext : DbC
         nameof(ChannelStatsEvent)
     ];
 
+    /// <summary>
+    /// Deletes all telemetry ticks for the completed flow run from <see cref="FlowEventRecord"/>.
+    /// Must only be called AFTER <see cref="MaterializeSnapshotAsync"/> for the
+    /// <see cref="FlowCompletedEvent"/>, which guarantees the final snapshot already encodes:
+    /// <list type="bullet">
+    ///   <item>Edge rate watermarks (max / min / average) via <see cref="EdgeSnapshot"/></item>
+    ///   <item>Channel buffer watermarks (max / min fill) via <see cref="ChannelSnapshot"/></item>
+    ///   <item>Block final item counts via <see cref="BlockSnapshot"/></item>
+    /// </list>
+    /// The retained structural events (FlowStarted/Completed, BlockStarted/Completed) are
+    /// sufficient for the event history pane and any future audit queries.
+    /// </summary>
     private async Task PruneTelemetryEventsAsync(Guid flowRunId, CancellationToken cancellationToken)
     {
         var toDelete = await _db.Set<FlowEventRecord>()
