@@ -182,6 +182,8 @@ public class EventProcessor
                 {
                     edgeState.MaxTransmitRatePerSecond = Math.Max(edgeState.MaxTransmitRatePerSecond, rate);
                     edgeState.MinTransmitRatePerSecond = Math.Min(edgeState.MinTransmitRatePerSecond, rate);
+                    edgeState._rateSampleSum += rate;
+                    edgeState._rateSampleCount++;
                 }
             }
         }

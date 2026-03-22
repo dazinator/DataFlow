@@ -90,6 +90,20 @@
         if (block.ErrorMessage is not null)
             AddRow(builder, 80, "Error", block.ErrorMessage, "dt-mono dt-error", null, "dt-label dt-error");
 
+        // Outgoing edge throughput stats (peak / avg / min) — only shown when observed
+        var outEdges = State.Edges.Where(kv => kv.Key.Source == bs.BlockName).ToList();
+        foreach (var (edgeKey, edge) in outEdges)
+        {
+            if (edge.MaxTransmitRatePerSecond > 0)
+            {
+                var prefix = outEdges.Count > 1 ? $"→{edgeKey.Target} " : "";
+                AddRow(builder, 85, $"{prefix}Peak rate",  $"{(long)Math.Round(edge.MaxTransmitRatePerSecond)}/s", "dt-mono");
+                AddRow(builder, 86, $"{prefix}Avg rate",   $"{(long)Math.Round(edge.AverageTransmitRatePerSecond)}/s", "dt-mono");
+                if (edge.MinTransmitRatePerSecond < double.MaxValue)
+                    AddRow(builder, 87, $"{prefix}Min rate", $"{(long)Math.Round(edge.MinTransmitRatePerSecond)}/s", "dt-mono");
+            }
+        }
+
         builder.CloseElement(); // tbody
         builder.CloseElement(); // table
         builder.CloseElement(); // .detail-section

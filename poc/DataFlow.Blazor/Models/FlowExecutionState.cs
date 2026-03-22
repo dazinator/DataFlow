@@ -138,6 +138,9 @@ public class EdgeState
     public double TransmitRatePerSecond { get; set; }
     public double MaxTransmitRatePerSecond { get; set; }
     public double MinTransmitRatePerSecond { get; set; } = double.MaxValue;
+    public double AverageTransmitRatePerSecond => _rateSampleCount > 0 ? _rateSampleSum / _rateSampleCount : 0;
+    internal double _rateSampleSum;
+    internal int _rateSampleCount;
     internal long PreviousItemsForRate { get; set; }
     internal DateTime? LastProgressTimestamp { get; set; }
 }
