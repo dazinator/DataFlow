@@ -60,6 +60,16 @@ public static class FlowStateProjector
             Blocks = state.Blocks.SetItem(e.BlockName, block with { ItemsProcessed = e.ItemsProcessed })
         },
 
+        EdgeProgressEvent e => state with
+        {
+            Edges = state.Edges.SetItem($"{e.SourceBlock}->{e.TargetBlock}",
+                ApplyEdgeProgress(
+                    state.Edges.TryGetValue($"{e.SourceBlock}->{e.TargetBlock}", out var prevEdge)
+                        ? prevEdge
+                        : new EdgeRunState { SourceBlock = e.SourceBlock, TargetBlock = e.TargetBlock },
+                    e))
+        },
+
         ChannelStatsEvent e => state with
         {
             Channels = state.Channels.SetItem($"{e.SourceBlock}->{e.TargetBlock}", new ChannelRunState
@@ -83,6 +93,35 @@ public static class FlowStateProjector
 
     public static FlowRunState Fold(FlowRunState seed, IEnumerable<IDataFlowEvent> events)
         => events.Aggregate(seed, Apply);
+
+    private static EdgeRunState ApplyEdgeProgress(EdgeRunState prev, EdgeProgressEvent e)
+    {
+        var next = prev with
+        {
+            ItemsTransmitted = e.ItemsTransmitted,
+            PrevItemsForRate = e.ItemsTransmitted,
+            PrevTimestamp = e.Timestamp
+        };
+
+        if (prev.PrevTimestamp.HasValue)
+        {
+            var elapsed = (e.Timestamp - prev.PrevTimestamp.Value).TotalSeconds;
+            if (elapsed > 0)
+            {
+                var rate = (e.ItemsTransmitted - prev.PrevItemsForRate) / elapsed;
+                if (rate > 0)
+                    next = next with
+                    {
+                        MaxRatePerSecond = Math.Max(prev.MaxRatePerSecond, rate),
+                        MinRatePerSecond = Math.Min(prev.MinRatePerSecond, rate),
+                        RateSampleSum = prev.RateSampleSum + rate,
+                        RateSampleCount = prev.RateSampleCount + 1
+                    };
+            }
+        }
+
+        return next;
+    }
 
     /// <summary>
     /// Projects a FlowRunState into a FlowSnapshot for storage or transport.
@@ -117,7 +156,17 @@ public static class FlowStateProjector
                 kv.Value.CurrentCount,
                 kv.Value.LastUpdate,
                 kv.Value.MaxCount,
-                kv.Value.MinCount))
+                kv.Value.MinCount)),
+        Edges: state.Edges.ToDictionary(
+            kv => kv.Key,
+            kv => new EdgeSnapshot(
+                kv.Value.SourceBlock,
+                kv.Value.TargetBlock,
+                kv.Value.ItemsTransmitted,
+                kv.Value.MaxRatePerSecond,
+                kv.Value.MinRatePerSecond,
+                kv.Value.RateSampleSum,
+                kv.Value.RateSampleCount))
     );
 
     /// <summary>
@@ -160,6 +209,21 @@ public static class FlowStateProjector
                     MaxCount = kv.Value.MaxCount,
                     MinCount = kv.Value.MinCount,
                     LastUpdate = kv.Value.LastUpdate
+                }),
+        Edges = (snapshot.Edges ?? new Dictionary<string, EdgeSnapshot>())
+            .ToImmutableDictionary(
+                kv => kv.Key,
+                kv => new EdgeRunState
+                {
+                    SourceBlock = kv.Value.SourceBlock,
+                    TargetBlock = kv.Value.TargetBlock,
+                    ItemsTransmitted = kv.Value.ItemsTransmitted,
+                    MaxRatePerSecond = kv.Value.MaxRatePerSecond,
+                    MinRatePerSecond = kv.Value.MinRatePerSecond,
+                    RateSampleSum = kv.Value.RateSampleSum,
+                    RateSampleCount = kv.Value.RateSampleCount
+                    // PrevItemsForRate / PrevTimestamp not restored — first post-snapshot
+                    // rate sample is skipped, which is acceptable
                 })
     };
 }

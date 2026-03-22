@@ -14,7 +14,8 @@ public record FlowSnapshot(
     Dictionary<string, ChannelSnapshot> Channels,
     string? TriggerParamsJson = null,
     Guid? CorrelationId = null,
-    int AttemptNumber = 1
+    int AttemptNumber = 1,
+    Dictionary<string, EdgeSnapshot>? Edges = null
 );
 
 public record BlockSnapshot(
@@ -36,4 +37,14 @@ public record ChannelSnapshot(
     DateTime LastUpdate,
     int MaxCount = 0,
     int MinCount = int.MaxValue
+);
+
+public record EdgeSnapshot(
+    string SourceBlock,
+    string TargetBlock,
+    long ItemsTransmitted,
+    double MaxRatePerSecond,
+    double MinRatePerSecond,
+    double RateSampleSum,
+    int RateSampleCount
 );

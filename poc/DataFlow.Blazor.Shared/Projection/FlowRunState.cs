@@ -23,6 +23,8 @@ public record FlowRunState
         ImmutableDictionary<string, BlockRunState>.Empty;
     public ImmutableDictionary<string, ChannelRunState> Channels { get; init; } =
         ImmutableDictionary<string, ChannelRunState>.Empty;
+    public ImmutableDictionary<string, EdgeRunState> Edges { get; init; } =
+        ImmutableDictionary<string, EdgeRunState>.Empty;
 
     public static FlowRunState Empty(Guid flowRunId) => new() { FlowRunId = flowRunId };
 }
@@ -37,6 +39,21 @@ public record BlockRunState
     public DateTime? CompletedAt { get; init; }
     public string? ErrorMessage { get; init; }
     public bool IsSource { get; init; }
+}
+
+public record EdgeRunState
+{
+    public string SourceBlock { get; init; } = string.Empty;
+    public string TargetBlock { get; init; } = string.Empty;
+    public long ItemsTransmitted { get; init; }
+    public double MaxRatePerSecond { get; init; }
+    public double MinRatePerSecond { get; init; } = double.MaxValue;
+    public double RateSampleSum { get; init; }
+    public int RateSampleCount { get; init; }
+    public double AverageRatePerSecond => RateSampleCount > 0 ? RateSampleSum / RateSampleCount : 0;
+    // Carried forward for rate delta computation during fold — not persisted in snapshot
+    internal long PrevItemsForRate { get; init; }
+    internal DateTime? PrevTimestamp { get; init; }
 }
 
 public record ChannelRunState

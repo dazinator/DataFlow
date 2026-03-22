@@ -64,6 +64,34 @@ public class EfCoreFlowEventSink<TContext> : IFlowEventSink where TContext : DbC
         {
             await MaterializeSnapshotAsync(flowRunId, record.Id, cancellationToken);
         }
+
+        // Once the flow is complete the snapshot is final and carries all watermarks.
+        // Prune the high-frequency telemetry ticks — they have no further replay value
+        // and represent the bulk of the event log volume.
+        if (evt is FlowCompletedEvent)
+        {
+            await PruneTelemetryEventsAsync(flowRunId, cancellationToken);
+        }
+    }
+
+    private static readonly HashSet<string> TelemetryEventTypes =
+    [
+        nameof(BlockProgressEvent),
+        nameof(EdgeProgressEvent),
+        nameof(ChannelStatsEvent)
+    ];
+
+    private async Task PruneTelemetryEventsAsync(Guid flowRunId, CancellationToken cancellationToken)
+    {
+        var toDelete = await _db.Set<FlowEventRecord>()
+            .Where(e => e.FlowRunId == flowRunId && TelemetryEventTypes.Contains(e.EventType))
+            .ToListAsync(cancellationToken);
+
+        if (toDelete.Count > 0)
+        {
+            _db.Set<FlowEventRecord>().RemoveRange(toDelete);
+            await _db.SaveChangesAsync(cancellationToken);
+        }
     }
 
     private async Task MaterializeSnapshotAsync(Guid flowRunId, long upToEventId, CancellationToken cancellationToken)

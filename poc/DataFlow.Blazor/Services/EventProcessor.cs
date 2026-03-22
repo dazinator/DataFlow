@@ -44,6 +44,24 @@ public class EventProcessor
             _state.Blocks[blockName] = blockState;
         }
 
+        if (snapshot.Edges is not null)
+        {
+            foreach (var (_, edgeSnapshot) in snapshot.Edges)
+            {
+                var edgeState = new EdgeState
+                {
+                    SourceBlock = edgeSnapshot.SourceBlock,
+                    TargetBlock = edgeSnapshot.TargetBlock,
+                    ItemsTransmitted = edgeSnapshot.ItemsTransmitted,
+                    MaxTransmitRatePerSecond = edgeSnapshot.MaxRatePerSecond,
+                    MinTransmitRatePerSecond = edgeSnapshot.MinRatePerSecond
+                };
+                edgeState._rateSampleSum = edgeSnapshot.RateSampleSum;
+                edgeState._rateSampleCount = edgeSnapshot.RateSampleCount;
+                _state.Edges[(edgeSnapshot.SourceBlock, edgeSnapshot.TargetBlock)] = edgeState;
+            }
+        }
+
         foreach (var (_, channelSnapshot) in snapshot.Channels)
         {
             var channelState = new ChannelState
