@@ -70,16 +70,15 @@
             var strokeWidth = isSelected ? "4" : "3";
             var capturedName = blockName;
 
-            @* Determine which stat lines to show *@
+            @* Determine which stat sections to show *@
             var isRunning = blockState.State is Events.BlockState.Running;
             var showConsumed = blockState.ItemsConsumed > 0;
             var showProduced = blockState.ItemsProduced > 0;
             var hasStats = showConsumed || showProduced;
 
-            @* Vertical layout: name, type, then 0-2 stat lines *@
-            @* Compress name/type upward when stats are present *@
-            var nameY    = hasStats ? -20 : -15;
-            var typeY    = hasStats ? -7  :  5;
+            @* Shift name/type upward when the bottom stat row is present *@
+            var nameY = hasStats ? -18 : -10;
+            var typeY = hasStats ? -4  :  5;
 
             <g class="block @statusClass" transform="translate(@x, @y)"
                style="cursor: pointer;"
@@ -100,20 +99,24 @@
                 @* Block type *@
                 <svg:text x="0" y="@typeY" text-anchor="middle" font-size="11" fill="#666">@blockState.BlockType</svg:text>
 
-                @* Stat lines — consumption then production *@
+                @* Bottom stat row: divider + consumed (left) / produced (right) *@
                 @if (hasStats)
                 {
-                    var statLines = new System.Collections.Generic.List<string>();
-                    if (showConsumed) statLines.Add(FormatConsumedStat(blockState, isRunning));
-                    if (showProduced) statLines.Add(FormatProducedStat(blockState, isRunning));
+                    @* Horizontal divider separating identity from stats *@
+                    <line x1="-65" y1="12" x2="65" y2="12" stroke="#ccc" stroke-width="1" opacity="0.7" />
 
-                    @* Centre the stat lines in the lower half of the block *@
-                    var lineCount = statLines.Count;
-                    var firstY = lineCount == 1 ? 16 : 10;
-                    for (int si = 0; si < lineCount; si++)
+                    @* Left side — consumption stats (absent for source blocks) *@
+                    @if (showConsumed)
                     {
-                        var lineY = firstY + si * 13;
-                        <svg:text x="0" y="@lineY" text-anchor="middle" font-size="10" fill="#555">@statLines[si]</svg:text>
+                        <svg:text x="-60" y="24" text-anchor="start" font-size="8" fill="#aaa">consumed</svg:text>
+                        <svg:text x="-60" y="37" text-anchor="start" font-size="11" fill="#555">@FormatStatCount(blockState.ItemsConsumed, blockState.InputRatePerSecond, isRunning)</svg:text>
+                    }
+
+                    @* Right side — production stats (absent for sink blocks) *@
+                    @if (showProduced)
+                    {
+                        <svg:text x="60" y="24" text-anchor="end" font-size="8" fill="#aaa">produced</svg:text>
+                        <svg:text x="60" y="37" text-anchor="end" font-size="11" fill="#555">@FormatStatCount(blockState.ItemsProduced, blockState.ProductionRatePerSecond, isRunning)</svg:text>
                     }
                 }
 
@@ -179,28 +182,16 @@
         return positions;
     }
 
-    /// <summary>Formats the consumed stat line for a block node.</summary>
-    private static string FormatConsumedStat(Models.BlockState block, bool isRunning)
+    /// <summary>
+    /// Formats a stat count for the bottom row of a block node.
+    /// While running, appends the live rate. Position (left/right) communicates consumed vs produced.
+    /// </summary>
+    private static string FormatStatCount(long count, double rate, bool isRunning)
     {
-        var count = FormatCount(block.ItemsConsumed);
-        if (isRunning)
-        {
-            var rate = (long)Math.Round(block.InputRatePerSecond);
-            return $"↓ {count} · {rate}/s";
-        }
-        return $"↓ {count} consumed";
-    }
-
-    /// <summary>Formats the produced stat line for a block node.</summary>
-    private static string FormatProducedStat(Models.BlockState block, bool isRunning)
-    {
-        var count = FormatCount(block.ItemsProduced);
-        if (isRunning)
-        {
-            var rate = (long)Math.Round(block.ProductionRatePerSecond);
-            return $"↑ {count} · {rate}/s";
-        }
-        return $"↑ {count} produced";
+        var formatted = FormatCount(count);
+        if (isRunning && rate > 0)
+            return $"{formatted} · {(long)Math.Round(rate)}/s";
+        return formatted;
     }
 
     private string GetBlockStatusClass(Events.BlockState state)
