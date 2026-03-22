@@ -95,14 +95,10 @@
                       fill="@fillColor" stroke="@borderColor" stroke-width="@strokeWidth" />
 
                 @* Block name *@
-                <text x="0" y="@nameY" text-anchor="middle" font-weight="600" font-size="14" fill="#333">
-                    @blockName
-                </text>
+                <svg:text x="0" y="@nameY" text-anchor="middle" font-weight="600" font-size="14" fill="#333">@blockName</svg:text>
 
                 @* Block type *@
-                <text x="0" y="@typeY" text-anchor="middle" font-size="11" fill="#666">
-                    @blockState.BlockType
-                </text>
+                <svg:text x="0" y="@typeY" text-anchor="middle" font-size="11" fill="#666">@blockState.BlockType</svg:text>
 
                 @* Stat lines — consumption then production *@
                 @if (hasStats)
@@ -117,7 +113,7 @@
                     for (int si = 0; si < lineCount; si++)
                     {
                         var lineY = firstY + si * 13;
-                        <text x="0" y="@lineY" text-anchor="middle" font-size="10" fill="#555">@statLines[si]</text>
+                        <svg:text x="0" y="@lineY" text-anchor="middle" font-size="10" fill="#555">@statLines[si]</svg:text>
                     }
                 }
 
