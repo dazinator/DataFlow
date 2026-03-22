@@ -224,7 +224,6 @@
     {
         BlockStartedEvent e   => e.BlockName == blockName,
         BlockCompletedEvent e => e.BlockName == blockName,
-        BlockProgressEvent e  => e.BlockName == blockName,
         _ => false
     };
 
@@ -232,7 +231,6 @@
     {
         BlockStartedEvent e   => e.Timestamp.ToLocalTime().ToString("HH:mm:ss.fff"),
         BlockCompletedEvent e => e.Timestamp.ToLocalTime().ToString("HH:mm:ss.fff"),
-        BlockProgressEvent e  => e.Timestamp.ToLocalTime().ToString("HH:mm:ss.fff"),
         _ => ""
     };
 
@@ -240,7 +238,6 @@
     {
         BlockStartedEvent   => "Started",
         BlockCompletedEvent => "Completed",
-        BlockProgressEvent  => "Progress",
         _ => evt.GetType().Name
     };
 
@@ -248,7 +245,6 @@
     {
         BlockStartedEvent e   => e.IsSource ? "source" : "",
         BlockCompletedEvent e => e.Success ? "✓" : $"✗ {e.ErrorMessage}",
-        BlockProgressEvent e  => $"{e.ItemsProcessed:N0} items",
         _ => ""
     };
 }
