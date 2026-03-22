@@ -136,6 +136,8 @@ public class EdgeState
     public string TargetBlock { get; set; } = string.Empty;
     public long ItemsTransmitted { get; set; }
     public double TransmitRatePerSecond { get; set; }
+    public double MaxTransmitRatePerSecond { get; set; }
+    public double MinTransmitRatePerSecond { get; set; } = double.MaxValue;
     internal long PreviousItemsForRate { get; set; }
     internal DateTime? LastProgressTimestamp { get; set; }
 }

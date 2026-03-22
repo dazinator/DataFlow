@@ -176,7 +176,13 @@ public class EventProcessor
             if (elapsed > 0)
             {
                 var delta = e.ItemsTransmitted - edgeState.PreviousItemsForRate;
-                edgeState.TransmitRatePerSecond = delta / elapsed;
+                var rate = delta / elapsed;
+                edgeState.TransmitRatePerSecond = rate;
+                if (rate > 0)
+                {
+                    edgeState.MaxTransmitRatePerSecond = Math.Max(edgeState.MaxTransmitRatePerSecond, rate);
+                    edgeState.MinTransmitRatePerSecond = Math.Min(edgeState.MinTransmitRatePerSecond, rate);
+                }
             }
         }
         edgeState.PreviousItemsForRate = e.ItemsTransmitted;

@@ -52,15 +52,24 @@
                         string labelText;
                         if (hasEdgeState)
                         {
-                            labelText = isCompleted
-                                ? FormatCount(edgeState!.ItemsTransmitted)
-                                : $"↑ {(long)Math.Round(edgeState!.TransmitRatePerSecond)}/s · {FormatCount(edgeState.ItemsTransmitted)}";
+                            if (isCompleted)
+                            {
+                                var hasPeak = edgeState!.MaxTransmitRatePerSecond > 0;
+                                labelText = hasPeak
+                                    ? $"{FormatCount(edgeState.ItemsTransmitted)} · ↑{(long)Math.Round(edgeState.MaxTransmitRatePerSecond)}/s pk"
+                                    : FormatCount(edgeState.ItemsTransmitted);
+                            }
+                            else
+                            {
+                                labelText = $"↑ {(long)Math.Round(edgeState!.TransmitRatePerSecond)}/s · {FormatCount(edgeState.ItemsTransmitted)}";
+                            }
                         }
                         else
                         {
                             labelText = FormatEdgeLabel(srcBlock!);
                         }
-                        <rect x="@(midX - 46)" y="@(midY - 12)" width="92" height="18"
+                        var labelWidth = labelText.Length * 7 + 12;
+                        <rect x="@(midX - labelWidth / 2.0)" y="@(midY - 12)" width="@labelWidth" height="18"
                               fill="white" stroke="#ddd" stroke-width="1" rx="3" opacity="0.93" />
                         <svg:text x="@midX" y="@midY" text-anchor="middle" font-size="11" fill="#444">@labelText</svg:text>
                     }
