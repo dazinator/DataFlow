@@ -1,0 +1,39 @@
+@using DataFlow.Blazor.Models
+
+@*
+    Inline SVG buffer health pill.
+    Renders directly into an SVG context — no wrapping element.
+    Colour-coded by health tier:
+      grey   (<60%)  — ok, no backpressure concern
+      amber  (60-85%) — consumer lagging, watch closely
+      red    (>85%)  — active backpressure risk
+    For unbounded channels (Capacity == 0) just the raw count is shown with no warning colour.
+*@
+
+@if (Channel is not null)
+{
+    var pct    = Channel.BufferUtilizationPercent;
+    var tier   = Channel.HealthTier;
+    var stroke = tier switch { 2 => "#dc3545", 1 => "#e0a800", _ => "#adb5bd" };
+    var fill   = tier switch { 2 => "#fff5f5", 1 => "#fffbe6", _ => "white" };
+    var color  = tier switch { 2 => "#dc3545", 1 => "#856404", _ => "#555" };
+    var label  = Channel.BufferCapacity > 0
+        ? $"{Channel.CurrentCount}/{Channel.BufferCapacity} ({pct:F0}%)"
+        : $"buf: {Channel.CurrentCount}";
+    var w = Channel.BufferCapacity > 0 ? 100 : 76;
+
+    <rect x="@(X - w / 2.0)" y="@(Y - 12)" width="@w" height="18"
+          fill="@fill" stroke="@stroke" stroke-width="1.5" rx="3" opacity="0.96" />
+    <svg:text x="@X" y="@Y" text-anchor="middle" font-size="10" fill="@color">@label</svg:text>
+}
+
+@code {
+    /// <summary>The channel state to visualise. Renders nothing when null.</summary>
+    [Parameter] public ChannelState? Channel { get; set; }
+
+    /// <summary>Centre X position within the parent SVG.</summary>
+    [Parameter] public double X { get; set; }
+
+    /// <summary>Baseline Y position within the parent SVG.</summary>
+    [Parameter] public double Y { get; set; }
+}

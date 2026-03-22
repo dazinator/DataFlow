@@ -65,15 +65,12 @@
                         <svg:text x="@midX" y="@midY" text-anchor="middle" font-size="11" fill="#444">@labelText</svg:text>
                     }
 
-                    @* Channel buffer stats (shown when MonitoredChannel is in use) *@
-                    @if (State.Channels.TryGetValue(sourceBlock, out var channelState))
+                    @* Buffer health pill — per-edge, colour-coded by utilisation *@
+                    @if (State.Channels.TryGetValue((sourceBlock, targetBlock), out var channelState))
                     {
                         var midX = (x1 + x2) / 2;
                         var midY = (y1 + y2) / 2 + 8;
-                        var channelText = $"{channelState.CurrentCount}/{channelState.BufferCapacity} ({channelState.BufferUtilizationPercent:F0}%)";
-                        <rect x="@(midX - 46)" y="@(midY - 12)" width="92" height="18"
-                              fill="white" stroke="#ddd" stroke-width="1" rx="3" opacity="0.93" />
-                        <svg:text x="@midX" y="@midY" text-anchor="middle" font-size="10" fill="#666">@channelText</svg:text>
+                        <BufferPill Channel="channelState" X="midX" Y="midY" />
                     }
                 </g>
             }

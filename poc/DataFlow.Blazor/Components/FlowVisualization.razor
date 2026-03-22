@@ -8,14 +8,25 @@
         <FlowStatusPanel State="_state" />
 
         @* Thin header bar — holds trigger icon and future toolbar items *@
-        @if (!string.IsNullOrEmpty(_state.TriggerParamsJson))
+        @if (!string.IsNullOrEmpty(_state.TriggerParamsJson) || _state.Channels.Count > 0)
         {
             <div class="diagram-header-bar">
-                <button class="trigger-icon-btn @(_selection is TriggerSelected ? "active" : "")"
-                        title="Trigger parameters"
-                        @onclick="ToggleTrigger">
-                    ⚡ Trigger
-                </button>
+                @if (!string.IsNullOrEmpty(_state.TriggerParamsJson))
+                {
+                    <button class="trigger-icon-btn @(_selection is TriggerSelected ? "active" : "")"
+                            title="Trigger parameters"
+                            @onclick="ToggleTrigger">
+                        ⚡ Trigger
+                    </button>
+                }
+                @if (_state.Channels.Count > 0)
+                {
+                    <button class="trigger-icon-btn @(_selection is BuffersSelected ? "active" : "")"
+                            title="Buffer health"
+                            @onclick="ToggleBuffers">
+                        ◫ Buffers
+                    </button>
+                }
             </div>
         }
 
@@ -100,6 +111,11 @@
     private void ToggleTrigger()
     {
         _selection = _selection is TriggerSelected ? null : new TriggerSelected();
+    }
+
+    private void ToggleBuffers()
+    {
+        _selection = _selection is BuffersSelected ? null : new BuffersSelected();
     }
 
     private void OnSelectionChanged(SelectedObject? next) => _selection = next;

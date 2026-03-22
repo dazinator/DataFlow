@@ -23,6 +23,10 @@
                     <pre class="detail-json">@PrettyJson(State.TriggerParamsJson)</pre>
                 </div>
             }
+            else if (Selection is BuffersSelected)
+            {
+                <BufferSummaryPanel State="State" />
+            }
             else if (Selection is BlockSelected selected)
             {
                 @RenderBlockDetail(selected)
@@ -38,9 +42,10 @@
 
     private string PaneTitle => Selection switch
     {
-        TriggerSelected => "Trigger",
+        TriggerSelected  => "Trigger",
+        BuffersSelected  => "Buffers",
         BlockSelected bs => bs.BlockName,
-        _ => ""
+        _                => ""
     };
 
     private Task Close() => OnClose.InvokeAsync();

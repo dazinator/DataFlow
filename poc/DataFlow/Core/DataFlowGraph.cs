@@ -356,10 +356,29 @@ public class DataFlowGraph
         foreach (var edge in _edges.Where(e => e.BufferMode != BufferMode.None))
         {
             var (writers, readers) = edge.Strategy.CreateTypedChannels(edge.DataType, edge.SourceBlock, edge.TargetBlocks);
+
+            // Build one buffer monitor per (source, target) channel reader.
+            // Only bounded edges have meaningful capacity; skip unbounded (None mode won't reach here,
+            // but guard anyway with capacity = 0 meaning "unbounded").
+            var bufferMonitors = new Dictionary<IBlock, IBufferMonitor>();
+            if (edge.BufferMode == BufferMode.Bounded)
+            {
+                foreach (var (targetBlock, readerObj) in readers)
+                {
+                    bufferMonitors[targetBlock] = BufferMonitorFactory.Create(
+                        edge.SourceBlock.Name,
+                        targetBlock.Name,
+                        edge.BufferCapacity,
+                        edge.DataType,
+                        readerObj);
+                }
+            }
+
             var edgeModel = new EdgeRuntimeModel
             {
                 Writers = writers,
-                Readers = readers
+                Readers = readers,
+                BufferMonitors = bufferMonitors
             };
             
             // Create typed edge router to eliminate boxing during routing
@@ -682,8 +701,9 @@ public class DataFlowGraph
                 // Store typed output for downstream blocks
                 Output = typedOutput;
 
-                // Collect output routers from edges and buffer nodes
+                // Collect output routers and buffer monitors from edges
                 var outputRouters = new List<ITypedEdgeRouter>();
+                var bufferMonitors = new List<IBufferMonitor>();
                 Func<object, List<ITypedEdgeRouter>, CancellationToken, Task<long>>? epochStreamDelegate = null;
 
                 // Add routers from regular edges
@@ -695,6 +715,9 @@ public class DataFlowGraph
                         .Select(e => _pipeline.EdgeRuntimeModels[e].Router!)
                         .ToList();
                     outputRouters.AddRange(edgeRouters);
+
+                    foreach (var edge in edges.Where(e => _pipeline.EdgeRuntimeModels.ContainsKey(e)))
+                        bufferMonitors.AddRange(_pipeline.EdgeRuntimeModels[edge].BufferMonitors.Values);
                     
                     // Check if any edge has a pre-compiled epoch stream routing delegate
                     // All edges for the same block should have the same type, so we take the first non-null delegate
@@ -732,7 +755,7 @@ public class DataFlowGraph
                 // Linked to context.CancellationToken so it also stops on flow cancellation.
                 using var timerCts = CancellationTokenSource.CreateLinkedTokenSource(context.CancellationToken);
                 var progressTimerTask = eventSink is not null
-                    ? RunBlockProgressTimerAsync(_block.Name, progressCounter, outputRouters, eventSink, context.InvocationId, timerCts.Token)
+                    ? RunBlockProgressTimerAsync(_block.Name, progressCounter, outputRouters, bufferMonitors, eventSink, context.InvocationId, timerCts.Token)
                     : Task.CompletedTask;
 
                 long itemsEmitted;
@@ -843,6 +866,7 @@ public class DataFlowGraph
             string blockName,
             long[] progressCounter,
             List<ITypedEdgeRouter> outputRouters,
+            List<IBufferMonitor> bufferMonitors,
             IFlowEventSink eventSink,
             Guid invocationId,
             CancellationToken cancellationToken)
@@ -883,6 +907,18 @@ public class DataFlowGraph
                             }
                         }
                     }
+
+                    // Per-edge buffer depth: how many items are currently queued in each channel.
+                    foreach (var monitor in bufferMonitors)
+                    {
+                        try
+                        {
+                            await eventSink.AppendAsync(invocationId,
+                                new ChannelStatsEvent(monitor.SourceBlock, monitor.TargetBlock,
+                                    monitor.Capacity, monitor.CurrentCount, now));
+                        }
+                        catch { /* sink errors must not crash the flow */ }
+                    }
                 }
             }
             catch (OperationCanceledException) { }
@@ -898,14 +934,20 @@ public class DataFlowGraph
         public Dictionary<IBlock, object> Writers { get; set; } = new();
         public Dictionary<IBlock, object> Readers { get; set; } = new();
         public ITypedEdgeRouter? Router { get; set; }
-        
+
+        /// <summary>
+        /// Buffer monitors for each target — one per channel reader.
+        /// Polled by the progress timer to emit ChannelStatsEvent ticks.
+        /// </summary>
+        public Dictionary<IBlock, IBufferMonitor> BufferMonitors { get; set; } = new();
+
         /// <summary>
         /// Pre-compiled epoch stream routing delegate.
         /// If not null, this edge routes epoch streams and the delegate should be used
         /// instead of generic routing logic. Compiled once at graph build time.
         /// </summary>
         public Func<object, List<ITypedEdgeRouter>, CancellationToken, Task<long>>? EpochStreamRoutingDelegate { get; set; }
-        
+
         /// <summary>
         /// Pre-compiled container routing delegate for epoch streams.
         /// If not null, this delegate routes individual epoch stream containers to a specific target block,

@@ -14,3 +14,8 @@ public record TriggerSelected : SelectedObject;
 /// A block node was clicked — show block details in the detail pane.
 /// </summary>
 public record BlockSelected(string BlockName) : SelectedObject;
+
+/// <summary>
+/// The buffers toolbar icon was clicked — show the buffer summary panel.
+/// </summary>
+public record BuffersSelected : SelectedObject;

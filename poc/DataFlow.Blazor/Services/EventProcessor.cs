@@ -44,16 +44,17 @@ public class EventProcessor
             _state.Blocks[blockName] = blockState;
         }
 
-        foreach (var (blockName, channelSnapshot) in snapshot.Channels)
+        foreach (var (_, channelSnapshot) in snapshot.Channels)
         {
             var channelState = new ChannelState
             {
-                BlockName = channelSnapshot.BlockName,
+                SourceBlock = channelSnapshot.SourceBlock,
+                TargetBlock = channelSnapshot.TargetBlock,
                 BufferCapacity = channelSnapshot.BufferCapacity,
                 CurrentCount = channelSnapshot.CurrentCount,
                 LastUpdate = channelSnapshot.LastUpdate
             };
-            _state.Channels[blockName] = channelState;
+            _state.Channels[(channelSnapshot.SourceBlock, channelSnapshot.TargetBlock)] = channelState;
         }
     }
 
@@ -183,13 +184,15 @@ public class EventProcessor
 
     private void ProcessChannelStats(ChannelStatsEvent e)
     {
-        if (!_state.Channels.TryGetValue(e.BlockName, out var channelState))
+        var key = (e.SourceBlock, e.TargetBlock);
+        if (!_state.Channels.TryGetValue(key, out var channelState))
         {
             channelState = new ChannelState
             {
-                BlockName = e.BlockName
+                SourceBlock = e.SourceBlock,
+                TargetBlock = e.TargetBlock
             };
-            _state.Channels[e.BlockName] = channelState;
+            _state.Channels[key] = channelState;
         }
 
         channelState.BufferCapacity = e.BufferCapacity;

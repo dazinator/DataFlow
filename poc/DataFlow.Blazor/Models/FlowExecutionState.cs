@@ -16,7 +16,7 @@ public class FlowExecutionState
     public string? TriggerParamsJson { get; set; }
     
     public Dictionary<string, BlockState> Blocks { get; } = new();
-    public Dictionary<string, ChannelState> Channels { get; } = new();
+    public Dictionary<(string Source, string Target), ChannelState> Channels { get; } = new();
     public Dictionary<(string Source, string Target), EdgeState> Edges { get; } = new();
     public List<IDataFlowEvent> EventLog { get; } = new();
 
@@ -93,31 +93,36 @@ public class BlockState
 }
 
 /// <summary>
-/// Represents the runtime state of a channel.
+/// Represents the live buffer state of a single edge channel.
 /// </summary>
 public class ChannelState
 {
-    public string BlockName { get; set; } = string.Empty;
+    public string SourceBlock { get; set; } = string.Empty;
+    public string TargetBlock { get; set; } = string.Empty;
     public int BufferCapacity { get; set; }
     public int CurrentCount { get; set; }
     public DateTime LastUpdate { get; set; }
 
     /// <summary>
-    /// Gets the buffer utilization as a percentage (0-100).
+    /// Gets the buffer utilization as a percentage (0–100).
+    /// Returns 0 for unbounded channels (Capacity == 0).
     /// </summary>
     public double BufferUtilizationPercent
     {
         get
         {
-            if (BufferCapacity == 0) return 0;
+            if (BufferCapacity <= 0) return 0;
             return (double)CurrentCount / BufferCapacity * 100;
         }
     }
 
-    /// <summary>
-    /// Indicates if the buffer is approaching full capacity (>80%).
-    /// </summary>
-    public bool IsNearCapacity => BufferUtilizationPercent > 80;
+    /// <summary>Health tier: 0 = ok (&lt;60%), 1 = warn (60–85%), 2 = critical (&gt;85%).</summary>
+    public int HealthTier => BufferCapacity <= 0 ? 0 : BufferUtilizationPercent switch
+    {
+        >= 85 => 2,
+        >= 60 => 1,
+        _ => 0
+    };
 }
 
 /// <summary>

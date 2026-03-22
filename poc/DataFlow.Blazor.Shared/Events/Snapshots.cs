@@ -29,7 +29,8 @@ public record BlockSnapshot(
 );
 
 public record ChannelSnapshot(
-    string BlockName,
+    string SourceBlock,
+    string TargetBlock,
     int BufferCapacity,
     int CurrentCount,
     DateTime LastUpdate

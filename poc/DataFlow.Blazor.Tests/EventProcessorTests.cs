@@ -128,16 +128,17 @@ public class EventProcessorTests
         // Arrange
         var processor = new EventProcessor(Guid.NewGuid());
         var blockStartEvt = new BlockStartedEvent("producer", "ProducerBlock", DateTime.UtcNow);
-        var channelEvt = new ChannelStatsEvent("producer", 100, 50, DateTime.UtcNow);
+        var channelEvt = new ChannelStatsEvent("producer", "transform", 100, 50, DateTime.UtcNow);
 
         // Act
         processor.ProcessEvent(blockStartEvt);
         processor.ProcessEvent(channelEvt);
 
         // Assert
-        Assert.True(processor.State.Channels.ContainsKey("producer"));
-        Assert.Equal(100, processor.State.Channels["producer"].BufferCapacity);
-        Assert.Equal(50, processor.State.Channels["producer"].CurrentCount);
+        var key = ("producer", "transform");
+        Assert.True(processor.State.Channels.ContainsKey(key));
+        Assert.Equal(100, processor.State.Channels[key].BufferCapacity);
+        Assert.Equal(50, processor.State.Channels[key].CurrentCount);
     }
 
     [Fact]

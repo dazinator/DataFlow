@@ -1,7 +1,8 @@
 namespace DataFlow.Blazor.Events;
 
 public record ChannelStatsEvent(
-    string BlockName,
+    string SourceBlock,
+    string TargetBlock,
     int BufferCapacity,
     int CurrentCount,
     DateTime Timestamp

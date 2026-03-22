@@ -45,13 +45,14 @@ public class BranchingMockEventSource : IEventSource
 
             // Producer progress
             yield return new BlockProgressEvent("producer", i * 50, DateTime.UtcNow);
-            yield return new ChannelStatsEvent("producer", 100, _random.Next(20, 80), DateTime.UtcNow);
+            yield return new ChannelStatsEvent("producer", "router", 100, _random.Next(20, 80), DateTime.UtcNow);
 
-            // Router progress
+            // Router progress (two output channels — one per downstream processor)
             if (i > 1)
             {
                 yield return new BlockProgressEvent("router", (i - 1) * 50, DateTime.UtcNow);
-                yield return new ChannelStatsEvent("router", 100, _random.Next(15, 70), DateTime.UtcNow);
+                yield return new ChannelStatsEvent("router", "processor-high", 100, _random.Next(5, 40), DateTime.UtcNow);
+                yield return new ChannelStatsEvent("router", "processor-low", 100, _random.Next(5, 40), DateTime.UtcNow);
             }
 
             // High priority processor (processes ~70% of items)

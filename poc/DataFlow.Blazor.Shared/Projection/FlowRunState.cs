@@ -41,7 +41,8 @@ public record BlockRunState
 
 public record ChannelRunState
 {
-    public string BlockName { get; init; } = string.Empty;
+    public string SourceBlock { get; init; } = string.Empty;
+    public string TargetBlock { get; init; } = string.Empty;
     public int BufferCapacity { get; init; }
     public int CurrentCount { get; init; }
     public DateTime LastUpdate { get; init; }

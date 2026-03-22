@@ -62,9 +62,10 @@ public static class FlowStateProjector
 
         ChannelStatsEvent e => state with
         {
-            Channels = state.Channels.SetItem(e.BlockName, new ChannelRunState
+            Channels = state.Channels.SetItem($"{e.SourceBlock}->{e.TargetBlock}", new ChannelRunState
             {
-                BlockName = e.BlockName,
+                SourceBlock = e.SourceBlock,
+                TargetBlock = e.TargetBlock,
                 BufferCapacity = e.BufferCapacity,
                 CurrentCount = e.CurrentCount,
                 LastUpdate = e.Timestamp
@@ -104,7 +105,8 @@ public static class FlowStateProjector
         Channels: state.Channels.ToDictionary(
             kv => kv.Key,
             kv => new ChannelSnapshot(
-                kv.Value.BlockName,
+                kv.Value.SourceBlock,
+                kv.Value.TargetBlock,
                 kv.Value.BufferCapacity,
                 kv.Value.CurrentCount,
                 kv.Value.LastUpdate))
@@ -143,7 +145,8 @@ public static class FlowStateProjector
                 kv => kv.Key,
                 kv => new ChannelRunState
                 {
-                    BlockName = kv.Value.BlockName,
+                    SourceBlock = kv.Value.SourceBlock,
+                    TargetBlock = kv.Value.TargetBlock,
                     BufferCapacity = kv.Value.BufferCapacity,
                     CurrentCount = kv.Value.CurrentCount,
                     LastUpdate = kv.Value.LastUpdate

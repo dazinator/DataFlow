@@ -49,24 +49,24 @@ public class FanInMockEventSource : IEventSource
 
             // Producer A progress (faster)
             yield return new BlockProgressEvent("producer-a", i * 60, DateTime.UtcNow);
-            yield return new ChannelStatsEvent("producer-a", 50, _random.Next(10, 40), DateTime.UtcNow);
+            yield return new ChannelStatsEvent("producer-a", "buffer", 50, _random.Next(10, 40), DateTime.UtcNow);
 
             // Producer B progress (slower)
             yield return new BlockProgressEvent("producer-b", i * 40, DateTime.UtcNow);
-            yield return new ChannelStatsEvent("producer-b", 50, _random.Next(10, 40), DateTime.UtcNow);
+            yield return new ChannelStatsEvent("producer-b", "buffer", 50, _random.Next(10, 40), DateTime.UtcNow);
 
             // Buffer progress (combines both producers)
             if (i > 1)
             {
                 yield return new BlockProgressEvent("buffer", (i - 1) * 100, DateTime.UtcNow);
-                yield return new ChannelStatsEvent("buffer", 200, _random.Next(50, 150), DateTime.UtcNow);
+                yield return new ChannelStatsEvent("buffer", "batch", 200, _random.Next(50, 150), DateTime.UtcNow);
             }
 
             // Batch progress
             if (i > 2)
             {
                 yield return new BlockProgressEvent("batch", (i - 2) * 20, DateTime.UtcNow);
-                yield return new ChannelStatsEvent("batch", 100, _random.Next(20, 80), DateTime.UtcNow);
+                yield return new ChannelStatsEvent("batch", "processor", 100, _random.Next(20, 80), DateTime.UtcNow);
             }
 
             // Processor progress
