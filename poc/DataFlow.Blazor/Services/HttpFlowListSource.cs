@@ -18,9 +18,10 @@ public class HttpFlowListSource : IFlowListSource
         _http = http;
     }
 
-    public async Task<FlowSummaryDto[]> GetFlowsAsync(CancellationToken cancellationToken = default)
+    public async Task<FlowSummaryDto[]> GetFlowsAsync(int page = 1, int pageSize = 50, CancellationToken cancellationToken = default)
     {
-        var result = await _http.GetFromJsonAsync<FlowSummaryDto[]>("/flows", JsonOptions, cancellationToken);
+        var result = await _http.GetFromJsonAsync<FlowSummaryDto[]>(
+            $"/flows?page={page}&pageSize={pageSize}", JsonOptions, cancellationToken);
         return result ?? [];
     }
 }

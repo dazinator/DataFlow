@@ -27,10 +27,17 @@ internal static class FlowListEndpoints
         /// </summary>
         app.MapGet("/flows", async (
             TContext db,
-            CancellationToken cancellationToken) =>
+            int page = 1,
+            int pageSize = 50,
+            CancellationToken cancellationToken = default) =>
         {
+            page = Math.Max(1, page);
+            pageSize = Math.Clamp(pageSize, 1, 200);
+
             var snapshots = await db.Set<FlowSnapshotRecord>()
                 .OrderByDescending(s => s.AsOfEventId)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync(cancellationToken);
 
             var summaries = snapshots

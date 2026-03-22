@@ -5,13 +5,13 @@
 @inject NavigationManager Nav
 @implements IAsyncDisposable
 
-@if (_flows is null)
+@if (_groups is null)
 {
     <p style="color: #6c757d;">Loading flows...</p>
 }
-else if (_flows.Length == 0)
+else if (_groups.Count == 0)
 {
-    <p style="color: #6c757d;">No flows have run yet. Use the buttons above to start one.</p>
+    <p style="color: #6c757d;">No flows have run yet.</p>
 }
 else
 {
@@ -26,47 +26,107 @@ else
             </tr>
         </thead>
         <tbody>
-            @foreach (var flow in _flows)
+            @foreach (var group in _groups)
             {
-                <tr style="border-bottom: 1px solid #dee2e6; @RowStyle(flow.Status)">
+                // Primary row
+                <tr style="border-bottom: 1px solid #dee2e6; @RowStyle(group.Primary.Status)">
                     <td style="padding: 0.5rem 0.75rem; font-weight: 500;">
-                        @flow.FlowName
-                        @if (flow.AttemptNumber > 1)
+                        @group.Primary.FlowName
+                        @if (group.Attempts.Count > 1)
                         {
-                            <span title="Retry attempt @flow.AttemptNumber for correlation @flow.CorrelationId"
-                                  style="margin-left:0.4rem; background:#fff3cd; color:#856404; border:1px solid #ffc107;
-                                         border-radius:4px; padding:1px 6px; font-size:0.75rem; font-weight:400;">
-                                attempt @flow.AttemptNumber
-                            </span>
+                            <button @onclick="() => ToggleGroup(group.Key)"
+                                    style="margin-left: 0.5rem; background: #e8f0fe; color: #1a56db; border: 1px solid #c3d4f9;
+                                           border-radius: 4px; padding: 1px 7px; font-size: 0.75rem; cursor: pointer;
+                                           font-weight: 400; line-height: 1.4;">
+                                ↻ @group.Attempts.Count attempts @(_expandedGroups.Contains(group.Key) ? "▲" : "▼")
+                            </button>
                         }
                     </td>
                     <td style="padding: 0.5rem 0.75rem;">
-                        <span style="@BadgeStyle(flow.Status)">@StatusLabel(flow.Status)</span>
+                        <span style="@BadgeStyle(group.Primary.Status)">@StatusLabel(group.Primary.Status)</span>
                     </td>
                     <td style="padding: 0.5rem 0.75rem; color: #495057;">
-                        @flow.StartedAt.ToLocalTime().ToString("HH:mm:ss")
+                        @group.Primary.StartedAt.ToLocalTime().ToString("HH:mm:ss")
                     </td>
                     <td style="padding: 0.5rem 0.75rem; color: #495057;">
-                        @FormatDuration(flow)
+                        @FormatDuration(group.Primary)
                     </td>
                     <td style="padding: 0.5rem 0.75rem; text-align: right;">
-                        @if (flow.ErrorMessage is not null)
+                        @if (group.Primary.ErrorMessage is not null)
                         {
-                            <span title="@flow.ErrorMessage" style="color: #dc3545; margin-right: 0.5rem; cursor: help;">⚠</span>
+                            <span title="@group.Primary.ErrorMessage"
+                                  style="color: #dc3545; margin-right: 0.5rem; cursor: help;">⚠</span>
                         }
                         <button class="btn btn-sm btn-outline-primary"
-                                @onclick="() => NavigateToFlow(flow.FlowRunId)">
+                                @onclick="() => NavigateToFlow(group.Primary.FlowRunId)">
                             View →
                         </button>
                     </td>
                 </tr>
+
+                // Attempt sub-rows (shown when group is expanded)
+                @if (group.Attempts.Count > 1 && _expandedGroups.Contains(group.Key))
+                {
+                    @foreach (var attempt in group.Attempts)
+                    {
+                        <tr style="border-bottom: 1px solid #dee2e6; background: #f8f9fa;">
+                            <td style="padding: 0.35rem 0.75rem 0.35rem 2.5rem; color: #6c757d; font-size: 0.85rem;">
+                                ↳ Attempt @attempt.AttemptNumber
+                            </td>
+                            <td style="padding: 0.35rem 0.75rem;">
+                                <span style="@BadgeStyle(attempt.Status); font-size: 0.78rem; padding: 1px 6px;">
+                                    @StatusLabel(attempt.Status)
+                                </span>
+                            </td>
+                            <td style="padding: 0.35rem 0.75rem; color: #6c757d; font-size: 0.85rem;">
+                                @attempt.StartedAt.ToLocalTime().ToString("HH:mm:ss")
+                            </td>
+                            <td style="padding: 0.35rem 0.75rem; color: #6c757d; font-size: 0.85rem;">
+                                @FormatDuration(attempt)
+                            </td>
+                            <td style="padding: 0.35rem 0.75rem; text-align: right;">
+                                @if (attempt.ErrorMessage is not null)
+                                {
+                                    <span title="@attempt.ErrorMessage"
+                                          style="color: #dc3545; margin-right: 0.5rem; cursor: help;">⚠</span>
+                                }
+                                <button class="btn btn-sm btn-outline-secondary"
+                                        style="font-size: 0.78rem; padding: 1px 8px;"
+                                        @onclick="() => NavigateToFlow(attempt.FlowRunId)">
+                                    View →
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                }
             }
         </tbody>
     </table>
+
+    @if (_hasMore)
+    {
+        <div style="text-align: center; margin-top: 1rem;">
+            <button class="btn btn-outline-secondary btn-sm"
+                    @onclick="LoadMoreAsync"
+                    disabled="@_loadingMore">
+                @(_loadingMore ? "Loading…" : "Load more")
+            </button>
+        </div>
+    }
 }
 
 @code {
-    private FlowSummaryDto[]? _flows;
+    private const int PageSize = 50;
+
+    // Total rows to fetch on each poll — grows by PageSize on each "Load more".
+    // Always fetches page=1 with this as the window size so status updates on
+    // in-progress runs continue to arrive without needing multiple requests.
+    private int _loadedCount = PageSize;
+
+    private List<FlowGroup>? _groups;
+    private bool _hasMore;
+    private bool _loadingMore;
+    private readonly HashSet<Guid> _expandedGroups = new();
     private PeriodicTimer? _timer;
     private CancellationTokenSource _cts = new();
 
@@ -80,7 +140,10 @@ else
     {
         try
         {
-            _flows = await FlowListSource.GetFlowsAsync(_cts.Token);
+            var flows = await FlowListSource.GetFlowsAsync(
+                page: 1, pageSize: _loadedCount, _cts.Token);
+            _groups = BuildGroups(flows);
+            _hasMore = flows.Length == _loadedCount;
             StateHasChanged();
         }
         catch (OperationCanceledException) { }
@@ -92,15 +155,66 @@ else
         try
         {
             while (await _timer.WaitForNextTickAsync(_cts.Token))
-            {
                 await RefreshAsync();
-            }
         }
         catch (OperationCanceledException) { }
     }
 
+    private async Task LoadMoreAsync()
+    {
+        _loadingMore = true;
+        _loadedCount += PageSize;
+        await RefreshAsync();
+        _loadingMore = false;
+    }
+
+    private void ToggleGroup(Guid key)
+    {
+        if (!_expandedGroups.Remove(key))
+            _expandedGroups.Add(key);
+    }
+
     private void NavigateToFlow(Guid flowRunId) =>
         Nav.NavigateTo($"/flows/{flowRunId}");
+
+    // ── Grouping ─────────────────────────────────────────────────────────────
+
+    private record FlowGroup(Guid Key, FlowSummaryDto Primary, List<FlowSummaryDto> Attempts);
+
+    private static List<FlowGroup> BuildGroups(FlowSummaryDto[] flows)
+    {
+        // Accumulate attempts per correlation key, preserving first-seen order
+        // (server returns most-recent first, so first-seen = latest attempt).
+        var order = new Dictionary<Guid, int>();
+        var buckets = new Dictionary<Guid, List<FlowSummaryDto>>();
+
+        for (var i = 0; i < flows.Length; i++)
+        {
+            var f = flows[i];
+            var key = f.CorrelationId ?? f.FlowRunId;
+
+            if (!buckets.TryGetValue(key, out var list))
+            {
+                buckets[key] = list = [];
+                order[key] = i;
+            }
+
+            list.Add(f);
+        }
+
+        return order
+            .OrderBy(kv => kv.Value)
+            .Select(kv =>
+            {
+                var attempts = buckets[kv.Key];
+                // Sort so highest attempt number (latest) is first
+                attempts.Sort((a, b) => b.AttemptNumber.CompareTo(a.AttemptNumber));
+                return new FlowGroup(kv.Key, attempts[0], attempts);
+            })
+            .ToList();
+    }
+
+    // ── Formatting ────────────────────────────────────────────────────────────
 
     private static string StatusLabel(FlowState s) => s switch
     {
@@ -129,13 +243,10 @@ else
     private static string FormatDuration(FlowSummaryDto flow)
     {
         if (flow.Status == FlowState.Running)
-        {
-            var running = DateTime.UtcNow - flow.StartedAt;
-            return $"{running.TotalSeconds:F0}s…";
-        }
+            return $"{(DateTime.UtcNow - flow.StartedAt).TotalSeconds:F0}s…";
 
         if (flow.CompletedAt is null)
-            return "—"; // terminal state but no completion timestamp (incomplete history)
+            return "—";
 
         var span = flow.CompletedAt.Value - flow.StartedAt;
         if (span.TotalSeconds < 60)

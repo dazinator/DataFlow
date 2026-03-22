@@ -7,5 +7,5 @@ using DataFlow.Blazor.Api;
 /// </summary>
 public interface IFlowListSource
 {
-    Task<FlowSummaryDto[]> GetFlowsAsync(CancellationToken cancellationToken = default);
+    Task<FlowSummaryDto[]> GetFlowsAsync(int page = 1, int pageSize = 50, CancellationToken cancellationToken = default);
 }
