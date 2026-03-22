@@ -108,14 +108,14 @@
                     @* Left side — consumption stats (absent for source blocks) *@
                     @if (showConsumed)
                     {
-                        <svg:text x="-60" y="24" text-anchor="start" font-size="8" fill="#aaa">consumed</svg:text>
+                        <svg:text x="-60" y="24" text-anchor="start" font-size="9" fill="#999">in</svg:text>
                         <svg:text x="-60" y="37" text-anchor="start" font-size="11" fill="#555">@FormatStatCount(blockState.ItemsConsumed, blockState.InputRatePerSecond, isRunning)</svg:text>
                     }
 
                     @* Right side — production stats (absent for sink blocks) *@
                     @if (showProduced)
                     {
-                        <svg:text x="60" y="24" text-anchor="end" font-size="8" fill="#aaa">produced</svg:text>
+                        <svg:text x="60" y="24" text-anchor="end" font-size="9" fill="#999">out</svg:text>
                         <svg:text x="60" y="37" text-anchor="end" font-size="11" fill="#555">@FormatStatCount(blockState.ItemsProduced, blockState.ProductionRatePerSecond, isRunning)</svg:text>
                     }
                 }
