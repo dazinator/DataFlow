@@ -786,13 +786,27 @@ public class DataFlowGraph
 
                     foreach (var edge in edges.Where(e => _pipeline.EdgeRuntimeModels.ContainsKey(e)))
                         bufferMonitors.AddRange(_pipeline.EdgeRuntimeModels[edge].BufferMonitors.Values);
-                    
+
                     // Check if any edge has a pre-compiled epoch stream routing delegate
                     // All edges for the same block should have the same type, so we take the first non-null delegate
                     epochStreamDelegate = edges
                         .Where(e => _pipeline.EdgeRuntimeModels.ContainsKey(e))
                         .Select(e => _pipeline.EdgeRuntimeModels[e].EpochStreamRoutingDelegate)
                         .FirstOrDefault(d => d != null);
+                }
+
+                // Also monitor the depth of this block's *incoming* channels from the consumer side.
+                // The source block's timer owns the same monitor objects but stops when the source
+                // completes — which means the buffer count would freeze mid-drain if we relied solely
+                // on the source's timer.  Including the monitors here ensures the count keeps updating
+                // as long as *this* block is still running and consuming.
+                if (_incomingEdges.TryGetValue(_block, out var inEdges))
+                {
+                    foreach (var edge in inEdges.Where(e => _pipeline.EdgeRuntimeModels.ContainsKey(e)))
+                    {
+                        if (_pipeline.EdgeRuntimeModels[edge].BufferMonitors.TryGetValue(_block, out var inMonitor))
+                            bufferMonitors.Add(inMonitor);
+                    }
                 }
 
                 // Route output with live 500 ms progress reporting.
