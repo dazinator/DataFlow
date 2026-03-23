@@ -219,6 +219,12 @@ public class EventProcessor
         // Reset transmit rates for all edges originating from this block.
         foreach (var key in _state.Edges.Keys.Where(k => k.Source == e.BlockName).ToList())
             _state.Edges[key].TransmitRatePerSecond = 0;
+
+        // A completed block has fully drained its input channels. Zero the counts now
+        // so the buffer pills clear immediately rather than waiting for a ChannelStatsEvent
+        // that may never arrive (the last event often fires before the final drain).
+        foreach (var key in _state.Channels.Keys.Where(k => k.Target == e.BlockName).ToList())
+            _state.Channels[key].CurrentCount = 0;
     }
 
     private void ProcessBlockMetrics(BlockMetricsEvent e)
