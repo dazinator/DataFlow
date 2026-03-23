@@ -35,6 +35,15 @@
                               stroke="#666" stroke-width="2" marker-end="url(#arrowhead)" />
                     }
 
+                    @* Item type label — shown above the edge midpoint when the source block has a known output type *@
+                    @if (State.Blocks.TryGetValue(sourceBlock, out var srcBlock) && srcBlock.OutputItemLabel is { } itemLabel)
+                    {
+                        var labelX = (x1 + x2) / 2;
+                        var labelY = (y1 + y2) / 2 - 10;
+                        <svg:text x="@labelX" y="@labelY" text-anchor="middle"
+                                  font-size="10" font-style="italic" fill="#888">@itemLabel</svg:text>
+                    }
+
                     @* Buffer health pill — hidden when flow is done and buffer is empty *@
                     @if (State.Channels.TryGetValue((sourceBlock, targetBlock), out var channelState))
                     {
