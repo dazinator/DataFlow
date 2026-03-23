@@ -66,6 +66,18 @@ public interface IExecutionContext
     /// </para>
     /// </summary>
     string? TriggerParamsJson { get; }
+
+    /// <summary>
+    /// Stable identity shared across all retry attempts for the same logical message or job.
+    /// When set, the visualization groups all attempts under a single row in the run list.
+    /// Null for standalone (non-retried) flow runs.
+    /// </summary>
+    Guid? CorrelationId => null;
+
+    /// <summary>
+    /// 1-based attempt counter within a correlated retry chain. Defaults to 1.
+    /// </summary>
+    int AttemptNumber => 1;
 }
 
 /// <summary>
@@ -121,8 +133,10 @@ public class ExecutionContext : IExecutionContext
         ICheckpoint? recoveryCheckpoint,
         IDataFlowMetrics? metrics,
         ITriggerContext? triggerContext,
-        string? triggerParamsJson = null)
-        : this(serviceProvider.GetService<IServiceScopeFactory>(), cancellationToken, invocationId, recoveryCheckpoint, metrics, triggerContext, triggerParamsJson)
+        string? triggerParamsJson = null,
+        Guid? correlationId = null,
+        int attemptNumber = 1)
+        : this(serviceProvider.GetService<IServiceScopeFactory>(), cancellationToken, invocationId, recoveryCheckpoint, metrics, triggerContext, triggerParamsJson, correlationId, attemptNumber)
     {
     }
 
@@ -133,7 +147,9 @@ public class ExecutionContext : IExecutionContext
         ICheckpoint? recoveryCheckpoint,
         IDataFlowMetrics? metrics,
         ITriggerContext? triggerContext,
-        string? triggerParamsJson = null)
+        string? triggerParamsJson = null,
+        Guid? correlationId = null,
+        int attemptNumber = 1)
     {
         ScopeFactory = scopeFactory;
         CancellationToken = cancellationToken;
@@ -142,6 +158,8 @@ public class ExecutionContext : IExecutionContext
         Metrics = metrics;
         TriggerContext = triggerContext;
         TriggerParamsJson = triggerParamsJson;
+        CorrelationId = correlationId;
+        AttemptNumber = attemptNumber;
         Parameters = new TriggerContextParameterProvider(triggerContext);
     }
 
@@ -153,4 +171,6 @@ public class ExecutionContext : IExecutionContext
     public ITriggerContext? TriggerContext { get; }
     public IParameterProvider Parameters { get; }
     public string? TriggerParamsJson { get; }
+    public Guid? CorrelationId { get; }
+    public int AttemptNumber { get; }
 }

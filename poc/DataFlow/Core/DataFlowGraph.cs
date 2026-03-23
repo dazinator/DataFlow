@@ -255,7 +255,8 @@ public class DataFlowGraph
             if (eventSink is not null)
             {
                 await eventSink.AppendAsync(context.InvocationId,
-                    new FlowStartedEvent(context.InvocationId, Name, DateTime.UtcNow, context.TriggerParamsJson));
+                    new FlowStartedEvent(context.InvocationId, Name, DateTime.UtcNow, context.TriggerParamsJson,
+                        context.CorrelationId, context.AttemptNumber));
             }
 
             try

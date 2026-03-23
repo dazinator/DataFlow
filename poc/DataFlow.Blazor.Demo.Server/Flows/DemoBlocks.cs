@@ -208,6 +208,29 @@ public sealed class DemoFaultyProcessorBlock : BlockBase<int, object>
 }
 
 /// <summary>
+/// Simulates a message handler that successfully processes each item.
+/// Used as the successful retry attempt in the queue-message demo.
+/// </summary>
+public sealed class DemoMessageHandlerBlock : BlockBase<int, object>
+{
+    private readonly int _delayMs;
+
+    public DemoMessageHandlerBlock(string name, int delayMs = 80) : base(new BlockContext(name))
+    {
+        _delayMs = delayMs;
+    }
+
+    public override async IAsyncEnumerable<object> ExecuteAsync(
+        IAsyncEnumerable<int> input,
+        IExecutionContext context)
+    {
+        await foreach (var item in input.WithCancellation(context.CancellationToken))
+            await Task.Delay(_delayMs, context.CancellationToken);
+        yield break;
+    }
+}
+
+/// <summary>
 /// Merges integer items from multiple sources (fan-in buffer point).
 /// Simply passes items through, acting as a labelled merge node.
 /// </summary>

@@ -83,6 +83,24 @@ public sealed class DemoFlowRunner
         return invocationId;
     }
 
+    /// <summary>
+    /// Queue-message retry demo: Poller → Enricher → Handler
+    ///
+    /// Simulates a message-queue consumer that encounters a transient fault on the
+    /// first attempt and retries.  Both runs share the same CorrelationId so the
+    /// visualization collapses them into a single "↻ 2 attempts" group.
+    ///
+    /// Attempt 1 — fails after processing 3 items (transient downstream fault).
+    /// Attempt 2 — succeeds, processing all items normally.
+    /// </summary>
+    public Guid RunQueueMessage()
+    {
+        var correlationId = Guid.NewGuid();
+        var triggerParams = Serialize(new { topology = "queue-message", message = "order-created", triggeredBy = "demo-ui" });
+        _ = Task.Run(() => ExecuteQueueMessageSequenceAsync(correlationId, triggerParams));
+        return correlationId;
+    }
+
     private static string Serialize(object value) =>
         JsonSerializer.Serialize(value, new JsonSerializerOptions { WriteIndented = false });
 
@@ -195,6 +213,62 @@ public sealed class DemoFlowRunner
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failure demo flow {InvocationId} failed", invocationId);
+        }
+    }
+
+    private async Task ExecuteQueueMessageSequenceAsync(Guid correlationId, string triggerParamsJson)
+    {
+        // Attempt 1 — transient fault; the handler throws after 3 items
+        await ExecuteQueueMessageAsync(Guid.NewGuid(), correlationId, attempt: 1,
+            triggerParamsJson, succeeds: false);
+
+        // Brief pause so the UI has time to show the Failed state before the retry
+        await Task.Delay(800);
+
+        // Attempt 2 — retry; the handler processes all items successfully
+        await ExecuteQueueMessageAsync(Guid.NewGuid(), correlationId, attempt: 2,
+            triggerParamsJson, succeeds: true);
+    }
+
+    private async Task ExecuteQueueMessageAsync(
+        Guid invocationId, Guid correlationId, int attempt, string triggerParamsJson, bool succeeds)
+    {
+        try
+        {
+            var poller  = new DemoProducerBlock("poller",   itemCount: 10, delayMs: 120);
+            var enricher = new DemoTransformBlock("enricher");
+
+            var graph = new DataFlowGraph("queue-message-demo", _graphLogger);
+            graph.AddBlock(poller);
+            graph.AddBlock(enricher);
+            graph.AddEdge(new Edge(poller, enricher));
+
+            if (succeeds)
+            {
+                var handler = new DemoMessageHandlerBlock("handler", delayMs: 80);
+                graph.AddBlock(handler);
+                graph.AddEdge(new Edge(enricher, handler));
+            }
+            else
+            {
+                var handler = new DemoFaultyProcessorBlock("handler", failAfter: 3, delayMs: 80);
+                graph.AddBlock(handler);
+                graph.AddEdge(new Edge(enricher, handler));
+            }
+
+            using var scope = _services.CreateScope();
+            var ctx = new DataFlow.POC.Core.ExecutionContext(
+                scope.ServiceProvider, CancellationToken.None, invocationId,
+                recoveryCheckpoint: null, metrics: null, triggerContext: null,
+                triggerParamsJson: triggerParamsJson,
+                correlationId: correlationId, attemptNumber: attempt);
+            await graph.ExecuteAsync(ctx);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Queue-message demo attempt {Attempt} (correlation {CorrelationId}) ended with exception",
+                attempt, correlationId);
         }
     }
 
