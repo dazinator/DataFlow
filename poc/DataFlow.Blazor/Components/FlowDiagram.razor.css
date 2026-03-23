@@ -2,7 +2,7 @@
     flex: 1;
     background-color: var(--df-diagram-bg);
     border-radius: var(--df-radius);
-    overflow: hidden;
+    overflow: auto;
     box-shadow: var(--df-shadow-sm);
     position: relative;
 }

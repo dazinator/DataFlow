@@ -1,12 +1,14 @@
 @* SVG-based flow diagram with branching topology support *@
 
 <div class="flow-diagram">
-    <svg width="100%" height="600" style="border: 1px solid #dee2e6; border-radius: 8px; background: white;">
-        @{
-            var topology = FlowTopology.Analyze(State.Blocks, State.Channels);
-            var positions = GetOrComputePositions(topology);
-            var flowDone = State.State is FlowState.Completed or FlowState.Failed;
-        }
+    @{
+        var topology = FlowTopology.Analyze(State.Blocks, State.Channels);
+        var positions = GetOrComputePositions(topology);
+        var flowDone = State.State is FlowState.Completed or FlowState.Failed;
+        var svgWidth  = ComputeSvgWidth(topology);
+        var svgHeight = ComputeSvgHeight(topology);
+    }
+    <svg width="@svgWidth" height="@svgHeight" style="border: 1px solid #dee2e6; border-radius: 8px; background: white; display: block;">
 
         @* Draw connections (edges) first so they appear behind nodes *@
         @foreach (var (sourceBlock, targets) in topology.Connections)
@@ -283,5 +285,53 @@
     {
         var midX = (x1 + x2) / 2;
         return $"M {x1} {y1} Q {midX} {y1}, {midX} {(y1 + y2) / 2} T {x2} {y2}";
+    }
+
+    /// <summary>
+    /// Computes the SVG canvas width from the rightmost block column so the diagram
+    /// never clips horizontally regardless of how many layers are present.
+    /// </summary>
+    private static int ComputeSvgWidth(FlowTopology topology)
+    {
+        const double layerSpacing  = 300;
+        const double startX        = 150;
+        const double blockHalfWidth = 75;
+        const double rightPadding  = 100;
+
+        var maxLayer = topology.BlockPositions.Values
+            .Select(p => p.Layer)
+            .DefaultIfEmpty(0)
+            .Max();
+
+        return Math.Max(600, (int)(startX + maxLayer * layerSpacing + blockHalfWidth + rightPadding));
+    }
+
+    /// <summary>
+    /// Computes the SVG canvas height from the tallest block column.
+    /// </summary>
+    private static int ComputeSvgHeight(FlowTopology topology)
+    {
+        const double blockSpacing   = 150;
+        const double startY         = 300;
+        const double blockHalfHeight = 50;
+        const double vertPadding    = 80;
+
+        var maxPosition = topology.BlockPositions.Values
+            .Select(p => p.Position)
+            .DefaultIfEmpty(0)
+            .Max();
+
+        // Layers are centred on startY; the tallest column extends above and below.
+        // Find the actual max y extent across all layers.
+        var maxBlocksInAnyLayer = topology.BlockPositions.Values
+            .GroupBy(p => p.Layer)
+            .Select(g => g.Count())
+            .DefaultIfEmpty(1)
+            .Max();
+
+        var totalColumnHeight = (maxBlocksInAnyLayer - 1) * blockSpacing;
+        var bottomEdge = startY + totalColumnHeight / 2 + blockHalfHeight;
+
+        return Math.Max(400, (int)(bottomEdge + vertPadding));
     }
 }
