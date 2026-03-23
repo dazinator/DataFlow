@@ -431,7 +431,7 @@ If no custom component is registered for a block type the default detail view
 
 ---
 
-## Step 12 — Optional theming
+## Step 11 — Optional theming
 
 To match the application's colour scheme, override CSS variables in the app's
 own stylesheet (after the library stylesheets):
@@ -456,7 +456,8 @@ Read through each item and verify it is done, or note why it doesn't apply:
 - [ ] `Uniun.DataFlow.Blazor.Server` added to server project
 - [ ] `Uniun.DataFlow.Blazor` added to Blazor client project
 - [ ] `AddDataFlowVisualizationServer(…)` (or `AddDataFlowVisualizationServer<TContext>()`) in server `Program.cs`
-- [ ] `app.MapDataFlowEndpoints()` (or `app.MapDataFlowEndpoints<TContext>()`) in server `Program.cs`
+- [ ] Hub mapped in server `Program.cs` — either via `app.MapDataFlowEndpoints()` / `app.MapDataFlowEndpoints<TContext>()` (convenience), or via `app.MapDataFlowHttpEndpoints()` + `app.MapHub<FlowEventsHub<TContext>>("/path")` (app-controlled)
+- [ ] If using a custom hub path: `hubPath` in `AddDataFlowVisualizationClient` matches the path used in `MapHub`
 - [ ] If BYO-context: `modelBuilder.AddDataFlowVisualizationEntities()` called in `OnModelCreating`
 - [ ] EF schema creation/migration applied
 - [ ] `AddDataFlowVisualizationClient(baseUrl: …)` in client `Program.cs`
@@ -475,7 +476,7 @@ Read through each item and verify it is done, or note why it doesn't apply:
 |---|---|
 | Component renders but has no styling | Missing `<link>` tags in host HTML |
 | Colours are default but theming overrides not working | App stylesheet loaded **before** library stylesheet — swap order |
-| SignalR connection refused | `hubPath` in `MapDataFlowEndpoints` doesn't match `hubPath` in `AddDataFlowVisualizationClient` |
+| SignalR connection refused | Hub path mismatch: the path passed to `MapDataFlowEndpoints` (or `MapHub` if registering manually) must exactly match `hubPath` in `AddDataFlowVisualizationClient` |
 | App uses Azure SignalR Service | No special steps needed. Use `MapDataFlowHttpEndpoints` and map the hub yourself so you can apply your existing Azure SignalR options. `FlowEventsHub` is transport-agnostic — Azure SignalR intercepts the transport layer transparently. The library's internal `AddSignalR()` call is idempotent and will not override your Azure SignalR setup. |
 | BYO-context: EF can't find the tables | `modelBuilder.AddDataFlowVisualizationEntities()` not called in `OnModelCreating`, or migration not applied |
 | "Loading flow visualization…" never resolves | `IEventSource` not registered, or server endpoints not mapped |
