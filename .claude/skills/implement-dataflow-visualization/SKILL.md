@@ -188,11 +188,49 @@ And after `builder.Build()`:
 app.MapDataFlowEndpoints<MyAppDbContext>();
 ```
 
+> **Hub ownership**: if you want full control over how the hub is registered
+> (custom path, auth policies, Azure SignalR options) use
+> `MapDataFlowHttpEndpoints` instead and map the hub yourself — see
+> [Hub registration](#hub-registration) below.
+
 Generate a migration as you normally would for your context:
 
 ```bash
 dotnet ef migrations add AddDataFlowVisualization --context MyAppDbContext
 dotnet ef database update --context MyAppDbContext
+```
+
+---
+
+## Hub registration
+
+`MapDataFlowEndpoints` registers the hub for you as a convenience. If the
+application needs full control — custom path, auth policy, or Azure SignalR
+Service options — use `MapDataFlowHttpEndpoints` for the HTTP endpoints and
+map the hub separately:
+
+### Server (`Program.cs`)
+
+```csharp
+// HTTP endpoints only — no hub
+app.MapDataFlowHttpEndpoints<MyAppDbContext>();   // BYO-context variant
+// (or app.MapDataFlowHttpEndpoints() for the dedicated-context variant)
+
+// App owns the hub mapping — apply whatever options are needed
+app.MapHub<FlowEventsHub<MyAppDbContext>>("/my/hub/path");
+```
+
+`FlowEventsHub<TContext>` is a plain `Hub` subclass and is transport-agnostic.
+It works identically with local SignalR and Azure SignalR Service — no extra
+configuration is needed; Azure SignalR intercepts the transport layer
+transparently.
+
+### Client (`Program.cs`)
+
+```csharp
+builder.Services.AddDataFlowVisualizationClient(
+    baseUrl: builder.HostEnvironment.BaseAddress,
+    hubPath: "/my/hub/path");   // must match the path used in MapHub above
 ```
 
 ---
@@ -438,7 +476,7 @@ Read through each item and verify it is done, or note why it doesn't apply:
 | Component renders but has no styling | Missing `<link>` tags in host HTML |
 | Colours are default but theming overrides not working | App stylesheet loaded **before** library stylesheet — swap order |
 | SignalR connection refused | `hubPath` in `MapDataFlowEndpoints` doesn't match `hubPath` in `AddDataFlowVisualizationClient` |
-| App uses Azure SignalR Service | No special steps needed. `FlowEventsHub` is a plain `Hub` subclass — Azure SignalR replaces the transport transparently. The library's internal `AddSignalR()` call is idempotent (`TryAdd*` only) and will not undo your Azure SignalR configuration regardless of call order. |
+| App uses Azure SignalR Service | No special steps needed. Use `MapDataFlowHttpEndpoints` and map the hub yourself so you can apply your existing Azure SignalR options. `FlowEventsHub` is transport-agnostic — Azure SignalR intercepts the transport layer transparently. The library's internal `AddSignalR()` call is idempotent and will not override your Azure SignalR setup. |
 | BYO-context: EF can't find the tables | `modelBuilder.AddDataFlowVisualizationEntities()` not called in `OnModelCreating`, or migration not applied |
 | "Loading flow visualization…" never resolves | `IEventSource` not registered, or server endpoints not mapped |
 | EF exception on first run | EF provider package not installed, or `EnsureCreated()` not called |

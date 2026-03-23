@@ -89,8 +89,42 @@ public static class DataFlowVisualizationServerExtensions
     }
 
     /// <summary>
+    /// Maps the DataFlow HTTP endpoints only (no SignalR hub).
+    /// Use this when you want to register the hub yourself — for example to apply
+    /// auth policies, Azure SignalR options, or a custom path:
+    /// <code>
+    /// app.MapDataFlowHttpEndpoints();
+    /// app.MapHub&lt;FlowEventsHub&lt;MyAppDbContext&gt;&gt;("/my/hub/path");
+    /// </code>
+    /// The client must be configured with the matching hub path:
+    /// <code>
+    /// builder.Services.AddDataFlowVisualizationClient(
+    ///     baseUrl: builder.HostEnvironment.BaseAddress,
+    ///     hubPath: "/my/hub/path");
+    /// </code>
+    /// </summary>
+    public static IEndpointRouteBuilder MapDataFlowHttpEndpoints(
+        this IEndpointRouteBuilder app)
+        => app.MapDataFlowHttpEndpoints<FlowVisualizationDbContext>();
+
+    /// <summary>
+    /// Maps the DataFlow HTTP endpoints only (no SignalR hub) using <typeparamref name="TContext"/>.
+    /// </summary>
+    /// <typeparam name="TContext">Your application's DbContext type.</typeparam>
+    public static IEndpointRouteBuilder MapDataFlowHttpEndpoints<TContext>(
+        this IEndpointRouteBuilder app)
+        where TContext : DbContext
+    {
+        app.MapFlowStateEndpoints<TContext>();
+        app.MapFlowListEndpoints<TContext>();
+        return app;
+    }
+
+    /// <summary>
     /// Maps DataFlow HTTP endpoints and the SignalR hub using the dedicated
     /// <see cref="FlowVisualizationDbContext"/>. Call after <see cref="AddDataFlowVisualizationServer(IServiceCollection, Action{DbContextOptionsBuilder}, int)"/>.
+    /// If you need to control the hub registration (custom path, auth, Azure SignalR options)
+    /// use <see cref="MapDataFlowHttpEndpoints"/> and call <c>MapHub</c> yourself.
     /// </summary>
     /// <param name="hubPath">SignalR hub path (default: /hubs/flow-events). Must match the client registration.</param>
     public static IEndpointRouteBuilder MapDataFlowEndpoints(
@@ -101,6 +135,8 @@ public static class DataFlowVisualizationServerExtensions
     /// <summary>
     /// Maps DataFlow HTTP endpoints and the SignalR hub using <typeparamref name="TContext"/>.
     /// Call after <see cref="AddDataFlowVisualizationServer{TContext}(IServiceCollection, int)"/>.
+    /// If you need to control the hub registration (custom path, auth, Azure SignalR options)
+    /// use <see cref="MapDataFlowHttpEndpoints{TContext}"/> and call <c>MapHub</c> yourself.
     /// </summary>
     /// <typeparam name="TContext">Your application's DbContext type.</typeparam>
     /// <param name="hubPath">SignalR hub path (default: /hubs/flow-events). Must match the client registration.</param>
@@ -109,8 +145,7 @@ public static class DataFlowVisualizationServerExtensions
         string hubPath = "/hubs/flow-events")
         where TContext : DbContext
     {
-        app.MapFlowStateEndpoints<TContext>();
-        app.MapFlowListEndpoints<TContext>();
+        app.MapDataFlowHttpEndpoints<TContext>();
         app.MapHub<FlowEventsHub<TContext>>(hubPath);
         return app;
     }
