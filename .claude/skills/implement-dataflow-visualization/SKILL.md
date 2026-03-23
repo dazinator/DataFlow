@@ -15,6 +15,34 @@ installation through to a working, themed component on screen.
 
 ---
 
+## Package model — read this first
+
+`Uniun.DataFlow.Blazor.Server` and `Uniun.DataFlow.Blazor` are **new, separate
+visualization packages** added alongside the existing core `Uniun.DataFlow`
+package. They do **not** replace or require an upgrade of the core library.
+Do not bump the version of any existing `Uniun.DataFlow.*` references — just
+add the two new packages.
+
+## DataFlow API versions — legacy vs. V2
+
+Some codebases contain two generations of DataFlow usage:
+
+- **Legacy API** — `IDataFlowConfiguration`, `DataFlowBuilder`, `FlowExecutor<T>`.
+  Pipeline topology is implicit (defined inside individual block classes).
+- **V2 / current API** — `DataFlowGraph`, `AddDataFlows(…)`, explicit `.Connect(from, to)`
+  calls that fully describe the topology.
+
+**The visualization targets the V2 API.** If only the legacy API exists, the
+visualization can still be wired by emitting events manually, but the automatic
+topology rendering will not be available. If both exist, focus on the V2 flows.
+
+No changes to the existing pipeline topology (`.Connect()` calls, block
+registrations, etc.) are needed. The visualization is an **event emitter** that
+sits alongside the existing execution code — it observes what happens without
+modifying how the pipeline runs.
+
+---
+
 ## Step 1 — Explore the codebase
 
 **Do not make any changes yet.** Use `Glob` and `Read` to build a picture of
@@ -27,11 +55,15 @@ the solution. You are looking to answer:
 - Is there an existing `DbContext`? What is its name and EF Core provider
   (SQLite, SQL Server, PostgreSQL, other)?
 - Does any project already reference `Uniun.DataFlow.*` packages? If so, which
-  ones and what versions?
+  ones and what versions? (**Do not plan to change those versions.**)
+- Does the codebase use the **legacy API** (`IDataFlowConfiguration`,
+  `DataFlowBuilder`, `FlowExecutor<T>`), the **V2 API** (`DataFlowGraph`,
+  `AddDataFlows`, `.Connect()`), or both? The visualization targets V2.
 - Is there an existing nav menu, layout, or routing structure in the Blazor
   client that the new page should slot into?
 - Is there an existing place in the codebase where DataFlow pipelines are
-  executed (a service, worker, controller)? What does it look like?
+  registered and executed (a service, worker, controller, registration class)?
+  What does it look like? This is where `IFlowEventSink` will be wired in.
 
 ---
 
@@ -52,7 +84,8 @@ Example structure for your message:
 |---|---|
 | Hosting model | Hosted Blazor WASM (`MyApp.Server` + `MyApp.Client`) |
 | Existing DbContext | `AppDbContext` (SQL Server) in `MyApp.Server` |
-| DataFlow packages | `Uniun.DataFlow` 2.1.0 already referenced in `MyApp.Server` |
+| DataFlow packages | `Uniun.DataFlow` 2.1.0 already referenced in `MyApp.Server` (not changing this version) |
+| DataFlow API version | V2 (`DataFlowGraph` / `.Connect()`) used in `JournalProcessingRegistration.cs` |
 | Pipeline execution | `InvoiceProcessingService.cs` — injected into a background worker |
 | Nav / routing | `NavMenu.razor` present; routes defined per-page with `@page` |
 
@@ -324,6 +357,18 @@ status, duration, and a "View →" link that navigates to each run's detail page
 ---
 
 ## Step 9 — Wire up `IFlowEventSink` in the DataFlow execution code
+
+> **What this step is — and isn't**: Wiring `IFlowEventSink` means adding
+> event-emission calls to the code that **runs** the pipeline. It does **not**
+> mean changing how the pipeline is defined — the existing `DataFlowGraph`,
+> `.Connect()` calls, block registrations, and DI setup all stay exactly as-is.
+> You are only adding a "side-channel" observer that reports what is happening.
+>
+> If the app uses the V2 API with a named graph (e.g.
+> `AddDataFlows("my-graph", df => { … })`) find the service or worker that
+> invokes that graph and add emission there. If the graph is invoked via a
+> framework entry point (e.g. a hosted service calling `IDataFlowRunner`), inject
+> `IFlowEventSink` into that class.
 
 The visualization becomes live once the DataFlow engine emits events.
 `IFlowEventSink` is registered in the DI container by
