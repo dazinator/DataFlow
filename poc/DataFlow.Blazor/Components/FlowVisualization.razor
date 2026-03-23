@@ -119,10 +119,11 @@
             {
                 _processor!.ProcessEvent(evt);
 
-                // Terminal/structural events always render immediately so the UI doesn't
-                // get stuck (e.g. flow stays "RUNNING" because the completion event was
-                // absorbed by the rate-limiter and the stream never formally ends).
-                var forceRender = evt is FlowCompletedEvent or BlockCompletedEvent;
+                // Structural topology events render immediately — FlowGraphDefinedEvent
+                // pre-seeds all blocks and edges at once so the full diagram appears
+                // in a single frame rather than block-by-block as execution proceeds.
+                // Terminal events also force a render so the flow never appears stuck.
+                var forceRender = evt is FlowGraphDefinedEvent or FlowCompletedEvent or BlockCompletedEvent;
 
                 if (forceRender || (DateTime.UtcNow - lastRender).TotalMilliseconds >= MinRenderIntervalMs)
                 {

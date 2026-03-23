@@ -169,6 +169,23 @@ public class EventProcessor
             blockState.OutputItemLabel = bd.OutputItemLabel;
             blockState.IsSource        = bd.IsSource;
         }
+
+        // Pre-seed channel stubs so FlowTopology.Analyze has the full connection graph
+        // immediately — before any ChannelStatsEvents arrive — preventing the "blocks
+        // appearing one at a time" visual as channels fire up during execution.
+        foreach (var ed in e.Edges)
+        {
+            var key = (ed.SourceBlock, ed.TargetBlock);
+            if (!_state.Channels.ContainsKey(key))
+            {
+                _state.Channels[key] = new ChannelState
+                {
+                    SourceBlock  = ed.SourceBlock,
+                    TargetBlock  = ed.TargetBlock,
+                    BufferCapacity = ed.BufferCapacity ?? 0
+                };
+            }
+        }
     }
 
     private void ProcessBlockStarted(BlockStartedEvent e)
