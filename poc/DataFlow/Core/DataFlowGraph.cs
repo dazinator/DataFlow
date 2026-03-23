@@ -3,6 +3,7 @@ namespace DataFlow.POC.Core;
 using System.Diagnostics;
 using System.Threading.Channels;
 using DataFlow.Blazor.Events;
+using DataFlow.Blazor.ItemTypes;
 using DataFlow.POC.Observability;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -263,6 +264,35 @@ public class DataFlowGraph
             {
                 // Build execution pipeline (adapters, routers, channels)
                 var pipeline = BuildExecutionPipeline();
+
+                // Emit topology event — describes the static graph structure and item type
+                // labels before any block starts. Clients use this to render the Items table.
+                if (eventSink is not null)
+                {
+                    var itemTypeStore = flowScope?.ServiceProvider.GetService<IDataFlowItemTypeStore>();
+
+                    var blockDefs = _blocks.Select(b =>
+                    {
+                        var isSource = !_incomingEdges.ContainsKey(b) || _incomingEdges[b].Count == 0;
+                        var isSink   = !_outgoingEdges.ContainsKey(b) || _outgoingEdges[b].Count == 0;
+                        return new BlockDefinition(
+                            BlockName:       b.Name,
+                            BlockType:       b.GetType().Name,
+                            InputItemLabel:  isSource ? null : ResolveItemLabel(itemTypeStore, b.InputType),
+                            OutputItemLabel: isSink   ? null : ResolveItemLabel(itemTypeStore, b.OutputType),
+                            IsSource:        isSource,
+                            IsSink:          isSink);
+                    }).ToList();
+
+                    var edgeDefs = _edges.Select(e => new EdgeDefinition(
+                        SourceBlock:    e.SourceBlock.Name,
+                        TargetBlock:    e.TargetBlock.Name,
+                        BufferCapacity: e.BufferMode == BufferMode.Bounded ? e.BufferCapacity : null
+                    )).ToList();
+
+                    await eventSink.AppendAsync(context.InvocationId,
+                        new FlowGraphDefinedEvent(blockDefs, edgeDefs, DateTime.UtcNow));
+                }
                 
                 // Set the active channel count provider for metrics
                 if (metrics is DataFlowMetrics metricsImpl)
@@ -363,6 +393,19 @@ public class DataFlowGraph
     /// This method performs all reflection-based setup once at build time to enable zero-boxing execution.
     /// </summary>
     /// <returns>An ExecutionPipeline containing all the infrastructure needed for execution.</returns>
+    /// <summary>
+    /// Resolves a human-readable label for an item type using the optional store,
+    /// falling back to the store's built-in CLR type name formatter.
+    /// Returns null when the label is empty (e.g. <c>object</c>).
+    /// </summary>
+    private static string? ResolveItemLabel(IDataFlowItemTypeStore? store, Type type)
+    {
+        var label = store is not null
+            ? store.GetLabel(type)
+            : DataFlowTypeNameFormatter.Format(type);
+        return label.Length > 0 ? label : null;
+    }
+
     private ExecutionPipeline BuildExecutionPipeline()
     {
         var pipeline = new ExecutionPipeline();

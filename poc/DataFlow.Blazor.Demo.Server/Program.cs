@@ -1,5 +1,6 @@
 using DataFlow.Blazor.Server;
 using DataFlow.Blazor.Demo.Server.Flows;
+using DataFlow.Blazor.ItemTypes;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -10,6 +11,13 @@ var builder = WebApplication.CreateBuilder(args);
 // -----------------------------------------------------------------------
 builder.Services.AddDataFlowVisualizationServer(options =>
     options.UseSqlite("Data Source=dataflow-viz.db"));
+
+// Item type labels — shown in the "Items" panel in the flow visualization
+builder.Services.AddDataFlowItemTypes(items =>
+{
+    items.ForType<int>().Label("item");
+    items.ForType<List<int>>().Label("item batch");
+});
 
 // Demo flow runner — builds and executes the demo graphs
 builder.Services.AddSingleton<DemoFlowRunner>();

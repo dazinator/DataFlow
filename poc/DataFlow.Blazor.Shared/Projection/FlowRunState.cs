@@ -25,6 +25,11 @@ public record FlowRunState
         ImmutableDictionary<string, ChannelRunState>.Empty;
     public ImmutableDictionary<string, EdgeRunState> Edges { get; init; } =
         ImmutableDictionary<string, EdgeRunState>.Empty;
+    /// <summary>
+    /// Block names in the order they appear in the pipeline (source → sink).
+    /// Populated from <see cref="FlowGraphDefinedEvent"/>.
+    /// </summary>
+    public ImmutableList<string> BlockOrder { get; init; } = ImmutableList<string>.Empty;
 
     public static FlowRunState Empty(Guid flowRunId) => new() { FlowRunId = flowRunId };
 }
@@ -42,6 +47,10 @@ public record BlockRunState
     public DateTime? CompletedAt { get; init; }
     public string? ErrorMessage { get; init; }
     public bool IsSource { get; init; }
+    /// <summary>Human-readable label for the block's input item type. Null for source blocks or when not configured.</summary>
+    public string? InputItemLabel { get; init; }
+    /// <summary>Human-readable label for the block's output item type. Null for sink blocks or when not configured.</summary>
+    public string? OutputItemLabel { get; init; }
 }
 
 /// <summary>

@@ -15,7 +15,13 @@ public record FlowSnapshot(
     string? TriggerParamsJson = null,
     Guid? CorrelationId = null,
     int AttemptNumber = 1,
-    Dictionary<string, EdgeSnapshot>? Edges = null
+    Dictionary<string, EdgeSnapshot>? Edges = null,
+    /// <summary>
+    /// Block names in topological order (source → sink), populated from
+    /// <see cref="FlowGraphDefinedEvent"/>. Used to render the Items table in
+    /// the same order as the pipeline. Null for snapshots taken before this field was added.
+    /// </summary>
+    string[]? BlockOrder = null
 );
 
 public record BlockSnapshot(
@@ -27,7 +33,11 @@ public record BlockSnapshot(
     DateTime? StartTime,
     DateTime? EndTime,
     string? ErrorMessage,
-    bool IsSource = false
+    bool IsSource = false,
+    /// <summary>Human-readable label for the block's input item type. Populated from FlowGraphDefinedEvent.</summary>
+    string? InputItemLabel = null,
+    /// <summary>Human-readable label for the block's output item type. Populated from FlowGraphDefinedEvent.</summary>
+    string? OutputItemLabel = null
 );
 
 public record ChannelSnapshot(

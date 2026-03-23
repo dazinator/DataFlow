@@ -34,6 +34,10 @@
                                    FlowScope="true"
                                    ShowEmpty="true" />
             }
+            else if (Selection is ItemsSelected)
+            {
+                <ItemSummaryPanel State="State" />
+            }
             else if (Selection is BlockSelected selected)
             {
                 @RenderBlockDetail(selected)
@@ -52,6 +56,7 @@
         TriggerSelected      => "Trigger",
         BuffersSelected      => "Buffers",
         EventHistorySelected => "Event History",
+        ItemsSelected        => "Items",
         BlockSelected bs     => bs.BlockName,
         _                    => ""
     };

@@ -24,3 +24,8 @@ public record BuffersSelected : SelectedObject;
 /// The event history toolbar icon was clicked — show the full flow-level event history.
 /// </summary>
 public record EventHistorySelected : SelectedObject;
+
+/// <summary>
+/// The items toolbar icon was clicked — show the item-type summary table.
+/// </summary>
+public record ItemsSelected : SelectedObject;

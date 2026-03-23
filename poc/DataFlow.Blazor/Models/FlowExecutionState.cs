@@ -19,6 +19,8 @@ public class FlowExecutionState
     public Dictionary<(string Source, string Target), ChannelState> Channels { get; } = new();
     public Dictionary<(string Source, string Target), EdgeState> Edges { get; } = new();
     public List<IDataFlowEvent> EventLog { get; } = new();
+    /// <summary>Block names in topological order (source → sink). Populated from FlowGraphDefinedEvent.</summary>
+    public List<string> BlockOrder { get; } = new();
 
     /// <summary>
     /// Gets the total duration of the flow execution.
@@ -50,6 +52,10 @@ public class BlockState
     public string BlockType { get; set; } = string.Empty;
     public Events.BlockState State { get; set; } = Events.BlockState.Idle;
     public bool IsSource { get; set; }
+    /// <summary>Human-readable label for the block's input item type. Null for source blocks.</summary>
+    public string? InputItemLabel { get; set; }
+    /// <summary>Human-readable label for the block's output item type. Null for sink blocks.</summary>
+    public string? OutputItemLabel { get; set; }
     /// <summary>Items pulled from this block's input channel(s). 0 for source blocks.</summary>
     public long ItemsConsumed { get; set; }
     /// <summary>Items written to this block's output channel(s). 0 for pure sink blocks.</summary>

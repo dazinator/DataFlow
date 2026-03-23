@@ -13,13 +13,14 @@ public static class EventDeserializer
 
     public static IDataFlowEvent? Deserialize(string eventType, string payload) => eventType switch
     {
-        nameof(FlowStartedEvent)    => JsonSerializer.Deserialize<FlowStartedEvent>(payload, Options),
-        nameof(FlowCompletedEvent)  => JsonSerializer.Deserialize<FlowCompletedEvent>(payload, Options),
-        nameof(BlockStartedEvent)   => JsonSerializer.Deserialize<BlockStartedEvent>(payload, Options),
-        nameof(BlockCompletedEvent) => JsonSerializer.Deserialize<BlockCompletedEvent>(payload, Options),
-        nameof(BlockMetricsEvent)   => JsonSerializer.Deserialize<BlockMetricsEvent>(payload, Options),
-        nameof(ChannelStatsEvent)   => JsonSerializer.Deserialize<ChannelStatsEvent>(payload, Options),
-        nameof(EdgeProgressEvent)   => JsonSerializer.Deserialize<EdgeProgressEvent>(payload, Options),
+        nameof(FlowStartedEvent)      => JsonSerializer.Deserialize<FlowStartedEvent>(payload, Options),
+        nameof(FlowCompletedEvent)    => JsonSerializer.Deserialize<FlowCompletedEvent>(payload, Options),
+        nameof(FlowGraphDefinedEvent) => JsonSerializer.Deserialize<FlowGraphDefinedEvent>(payload, Options),
+        nameof(BlockStartedEvent)     => JsonSerializer.Deserialize<BlockStartedEvent>(payload, Options),
+        nameof(BlockCompletedEvent)   => JsonSerializer.Deserialize<BlockCompletedEvent>(payload, Options),
+        nameof(BlockMetricsEvent)     => JsonSerializer.Deserialize<BlockMetricsEvent>(payload, Options),
+        nameof(ChannelStatsEvent)     => JsonSerializer.Deserialize<ChannelStatsEvent>(payload, Options),
+        nameof(EdgeProgressEvent)     => JsonSerializer.Deserialize<EdgeProgressEvent>(payload, Options),
         _ => null
     };
 }

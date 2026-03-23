@@ -28,6 +28,12 @@ public class EventProcessor
         _state.State = snapshot.State;
         _state.TriggerParamsJson = snapshot.TriggerParamsJson;
 
+        if (snapshot.BlockOrder is { Length: > 0 })
+        {
+            _state.BlockOrder.Clear();
+            _state.BlockOrder.AddRange(snapshot.BlockOrder);
+        }
+
         foreach (var (blockName, blockSnapshot) in snapshot.Blocks)
         {
             var blockState = new Models.BlockState
@@ -36,6 +42,8 @@ public class EventProcessor
                 BlockType = blockSnapshot.BlockType,
                 State = blockSnapshot.State,
                 IsSource = blockSnapshot.IsSource,
+                InputItemLabel = blockSnapshot.InputItemLabel,
+                OutputItemLabel = blockSnapshot.OutputItemLabel,
                 ItemsConsumed = blockSnapshot.ItemsConsumed,
                 ItemsProduced = blockSnapshot.ItemsProduced,
                 StartTime = blockSnapshot.StartTime,
@@ -96,7 +104,9 @@ public class EventProcessor
     /// </summary>
     public void ProcessEvent(IDataFlowEvent evt)
     {
-        _state.EventLog.Add(evt);
+        // FlowGraphDefinedEvent is structural metadata — not an audit log entry.
+        if (evt is not FlowGraphDefinedEvent)
+            _state.EventLog.Add(evt);
 
         switch (evt)
         {
@@ -105,6 +115,9 @@ public class EventProcessor
                 break;
             case FlowCompletedEvent e:
                 ProcessFlowCompleted(e);
+                break;
+            case FlowGraphDefinedEvent e:
+                ProcessFlowGraphDefined(e);
                 break;
             case BlockStartedEvent e:
                 ProcessBlockStarted(e);
@@ -138,6 +151,24 @@ public class EventProcessor
         _state.EndTime = e.Timestamp;
         _state.State = e.Success ? FlowState.Completed : FlowState.Failed;
         _state.ErrorMessage = e.ErrorMessage;
+    }
+
+    private void ProcessFlowGraphDefined(FlowGraphDefinedEvent e)
+    {
+        _state.BlockOrder.Clear();
+        foreach (var bd in e.Blocks)
+        {
+            _state.BlockOrder.Add(bd.BlockName);
+
+            if (!_state.Blocks.TryGetValue(bd.BlockName, out var blockState))
+            {
+                blockState = new Models.BlockState { BlockName = bd.BlockName, BlockType = bd.BlockType };
+                _state.Blocks[bd.BlockName] = blockState;
+            }
+            blockState.InputItemLabel  = bd.InputItemLabel;
+            blockState.OutputItemLabel = bd.OutputItemLabel;
+            blockState.IsSource        = bd.IsSource;
+        }
     }
 
     private void ProcessBlockStarted(BlockStartedEvent e)

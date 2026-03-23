@@ -30,6 +30,28 @@ public static class FlowStateProjector
             ErrorMessage = e.ErrorMessage
         },
 
+        FlowGraphDefinedEvent e => state with
+        {
+            BlockOrder = e.Blocks.Select(b => b.BlockName).ToImmutableList(),
+            Blocks = e.Blocks.Aggregate(state.Blocks, (blocks, bd) =>
+                blocks.SetItem(bd.BlockName,
+                    blocks.TryGetValue(bd.BlockName, out var existing)
+                        ? existing with
+                        {
+                            InputItemLabel  = bd.InputItemLabel,
+                            OutputItemLabel = bd.OutputItemLabel,
+                            IsSource        = bd.IsSource
+                        }
+                        : new BlockRunState
+                        {
+                            BlockName       = bd.BlockName,
+                            BlockType       = bd.BlockType,
+                            InputItemLabel  = bd.InputItemLabel,
+                            OutputItemLabel = bd.OutputItemLabel,
+                            IsSource        = bd.IsSource
+                        }))
+        },
+
         BlockStartedEvent e => state with
         {
             Blocks = state.Blocks.SetItem(e.BlockName,
@@ -151,6 +173,7 @@ public static class FlowStateProjector
         TriggerParamsJson: state.TriggerParamsJson,
         CorrelationId: state.CorrelationId,
         AttemptNumber: state.AttemptNumber,
+        BlockOrder: state.BlockOrder.Count > 0 ? [.. state.BlockOrder] : null,
         Blocks: state.Blocks.ToDictionary(
             kv => kv.Key,
             kv => new BlockSnapshot(
@@ -162,7 +185,9 @@ public static class FlowStateProjector
                 kv.Value.StartedAt,
                 kv.Value.CompletedAt,
                 kv.Value.ErrorMessage,
-                kv.Value.IsSource)),
+                kv.Value.IsSource,
+                kv.Value.InputItemLabel,
+                kv.Value.OutputItemLabel)),
         Channels: state.Channels.ToDictionary(
             kv => kv.Key,
             kv => new ChannelSnapshot(
@@ -199,20 +224,25 @@ public static class FlowStateProjector
         TriggerParamsJson = snapshot.TriggerParamsJson,
         CorrelationId = snapshot.CorrelationId,
         AttemptNumber = snapshot.AttemptNumber,
+        BlockOrder = snapshot.BlockOrder is { Length: > 0 }
+            ? [.. snapshot.BlockOrder]
+            : ImmutableList<string>.Empty,
         Blocks = snapshot.Blocks
             .ToImmutableDictionary(
                 kv => kv.Key,
                 kv => new BlockRunState
                 {
-                    BlockName = kv.Value.BlockName,
-                    BlockType = kv.Value.BlockType,
-                    Status = kv.Value.State,
-                    ItemsConsumed = kv.Value.ItemsConsumed,
-                    ItemsProduced = kv.Value.ItemsProduced,
-                    StartedAt = kv.Value.StartTime,
-                    CompletedAt = kv.Value.EndTime,
-                    ErrorMessage = kv.Value.ErrorMessage,
-                    IsSource = kv.Value.IsSource
+                    BlockName       = kv.Value.BlockName,
+                    BlockType       = kv.Value.BlockType,
+                    Status          = kv.Value.State,
+                    ItemsConsumed   = kv.Value.ItemsConsumed,
+                    ItemsProduced   = kv.Value.ItemsProduced,
+                    StartedAt       = kv.Value.StartTime,
+                    CompletedAt     = kv.Value.EndTime,
+                    ErrorMessage    = kv.Value.ErrorMessage,
+                    IsSource        = kv.Value.IsSource,
+                    InputItemLabel  = kv.Value.InputItemLabel,
+                    OutputItemLabel = kv.Value.OutputItemLabel
                 }),
         Channels = snapshot.Channels
             .ToImmutableDictionary(
