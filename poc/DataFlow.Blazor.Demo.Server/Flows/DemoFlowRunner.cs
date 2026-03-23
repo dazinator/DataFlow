@@ -101,6 +101,30 @@ public sealed class DemoFlowRunner
         return correlationId;
     }
 
+    /// <summary>
+    /// Invoice Processing Pipeline — complex demo exhibiting:
+    /// <list type="bullet">
+    ///   <item>Routing fan-out (standard / premium / international lanes)</item>
+    ///   <item>Fan-in with three bounded buffers converging on a normaliser</item>
+    ///   <item>Broadcast fan-out to audit-log, notifications, and analytics sinks</item>
+    ///   <item>Sustained backpressure from the slow audit-log sink cascading upstream</item>
+    /// </list>
+    /// 1 500 invoices at 100 ms intervals ≈ 2.5–3 min end-to-end.
+    /// </summary>
+    public Guid RunInvoiceProcessing()
+    {
+        var invocationId = Guid.NewGuid();
+        var triggerParams = Serialize(new
+        {
+            topology = "invoice-processing",
+            invoiceCount = 1500,
+            lanes = new[] { "standard", "premium", "international" },
+            triggeredBy = "demo-ui"
+        });
+        _ = Task.Run(() => ExecuteInvoiceProcessingAsync(invocationId, triggerParams));
+        return invocationId;
+    }
+
     private static string Serialize(object value) =>
         JsonSerializer.Serialize(value, new JsonSerializerOptions { WriteIndented = false });
 
@@ -269,6 +293,78 @@ public sealed class DemoFlowRunner
             _logger.LogError(ex,
                 "Queue-message demo attempt {Attempt} (correlation {CorrelationId}) ended with exception",
                 attempt, correlationId);
+        }
+    }
+
+    private async Task ExecuteInvoiceProcessingAsync(Guid invocationId, string? triggerParamsJson)
+    {
+        try
+        {
+            // ── Blocks ──────────────────────────────────────────────────────────
+            var source       = new InvoiceSourceBlock("invoice-source",       count: 1500, delayMs: 100);
+            var validator    = new InvoiceValidatorBlock("invoice-validator");
+            var classifier   = new InvoiceClassifierBlock("invoice-classifier");
+            var stdProc      = new StandardInvoiceProcessorBlock("standard-processor");
+            var premProc     = new PremiumInvoiceProcessorBlock("premium-processor");
+            var intlProc     = new InternationalInvoiceProcessorBlock("international-processor");
+            var normalizer   = new PaymentNormalizerBlock("payment-normalizer");
+            var auditLog     = new AuditLogBlock("audit-log");
+            var notifications = new NotificationBlock("notifications");
+            var analytics    = new AnalyticsBlock("analytics");
+
+            // ── Graph ───────────────────────────────────────────────────────────
+            var graph = new DataFlowGraph("invoice-processing", _graphLogger);
+            graph.AddBlock(source);
+            graph.AddBlock(validator);
+            graph.AddBlock(classifier);
+            graph.AddBlock(stdProc);
+            graph.AddBlock(premProc);
+            graph.AddBlock(intlProc);
+            graph.AddBlock(normalizer);
+            graph.AddBlock(auditLog);
+            graph.AddBlock(notifications);
+            graph.AddBlock(analytics);
+
+            // source → validator → classifier (unbounded — no backpressure concern here)
+            graph.AddEdge(new Edge(source,     validator));
+            graph.AddEdge(new Edge(validator,  classifier));
+
+            // classifier → {standard, premium, international}   routing fan-out
+            var routingStrategy = new SelectiveRoutingEdgeStrategy<ValidatedInvoice>(
+                new Dictionary<string, IBlock>
+                {
+                    ["standard"]      = stdProc,
+                    ["premium"]       = premProc,
+                    ["international"] = intlProc,
+                },
+                vi => vi.Invoice.Type,
+                BufferMode.Bounded, 80);
+            graph.AddEdge(new Edge(classifier, new IBlock[] { stdProc, premProc, intlProc }, routingStrategy));
+
+            // {standard, premium, international} → normalizer   fan-in with bounded buffers
+            // Each lane has its own buffer so faster lanes (standard) don't block
+            // slower ones (international) — backpressure is per-lane.
+            graph.AddEdge(new Edge(stdProc,  normalizer, BufferMode.Bounded, 40));
+            graph.AddEdge(new Edge(premProc, normalizer, BufferMode.Bounded, 40));
+            graph.AddEdge(new Edge(intlProc, normalizer, BufferMode.Bounded, 40));
+
+            // normalizer → {audit-log, notifications, analytics}   broadcast fan-out
+            // audit-log at 130 ms is the bottleneck — fills the buffer and cascades
+            // backpressure all the way back through the normalizer to the processors.
+            var broadcastStrategy = new BroadcastEdgeStrategy(BufferMode.Bounded, 50);
+            graph.AddEdge(new Edge(normalizer, new IBlock[] { auditLog, notifications, analytics }, broadcastStrategy));
+
+            // ── Execute ─────────────────────────────────────────────────────────
+            using var scope = _services.CreateScope();
+            var ctx = new DataFlow.POC.Core.ExecutionContext(
+                scope.ServiceProvider, CancellationToken.None, invocationId,
+                recoveryCheckpoint: null, metrics: null, triggerContext: null,
+                triggerParamsJson: triggerParamsJson);
+            await graph.ExecuteAsync(ctx);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Invoice processing demo flow {InvocationId} failed", invocationId);
         }
     }
 

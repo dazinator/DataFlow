@@ -26,6 +26,9 @@
     <button class="btn btn-warning" @onclick='() => RunFlow("queue-message")'>
         Run Queue Message (retry demo)
     </button>
+    <button class="btn btn-success" @onclick='() => RunFlow("invoice-processing")'>
+        Run Invoice Processing
+    </button>
     @if (_error is not null)
     {
         <span style="color: #dc3545; align-self: center; margin-left: 0.5rem;">@_error</span>

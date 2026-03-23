@@ -15,8 +15,14 @@ builder.Services.AddDataFlowVisualizationServer(options =>
 // Item type labels — shown in the "Items" panel in the flow visualization
 builder.Services.AddDataFlowItemTypes(items =>
 {
+    // Generic demo flows
     items.ForType<int>().Label("item");
     items.ForType<List<int>>().Label("item batch");
+
+    // Invoice processing demo
+    items.ForType<Invoice>().Label("invoice");
+    items.ForType<ValidatedInvoice>().Label("validated invoice");
+    items.ForType<Payment>().Label("payment");
 });
 
 // Demo flow runner — builds and executes the demo graphs
@@ -85,7 +91,8 @@ app.MapPost("/flows/run/{topology}", (string topology, DemoFlowRunner runner) =>
         "fanin"         => runner.RunFanIn(),
         "backpressure"  => runner.RunBackpressure(),
         "failure"       => runner.RunFailure(),
-        "queue-message" => runner.RunQueueMessage(),
+        "queue-message"       => runner.RunQueueMessage(),
+        "invoice-processing"  => runner.RunInvoiceProcessing(),
         _               => (Guid?)null
     };
 
