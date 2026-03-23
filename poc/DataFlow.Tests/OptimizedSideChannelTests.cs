@@ -11,12 +11,14 @@ using DataFlow.POC.Tests.TestHelpers;
 using DataFlow.POC.Registry;
 
 /// <summary>
-/// Tests for Optimized Side-Channel Strategy implementation.
-/// Validates correctness while targeting ≤2% performance overhead vs baseline.
+/// OBSOLETE — the OptimizedSideChannelStrategy was a performance-tuned variant of the
+/// side-channel architecture (targeting ≤2% overhead) for delivering envelope control
+/// signals to all competing consumers. Superseded by the epoch stream model, which handles
+/// barriers natively without a separate control plane. Code retained for reference.
 /// </summary>
 public class OptimizedSideChannelTests
 {
-    [Fact]
+    [Fact(Skip = "Envelope control plane superseded by epoch streams — see class summary")]
     public async Task OptimizedSideChannel_Should_Deliver_ControlSignals_To_AllConsumers()
     {
         // Arrange
@@ -85,7 +87,7 @@ public class OptimizedSideChannelTests
         consumer2ControlSignals[1].ShouldBeOfType<Heartbeat>();
     }
 
-    [Fact]
+    [Fact(Skip = "Envelope control plane superseded by epoch streams — see class summary")]
     public async Task OptimizedSideChannel_Should_Preserve_ControlSignal_Order()
     {
         // Arrange
@@ -143,7 +145,7 @@ public class OptimizedSideChannelTests
         }
     }
 
-    [Fact]
+    [Fact(Skip = "Envelope control plane superseded by epoch streams — see class summary")]
     public async Task OptimizedSideChannel_Should_HandleHighThroughput_WithLowOverhead()
     {
         // Arrange
@@ -191,7 +193,7 @@ public class OptimizedSideChannelTests
         stopwatch.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(5));
     }
 
-    [Fact]
+    [Fact(Skip = "Envelope control plane superseded by epoch streams — see class summary")]
     public async Task OptimizedSideChannel_Should_HandleMultipleConsumers_Efficiently()
     {
         // Arrange
@@ -238,7 +240,7 @@ public class OptimizedSideChannelTests
         totalReceived.ShouldBe(2); // 2 data items competed for
     }
 
-    [Fact]
+    [Fact(Skip = "Envelope control plane superseded by epoch streams — see class summary")]
     public async Task OptimizedSideChannel_Should_UseReducedBuffering()
     {
         // This test validates that the optimized strategy uses reduced merge buffer size (50 vs 100)

@@ -10,12 +10,14 @@ using DataFlow.POC.Tests.TestHelpers;
 using DataFlow.POC.Registry;
 
 /// <summary>
-/// Tests for side-channel architecture in competing edges.
-/// Validates that control signals are reliably delivered to all competing consumers.
+/// OBSOLETE — the side-channel architecture was designed to guarantee delivery of envelope
+/// control signals (CheckpointBarrier/Heartbeat) to all competing consumers via a dedicated
+/// per-consumer channel alongside the shared data channel. This problem is moot now that the
+/// epoch stream model handles barriers natively. Code retained for reference.
 /// </summary>
 public class SideChannelCompetingEdgeTests
 {
-    [Fact]
+    [Fact(Skip = "Envelope control plane superseded by epoch streams — see class summary")]
     public async Task CompetingEdge_With_SideChannel_Should_Deliver_Control_Signals_To_All_Consumers()
     {
         // Arrange
@@ -84,7 +86,7 @@ public class SideChannelCompetingEdgeTests
         consumer2ControlSignals[1].ShouldBeOfType<Heartbeat>();
     }
 
-    [Fact]
+    [Fact(Skip = "Envelope control plane superseded by epoch streams — see class summary")]
     public async Task CompetingEdge_With_SideChannel_Should_Preserve_Control_Signal_Order()
     {
         // Arrange
@@ -144,7 +146,7 @@ public class SideChannelCompetingEdgeTests
         consumer2ControlSignals[3].ShouldBeOfType<Heartbeat>();
     }
 
-    [Fact]
+    [Fact(Skip = "Envelope control plane superseded by epoch streams — see class summary")]
     public async Task CompetingEdge_With_SideChannel_Should_Handle_Barrier_Alignment()
     {
         // This test validates the barrier alignment scenario where all consumers
@@ -210,7 +212,7 @@ public class SideChannelCompetingEdgeTests
         consumer1Barriers.ShouldBe(consumer2Barriers);
     }
 
-    [Fact]
+    [Fact(Skip = "Envelope control plane superseded by epoch streams — see class summary")]
     public async Task CompetingEdge_With_SideChannel_Should_Not_Affect_Data_Competition()
     {
         // This test ensures that adding side-channel for control signals

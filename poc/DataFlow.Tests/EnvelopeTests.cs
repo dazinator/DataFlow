@@ -6,9 +6,16 @@ using Xunit;
 using Microsoft.Extensions.DependencyInjection;
 using DataFlow.POC.Registry;
 
+/// <summary>
+/// OBSOLETE — these tests cover the IDataEnvelope / CheckpointBarrier / Heartbeat types
+/// that formed a library-level control plane by multiplexing control signals with data
+/// in the same channel. This approach is superseded by the epoch stream model, which
+/// handles barriers natively. Envelope-style workflows are an application-level concern.
+/// Code retained for reference.
+/// </summary>
 public class EnvelopeTests
 {
-    [Fact]
+    [Fact(Skip = "Envelope control plane superseded by epoch streams — see class summary")]
     public void DataItem_Should_Wrap_Value_Correctly()
     {
         // Arrange & Act
@@ -19,7 +26,7 @@ public class EnvelopeTests
         dataItem.ShouldBeAssignableTo<IDataEnvelope>();
     }
 
-    [Fact]
+    [Fact(Skip = "Envelope control plane superseded by epoch streams — see class summary")]
     public void ToEnvelope_Should_Wrap_Value()
     {
         // Arrange & Act
@@ -30,7 +37,7 @@ public class EnvelopeTests
         ((DataItem<int>)envelope).Value.ShouldBe(42);
     }
 
-    [Fact]
+    [Fact(Skip = "Envelope control plane superseded by epoch streams — see class summary")]
     public void IsDataItem_Should_Return_True_For_DataItem()
     {
         // Arrange
@@ -41,7 +48,7 @@ public class EnvelopeTests
         envelope.IsControlSignal().ShouldBeFalse();
     }
 
-    [Fact]
+    [Fact(Skip = "Envelope control plane superseded by epoch streams — see class summary")]
     public void IsControlSignal_Should_Return_True_For_Control_Signals()
     {
         // Arrange
@@ -56,7 +63,7 @@ public class EnvelopeTests
         heartbeat.IsDataItem().ShouldBeFalse();
     }
 
-    [Fact]
+    [Fact(Skip = "Envelope control plane superseded by epoch streams — see class summary")]
     public void GetValue_Should_Extract_Value_From_DataItem()
     {
         // Arrange
@@ -69,7 +76,7 @@ public class EnvelopeTests
         value.ShouldBe("hello");
     }
 
-    [Fact]
+    [Fact(Skip = "Envelope control plane superseded by epoch streams — see class summary")]
     public void GetValue_Should_Throw_For_Wrong_Type()
     {
         // Arrange
@@ -79,7 +86,7 @@ public class EnvelopeTests
         Should.Throw<InvalidOperationException>(() => envelope.GetValue<string>());
     }
 
-    [Fact]
+    [Fact(Skip = "Envelope control plane superseded by epoch streams — see class summary")]
     public void GetValue_Should_Throw_For_Control_Signal()
     {
         // Arrange
@@ -89,7 +96,7 @@ public class EnvelopeTests
         Should.Throw<InvalidOperationException>(() => envelope.GetValue<int>());
     }
 
-    [Fact]
+    [Fact(Skip = "Envelope control plane superseded by epoch streams — see class summary")]
     public void TryGetValue_Should_Return_True_For_Correct_Type()
     {
         // Arrange
@@ -103,7 +110,7 @@ public class EnvelopeTests
         value.ShouldBe(42);
     }
 
-    [Fact]
+    [Fact(Skip = "Envelope control plane superseded by epoch streams — see class summary")]
     public void TryGetValue_Should_Return_False_For_Wrong_Type()
     {
         // Arrange
@@ -117,7 +124,7 @@ public class EnvelopeTests
         value.ShouldBeNull();
     }
 
-    [Fact]
+    [Fact(Skip = "Envelope control plane superseded by epoch streams — see class summary")]
     public void TryGetValue_Should_Return_False_For_Control_Signal()
     {
         // Arrange
@@ -131,7 +138,7 @@ public class EnvelopeTests
         value.ShouldBe(default(int));
     }
 
-    [Fact]
+    [Fact(Skip = "Envelope control plane superseded by epoch streams — see class summary")]
     public void CheckpointBarrier_Should_Have_Correct_Properties()
     {
         // Arrange
@@ -146,7 +153,7 @@ public class EnvelopeTests
         barrier.CreatedAt.ShouldBe(createdAt);
     }
 
-    [Fact]
+    [Fact(Skip = "Envelope control plane superseded by epoch streams — see class summary")]
     public void Heartbeat_Should_Have_Correct_Properties()
     {
         // Arrange
@@ -159,7 +166,7 @@ public class EnvelopeTests
         heartbeat.Timestamp.ShouldBe(timestamp);
     }
 
-    [Fact]
+    [Fact(Skip = "Envelope control plane superseded by epoch streams — see class summary")]
     public async Task WrapInEnvelopes_Should_Wrap_Plain_Stream()
     {
         // Arrange
@@ -188,7 +195,7 @@ public class EnvelopeTests
         }
     }
 
-    [Fact]
+    [Fact(Skip = "Envelope control plane superseded by epoch streams — see class summary")]
     public async Task UnwrapEnvelopes_Should_Extract_Values()
     {
         // Arrange
@@ -215,7 +222,7 @@ public class EnvelopeTests
         }
     }
 
-    [Fact]
+    [Fact(Skip = "Envelope control plane superseded by epoch streams — see class summary")]
     public async Task FilterDataItems_Should_Filter_Only_Data()
     {
         // Arrange
@@ -244,7 +251,7 @@ public class EnvelopeTests
         }
     }
 
-    [Fact]
+    [Fact(Skip = "Envelope control plane superseded by epoch streams — see class summary")]
     public async Task FilterControlSignals_Should_Filter_Only_Control_Signals()
     {
         // Arrange
@@ -273,7 +280,7 @@ public class EnvelopeTests
         }
     }
 
-    [Fact]
+    [Fact(Skip = "Envelope control plane superseded by epoch streams — see class summary")]
     public async Task Envelope_Roundtrip_Should_Preserve_Values()
     {
         // Arrange

@@ -9,6 +9,13 @@ using Xunit;
 using DataFlow.POC.Tests.TestHelpers;
 using DataFlow.POC.Registry;
 
+/// <summary>
+/// OBSOLETE — these tests cover the envelope-based control plane approach where
+/// CheckpointBarrier and Heartbeat signals were multiplexed through the same channel as data.
+/// This design is superseded by the epoch stream model: epoch boundaries serve as barriers
+/// natively, and envelope-style message workflows are an application-level concern that
+/// requires no special library infrastructure. The production code is retained for reference.
+/// </summary>
 public class EnvelopeEdgeStrategyTests
 {
     /// <summary>
@@ -62,7 +69,7 @@ public class EnvelopeEdgeStrategyTests
         }
     }
 
-    [Fact]
+    [Fact(Skip = "Envelope control plane superseded by epoch streams — see class summary")]
     public async Task EnvelopeBroadcast_Should_Broadcast_Data_And_Control_Signals()
     {
         // Arrange
@@ -119,7 +126,7 @@ public class EnvelopeEdgeStrategyTests
         consumer2Items[3].ShouldBeOfType<Heartbeat>();
     }
 
-    [Fact]
+    [Fact(Skip = "Envelope control plane superseded by epoch streams — see class summary")]
     public async Task EnvelopeCompeting_Should_Compete_Data_And_Control_Goes_To_First_Consumer()
     {
         // Note: This test demonstrates the known limitation of competing edges with envelopes.
@@ -177,7 +184,7 @@ public class EnvelopeEdgeStrategyTests
         controlSignalCount.ShouldBe(2);
     }
 
-    [Fact]
+    [Fact(Skip = "Envelope control plane superseded by epoch streams — see class summary")]
     public async Task EnvelopeEdge_Should_Preserve_Control_Signal_Order()
     {
         // Arrange
@@ -226,7 +233,7 @@ public class EnvelopeEdgeStrategyTests
         receivedItems[5].GetValue<int>().ShouldBe(4);
     }
 
-    [Fact]
+    [Fact(Skip = "Envelope control plane superseded by epoch streams — see class summary")]
     public async Task EnvelopeEdge_Should_Handle_Only_Control_Signals()
     {
         // Arrange
@@ -261,7 +268,7 @@ public class EnvelopeEdgeStrategyTests
         receivedItems[1].ShouldBeOfType<Heartbeat>();
     }
 
-    [Fact]
+    [Fact(Skip = "Envelope control plane superseded by epoch streams — see class summary")]
     public async Task EnvelopeEdge_Should_Handle_Only_Data_Items()
     {
         // Arrange

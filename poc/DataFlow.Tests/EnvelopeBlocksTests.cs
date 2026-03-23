@@ -9,6 +9,11 @@ using Xunit;
 using DataFlow.POC.Tests.TestHelpers;
 using DataFlow.POC.Registry;
 
+/// <summary>
+/// OBSOLETE — these tests cover EnvelopeBlocks (SimpleEnvelopeTransformer, EnvelopeProjector,
+/// EnvelopeProcessor) which were designed to propagate the envelope control plane through the
+/// topology. That control plane is superseded by the epoch stream model. Code retained for reference.
+/// </summary>
 public class EnvelopeBlocksTests
 {
     /// <summary>
@@ -35,7 +40,7 @@ public class EnvelopeBlocksTests
         }
     }
 
-    [Fact]
+    [Fact(Skip = "Envelope control plane superseded by epoch streams — see class summary")]
     public async Task SimpleEnvelopeTransformer_Should_Transform_Data_And_Forward_Control()
     {
         // Arrange
@@ -84,7 +89,7 @@ public class EnvelopeBlocksTests
         outputEnvelopes[4].GetValue<string>().ShouldBe("Value-3");
     }
 
-    [Fact]
+    [Fact(Skip = "Envelope control plane superseded by epoch streams — see class summary")]
     public async Task AsyncEnvelopeTransformer_Should_Transform_With_Async_Logic()
     {
         // Arrange
@@ -126,7 +131,7 @@ public class EnvelopeBlocksTests
         outputEnvelopes[2].GetValue<int>().ShouldBe(6);  // 3 * 2
     }
 
-    [Fact]
+    [Fact(Skip = "Envelope control plane superseded by epoch streams — see class summary")]
     public async Task EnvelopeProjector_Should_Project_One_To_Many()
     {
         // Arrange
@@ -181,7 +186,7 @@ public class EnvelopeBlocksTests
         dataItems[5].GetValue<int>().ShouldBe(200);
     }
 
-    [Fact]
+    [Fact(Skip = "Envelope control plane superseded by epoch streams — see class summary")]
     public async Task EnvelopeProcessor_Should_Process_Data_Items()
     {
         // Arrange
@@ -213,7 +218,7 @@ public class EnvelopeBlocksTests
         processedData.ShouldBe(new[] { 1, 2, 3 });
     }
 
-    [Fact]
+    [Fact(Skip = "Envelope control plane superseded by epoch streams — see class summary")]
     public async Task EnvelopeProcessor_Should_Observe_Control_Signals()
     {
         // Arrange
@@ -257,7 +262,7 @@ public class EnvelopeBlocksTests
         observedControlSignals[1].ShouldBeOfType<Heartbeat>();
     }
 
-    [Fact]
+    [Fact(Skip = "Envelope control plane superseded by epoch streams — see class summary")]
     public async Task EnvelopeBlocks_Should_Preserve_Order_In_Pipeline()
     {
         // Arrange
