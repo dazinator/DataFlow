@@ -1,6 +1,7 @@
 @page "/flow-viz-fanin"
 @using DataFlow.Blazor.Components
-@inject IServiceProvider ServiceProvider
+@using System.Net.Http.Json
+@inject HttpClient Http
 
 <PageTitle>Fan-In Topology Demo</PageTitle>
 
@@ -13,40 +14,49 @@
     <button class="btn btn-primary" @onclick="StartNewFlow" disabled="@_isRunning">
         Start New Flow
     </button>
+    @if (_errorMessage is not null)
+    {
+        <span style="color: red; margin-left: 1rem;">@_errorMessage</span>
+    }
 </div>
 
-@if (_currentInvocationId != null && _eventSource != null)
+@if (_currentInvocationId != null)
 {
-    <FlowVisualization InvocationId="_currentInvocationId.Value" EventSourceOverride="_eventSource" />
+    <FlowVisualization InvocationId="_currentInvocationId.Value" />
 }
 
 @code {
     private Guid? _currentInvocationId;
     private bool _isRunning;
-    private DataFlow.Blazor.Services.FanInMockEventSource? _eventSource;
+    private string? _errorMessage;
 
-    protected override void OnInitialized()
+    private async Task StartNewFlow()
     {
-        _eventSource = ServiceProvider.GetRequiredService<DataFlow.Blazor.Services.FanInMockEventSource>();
-    }
-
-    private void StartNewFlow()
-    {
-        _currentInvocationId = Guid.NewGuid();
         _isRunning = true;
-        
-        _ = Task.Run(async () =>
+        _errorMessage = null;
+        _currentInvocationId = null;
+        StateHasChanged();
+
+        try
         {
-            try
+            var result = await Http.PostAsJsonAsync("/flows/run/fanin", (object?)null);
+            if (result.IsSuccessStatusCode)
             {
-                await Task.Delay(10000);
+                var body = await result.Content.ReadFromJsonAsync<RunResult>();
+                _currentInvocationId = body?.InvocationId;
+            }
+            else
+            {
+                _errorMessage = $"Server error: {result.StatusCode}";
                 _isRunning = false;
-                await InvokeAsync(StateHasChanged);
             }
-            catch (Exception)
-            {
-                // Swallow exceptions from the background task to avoid unobserved task exceptions
-            }
-        });
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+            _isRunning = false;
+        }
     }
+
+    private record RunResult(Guid InvocationId);
 }

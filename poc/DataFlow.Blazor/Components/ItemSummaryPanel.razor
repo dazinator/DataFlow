@@ -1,0 +1,51 @@
+@using DataFlow.Blazor.Models
+
+@* Items table: one row per block in topological order (source → sink).
+   Shows input type + consumed count and output type + produced count.
+   Source blocks have no input column; sink blocks have no output column. *@
+
+<div class="detail-section">
+    <table class="detail-table items-table">
+        <thead>
+            <tr>
+                <th class="dt-label">Block</th>
+                <th class="dt-label">In type</th>
+                <th class="dt-label dt-value">Consumed</th>
+                <th class="dt-label">Out type</th>
+                <th class="dt-label dt-value">Produced</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var name in OrderedBlockNames())
+            {
+                @if (State!.Blocks.TryGetValue(name, out var block))
+                {
+                    <tr>
+                        <td class="dt-label">@block.BlockName</td>
+                        <td class="dt-mono dt-value">@(block.InputItemLabel ?? "—")</td>
+                        <td class="dt-mono dt-value">@(block.IsSource ? "—" : block.ItemsConsumed.ToString("N0"))</td>
+                        <td class="dt-mono dt-value">@(block.OutputItemLabel ?? "—")</td>
+                        <td class="dt-mono dt-value">@(IsSink(block) ? "—" : block.ItemsProduced.ToString("N0"))</td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    [Parameter] public FlowExecutionState? State { get; set; }
+
+    private IEnumerable<string> OrderedBlockNames()
+    {
+        if (State is null) return [];
+        if (State.BlockOrder.Count > 0) return State.BlockOrder;
+        return State.Blocks.Keys;
+    }
+
+    private bool IsSink(Models.BlockState block)
+    {
+        if (State is null) return false;
+        return !State.Edges.Keys.Any(k => k.Source == block.BlockName);
+    }
+}

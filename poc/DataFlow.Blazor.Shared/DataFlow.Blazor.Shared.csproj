@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <PackageId>Uniun.DataFlow.Blazor.Shared</PackageId>
+    <Title>Uniun DataFlow Blazor Shared</Title>
+    <Authors>Darrell Tunnell</Authors>
+    <Company>Uniun Technology Ltd</Company>
+    <Product>Uniun</Product>
+    <Description>Shared event types, state projector, and contracts for Uniun DataFlow Blazor visualization. Referenced by both the Blazor WASM client (Uniun.DataFlow.Blazor) and the ASP.NET Core server integration (Uniun.DataFlow.Blazor.Server).</Description>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/uniun-technology/dataflow</RepositoryUrl>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.0" />
+    <PackageReference Include="System.Collections.Immutable" Version="8.0.0" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- EF Core SQLite for the demo (swap for SQL Server in production) -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../DataFlow.Blazor.Demo/DataFlow.Blazor.Demo.csproj" />
+    <ProjectReference Include="../DataFlow.Blazor.Server/DataFlow.Blazor.Server.csproj" />
+    <ProjectReference Include="../DataFlow/DataFlow.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,16 +1,15 @@
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
-using DataFlow.Blazor.Events;
-using DataFlow.Blazor.Services;
+using DataFlow.Blazor.Extensions;
 using DataFlow.Blazor.Demo.Components;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
-// Register DataFlow.Blazor event sources
-builder.Services.AddScoped<IEventSource, MockEventSource>();
-builder.Services.AddScoped<BranchingMockEventSource>();
-builder.Services.AddScoped<FanInMockEventSource>();
+builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
+
+// Connect to the real ASP.NET Core backend via HTTP catch-up + SignalR
+builder.Services.AddDataFlowVisualizationClient(builder.HostEnvironment.BaseAddress);
 
 await builder.Build().RunAsync();

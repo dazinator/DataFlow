@@ -1,0 +1,62 @@
+@using DataFlow.Blazor.Models
+
+@*
+    Side-panel component showing all edge buffers and their current health.
+    Displayed when the Buffers toolbar icon is selected.
+*@
+
+@if (State is not null && State.Channels.Count > 0)
+{
+    <div class="detail-section">
+        <span class="detail-section-label">Buffer Health</span>
+        <table class="detail-table">
+            <thead>
+                <tr>
+                    <th class="dt-label">Edge</th>
+                    <th class="dt-label">Current</th>
+                    <th class="dt-label">Peak</th>
+                    <th class="dt-label">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var ((source, target), ch) in State.Channels
+                    .OrderByDescending(kv => kv.Value.BufferUtilizationPercent)
+                    .ThenBy(kv => kv.Key.Source))
+                {
+                    var tier   = ch.HealthTier;
+                    var badge  = tier switch { 2 => "bsb-failed", 1 => "bsb-running", _ => "bsb-completed" };
+                    var label  = tier switch { 2 => "High", 1 => "Medium", _ => "OK" };
+                    var current = ch.BufferCapacity > 0
+                        ? $"{ch.CurrentCount}/{ch.BufferCapacity} ({ch.BufferUtilizationPercent:F0}%)"
+                        : $"{ch.CurrentCount}";
+                    var peakPct = ch.BufferCapacity > 0 ? (double)ch.MaxCount / ch.BufferCapacity * 100 : 0;
+                    var peak = ch.BufferCapacity > 0
+                        ? $"{ch.MaxCount}/{ch.BufferCapacity} ({peakPct:F0}%)"
+                        : $"{ch.MaxCount}";
+
+                    <tr>
+                        <td class="dt-mono dt-value">@source → @target</td>
+                        <td class="dt-value">@current</td>
+                        <td class="dt-value">@peak</td>
+                        <td class="dt-value">
+                            <span class="block-state-badge @badge">@label</span>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+else
+{
+    <div class="detail-section">
+        <span class="detail-section-label">Buffer Health</span>
+        <p class="dt-value" style="color: #888; font-size: 13px; margin-top: 8px;">
+            No buffer data yet. Buffers appear once the flow is running.
+        </p>
+    </div>
+}
+
+@code {
+    [Parameter] public FlowExecutionState? State { get; set; }
+}

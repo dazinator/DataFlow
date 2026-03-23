@@ -1,5 +1,7 @@
 namespace DataFlow.POC.Core;
 
+using DataFlow.Blazor.Events;
+
 /// <summary>
 /// Reusable implementation of IActorExecutionContext.
 /// This context is reset internally by the ActorBlock between rotations to avoid allocations.
@@ -12,11 +14,13 @@ internal sealed class ActorExecutionContext : IActorExecutionContext
     private IEpochCoordinator? _epochCoordinator;
     private ITriggerContext? _triggerContext;
     private IParameterProvider _parameters = new TriggerContextParameterProvider(null);
+    private IFlowEventEmitter? _events;
 
     public CancellationToken CancellationToken => _cancellationToken;
     public Guid InvocationId => _invocationId;
     public IEpochCoordinator? EpochCoordinator => _epochCoordinator;
     public IParameterProvider Parameters => _parameters;
+    public IFlowEventEmitter? Events => _events;
 
     public void RequestRotation() => _requestRotation?.Invoke();
 
@@ -29,7 +33,8 @@ internal sealed class ActorExecutionContext : IActorExecutionContext
         Guid invocationId,
         Action requestRotation,
         IEpochCoordinator? epochCoordinator = null,
-        ITriggerContext? triggerContext = null)
+        ITriggerContext? triggerContext = null,
+        IFlowEventEmitter? events = null)
     {
         _cancellationToken = cancellationToken;
         _invocationId = invocationId;
@@ -37,5 +42,6 @@ internal sealed class ActorExecutionContext : IActorExecutionContext
         _epochCoordinator = epochCoordinator;
         _triggerContext = triggerContext;
         _parameters = new TriggerContextParameterProvider(triggerContext);
+        _events = events;
     }
 }

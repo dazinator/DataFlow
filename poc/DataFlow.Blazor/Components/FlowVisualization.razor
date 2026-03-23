@@ -6,7 +6,58 @@
     @if (_state != null)
     {
         <FlowStatusPanel State="_state" />
-        <FlowDiagram State="_state" />
+
+        @* Thin header bar — holds trigger icon and future toolbar items *@
+        @if (!string.IsNullOrEmpty(_state.TriggerParamsJson) || _state.Channels.Count > 0)
+        {
+            <div class="diagram-header-bar">
+                @if (!string.IsNullOrEmpty(_state.TriggerParamsJson))
+                {
+                    <button class="trigger-icon-btn @(_selection is TriggerSelected ? "active" : "")"
+                            title="Trigger parameters"
+                            @onclick="ToggleTrigger">
+                        ⚡ Trigger
+                    </button>
+                }
+                @if (_state.Channels.Count > 0)
+                {
+                    <button class="trigger-icon-btn @(_selection is BuffersSelected ? "active" : "")"
+                            title="Buffer health"
+                            @onclick="ToggleBuffers">
+                        ◫ Buffers
+                    </button>
+                }
+                <button class="trigger-icon-btn @(_selection is EventHistorySelected ? "active" : "")"
+                        title="Flow event history"
+                        @onclick="ToggleEventHistory">
+                    ☰ History
+                </button>
+                @if (_state.Blocks.Values.Any(b => b.InputItemLabel != null || b.OutputItemLabel != null))
+                {
+                    <button class="trigger-icon-btn @(_selection is ItemsSelected ? "active" : "")"
+                            title="Item types"
+                            @onclick="ToggleItems">
+                        ◈ Items
+                    </button>
+                }
+            </div>
+        }
+
+        @* Diagram + detail pane side-by-side *@
+        <div class="diagram-area">
+            <div class="diagram-svg-wrap">
+                <FlowDiagram State="_state"
+                             Selection="_selection"
+                             OnSelectionChanged="OnSelectionChanged" />
+            </div>
+
+            @if (_selection is not null)
+            {
+                <DetailPane State="_state"
+                            Selection="_selection"
+                            OnClose="ClosePane" />
+            }
+        </div>
     }
     else
     {
@@ -24,6 +75,7 @@
     private FlowExecutionState? _state;
     private EventProcessor? _processor;
     private CancellationTokenSource? _cts;
+    private SelectedObject? _selection;
 
     protected override async Task OnInitializedAsync()
     {
@@ -40,24 +92,48 @@
         try
         {
             var eventSource = EventSourceOverride ?? EventSource;
-            
+
             // Try to get snapshot first for fast initial load
             var snapshot = await eventSource.GetSnapshotAsync(InvocationId, cancellationToken);
             if (snapshot != null)
             {
                 _processor!.ApplySnapshot(snapshot);
+
+                // Populate EventLog with structural events already folded into the snapshot.
+                // These are applied to the log only — not re-processed for state — so that
+                // viewing a completed flow still shows event history without regressing state.
+                var auditLog = await eventSource.GetAuditLogAsync(InvocationId, cancellationToken);
+                _processor.ApplyAuditLog(auditLog);
+
                 await InvokeAsync(StateHasChanged);
             }
 
-            // Process real-time events
-            await foreach (var evt in eventSource.GetEventsAsync(InvocationId, cancellationToken))
+            // Process real-time events with batched rendering.
+            // Coalescing rapid startup bursts (multiple BlockStartedEvents before any
+            // ChannelStatsEvents) into a single render prevents the topology from laying
+            // out in a column and then jumping when edges arrive.
+            var lastRender = DateTime.UtcNow; // suppress an immediate first-event render
+            const int MinRenderIntervalMs = 200;
+
+            await foreach (var evt in eventSource.GetEventsAsync(InvocationId, cancellationToken).WithCancellation(cancellationToken))
             {
                 _processor!.ProcessEvent(evt);
-                await InvokeAsync(StateHasChanged);
 
-                // Throttle UI updates to avoid overwhelming the browser
-                await Task.Delay(50, cancellationToken);
+                // Structural topology events render immediately — FlowGraphDefinedEvent
+                // pre-seeds all blocks and edges at once so the full diagram appears
+                // in a single frame rather than block-by-block as execution proceeds.
+                // Terminal events also force a render so the flow never appears stuck.
+                var forceRender = evt is FlowGraphDefinedEvent or FlowCompletedEvent or BlockCompletedEvent;
+
+                if (forceRender || (DateTime.UtcNow - lastRender).TotalMilliseconds >= MinRenderIntervalMs)
+                {
+                    lastRender = DateTime.UtcNow;
+                    await InvokeAsync(StateHasChanged);
+                }
             }
+
+            // Always render the final state once the stream ends.
+            await InvokeAsync(StateHasChanged);
         }
         catch (OperationCanceledException)
         {
@@ -68,6 +144,30 @@
             Console.WriteLine($"Error processing events: {ex.Message}");
         }
     }
+
+    private void ToggleTrigger()
+    {
+        _selection = _selection is TriggerSelected ? null : new TriggerSelected();
+    }
+
+    private void ToggleBuffers()
+    {
+        _selection = _selection is BuffersSelected ? null : new BuffersSelected();
+    }
+
+    private void ToggleEventHistory()
+    {
+        _selection = _selection is EventHistorySelected ? null : new EventHistorySelected();
+    }
+
+    private void ToggleItems()
+    {
+        _selection = _selection is ItemsSelected ? null : new ItemsSelected();
+    }
+
+    private void OnSelectionChanged(SelectedObject? next) => _selection = next;
+
+    private void ClosePane() => _selection = null;
 
     public void Dispose()
     {

@@ -12,79 +12,56 @@ public class FlowTopology
     /// <summary>
     /// Analyzes the flow state and builds a topology map.
     /// </summary>
-    public static FlowTopology Analyze(Dictionary<string, Models.BlockState> blocks, Dictionary<string, ChannelState> channels)
+    public static FlowTopology Analyze(Dictionary<string, Models.BlockState> blocks, Dictionary<(string Source, string Target), ChannelState> channels)
     {
         var topology = new FlowTopology();
-        
-        // Build connection map from channel information
-        // In the mock, channels are named after their source block
-        foreach (var (blockName, _) in channels)
+
+        // Seed connections from channel data (source→target pairs known precisely).
+        foreach (var (source, target) in channels.Keys)
         {
-            if (blocks.ContainsKey(blockName))
-            {
-                // Find blocks that could be downstream
-                // For now, we'll use a simple heuristic based on block names
-                foreach (var targetBlock in blocks.Keys)
-                {
-                    if (targetBlock != blockName)
-                    {
-                        if (!topology.Connections.ContainsKey(blockName))
-                            topology.Connections[blockName] = new List<string>();
-                        
-                        // In a real implementation, this would come from flow definition
-                        // For mock data, we infer connections
-                    }
-                }
-            }
+            if (!topology.Connections.ContainsKey(source))
+                topology.Connections[source] = new List<string>();
+            if (!topology.Connections[source].Contains(target))
+                topology.Connections[source].Add(target);
         }
         
-        // For the mock sources, we'll detect patterns by block names
-        var blockNames = blocks.Keys.ToList();
-        
-        // Detect fan-out pattern (e.g., router -> multiple processors)
-        var routerBlock = blockNames.FirstOrDefault(b => b.Contains("router"));
-        if (routerBlock != null)
+        // When channel data is available the connections are already populated above.
+        // Fall back to block-name heuristics only for mock sources that emit no channel events yet.
+        if (topology.Connections.Count == 0)
         {
-            var producers = blockNames.Where(b => b.Contains("producer")).ToList();
-            var processors = blockNames.Where(b => b.Contains("processor")).ToList();
-            
-            topology.Connections[routerBlock] = processors;
-            foreach (var producer in producers)
+            var blockNames = blocks.Keys.ToList();
+
+            var routerBlock = blockNames.FirstOrDefault(b => b.Contains("router"));
+            if (routerBlock != null)
             {
-                topology.Connections[producer] = new List<string> { routerBlock };
-            }
-        }
-        // Detect fan-in pattern (e.g., multiple producers -> buffer)
-        else if (blockNames.Count(b => b.Contains("producer")) > 1)
-        {
-            var producers = blockNames.Where(b => b.Contains("producer")).ToList();
-            var buffer = blockNames.FirstOrDefault(b => b.Contains("buffer"));
-            var batch = blockNames.FirstOrDefault(b => b.Contains("batch"));
-            var processor = blockNames.FirstOrDefault(b => b.Contains("processor"));
-            
-            if (buffer != null)
-            {
+                var producers = blockNames.Where(b => b.Contains("producer")).ToList();
+                var processors = blockNames.Where(b => b.Contains("processor")).ToList();
+                topology.Connections[routerBlock] = processors;
                 foreach (var producer in producers)
+                    topology.Connections[producer] = new List<string> { routerBlock };
+            }
+            else if (blockNames.Count(b => b.Contains("producer")) > 1)
+            {
+                var producers = blockNames.Where(b => b.Contains("producer")).ToList();
+                var buffer = blockNames.FirstOrDefault(b => b.Contains("buffer"));
+                var batch = blockNames.FirstOrDefault(b => b.Contains("batch"));
+                var processor = blockNames.FirstOrDefault(b => b.Contains("processor"));
+                if (buffer != null)
                 {
-                    topology.Connections[producer] = new List<string> { buffer };
-                }
-                
-                if (batch != null)
-                {
-                    topology.Connections[buffer] = new List<string> { batch };
-                    if (processor != null)
+                    foreach (var producer in producers)
+                        topology.Connections[producer] = new List<string> { buffer };
+                    if (batch != null)
                     {
-                        topology.Connections[batch] = new List<string> { processor };
+                        topology.Connections[buffer] = new List<string> { batch };
+                        if (processor != null)
+                            topology.Connections[batch] = new List<string> { processor };
                     }
                 }
             }
-        }
-        // Linear topology (default)
-        else
-        {
-            for (int i = 0; i < blockNames.Count - 1; i++)
+            else
             {
-                topology.Connections[blockNames[i]] = new List<string> { blockNames[i + 1] };
+                for (int i = 0; i < blockNames.Count - 1; i++)
+                    topology.Connections[blockNames[i]] = new List<string> { blockNames[i + 1] };
             }
         }
         

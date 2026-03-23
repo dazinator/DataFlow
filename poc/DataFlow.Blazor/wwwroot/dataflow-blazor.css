@@ -1,0 +1,76 @@
+/*
+ * Uniun.DataFlow.Blazor — theme variables
+ *
+ * Include this file in your host application to pick up the default theme
+ * and to have a single place to override any variable:
+ *
+ *   <link rel="stylesheet" href="_content/Uniun.DataFlow.Blazor/dataflow-blazor.css" />
+ *
+ * All variables are declared on :root so they cascade into every component.
+ * Override any of them in your own stylesheet (loaded after this one) and
+ * the change will propagate automatically across all DataFlow components.
+ */
+
+:root {
+
+    /* ------------------------------------------------------------------ */
+    /* Panel header gradient                                                */
+    /* Used by: FlowStatusPanel — the coloured header bar                  */
+    /* ------------------------------------------------------------------ */
+    --df-panel-header-from:   #667eea;
+    --df-panel-header-to:     #764ba2;
+    --df-panel-header-text:   #ffffff;
+
+    /* ------------------------------------------------------------------ */
+    /* Status colours                                                       */
+    /* Used by: status badges, diagram node borders                        */
+    /* ------------------------------------------------------------------ */
+    --df-status-idle:           #6c757d;
+
+    --df-status-running:        #ffc107;
+    --df-status-running-text:   #000000;
+    --df-status-running-bg:     #fff9e6;   /* light tint for diagram nodes */
+
+    --df-status-completed:      #28a745;
+    --df-status-completed-bg:   #e8f5e9;   /* light tint for diagram nodes */
+
+    --df-status-failed:         #dc3545;
+    --df-status-failed-bg:      #ffebee;   /* light tint for diagram nodes */
+
+    /* ------------------------------------------------------------------ */
+    /* Surface colours                                                      */
+    /* Used by: cards, diagram background, toggle buttons                  */
+    /* ------------------------------------------------------------------ */
+    --df-surface-bg:            #ffffff;
+    --df-surface-muted:         #f8f9fa;   /* slightly off-white panels    */
+    --df-surface-hover:         #e9ecef;   /* hover state for buttons      */
+    --df-surface-border:        #dee2e6;   /* card and node borders        */
+    --df-diagram-bg:            #f8f9fa;   /* diagram canvas background    */
+
+    /* ------------------------------------------------------------------ */
+    /* Text colours                                                         */
+    /* ------------------------------------------------------------------ */
+    --df-text-body:             #212529;   /* primary readable text        */
+    --df-text-muted:            #495057;   /* secondary / label text       */
+    --df-text-subtle:           #868e96;   /* icon / decorative text       */
+    --df-text-faint:            #adb5bd;   /* hints / placeholders         */
+    --df-text-loading:          #666666;   /* loading spinner text         */
+
+    /* ------------------------------------------------------------------ */
+    /* Shape                                                                */
+    /* ------------------------------------------------------------------ */
+    --df-radius:                8px;       /* standard border radius       */
+    --df-radius-badge:          20px;      /* pill-shaped status badges    */
+
+    /* ------------------------------------------------------------------ */
+    /* Shadows                                                              */
+    /* ------------------------------------------------------------------ */
+    --df-shadow-sm:   0 2px 4px rgba(0, 0, 0, 0.1);
+    --df-shadow-md:   0 4px 6px rgba(0, 0, 0, 0.1);
+
+    /* ------------------------------------------------------------------ */
+    /* Typography                                                           */
+    /* ------------------------------------------------------------------ */
+    --df-font-sans:  'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    --df-font-mono:  'Consolas', 'Monaco', monospace;
+}

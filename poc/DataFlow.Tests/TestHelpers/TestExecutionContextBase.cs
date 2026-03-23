@@ -12,7 +12,7 @@ using DataFlow.POC.Registry;
 /// </summary>
 public class TestExecutionContextBase : IExecutionContext
 {
-    public IServiceProvider ServiceProvider { get; set; } = null!;
+    public IServiceScopeFactory? ScopeFactory { get; set; } = null;
     public CancellationToken CancellationToken { get; set; }
     public Guid InvocationId { get; set; } = Guid.NewGuid();
     public ICheckpoint? RecoveryCheckpoint { get; set; }
@@ -21,4 +21,5 @@ public class TestExecutionContextBase : IExecutionContext
     public string? CurrentBlockName { get; set; }
     public ITriggerContext? TriggerContext { get; set; }
     public IParameterProvider Parameters => new TriggerContextParameterProvider(TriggerContext);
+    public string? TriggerParamsJson { get; set; }
 }

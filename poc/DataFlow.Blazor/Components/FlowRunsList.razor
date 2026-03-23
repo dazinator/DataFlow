@@ -1,0 +1,265 @@
+@using DataFlow.Blazor.Api
+@using DataFlow.Blazor.Events
+@using DataFlow.Blazor.Services
+@inject IFlowListSource FlowListSource
+@inject NavigationManager Nav
+@implements IAsyncDisposable
+
+@if (_groups is null)
+{
+    <p style="color: #6c757d;">Loading flows...</p>
+}
+else if (_groups.Count == 0)
+{
+    <p style="color: #6c757d;">No flows have run yet.</p>
+}
+else
+{
+    <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+        <thead>
+            <tr style="border-bottom: 2px solid #dee2e6; text-align: left;">
+                <th style="padding: 0.5rem 0.75rem;">Flow</th>
+                <th style="padding: 0.5rem 0.75rem;">Status</th>
+                <th style="padding: 0.5rem 0.75rem;">Started</th>
+                <th style="padding: 0.5rem 0.75rem;">Duration</th>
+                <th style="padding: 0.5rem 0.75rem;"></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var group in _groups)
+            {
+                // Primary row
+                <tr style="border-bottom: 1px solid #dee2e6; @RowStyle(group.Primary.Status)">
+                    <td style="padding: 0.5rem 0.75rem; font-weight: 500;">
+                        @group.Primary.FlowName
+                        @if (group.Attempts.Count > 1)
+                        {
+                            <button @onclick="() => ToggleGroup(group.Key)"
+                                    style="margin-left: 0.5rem; background: #e8f0fe; color: #1a56db; border: 1px solid #c3d4f9;
+                                           border-radius: 4px; padding: 1px 7px; font-size: 0.75rem; cursor: pointer;
+                                           font-weight: 400; line-height: 1.4;">
+                                ↻ @group.Attempts.Count attempts @(_expandedGroups.Contains(group.Key) ? "▲" : "▼")
+                            </button>
+                        }
+                    </td>
+                    <td style="padding: 0.5rem 0.75rem;">
+                        <span style="@BadgeStyle(group.Primary.Status)">@StatusLabel(group.Primary.Status)</span>
+                    </td>
+                    <td style="padding: 0.5rem 0.75rem; color: #495057;">
+                        @group.Primary.StartedAt.ToLocalTime().ToString("HH:mm:ss")
+                    </td>
+                    <td style="padding: 0.5rem 0.75rem; color: #495057;">
+                        @FormatDuration(group.Primary)
+                    </td>
+                    <td style="padding: 0.5rem 0.75rem; text-align: right;">
+                        @if (group.Primary.ErrorMessage is not null)
+                        {
+                            <span title="@group.Primary.ErrorMessage"
+                                  style="color: #dc3545; margin-right: 0.5rem; cursor: help;">⚠</span>
+                        }
+                        <button class="btn btn-sm btn-outline-primary"
+                                @onclick="() => NavigateToFlow(group.Primary.FlowRunId)">
+                            View →
+                        </button>
+                    </td>
+                </tr>
+
+                // Attempt sub-rows (shown when group is expanded)
+                @if (group.Attempts.Count > 1 && _expandedGroups.Contains(group.Key))
+                {
+                    @foreach (var attempt in group.Attempts)
+                    {
+                        <tr style="border-bottom: 1px solid #dee2e6; background: #f8f9fa;">
+                            <td style="padding: 0.35rem 0.75rem 0.35rem 2.5rem; color: #6c757d; font-size: 0.85rem;">
+                                ↳ Attempt @attempt.AttemptNumber
+                            </td>
+                            <td style="padding: 0.35rem 0.75rem;">
+                                <span style="@BadgeStyle(attempt.Status); font-size: 0.78rem; padding: 1px 6px;">
+                                    @StatusLabel(attempt.Status)
+                                </span>
+                            </td>
+                            <td style="padding: 0.35rem 0.75rem; color: #6c757d; font-size: 0.85rem;">
+                                @attempt.StartedAt.ToLocalTime().ToString("HH:mm:ss")
+                            </td>
+                            <td style="padding: 0.35rem 0.75rem; color: #6c757d; font-size: 0.85rem;">
+                                @FormatDuration(attempt)
+                            </td>
+                            <td style="padding: 0.35rem 0.75rem; text-align: right;">
+                                @if (attempt.ErrorMessage is not null)
+                                {
+                                    <span title="@attempt.ErrorMessage"
+                                          style="color: #dc3545; margin-right: 0.5rem; cursor: help;">⚠</span>
+                                }
+                                <button class="btn btn-sm btn-outline-secondary"
+                                        style="font-size: 0.78rem; padding: 1px 8px;"
+                                        @onclick="() => NavigateToFlow(attempt.FlowRunId)">
+                                    View →
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                }
+            }
+        </tbody>
+    </table>
+
+    @if (_hasMore)
+    {
+        <div style="text-align: center; margin-top: 1rem;">
+            <button class="btn btn-outline-secondary btn-sm"
+                    @onclick="LoadMoreAsync"
+                    disabled="@_loadingMore">
+                @(_loadingMore ? "Loading…" : "Load more")
+            </button>
+        </div>
+    }
+}
+
+@code {
+    private const int PageSize = 50;
+
+    // Total rows to fetch on each poll — grows by PageSize on each "Load more".
+    // Always fetches page=1 with this as the window size so status updates on
+    // in-progress runs continue to arrive without needing multiple requests.
+    private int _loadedCount = PageSize;
+
+    private List<FlowGroup>? _groups;
+    private bool _hasMore;
+    private bool _loadingMore;
+    private readonly HashSet<Guid> _expandedGroups = new();
+    private PeriodicTimer? _timer;
+    private CancellationTokenSource _cts = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshAsync();
+        _ = PollAsync();
+    }
+
+    private async Task RefreshAsync()
+    {
+        try
+        {
+            var flows = await FlowListSource.GetFlowsAsync(
+                page: 1, pageSize: _loadedCount, _cts.Token);
+            _groups = BuildGroups(flows);
+            _hasMore = flows.Length == _loadedCount;
+            StateHasChanged();
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    private async Task PollAsync()
+    {
+        _timer = new PeriodicTimer(TimeSpan.FromSeconds(3));
+        try
+        {
+            while (await _timer.WaitForNextTickAsync(_cts.Token))
+                await RefreshAsync();
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    private async Task LoadMoreAsync()
+    {
+        _loadingMore = true;
+        _loadedCount += PageSize;
+        await RefreshAsync();
+        _loadingMore = false;
+    }
+
+    private void ToggleGroup(Guid key)
+    {
+        if (!_expandedGroups.Remove(key))
+            _expandedGroups.Add(key);
+    }
+
+    private void NavigateToFlow(Guid flowRunId) =>
+        Nav.NavigateTo($"/flows/{flowRunId}");
+
+    // ── Grouping ─────────────────────────────────────────────────────────────
+
+    private record FlowGroup(Guid Key, FlowSummaryDto Primary, List<FlowSummaryDto> Attempts);
+
+    private static List<FlowGroup> BuildGroups(FlowSummaryDto[] flows)
+    {
+        // Accumulate attempts per correlation key, preserving first-seen order
+        // (server returns most-recent first, so first-seen = latest attempt).
+        var order = new Dictionary<Guid, int>();
+        var buckets = new Dictionary<Guid, List<FlowSummaryDto>>();
+
+        for (var i = 0; i < flows.Length; i++)
+        {
+            var f = flows[i];
+            var key = f.CorrelationId ?? f.FlowRunId;
+
+            if (!buckets.TryGetValue(key, out var list))
+            {
+                buckets[key] = list = [];
+                order[key] = i;
+            }
+
+            list.Add(f);
+        }
+
+        return order
+            .OrderBy(kv => kv.Value)
+            .Select(kv =>
+            {
+                var attempts = buckets[kv.Key];
+                // Sort so highest attempt number (latest) is first
+                attempts.Sort((a, b) => b.AttemptNumber.CompareTo(a.AttemptNumber));
+                return new FlowGroup(kv.Key, attempts[0], attempts);
+            })
+            .ToList();
+    }
+
+    // ── Formatting ────────────────────────────────────────────────────────────
+
+    private static string StatusLabel(FlowState s) => s switch
+    {
+        FlowState.Running   => "● Running",
+        FlowState.Completed => "✓ Done",
+        FlowState.Failed    => "✗ Failed",
+        _                   => "· Pending"
+    };
+
+    private static string BadgeStyle(FlowState s)
+    {
+        var (bg, color, border) = s switch
+        {
+            FlowState.Running   => ("#fff9e6", "#856404", "#ffc107"),
+            FlowState.Completed => ("#d1e7dd", "#0a5235", "#28a745"),
+            FlowState.Failed    => ("#f8d7da", "#842029", "#dc3545"),
+            _                   => ("#f8f9fa", "#6c757d", "#6c757d")
+        };
+        return $"background:{bg}; color:{color}; border:1px solid {border}; " +
+               "border-radius:4px; padding:2px 8px; font-size:0.8rem; white-space:nowrap;";
+    }
+
+    private static string RowStyle(FlowState s) =>
+        s == FlowState.Running ? "background: #fffdf0;" : "";
+
+    private static string FormatDuration(FlowSummaryDto flow)
+    {
+        if (flow.Status == FlowState.Running)
+            return $"{(DateTime.UtcNow - flow.StartedAt).TotalSeconds:F0}s…";
+
+        if (flow.CompletedAt is null)
+            return "—";
+
+        var span = flow.CompletedAt.Value - flow.StartedAt;
+        if (span.TotalSeconds < 60)
+            return span.TotalMilliseconds < 1000
+                ? $"{span.TotalMilliseconds:F0}ms"
+                : $"{span.TotalSeconds:F1}s";
+        return $"{(int)span.TotalMinutes}m {span.Seconds}s";
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await _cts.CancelAsync();
+        _timer?.Dispose();
+        _cts.Dispose();
+    }
+}

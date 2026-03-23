@@ -2,7 +2,10 @@ namespace DataFlow.POC.Core;
 
 using System.Diagnostics;
 using System.Threading.Channels;
+using DataFlow.Blazor.Events;
+using DataFlow.Blazor.ItemTypes;
 using DataFlow.POC.Observability;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 /// <summary>
@@ -228,6 +231,10 @@ public class DataFlowGraph
             flowMetrics.Started();
         }
 
+        // Resolve optional event sink — null if the consumer hasn't registered Uniun.DataFlow.Blazor.Server
+        await using var flowScope = context.ScopeFactory?.CreateAsyncScope();
+        var eventSink = flowScope?.ServiceProvider.GetService<IFlowEventSink>();
+
         using (var flowActivity = ActivitySource.StartActivity(ActivityNames.FlowExecute))
         {
             if (flowActivity is not null)
@@ -245,10 +252,47 @@ public class DataFlowGraph
                 stopwatch = Stopwatch.StartNew();
             }
 
+            // Emit FlowStartedEvent (includes trigger params if provided)
+            if (eventSink is not null)
+            {
+                await eventSink.AppendAsync(context.InvocationId,
+                    new FlowStartedEvent(context.InvocationId, Name, DateTime.UtcNow, context.TriggerParamsJson,
+                        context.CorrelationId, context.AttemptNumber));
+            }
+
             try
             {
                 // Build execution pipeline (adapters, routers, channels)
                 var pipeline = BuildExecutionPipeline();
+
+                // Emit topology event — describes the static graph structure and item type
+                // labels before any block starts. Clients use this to render the Items table.
+                if (eventSink is not null)
+                {
+                    var itemTypeStore = flowScope?.ServiceProvider.GetService<IDataFlowItemTypeStore>();
+
+                    var blockDefs = _blocks.Select(b =>
+                    {
+                        var isSource = !_incomingEdges.ContainsKey(b) || _incomingEdges[b].Count == 0;
+                        var isSink   = !_outgoingEdges.ContainsKey(b) || _outgoingEdges[b].Count == 0;
+                        return new BlockDefinition(
+                            BlockName:       b.Name,
+                            BlockType:       b.GetType().Name,
+                            InputItemLabel:  isSource ? null : ResolveItemLabel(itemTypeStore, b.InputType),
+                            OutputItemLabel: isSink   ? null : ResolveItemLabel(itemTypeStore, b.OutputType),
+                            IsSource:        isSource,
+                            IsSink:          isSink);
+                    }).ToList();
+
+                    var edgeDefs = _edges.Select(e => new EdgeDefinition(
+                        SourceBlock:    e.SourceBlock.Name,
+                        TargetBlock:    e.TargetBlock.Name,
+                        BufferCapacity: e.BufferMode == BufferMode.Bounded ? e.BufferCapacity : null
+                    )).ToList();
+
+                    await eventSink.AppendAsync(context.InvocationId,
+                        new FlowGraphDefinedEvent(blockDefs, edgeDefs, DateTime.UtcNow));
+                }
                 
                 // Set the active channel count provider for metrics
                 if (metrics is DataFlowMetrics metricsImpl)
@@ -281,6 +325,27 @@ public class DataFlowGraph
                 isSuccessful = true;
 
                 _logger.LogInformation("Completed execution of dataflow: {FlowName}", Name);
+
+                // Emit final ChannelStatsEvent for every buffer so the UI reflects the
+                // drained state at completion (all blocks have finished, so counts are 0).
+                if (eventSink is not null)
+                {
+                    var finalMonitors = pipeline.EdgeRuntimeModels.Values
+                        .SelectMany(e => e.BufferMonitors.Values);
+                    foreach (var monitor in finalMonitors)
+                    {
+                        await eventSink.AppendAsync(context.InvocationId,
+                            new ChannelStatsEvent(monitor.SourceBlock, monitor.TargetBlock,
+                                monitor.Capacity, monitor.CurrentCount, DateTime.UtcNow));
+                    }
+                }
+
+                // Emit FlowCompletedEvent (success)
+                if (eventSink is not null)
+                {
+                    await eventSink.AppendAsync(context.InvocationId,
+                        new FlowCompletedEvent(context.InvocationId, Success: true, DateTime.UtcNow));
+                }
             }
             catch (Exception ex)
             {
@@ -288,13 +353,20 @@ public class DataFlowGraph
                 {
                     flowActivity.SetStatus(ActivityStatusCode.Error, ex.Message);
                     flowActivity.SetTag(ActivityNames.TagNames.ErrorType, ex.GetType().FullName);
-                    
+
                     if (ex is OperationCanceledException)
                     {
                         flowActivity.SetTag(ActivityNames.TagNames.Cancelled, "true");
                     }
                 }
-                
+
+                // Emit FlowCompletedEvent (failure)
+                if (eventSink is not null)
+                {
+                    await eventSink.AppendAsync(context.InvocationId,
+                        new FlowCompletedEvent(context.InvocationId, Success: false, DateTime.UtcNow, ex.Message));
+                }
+
                 throw;
             }
             finally
@@ -321,6 +393,19 @@ public class DataFlowGraph
     /// This method performs all reflection-based setup once at build time to enable zero-boxing execution.
     /// </summary>
     /// <returns>An ExecutionPipeline containing all the infrastructure needed for execution.</returns>
+    /// <summary>
+    /// Resolves a human-readable label for an item type using the optional store,
+    /// falling back to the store's built-in CLR type name formatter.
+    /// Returns null when the label is empty (e.g. <c>object</c>).
+    /// </summary>
+    private static string? ResolveItemLabel(IDataFlowItemTypeStore? store, Type type)
+    {
+        var label = store is not null
+            ? store.GetLabel(type)
+            : DataFlowTypeNameFormatter.Format(type);
+        return label.Length > 0 ? label : null;
+    }
+
     private ExecutionPipeline BuildExecutionPipeline()
     {
         var pipeline = new ExecutionPipeline();
@@ -329,10 +414,29 @@ public class DataFlowGraph
         foreach (var edge in _edges.Where(e => e.BufferMode != BufferMode.None))
         {
             var (writers, readers) = edge.Strategy.CreateTypedChannels(edge.DataType, edge.SourceBlock, edge.TargetBlocks);
+
+            // Build one buffer monitor per (source, target) channel reader.
+            // Only bounded edges have meaningful capacity; skip unbounded (None mode won't reach here,
+            // but guard anyway with capacity = 0 meaning "unbounded").
+            var bufferMonitors = new Dictionary<IBlock, IBufferMonitor>();
+            if (edge.BufferMode == BufferMode.Bounded)
+            {
+                foreach (var (targetBlock, readerObj) in readers)
+                {
+                    bufferMonitors[targetBlock] = BufferMonitorFactory.Create(
+                        edge.SourceBlock.Name,
+                        targetBlock.Name,
+                        edge.BufferCapacity,
+                        edge.DataType,
+                        readerObj);
+                }
+            }
+
             var edgeModel = new EdgeRuntimeModel
             {
                 Writers = writers,
-                Readers = readers
+                Readers = readers,
+                BufferMonitors = bufferMonitors
             };
             
             // Create typed edge router to eliminate boxing during routing
@@ -623,27 +727,52 @@ public class DataFlowGraph
                 stopwatch = Stopwatch.StartNew();
             }
 
+            // Each block gets its own DI scope so it owns its own DbContext instance.
+            // This prevents concurrent blocks from sharing a non-thread-safe DbContext
+            // through a shared scoped IFlowEventSink.
+            await using var blockScope = context.ScopeFactory?.CreateAsyncScope();
+            var eventSink = blockScope?.ServiceProvider.GetService<IFlowEventSink>();
+
             try
             {
                 logger.LogDebug("Block {BlockName} starting execution (Thread: {ThreadId})", _block.Name, Environment.CurrentManagedThreadId);
-                
+
+                // Emit BlockStartedEvent
+                if (eventSink is not null)
+                {
+                    var isSource = !_incomingEdges.ContainsKey(_block) || _incomingEdges[_block].Count == 0;
+                    await eventSink.AppendAsync(context.InvocationId,
+                        new BlockStartedEvent(_block.Name, _block.GetType().Name, DateTime.UtcNow, IsSource: isSource));
+                }
+
                 var adapter = Adapter!;
-                
-                // Get the typed input stream for this block                
+
+                // Two shared counters incremented atomically on the hot path:
+                //   inputCounter  — items pulled from this block's input channel(s)
+                //   outputCounter — items written to this block's output channel(s)
+                var inputCounter  = new long[1];
+                var outputCounter = new long[1];
+
+                // Get the typed input stream for this block, wrapped with a counting shim
+                // so every item pull atomically increments inputCounter.
+                // For source blocks GetBlockInputStream returns null; WrapWithInputCounter
+                // passes null through unchanged (inputCounter stays 0).
                 var typedInput = _pipeline.GetBlockInputStream(_block, _incomingEdges, adapter.InputItemType);
+                var countedInput = ReflectionHelper.WrapWithInputCounter(typedInput, adapter.InputItemType, inputCounter);
                 logger.LogDebug("Block {BlockName} got input stream", _block.Name);
 
                 // Execute the block using adapter - returns typed stream as object (NO BOXING per item)
-                var typedOutput = await adapter.ExecuteUntypedAsync(typedInput, context);
-                
+                var typedOutput = await adapter.ExecuteUntypedAsync(countedInput, context);
+
                 logger.LogDebug("Block {BlockName} execute completed, starting enumeration", _block.Name);
-                
+
                 // Store typed output for downstream blocks
                 Output = typedOutput;
 
-                // Collect output routers from edges and buffer nodes
+                // Collect output routers and buffer monitors from edges
                 var outputRouters = new List<ITypedEdgeRouter>();
-                Func<object, List<ITypedEdgeRouter>, CancellationToken, Task>? epochStreamDelegate = null;
+                var bufferMonitors = new List<IBufferMonitor>();
+                Func<object, List<ITypedEdgeRouter>, CancellationToken, Task<long>>? epochStreamDelegate = null;
 
                 // Add routers from regular edges
                 if (_outgoingEdges.ContainsKey(_block) && _outgoingEdges[_block].Count > 0)
@@ -654,7 +783,10 @@ public class DataFlowGraph
                         .Select(e => _pipeline.EdgeRuntimeModels[e].Router!)
                         .ToList();
                     outputRouters.AddRange(edgeRouters);
-                    
+
+                    foreach (var edge in edges.Where(e => _pipeline.EdgeRuntimeModels.ContainsKey(e)))
+                        bufferMonitors.AddRange(_pipeline.EdgeRuntimeModels[edge].BufferMonitors.Values);
+
                     // Check if any edge has a pre-compiled epoch stream routing delegate
                     // All edges for the same block should have the same type, so we take the first non-null delegate
                     epochStreamDelegate = edges
@@ -663,36 +795,102 @@ public class DataFlowGraph
                         .FirstOrDefault(d => d != null);
                 }
 
-                // Route output
+                // Also monitor the depth of this block's *incoming* channels from the consumer side.
+                // The source block's timer owns the same monitor objects but stops when the source
+                // completes — which means the buffer count would freeze mid-drain if we relied solely
+                // on the source's timer.  Including the monitors here ensures the count keeps updating
+                // as long as *this* block is still running and consuming.
+                if (_incomingEdges.TryGetValue(_block, out var inEdges))
+                {
+                    foreach (var edge in inEdges.Where(e => _pipeline.EdgeRuntimeModels.ContainsKey(e)))
+                    {
+                        if (_pipeline.EdgeRuntimeModels[edge].BufferMonitors.TryGetValue(_block, out var inMonitor))
+                            bufferMonitors.Add(inMonitor);
+                    }
+                }
+
+                // Route output with live 500 ms progress reporting.
+                // The inputCounter / outputCounter arrays were created above alongside the input wrapping.
+                // A PeriodicTimer reads both and emits BlockMetricsEvent ticks while the pump runs.
+                Task<long> pumpTask;
                 if (outputRouters.Count > 0)
                 {
                    logger.LogDebug("Block {BlockName} routing output to {RouterCount} routers", _block.Name, outputRouters.Count);
-                    // Enumerate typed output and route without boxing
-                    // Use pre-compiled epoch stream delegate if available (eliminates type checks)
-                    await ReflectionHelper.EnumerateAndRouteTypedStreamAsync(
-                        typedOutput, 
-                        adapter.OutputItemType, 
+                    pumpTask = ReflectionHelper.EnumerateAndRouteTypedStreamAsync(
+                        typedOutput,
+                        adapter.OutputItemType,
                         outputRouters,
                         epochStreamDelegate,
+                        outputCounter,
                         context.CancellationToken);
-                    
-                    logger.LogDebug("Block {BlockName} completed routing output", _block.Name);
                 }
                 else
                 {
                     logger.LogDebug("Block {BlockName} is terminal, enumerating to completion", _block.Name);
-                    
-                    // Terminal block - enumerate output to completion
-                    await ReflectionHelper.EnumerateTypedStreamAsync(typedOutput, adapter.OutputItemType, context.CancellationToken);
-                    
-                    logger.LogDebug("Block {BlockName} completed enumeration", _block.Name);
+                    pumpTask = ReflectionHelper.EnumerateTypedStreamAsync(
+                        typedOutput, adapter.OutputItemType, outputCounter, context.CancellationToken);
+                }
+
+                // Run the 500 ms progress timer concurrently with the pump.
+                // Linked to context.CancellationToken so it also stops on flow cancellation.
+                using var timerCts = CancellationTokenSource.CreateLinkedTokenSource(context.CancellationToken);
+                var progressTimerTask = eventSink is not null
+                    ? RunBlockProgressTimerAsync(_block.Name, outputCounter, inputCounter, outputRouters, bufferMonitors, eventSink, context.InvocationId, timerCts.Token)
+                    : Task.CompletedTask;
+
+                long itemsEmitted;
+                try
+                {
+                    itemsEmitted = await pumpTask;
+                    if (outputRouters.Count > 0)
+                        logger.LogDebug("Block {BlockName} completed routing output", _block.Name);
+                    else
+                        logger.LogDebug("Block {BlockName} completed enumeration", _block.Name);
+                }
+                finally
+                {
+                    // Always stop the timer when the pump finishes (success or error).
+                    timerCts.Cancel();
+                    try { await progressTimerTask; } catch (OperationCanceledException) { }
+                }
+
+                // Emit the definitive final BlockMetricsEvent with exact pump counts.
+                var finalInputCount = Volatile.Read(ref inputCounter[0]);
+                if ((itemsEmitted > 0 || finalInputCount > 0) && eventSink is not null)
+                {
+                    await eventSink.AppendAsync(context.InvocationId,
+                        new BlockMetricsEvent(_block.Name, finalInputCount, itemsEmitted, DateTime.UtcNow));
+                }
+
+                // Emit definitive final EdgeProgressEvent for each outgoing edge.
+                if (eventSink is not null)
+                {
+                    foreach (var router in outputRouters)
+                    {
+                        foreach (var targetBlock in router.TargetBlocks)
+                        {
+                            var edgeCount = router.GetItemsWrittenToTarget(targetBlock);
+                            if (edgeCount > 0)
+                            {
+                                await eventSink.AppendAsync(context.InvocationId,
+                                    new EdgeProgressEvent(_block.Name, targetBlock.Name, edgeCount, DateTime.UtcNow));
+                            }
+                        }
+                    }
                 }
 
                 // Complete all outgoing typed channels
                 _pipeline.CompleteOutgoingChannels(_block, _outgoingEdges, logger);
 
                 logger.LogDebug("Block {BlockName} completed successfully", _block.Name);
-                
+
+                // Emit BlockCompletedEvent (success)
+                if (eventSink is not null)
+                {
+                    await eventSink.AppendAsync(context.InvocationId,
+                        new BlockCompletedEvent(_block.Name, Success: true, DateTime.UtcNow));
+                }
+
                 activity?.SetStatus(ActivityStatusCode.Ok);
                 isSuccessful = true;
             }
@@ -702,7 +900,7 @@ public class DataFlowGraph
                 {
                     activity.SetStatus(ActivityStatusCode.Error, ex.Message);
                     activity.SetTag(ActivityNames.TagNames.ErrorType, ex.GetType().FullName);
-                    
+
                     if (ex is OperationCanceledException)
                     {
                         activity.SetTag(ActivityNames.TagNames.Cancelled, "true");
@@ -710,6 +908,13 @@ public class DataFlowGraph
                 }
 
                 logger.LogError(ex, "Block {BlockName} failed with error", _block.Name);
+
+                // Emit BlockCompletedEvent (failure)
+                if (eventSink is not null)
+                {
+                    await eventSink.AppendAsync(context.InvocationId,
+                        new BlockCompletedEvent(_block.Name, Success: false, DateTime.UtcNow, ex.Message));
+                }
 
                 // Complete typed channel writers with exception
                 _pipeline.CompleteOutgoingChannels(_block, _outgoingEdges, logger, ex);
@@ -732,6 +937,75 @@ public class DataFlowGraph
                 blockMetrics?.Completed(blockDuration, isSuccessful);
             }
         }
+
+        /// <summary>
+        /// Fires a BlockMetricsEvent every 500 ms while the pump is running.
+        /// Stopped by cancelling <paramref name="cancellationToken"/> once the pump finishes.
+        /// Sink errors are swallowed so the timer never crashes the block execution.
+        /// </summary>
+        private static async Task RunBlockProgressTimerAsync(
+            string blockName,
+            long[] outputCounter,
+            long[] inputCounter,
+            List<ITypedEdgeRouter> outputRouters,
+            List<IBufferMonitor> bufferMonitors,
+            IFlowEventSink eventSink,
+            Guid invocationId,
+            CancellationToken cancellationToken)
+        {
+            using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(500));
+            try
+            {
+                while (await timer.WaitForNextTickAsync(cancellationToken))
+                {
+                    var now = DateTime.UtcNow;
+
+                    // Block-level metrics: items consumed from input and items written to output.
+                    var outputCount = Volatile.Read(ref outputCounter[0]);
+                    var inputCount  = Volatile.Read(ref inputCounter[0]);
+                    if (outputCount > 0 || inputCount > 0)
+                    {
+                        try
+                        {
+                            await eventSink.AppendAsync(invocationId,
+                                new BlockMetricsEvent(blockName, inputCount, outputCount, now));
+                        }
+                        catch { /* sink errors must not crash the flow */ }
+                    }
+
+                    // Per-edge progress: how many items reached each specific target.
+                    foreach (var router in outputRouters)
+                    {
+                        foreach (var targetBlock in router.TargetBlocks)
+                        {
+                            var edgeCount = router.GetItemsWrittenToTarget(targetBlock);
+                            if (edgeCount > 0)
+                            {
+                                try
+                                {
+                                    await eventSink.AppendAsync(invocationId,
+                                        new EdgeProgressEvent(blockName, targetBlock.Name, edgeCount, now));
+                                }
+                                catch { /* sink errors must not crash the flow */ }
+                            }
+                        }
+                    }
+
+                    // Per-edge buffer depth: how many items are currently queued in each channel.
+                    foreach (var monitor in bufferMonitors)
+                    {
+                        try
+                        {
+                            await eventSink.AppendAsync(invocationId,
+                                new ChannelStatsEvent(monitor.SourceBlock, monitor.TargetBlock,
+                                    monitor.Capacity, monitor.CurrentCount, now));
+                        }
+                        catch { /* sink errors must not crash the flow */ }
+                    }
+                }
+            }
+            catch (OperationCanceledException) { }
+        }
     }
 
     /// <summary>
@@ -743,14 +1017,20 @@ public class DataFlowGraph
         public Dictionary<IBlock, object> Writers { get; set; } = new();
         public Dictionary<IBlock, object> Readers { get; set; } = new();
         public ITypedEdgeRouter? Router { get; set; }
-        
+
+        /// <summary>
+        /// Buffer monitors for each target — one per channel reader.
+        /// Polled by the progress timer to emit ChannelStatsEvent ticks.
+        /// </summary>
+        public Dictionary<IBlock, IBufferMonitor> BufferMonitors { get; set; } = new();
+
         /// <summary>
         /// Pre-compiled epoch stream routing delegate.
         /// If not null, this edge routes epoch streams and the delegate should be used
         /// instead of generic routing logic. Compiled once at graph build time.
         /// </summary>
-        public Func<object, List<ITypedEdgeRouter>, CancellationToken, Task>? EpochStreamRoutingDelegate { get; set; }
-        
+        public Func<object, List<ITypedEdgeRouter>, CancellationToken, Task<long>>? EpochStreamRoutingDelegate { get; set; }
+
         /// <summary>
         /// Pre-compiled container routing delegate for epoch streams.
         /// If not null, this delegate routes individual epoch stream containers to a specific target block,

@@ -500,6 +500,7 @@ public class EpochAnchoringIntegrationTests : IDisposable
         public IEpochCoordinator? EpochCoordinator { get; }
         public ITriggerContext? TriggerContext { get; } = null;
         public IParameterProvider Parameters => new TriggerContextParameterProvider(TriggerContext);
+        public DataFlow.Blazor.Events.IFlowEventEmitter? Events => null;
         public void RequestRotation() { }
     }
     

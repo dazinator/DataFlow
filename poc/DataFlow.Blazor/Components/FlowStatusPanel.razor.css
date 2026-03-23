@@ -1,10 +1,10 @@
 .flow-status-panel {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    background: linear-gradient(135deg, var(--df-panel-header-from) 0%, var(--df-panel-header-to) 100%);
+    color: var(--df-panel-header-text);
     padding: 1.5rem;
-    border-radius: 8px;
+    border-radius: var(--df-radius);
     margin-bottom: 1rem;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--df-shadow-md);
 }
 
 .status-section {
@@ -22,28 +22,28 @@
 
 .status-badge {
     padding: 0.5rem 1rem;
-    border-radius: 20px;
+    border-radius: var(--df-radius-badge);
     font-weight: 600;
     font-size: 0.9rem;
     text-transform: uppercase;
 }
 
 .status-idle {
-    background-color: #6c757d;
+    background-color: var(--df-status-idle);
 }
 
 .status-running {
-    background-color: #ffc107;
-    color: #000;
+    background-color: var(--df-status-running);
+    color: var(--df-status-running-text);
     animation: pulse 2s ease-in-out infinite;
 }
 
 .status-completed {
-    background-color: #28a745;
+    background-color: var(--df-status-completed);
 }
 
 .status-failed {
-    background-color: #dc3545;
+    background-color: var(--df-status-failed);
 }
 
 @keyframes pulse {
@@ -76,3 +76,4 @@
     font-size: 1.1rem;
     font-weight: 600;
 }
+

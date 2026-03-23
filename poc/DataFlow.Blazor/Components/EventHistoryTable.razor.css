@@ -1,0 +1,89 @@
+/*
+ * EventHistoryTable component styles.
+ *
+ * All selectors are scoped to this component automatically by Blazor's CSS isolation.
+ * Override via CSS custom properties defined in dataflow-blazor.css.
+ */
+
+.dfeh-root {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+/* Section heading — visually distinct from the tiny .detail-section-label used for
+   metadata fields.  Sentence-case, body-weight text with a separator line underneath. */
+.dfeh-header {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--df-text-body);
+    padding: 10px 0 7px;
+    border-bottom: 1px solid var(--df-surface-border);
+    margin-bottom: 2px;
+    letter-spacing: 0;
+}
+
+.dfeh-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+}
+
+.dfeh-table thead th {
+    padding: 4px 6px 4px 0;
+    text-align: left;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--df-text-muted);
+    border-bottom: 1px solid var(--df-surface-border);
+}
+
+.dfeh-table tbody td {
+    padding: 5px 6px 5px 0;
+    color: var(--df-text-body);
+    border-bottom: 1px solid #f2f2f2;
+    vertical-align: top;
+}
+
+.dfeh-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.dfeh-table tbody tr:hover td {
+    background: var(--df-surface-muted);
+}
+
+/* Flow-level events (FlowStarted / FlowCompleted) rendered slightly muted
+   so they visually bracket the block events without competing with them */
+.dfeh-flow-event {
+    color: var(--df-text-muted);
+    font-style: italic;
+}
+
+.dfeh-mono {
+    font-family: var(--df-font-mono);
+    font-size: 0.75rem;
+}
+
+.dfeh-time {
+    white-space: nowrap;
+    color: var(--df-text-muted);
+    padding-right: 10px;
+}
+
+.dfeh-error {
+    color: #dc3545;
+}
+
+.dfeh-row-error td {
+    background: #fff5f5;
+}
+
+.dfeh-empty {
+    font-size: 0.8rem;
+    color: var(--df-text-muted);
+    margin: 8px 0;
+    font-style: italic;
+}

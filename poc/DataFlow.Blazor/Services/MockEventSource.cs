@@ -11,7 +11,7 @@ public class MockEventSource : IEventSource
 {
     private readonly Random _random = Random.Shared;
 
-    public async IAsyncEnumerable<object> GetEventsAsync(
+    public async IAsyncEnumerable<IDataFlowEvent> GetEventsAsync(
         Guid invocationId,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
@@ -47,30 +47,28 @@ public class MockEventSource : IEventSource
         {
             await Task.Delay(200, cancellationToken);
 
-            // Producer progress
-            yield return new BlockProgressEvent("producer", i * 50, DateTime.UtcNow);
+            // Producer progress (source: consumed=0)
+            yield return new BlockMetricsEvent("producer", ItemsConsumed: 0, ItemsProduced: i * 50, DateTime.UtcNow);
+            yield return new ChannelStatsEvent("producer", "transform", 100, _random.Next(20, 80), DateTime.UtcNow);
 
-            // Channel stats for producer
-            yield return new ChannelStatsEvent("producer", 100, _random.Next(20, 80), DateTime.UtcNow);
-
-            // Transform progress (slightly behind)
+            // Transform progress (slightly behind; 1:1 transformer)
             if (i > 1)
             {
-                yield return new BlockProgressEvent("transform", (i - 1) * 48, DateTime.UtcNow);
-                yield return new ChannelStatsEvent("transform", 100, _random.Next(15, 70), DateTime.UtcNow);
+                yield return new BlockMetricsEvent("transform", ItemsConsumed: (i - 1) * 48, ItemsProduced: (i - 1) * 48, DateTime.UtcNow);
+                yield return new ChannelStatsEvent("transform", "batch", 100, _random.Next(15, 70), DateTime.UtcNow);
             }
 
-            // Batch progress (even more behind)
+            // Batch progress (even more behind; batches 48→10 items)
             if (i > 2)
             {
-                yield return new BlockProgressEvent("batch", (i - 2) * 10, DateTime.UtcNow);
-                yield return new ChannelStatsEvent("batch", 50, _random.Next(5, 40), DateTime.UtcNow);
+                yield return new BlockMetricsEvent("batch", ItemsConsumed: (i - 2) * 48, ItemsProduced: (i - 2) * 10, DateTime.UtcNow);
+                yield return new ChannelStatsEvent("batch", "processor", 50, _random.Next(5, 40), DateTime.UtcNow);
             }
 
-            // Processor progress (consuming batches)
+            // Processor progress (terminal sink: consumed=N, output=0)
             if (i > 3)
             {
-                yield return new BlockProgressEvent("processor", (i - 3) * 10, DateTime.UtcNow);
+                yield return new BlockMetricsEvent("processor", ItemsConsumed: (i - 3) * 10, ItemsProduced: 0, DateTime.UtcNow);
             }
         }
 

@@ -81,6 +81,13 @@ public interface ITypedEdgeRouter
     /// Gets the edge strategy used by this router.
     /// </summary>
     EdgeStrategy Strategy { get; }
+
+    /// <summary>
+    /// Returns the number of items actually written to a specific target block's channel.
+    /// For broadcast edges all targets get the same count; for selective/routed edges each
+    /// target only gets the items that were directed to it.
+    /// </summary>
+    long GetItemsWrittenToTarget(IBlock targetBlock);
 }
 
 /// <summary>
@@ -93,17 +100,20 @@ public sealed class TypedEdgeRouter<T> : ITypedEdgeRouter
 {
     private readonly Edge _edge;
     private readonly Dictionary<IBlock, ChannelWriter<T>> _typedWriters;
+    private readonly Dictionary<IBlock, CountingChannelWriter> _countingWriters;
 
     /// <summary>
     /// Creates a typed edge router with strongly-typed channel writers.
-    /// Extracts ChannelWriter&lt;T&gt; from object dictionaries to enable boxing-free writes.
+    /// Wraps each writer in a CountingChannelWriter so per-target item counts are tracked
+    /// automatically without touching the strategy code.
     /// </summary>
     public TypedEdgeRouter(Edge edge, Dictionary<IBlock, object> writers)
     {
         _edge = edge ?? throw new ArgumentNullException(nameof(edge));
-        
-        // Extract typed writers from object dictionary
-        _typedWriters = new Dictionary<IBlock, ChannelWriter<T>>();
+
+        _countingWriters = new Dictionary<IBlock, CountingChannelWriter>(writers.Count);
+        _typedWriters    = new Dictionary<IBlock, ChannelWriter<T>>(writers.Count);
+
         foreach (var (block, writerObj) in writers)
         {
             if (writerObj is not ChannelWriter<T> typedWriter)
@@ -111,7 +121,9 @@ public sealed class TypedEdgeRouter<T> : ITypedEdgeRouter
                 throw new InvalidOperationException(
                     $"Expected ChannelWriter<{typeof(T).Name}> but got {writerObj.GetType().Name}");
             }
-            _typedWriters[block] = typedWriter;
+            var counting = new CountingChannelWriter(typedWriter);
+            _countingWriters[block] = counting;
+            _typedWriters[block]    = counting; // strategy writes through the counting wrapper
         }
     }
     
@@ -170,5 +182,44 @@ public sealed class TypedEdgeRouter<T> : ITypedEdgeRouter
         {
             throw new InvalidOperationException($"Target block {targetBlock.Name} is not a valid target for this router");
         }
+    }
+
+    /// <inheritdoc />
+    public long GetItemsWrittenToTarget(IBlock targetBlock)
+        => _countingWriters.TryGetValue(targetBlock, out var cw) ? cw.Count : 0;
+
+    // -----------------------------------------------------------------------
+    // CountingChannelWriter — thin wrapper that counts every successful write.
+    // -----------------------------------------------------------------------
+
+    private sealed class CountingChannelWriter : ChannelWriter<T>
+    {
+        private readonly ChannelWriter<T> _inner;
+        private long _count;
+
+        public CountingChannelWriter(ChannelWriter<T> inner) => _inner = inner;
+
+        public long Count => Volatile.Read(ref _count);
+
+        public override bool TryWrite(T item)
+        {
+            if (_inner.TryWrite(item))
+            {
+                Interlocked.Increment(ref _count);
+                return true;
+            }
+            return false;
+        }
+
+        public override ValueTask<bool> WaitToWriteAsync(CancellationToken ct = default)
+            => _inner.WaitToWriteAsync(ct);
+
+        public override async ValueTask WriteAsync(T item, CancellationToken ct = default)
+        {
+            await _inner.WriteAsync(item, ct).ConfigureAwait(false);
+            Interlocked.Increment(ref _count);
+        }
+
+        public override bool TryComplete(Exception? error = null) => _inner.TryComplete(error);
     }
 }

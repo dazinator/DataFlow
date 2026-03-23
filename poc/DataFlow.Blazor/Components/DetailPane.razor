@@ -1,0 +1,253 @@
+@using System.Text.Json
+@using Microsoft.AspNetCore.Components
+@using Microsoft.Extensions.Options
+
+@inject IOptions<BlockDetailViewOptions> DetailViewOptions
+
+@if (Selection is not null && State is not null)
+{
+    <div class="detail-pane">
+        <div class="detail-pane-header">
+            <span class="detail-pane-title">@PaneTitle</span>
+            <button class="detail-pane-close" @onclick="Close" title="Close">✕</button>
+        </div>
+
+        <div class="detail-pane-body">
+            @if (Selection is TriggerSelected)
+            {
+                <div class="detail-section">
+                    <div class="detail-copy-row">
+                        <span class="detail-section-label">Trigger Parameters</span>
+                        <button class="detail-copy-btn" @onclick="CopyTriggerJson" title="Copy to clipboard">⎘</button>
+                    </div>
+                    <pre class="detail-json">@PrettyJson(State.TriggerParamsJson)</pre>
+                </div>
+            }
+            else if (Selection is BuffersSelected)
+            {
+                <BufferSummaryPanel State="State" />
+            }
+            else if (Selection is EventHistorySelected)
+            {
+                @* Flow-level event history — all structural events, no title (pane header already says "Event History") *@
+                <EventHistoryTable Events="FlowLevelEvents()"
+                                   FlowScope="true"
+                                   ShowEmpty="true" />
+            }
+            else if (Selection is ItemsSelected)
+            {
+                <ItemSummaryPanel State="State" />
+            }
+            else if (Selection is BlockSelected selected)
+            {
+                @RenderBlockDetail(selected)
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public SelectedObject? Selection { get; set; }
+    [Parameter] public FlowExecutionState? State { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private string PaneTitle => Selection switch
+    {
+        TriggerSelected      => "Trigger",
+        BuffersSelected      => "Buffers",
+        EventHistorySelected => "Event History",
+        ItemsSelected        => "Items",
+        BlockSelected bs     => bs.BlockName,
+        _                    => ""
+    };
+
+    private Task Close() => OnClose.InvokeAsync();
+
+    /// <summary>
+    /// Structural events for the full flow, filtered from the live event log.
+    /// Excludes high-frequency telemetry ticks (progress/channel-stats) which are
+    /// broadcast for live rendering but carry no audit value.
+    /// </summary>
+    private IReadOnlyList<IDataFlowEvent> FlowLevelEvents() =>
+        State?.EventLog
+            .Where(e => e is FlowStartedEvent or FlowCompletedEvent
+                           or BlockStartedEvent or BlockCompletedEvent)
+            .ToList()
+        ?? [];
+
+    private RenderFragment RenderBlockDetail(BlockSelected bs) => builder =>
+    {
+        if (State is null || !State.Blocks.TryGetValue(bs.BlockName, out var block)) return;
+
+        var customType = DetailViewOptions.Value.TryGet(block.BlockType);
+        if (customType is not null)
+        {
+            builder.OpenComponent(0, customType);
+            builder.AddAttribute(1, "BlockState", block);
+            builder.CloseComponent();
+            return;
+        }
+
+        // ── Block metadata table ──────────────────────────────────────────────
+        builder.OpenElement(2, "div");
+        builder.AddAttribute(3, "class", "detail-section");
+
+        builder.OpenElement(4, "table");
+        builder.AddAttribute(5, "class", "detail-table");
+        builder.OpenElement(6, "tbody");
+
+        AddRow(builder, 10, "Name",   block.BlockName,  null);
+        AddRow(builder, 20, "Type",   block.BlockType,  "dt-mono");
+        AddRow(builder, 30, "Status", null, null, inner =>
+        {
+            inner.OpenElement(0, "span");
+            inner.AddAttribute(1, "class", $"block-state-badge {BlockStateCssClass(block.State)}");
+            inner.AddContent(2, block.State.ToString());
+            inner.CloseElement();
+        });
+        if (block.IsSource)
+            AddRow(builder, 40, "Role", "Source", null);
+        if (block.StartTime.HasValue)
+            AddRow(builder, 50, "Start", block.StartTime.Value.ToLocalTime().ToString("HH:mm:ss.fff"), null);
+        if (block.Duration.HasValue)
+            AddRow(builder, 60, "Duration", FormatDuration(block.Duration.Value), null);
+        if (block.ItemsConsumed > 0)
+            AddRow(builder, 69, "Consumed", block.ItemsConsumed.ToString("N0"), null);
+        if (block.ItemsProduced > 0)
+            AddRow(builder, 70, "Produced", block.ItemsProduced.ToString("N0"), null);
+        if (block.ErrorMessage is not null)
+            AddRow(builder, 80, "Error", block.ErrorMessage, "dt-mono dt-error", null, "dt-label dt-error");
+
+        builder.CloseElement(); // tbody
+        builder.CloseElement(); // table
+        builder.CloseElement(); // .detail-section
+
+        // ── Throughput mini-table ─────────────────────────────────────────────
+        var outEdges = State.Edges
+            .Where(kv => kv.Key.Source == bs.BlockName && kv.Value.MaxTransmitRatePerSecond > 0)
+            .ToList();
+
+        if (outEdges.Count > 0)
+        {
+            bool multiEdge = outEdges.Count > 1;
+
+            builder.OpenElement(200, "div");
+            builder.AddAttribute(201, "class", "detail-section");
+
+            builder.OpenElement(202, "span");
+            builder.AddAttribute(203, "class", "detail-section-label");
+            builder.AddContent(204, "Throughput");
+            builder.CloseElement();
+
+            builder.OpenElement(205, "table");
+            builder.AddAttribute(206, "class", "detail-table throughput-table");
+
+            // thead
+            builder.OpenElement(207, "thead");
+            builder.OpenElement(208, "tr");
+            if (multiEdge) { builder.OpenElement(209, "th"); builder.AddContent(210, "Edge"); builder.CloseElement(); }
+            foreach (var h in new[] { "Peak", "Avg", "Min" })
+            { builder.OpenElement(211, "th"); builder.AddContent(212, h); builder.CloseElement(); }
+            builder.CloseElement(); // tr
+            builder.CloseElement(); // thead
+
+            // tbody
+            builder.OpenElement(213, "tbody");
+            int ts = 300;
+            foreach (var (edgeKey, edge) in outEdges)
+            {
+                builder.OpenElement(ts++, "tr");
+                if (multiEdge)
+                {
+                    builder.OpenElement(ts++, "td");
+                    builder.AddAttribute(ts++, "class", "dt-mono dt-value");
+                    builder.AddContent(ts++, $"→{edgeKey.Target}");
+                    builder.CloseElement();
+                }
+                foreach (var val in new[]
+                {
+                    $"{(long)Math.Round(edge.MaxTransmitRatePerSecond)}/s",
+                    $"{(long)Math.Round(edge.AverageTransmitRatePerSecond)}/s",
+                    edge.MinTransmitRatePerSecond < double.MaxValue
+                        ? $"{(long)Math.Round(edge.MinTransmitRatePerSecond)}/s"
+                        : "—"
+                })
+                {
+                    builder.OpenElement(ts++, "td");
+                    builder.AddAttribute(ts++, "class", "dt-mono dt-value");
+                    builder.AddContent(ts++, val);
+                    builder.CloseElement();
+                }
+                builder.CloseElement(); // tr
+            }
+            builder.CloseElement(); // tbody
+            builder.CloseElement(); // table
+            builder.CloseElement(); // .detail-section
+        }
+
+        // ── Block event history ───────────────────────────────────────────────
+        var blockEvents = (IReadOnlyList<IDataFlowEvent>)State.EventLog
+            .Where(e => e is BlockStartedEvent bs2 && bs2.BlockName == bs.BlockName
+                     || e is BlockCompletedEvent bc && bc.BlockName == bs.BlockName)
+            .ToList();
+
+        builder.OpenComponent(500, typeof(EventHistoryTable));
+        builder.AddAttribute(501, "Events", blockEvents);
+        builder.AddAttribute(502, "Title", "Event History");
+        builder.AddAttribute(503, "FlowScope", false);
+        builder.CloseComponent();
+    };
+
+    private static void AddRow(
+        Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder b,
+        int seq,
+        string label,
+        string? value,
+        string? valueClass,
+        RenderFragment? valueContent = null,
+        string? labelClass = null)
+    {
+        b.OpenElement(seq,     "tr");
+        b.OpenElement(seq + 1, "td");
+        b.AddAttribute(seq + 2, "class", labelClass ?? "dt-label");
+        b.AddContent(seq + 3, label);
+        b.CloseElement();
+        b.OpenElement(seq + 4, "td");
+        b.AddAttribute(seq + 5, "class", $"dt-value {valueClass}".TrimEnd());
+        if (valueContent is not null) valueContent(b);
+        else b.AddContent(seq + 6, value);
+        b.CloseElement();
+        b.CloseElement(); // tr
+    }
+
+    private static string PrettyJson(string? json)
+    {
+        if (string.IsNullOrEmpty(json)) return "(none)";
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            return JsonSerializer.Serialize(doc.RootElement, new JsonSerializerOptions { WriteIndented = true });
+        }
+        catch { return json; }
+    }
+
+    private async Task CopyTriggerJson()
+    {
+        await Task.CompletedTask;
+    }
+
+    private static string BlockStateCssClass(Events.BlockState state) => state switch
+    {
+        Events.BlockState.Running   => "bsb-running",
+        Events.BlockState.Completed => "bsb-completed",
+        Events.BlockState.Failed    => "bsb-failed",
+        _                           => "bsb-idle"
+    };
+
+    private static string FormatDuration(TimeSpan d)
+    {
+        if (d.TotalHours >= 1)   return $"{d.Hours}h {d.Minutes}m {d.Seconds}s";
+        if (d.TotalMinutes >= 1) return $"{d.Minutes}m {d.Seconds}s";
+        return $"{d.Seconds}.{d.Milliseconds:000}s";
+    }
+}

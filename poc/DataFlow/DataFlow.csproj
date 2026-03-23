@@ -28,4 +28,8 @@
     <InternalsVisibleTo Include="DataFlow.Benchmarks" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="../DataFlow.Blazor.Shared/DataFlow.Blazor.Shared.csproj" />
+  </ItemGroup>
+
 </Project>

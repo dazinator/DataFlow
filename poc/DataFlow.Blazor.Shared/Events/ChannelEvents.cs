@@ -1,11 +1,9 @@
 namespace DataFlow.Blazor.Events;
 
-/// <summary>
-/// Event raised to report channel statistics.
-/// </summary>
 public record ChannelStatsEvent(
-    string BlockName,
+    string SourceBlock,
+    string TargetBlock,
     int BufferCapacity,
     int CurrentCount,
     DateTime Timestamp
-);
+) : IDataFlowEvent;

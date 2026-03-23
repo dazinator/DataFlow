@@ -11,7 +11,7 @@ public class FanInMockEventSource : IEventSource
 {
     private readonly Random _random = Random.Shared;
 
-    public async IAsyncEnumerable<object> GetEventsAsync(
+    public async IAsyncEnumerable<IDataFlowEvent> GetEventsAsync(
         Guid invocationId,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
@@ -47,32 +47,32 @@ public class FanInMockEventSource : IEventSource
         {
             await Task.Delay(200, cancellationToken);
 
-            // Producer A progress (faster)
-            yield return new BlockProgressEvent("producer-a", i * 60, DateTime.UtcNow);
-            yield return new ChannelStatsEvent("producer-a", 50, _random.Next(10, 40), DateTime.UtcNow);
+            // Producer A progress (source: consumed=0, faster)
+            yield return new BlockMetricsEvent("producer-a", ItemsConsumed: 0, ItemsProduced: i * 60, DateTime.UtcNow);
+            yield return new ChannelStatsEvent("producer-a", "buffer", 50, _random.Next(10, 40), DateTime.UtcNow);
 
-            // Producer B progress (slower)
-            yield return new BlockProgressEvent("producer-b", i * 40, DateTime.UtcNow);
-            yield return new ChannelStatsEvent("producer-b", 50, _random.Next(10, 40), DateTime.UtcNow);
+            // Producer B progress (source: consumed=0, slower)
+            yield return new BlockMetricsEvent("producer-b", ItemsConsumed: 0, ItemsProduced: i * 40, DateTime.UtcNow);
+            yield return new ChannelStatsEvent("producer-b", "buffer", 50, _random.Next(10, 40), DateTime.UtcNow);
 
-            // Buffer progress (combines both producers)
+            // Buffer progress (fan-in: consumes from both producers, 1:1 pass-through)
             if (i > 1)
             {
-                yield return new BlockProgressEvent("buffer", (i - 1) * 100, DateTime.UtcNow);
-                yield return new ChannelStatsEvent("buffer", 200, _random.Next(50, 150), DateTime.UtcNow);
+                yield return new BlockMetricsEvent("buffer", ItemsConsumed: (i - 1) * 100, ItemsProduced: (i - 1) * 100, DateTime.UtcNow);
+                yield return new ChannelStatsEvent("buffer", "batch", 200, _random.Next(50, 150), DateTime.UtcNow);
             }
 
-            // Batch progress
+            // Batch progress (batches 100→20 items)
             if (i > 2)
             {
-                yield return new BlockProgressEvent("batch", (i - 2) * 20, DateTime.UtcNow);
-                yield return new ChannelStatsEvent("batch", 100, _random.Next(20, 80), DateTime.UtcNow);
+                yield return new BlockMetricsEvent("batch", ItemsConsumed: (i - 2) * 100, ItemsProduced: (i - 2) * 20, DateTime.UtcNow);
+                yield return new ChannelStatsEvent("batch", "processor", 100, _random.Next(20, 80), DateTime.UtcNow);
             }
 
-            // Processor progress
+            // Processor progress (terminal sink: consumed=N, output=0)
             if (i > 3)
             {
-                yield return new BlockProgressEvent("processor", (i - 3) * 20, DateTime.UtcNow);
+                yield return new BlockMetricsEvent("processor", ItemsConsumed: (i - 3) * 20, ItemsProduced: 0, DateTime.UtcNow);
             }
         }
 
