@@ -10,11 +10,13 @@ using DataFlow.POC.Tests.TestHelpers;
 using DataFlow.POC.Registry;
 
 /// <summary>
-/// Advanced tests demonstrating complex envelope scenarios including:
-/// - Barrier alignment across multiple paths
-/// - Scope boundary handling
-/// - Heartbeat propagation
-/// - Multi-stage pipelines with control signals
+/// OBSOLETE — these tests cover advanced scenarios (barrier alignment, heartbeat propagation,
+/// multi-stage control signal threading) for the envelope-based control plane design.
+/// That design is superseded by the epoch stream model: epoch boundaries are barriers natively,
+/// and envelope-style message workflows (fan-out/fan-in with barrier alignment, thread safety
+/// of shared message instances, fan-in reconciliation) are application-level concerns that
+/// should be addressed by a dedicated message-workflow subsystem if ever required.
+/// Code retained for reference.
 /// </summary>
 public class EnvelopeAdvancedTests
 {
@@ -68,7 +70,7 @@ public class EnvelopeAdvancedTests
         }
     }
 
-    [Fact]
+    [Fact(Skip = "Envelope control plane superseded by epoch streams — see class summary")]
     public async Task MultiPath_Broadcast_Should_Deliver_Control_Signals_To_All_Paths()
     {
         // This test demonstrates that control signals are broadcast to all downstream paths
@@ -146,7 +148,7 @@ public class EnvelopeAdvancedTests
         path2Barriers.Count.ShouldBe(2);
     }
 
-    [Fact]
+    [Fact(Skip = "Envelope control plane superseded by epoch streams — see class summary")]
     public async Task Pipeline_With_Multiple_Control_Signal_Types()
     {
         // Demonstrates a pipeline that processes multiple types of control signals
@@ -200,7 +202,7 @@ public class EnvelopeAdvancedTests
         heartbeats.Count.ShouldBe(1);
     }
 
-    [Fact]
+    [Fact(Skip = "Envelope control plane superseded by epoch streams — see class summary")]
     public async Task Complex_Pipeline_Should_Maintain_Signal_Order()
     {
         // Tests a complex pipeline: Producer -> Transform -> Projector -> Processor
@@ -260,7 +262,7 @@ public class EnvelopeAdvancedTests
         outputItems[4].envelope.GetValue<int>().ShouldBe(20);
     }
 
-    [Fact]
+    [Fact(Skip = "Envelope control plane superseded by epoch streams — see class summary")]
     public async Task Heartbeat_Signals_Can_Track_Pipeline_Progress()
     {
         // Demonstrates using heartbeats for progress tracking
