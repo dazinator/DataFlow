@@ -347,6 +347,7 @@ public class PipelineRunner
 | Event | When to emit |
 |---|---|
 | `FlowStartedEvent(InvocationId, FlowName, Timestamp, TriggerParamsJson?, CorrelationId?, AttemptNumber)` | Once, at flow start |
+| `FlowGraphDefinedEvent(Blocks, Edges, Timestamp)` | Once, immediately after the pipeline is built but before any block starts. Carries the complete static topology (block names, types, item labels, edge wiring). The client uses this to render the full diagram in a single frame rather than block-by-block. **Not** an audit event — excluded from the History tab. |
 | `BlockStartedEvent(BlockName, BlockType, Timestamp, IsSource)` | Once per block when it begins executing. Set `IsSource = true` for source blocks (no input edge) — used to compute "Items Ingested" in the header. |
 | `BlockMetricsEvent(BlockName, ItemsConsumed, ItemsProduced, Timestamp)` | Periodically (~500 ms) and on completion. Cumulative totals, not deltas. `ItemsConsumed = 0` for source blocks; `ItemsProduced = 0` for pure sinks. |
 | `ChannelStatsEvent(SourceBlock, TargetBlock, BufferCapacity, CurrentCount, Timestamp)` | Periodically per edge. Drives the buffer health pill (green/amber/red) shown on each connection. |
@@ -367,7 +368,32 @@ shows attempt badges.
 
 ---
 
-## Step 10 — Optional theming
+## Step 10 — Optional: custom block detail components
+
+The detail pane that appears when a user clicks a block on the diagram can be
+replaced per block type with a custom Blazor component. This lets you show
+domain-specific information (e.g. current batch keys, DLQ depth, retry count)
+alongside the standard metrics.
+
+Register components at startup in the Blazor client `Program.cs`:
+
+```csharp
+builder.Services.Configure<BlockDetailViewOptions>(opts =>
+{
+    opts.Register("InvoiceValidatorBlock", typeof(InvoiceValidatorDetailView));
+    opts.Register("HttpSourceBlock",       typeof(HttpSourceDetailView));
+});
+```
+
+Each registered component must declare a `[Parameter] public BlockState BlockState { get; set; }`
+property. The library injects the live `BlockState` on each render cycle.
+
+If no custom component is registered for a block type the default detail view
+(metrics + status + timing) is shown.
+
+---
+
+## Step 12 — Optional theming
 
 To match the application's colour scheme, override CSS variables in the app's
 own stylesheet (after the library stylesheets):
@@ -412,6 +438,7 @@ Read through each item and verify it is done, or note why it doesn't apply:
 | Component renders but has no styling | Missing `<link>` tags in host HTML |
 | Colours are default but theming overrides not working | App stylesheet loaded **before** library stylesheet — swap order |
 | SignalR connection refused | `hubPath` in `MapDataFlowEndpoints` doesn't match `hubPath` in `AddDataFlowVisualizationClient` |
+| App uses Azure SignalR Service | No special steps needed. `FlowEventsHub` is a plain `Hub` subclass — Azure SignalR replaces the transport transparently. The library's internal `AddSignalR()` call is idempotent (`TryAdd*` only) and will not undo your Azure SignalR configuration regardless of call order. |
 | BYO-context: EF can't find the tables | `modelBuilder.AddDataFlowVisualizationEntities()` not called in `OnModelCreating`, or migration not applied |
 | "Loading flow visualization…" never resolves | `IEventSource` not registered, or server endpoints not mapped |
 | EF exception on first run | EF provider package not installed, or `EnsureCreated()` not called |
