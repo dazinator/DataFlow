@@ -25,12 +25,17 @@ using Microsoft.EntityFrameworkCore;
 /// (e.g. <c>int</c>, <c>Guid</c>, <c>string</c>).
 /// After calling <see cref="AddDataFlowVisualizationEntities"/>, configure the
 /// shadow property and global query filter for each entity in your own
-/// <c>OnModelCreating</c>. For example, using a helper that adds an
-/// <c>int</c> shadow property:
+/// <c>OnModelCreating</c>. For example, using an <c>int</c> shadow property:
 /// <code>
 /// modelBuilder.AddDataFlowVisualizationEntities();
-/// modelBuilder.HasTenantIdFilter&lt;FlowEventRecord&gt;(tenantId);
-/// modelBuilder.HasTenantIdFilter&lt;FlowSnapshotRecord&gt;(tenantId);
+/// modelBuilder.Entity&lt;FlowEventRecord&gt;()
+///     .Property&lt;int&gt;("TenantId");
+/// modelBuilder.Entity&lt;FlowEventRecord&gt;()
+///     .HasQueryFilter(e => EF.Property&lt;int&gt;(e, "TenantId") == tenantId);
+/// modelBuilder.Entity&lt;FlowSnapshotRecord&gt;()
+///     .Property&lt;int&gt;("TenantId");
+/// modelBuilder.Entity&lt;FlowSnapshotRecord&gt;()
+///     .HasQueryFilter(e => EF.Property&lt;int&gt;(e, "TenantId") == tenantId);
 /// </code>
 /// </para>
 /// </summary>
