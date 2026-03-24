@@ -137,6 +137,9 @@ jobs:
 
     - name: Pack Uniun.DataFlow.Blazor
       run: dotnet pack poc/DataFlow.Blazor/DataFlow.Blazor.csproj --configuration Release --no-build --output ./packages /p:PackageVersion=${{ steps.gitversion.outputs.fullSemVer }}
+
+    - name: Pack Uniun.DataFlow.Blazor.Server
+      run: dotnet pack poc/DataFlow.Blazor.Server/DataFlow.Blazor.Server.csproj --configuration Release --no-build --output ./packages /p:PackageVersion=${{ steps.gitversion.outputs.fullSemVer }}
     
     - name: Publish packages to GitHub
       run: |
