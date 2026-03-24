@@ -145,6 +145,12 @@ This provides:
 
 ## Step 4 — Server-side wiring (`Program.cs` of the ASP.NET Core host)
 
+> **Required usings for this step:**
+> ```csharp
+> using DataFlow.Blazor.Server;                    // AddDataFlowVisualizationServer, MapDataFlowEndpoints
+> using DataFlow.Blazor.Server.Persistence;        // FlowVisualizationDbContext (Option A), DataFlowModelBuilderExtensions (Option B)
+> ```
+
 ### Option A — dedicated DbContext (no existing EF setup)
 
 Add the following **before** `builder.Build()`:
@@ -193,6 +199,8 @@ using (var scope = app.Services.CreateScope())
 First, call the entity configuration extension in your DbContext's `OnModelCreating`:
 
 ```csharp
+using DataFlow.Blazor.Server.Persistence; // required for AddDataFlowVisualizationEntities
+
 public class MyAppDbContext : DbContext
 {
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -242,6 +250,11 @@ application needs full control — custom path, auth policy, or Azure SignalR
 Service options — use `MapDataFlowHttpEndpoints` for the HTTP endpoints and
 map the hub separately:
 
+> **Important**: `MapDataFlowEndpoints()` returns `IEndpointRouteBuilder`, **not**
+> `IEndpointConventionBuilder`. You **cannot** chain `.RequireAuthorization()` directly
+> on it — this causes CS0311. If you need auth, use the split approach below and
+> call `.RequireAuthorization()` on the individual `MapHub` call instead.
+
 ### Server (`Program.cs`)
 
 ```csharp
@@ -250,7 +263,8 @@ app.MapDataFlowHttpEndpoints<MyAppDbContext>();   // BYO-context variant
 // (or app.MapDataFlowHttpEndpoints() for the dedicated-context variant)
 
 // App owns the hub mapping — apply whatever options are needed
-app.MapHub<FlowEventsHub<MyAppDbContext>>("/my/hub/path");
+app.MapHub<FlowEventsHub<MyAppDbContext>>("/my/hub/path")
+   .RequireAuthorization();  // RequireAuthorization is valid here — MapHub returns IHubEndpointConventionBuilder
 ```
 
 `FlowEventsHub<TContext>` is a plain `Hub` subclass and is transport-agnostic.
@@ -269,6 +283,11 @@ builder.Services.AddDataFlowVisualizationClient(
 ---
 
 ## Step 5 — Client-side DI registration (`Program.cs` of the Blazor WASM project)
+
+> **Required using for this step:**
+> ```csharp
+> using DataFlow.Blazor.Extensions; // AddDataFlowVisualizationClient
+> ```
 
 ```csharp
 // Connects to the SignalR hub and the HTTP catch-up endpoint on the host.
@@ -519,6 +538,9 @@ Read through each item and verify it is done, or note why it doesn't apply:
 
 | Symptom | Likely cause |
 |---|---|
+| CS1061 `AddDataFlowVisualizationClient` not found | Missing `using DataFlow.Blazor.Extensions;` in the Blazor client `Program.cs` |
+| CS1061 `AddDataFlowVisualizationEntities` not found | Missing `using DataFlow.Blazor.Server.Persistence;` in the DbContext file |
+| CS0311 `IEndpointRouteBuilder` cannot be used as `TBuilder` for `RequireAuthorization` | `MapDataFlowEndpoints()` returns `IEndpointRouteBuilder`, not `IEndpointConventionBuilder` — you cannot chain `.RequireAuthorization()` on it. Use `MapDataFlowHttpEndpoints` + `app.MapHub<...>(path).RequireAuthorization()` instead |
 | Component renders but has no styling | Missing `<link>` tags in host HTML |
 | Colours are default but theming overrides not working | App stylesheet loaded **before** library stylesheet — swap order |
 | SignalR connection refused | Hub path mismatch: the path passed to `MapDataFlowEndpoints` (or `MapHub` if registering manually) must exactly match `hubPath` in `AddDataFlowVisualizationClient` |
