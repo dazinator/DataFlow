@@ -31,11 +31,6 @@ public class FlowEventRecord
     public DateTimeOffset OccurredAt { get; set; }
 
     /// <summary>
-    /// Optional tenant identifier for multi-tenant deployments.
-    /// </summary>
-    public Guid? TenantId { get; set; }
-
-    /// <summary>
     /// Stable identity of the originating work item (e.g. a queue message ID).
     /// Populated from FlowStartedEvent.CorrelationId; null for standalone runs.
     /// Indexed to allow efficient "all attempts for this message" queries.

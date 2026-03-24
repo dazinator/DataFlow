@@ -241,7 +241,29 @@ dotnet ef migrations add AddDataFlowVisualization --context MyAppDbContext
 dotnet ef database update --context MyAppDbContext
 ```
 
----
+### Multi-tenant apps — adding a TenantId shadow property
+
+The DataFlow entities do **not** include a `TenantId` CLR property. This is intentional: different applications use different types for their tenant identifier (`int`, `Guid`, `string`, etc.). Including a concrete CLR property would cause an EF Core type-mismatch error when the app's tenant model uses a different type.
+
+Instead, add tenant isolation **after** calling `AddDataFlowVisualizationEntities()` using EF Core [shadow properties](https://learn.microsoft.com/en-us/ef/core/modeling/shadow-properties). For example, if your app has a helper that adds an `int` shadow property and a global query filter:
+
+```csharp
+protected override void OnModelCreating(ModelBuilder modelBuilder)
+{
+    base.OnModelCreating(modelBuilder);
+
+    // Register the DataFlow tables first
+    modelBuilder.AddDataFlowVisualizationEntities();
+
+    // Then add your own tenant filter — works with any type (int, Guid, string, …)
+    modelBuilder.HasTenantIdFilter<FlowEventRecord>(tenantId);
+    modelBuilder.HasTenantIdFilter<FlowSnapshotRecord>(tenantId);
+}
+```
+
+Because `TenantId` is not a CLR property on these entities, EF Core treats it as a pure shadow property and there is no type conflict.
+
+
 
 ## Hub registration
 

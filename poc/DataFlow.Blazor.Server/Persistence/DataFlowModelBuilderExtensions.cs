@@ -17,6 +17,22 @@ using Microsoft.EntityFrameworkCore;
 ///
 /// This is called automatically by <see cref="FlowVisualizationDbContext"/>
 /// when using the dedicated-context path.
+///
+/// <para>
+/// <b>Multi-tenant deployments:</b> The DataFlow entities do not include a
+/// <c>TenantId</c> CLR property so that applications can configure tenant
+/// isolation using a shadow property of whatever type their data model requires
+/// (e.g. <c>int</c>, <c>Guid</c>, <c>string</c>).
+/// After calling <see cref="AddDataFlowVisualizationEntities"/>, configure the
+/// shadow property and global query filter for each entity in your own
+/// <c>OnModelCreating</c>. For example, using a helper that adds an
+/// <c>int</c> shadow property:
+/// <code>
+/// modelBuilder.AddDataFlowVisualizationEntities();
+/// modelBuilder.HasTenantIdFilter&lt;FlowEventRecord&gt;(tenantId);
+/// modelBuilder.HasTenantIdFilter&lt;FlowSnapshotRecord&gt;(tenantId);
+/// </code>
+/// </para>
 /// </summary>
 public static class DataFlowModelBuilderExtensions
 {
