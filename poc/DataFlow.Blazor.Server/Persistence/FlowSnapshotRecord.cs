@@ -27,9 +27,4 @@ public class FlowSnapshotRecord
     public string SnapshotJson { get; set; } = string.Empty;
 
     public DateTimeOffset CreatedAt { get; set; }
-
-    /// <summary>
-    /// Optional tenant identifier for multi-tenant deployments.
-    /// </summary>
-    public Guid? TenantId { get; set; }
 }

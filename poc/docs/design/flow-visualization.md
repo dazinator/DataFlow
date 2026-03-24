@@ -250,7 +250,7 @@ erDiagram
         string  EventType         "e.g. BlockStartedEvent"
         string  Payload           "JSON-serialized event"
         datetime OccurredAt
-        guid    TenantId       "nullable"
+        any     TenantId       "optional shadow property — type chosen by the app"
         guid    CorrelationId  "nullable, indexed — from FlowStartedEvent only"
     }
 
@@ -259,11 +259,18 @@ erDiagram
         long    AsOfEventId    "Id of last event folded"
         string  SnapshotJson   "JSON FlowSnapshot (includes CorrelationId + AttemptNumber)"
         datetime CreatedAt
-        guid    TenantId    "nullable"
+        any     TenantId    "optional shadow property — type chosen by the app"
     }
 
     FlowEventRecords ||--o| FlowSnapshotRecords : "folded into"
 ```
+
+> **Multi-tenant note:** `TenantId` is **not** a CLR property on the entity classes.
+> It is intended to be added as an EF Core [shadow property](https://learn.microsoft.com/en-us/ef/core/modeling/shadow-properties)
+> after calling `AddDataFlowVisualizationEntities()`, using whatever type your
+> application's tenant identifier requires (`int`, `Guid`, `string`, etc.).
+> This avoids the EF Core error _"the type of the corresponding CLR property … does not match the specified type"_
+> that occurs when the library entity uses a different type than the application's tenant model.
 
 `CorrelationId` is denormalized onto `FlowEventRecord` only for the `FlowStartedEvent` row.
 This allows the query "all attempts for this message" — `WHERE CorrelationId = @id` — without
