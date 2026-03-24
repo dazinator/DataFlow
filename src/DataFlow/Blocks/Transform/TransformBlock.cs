@@ -38,6 +38,7 @@ public class TransformBlock<TIn, TOut> : BlockBase, IPropagatorBlock<TIn, TOut>
     public void SetSource(ISourceBlock<TIn> source)
     {
         _source = source;
+        (source as IExpectsDownstreamTargets)?.RegisterExpectedTarget();
     }
 
     private void EnsureSource()

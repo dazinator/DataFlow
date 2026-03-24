@@ -62,6 +62,7 @@ public class RateLimitBlock<T> : BlockBase, IPropagatorBlock<T, T>, IDisposable
     public void SetSource(ISourceBlock<T> source)
     {
         _source = source;
+        (source as IExpectsDownstreamTargets)?.RegisterExpectedTarget();
     }
 
     private void EnsureSource()

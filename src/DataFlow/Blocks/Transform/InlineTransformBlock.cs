@@ -42,6 +42,7 @@ public class InlineTransformBlock<TIn, TOut> : BlockBase, IPropagatorBlock<TIn, 
     public void SetSource(ISourceBlock<TIn> source)
     {
         _source = source;
+        (source as IExpectsDownstreamTargets)?.RegisterExpectedTarget();
     }
 
     private void EnsureSource()
