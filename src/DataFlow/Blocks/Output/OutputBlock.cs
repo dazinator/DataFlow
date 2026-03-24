@@ -26,6 +26,7 @@ public class OutputBlock<T> : BlockBase, ITargetBlock<T>
     public void SetSource(ISourceBlock<T> source)
     {
         _source = source;
+        (source as IExpectsDownstreamTargets)?.RegisterExpectedTarget();
     }
 
     private void EnsureSource()

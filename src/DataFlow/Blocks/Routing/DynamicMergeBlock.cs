@@ -53,6 +53,7 @@ public class DynamicMergeBlock<T> : BlockBase, ITargetBlock<T>, ISourceBlock<T>,
         // This method is called to register the source, but the actual connection
         // and data pumping is handled externally by StructuredRoutingBlock
         _logger.LogDebug("DynamicMergeBlock '{BlockName}': Source registered", Name);
+        (source as IExpectsDownstreamTargets)?.RegisterExpectedTarget();
     }
 
     /// <summary>

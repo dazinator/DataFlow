@@ -54,6 +54,7 @@ public class BufferBlock<T> : BlockBase, ITargetBlock<T>, ISourceBlock<T>
                 Name,
                 _sources.Count);
         }
+        (source as IExpectsDownstreamTargets)?.RegisterExpectedTarget();
     }
 
     /// <summary>

@@ -23,7 +23,7 @@ using Uniun.DataFlow.Builder.Graph;
 /// Per-target clone functions can be configured using ConfigureTarget() for fine-grained control.
 /// </summary>
 /// <typeparam name="T">The type of items to broadcast</typeparam>
-public class BroadcastBlock<T> : BlockBase, ITargetBlock<T>, ISourceBlock<T>, IDataFlowInitializable
+public class BroadcastBlock<T> : BlockBase, ITargetBlock<T>, ISourceBlock<T>, IDataFlowInitializable, IExpectsDownstreamTargets
 {
     private readonly ILogger<BroadcastBlock<T>> _logger;
     private readonly Func<T, T>? _defaultCloneFunc;
@@ -65,9 +65,24 @@ public class BroadcastBlock<T> : BlockBase, ITargetBlock<T>, ISourceBlock<T>, ID
         }
     }
 
+    /// <inheritdoc />
+    /// <remarks>
+    /// Call this when a downstream target block sets its source to this broadcast block.
+    /// This allows the broadcast block to know how many targets to wait for before processing,
+    /// even when <see cref="OnDataFlowInitialized"/> is not called (e.g., in tests or manual wiring).
+    /// </remarks>
+    public void RegisterExpectedTarget()
+    {
+        lock (_connectionLock)
+        {
+            _expectedTargetCount++;
+        }
+    }
+
     public void SetSource(ISourceBlock<T> source)
     {
         _source = source;
+        (source as IExpectsDownstreamTargets)?.RegisterExpectedTarget();
     }
 
     private void EnsureSource()
