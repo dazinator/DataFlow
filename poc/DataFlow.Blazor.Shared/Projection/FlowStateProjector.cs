@@ -38,6 +38,7 @@ public static class FlowStateProjector
                     blocks.TryGetValue(bd.BlockName, out var existing)
                         ? existing with
                         {
+                            DisplayName     = bd.DisplayName,
                             InputItemLabel  = bd.InputItemLabel,
                             OutputItemLabel = bd.OutputItemLabel,
                             IsSource        = bd.IsSource
@@ -46,6 +47,7 @@ public static class FlowStateProjector
                         {
                             BlockName       = bd.BlockName,
                             BlockType       = bd.BlockType,
+                            DisplayName     = bd.DisplayName,
                             InputItemLabel  = bd.InputItemLabel,
                             OutputItemLabel = bd.OutputItemLabel,
                             IsSource        = bd.IsSource
@@ -187,7 +189,8 @@ public static class FlowStateProjector
                 kv.Value.ErrorMessage,
                 kv.Value.IsSource,
                 kv.Value.InputItemLabel,
-                kv.Value.OutputItemLabel)),
+                kv.Value.OutputItemLabel,
+                kv.Value.DisplayName)),
         Channels: state.Channels.ToDictionary(
             kv => kv.Key,
             kv => new ChannelSnapshot(
@@ -234,6 +237,7 @@ public static class FlowStateProjector
                 {
                     BlockName       = kv.Value.BlockName,
                     BlockType       = kv.Value.BlockType,
+                    DisplayName     = kv.Value.DisplayName,
                     Status          = kv.Value.State,
                     ItemsConsumed   = kv.Value.ItemsConsumed,
                     ItemsProduced   = kv.Value.ItemsProduced,

@@ -93,9 +93,15 @@
             var nameY = hasStats ? -18 : -10;
             var typeY = hasStats ? -4  :  5;
 
+            @* Resolve display title: prefer configured DisplayName, fall back to block name *@
+            var displayTitle = blockState.DisplayName ?? blockName;
+            var titleLabel = displayTitle.Length > 18 ? displayTitle[..17] + "…" : displayTitle;
+
             <g class="block @statusClass" transform="translate(@x, @y)"
                style="cursor: pointer;"
                @onclick="() => SelectBlock(capturedName)">
+                @* Tooltip showing full name on hover *@
+                <svg:title>@displayTitle</svg:title>
                 @* Selection highlight ring *@
                 @if (isSelected)
                 {
@@ -107,7 +113,7 @@
                       fill="@fillColor" stroke="@borderColor" stroke-width="@strokeWidth" />
 
                 @* Block name *@
-                <svg:text x="0" y="@nameY" text-anchor="middle" font-weight="600" font-size="14" fill="#333">@blockName</svg:text>
+                <svg:text x="0" y="@nameY" text-anchor="middle" font-weight="600" font-size="14" fill="#333">@titleLabel</svg:text>
 
                 @* Block type *@
                 <svg:text x="0" y="@typeY" text-anchor="middle" font-size="11" fill="#666">@blockState.BlockType</svg:text>

@@ -50,6 +50,8 @@ public class BlockState
 {
     public string BlockName { get; set; } = string.Empty;
     public string BlockType { get; set; } = string.Empty;
+    /// <summary>Optional friendly display name configured via block metadata. Null when not set.</summary>
+    public string? DisplayName { get; set; }
     public Events.BlockState State { get; set; } = Events.BlockState.Idle;
     public bool IsSource { get; set; }
     /// <summary>Human-readable label for the block's input item type. Null for source blocks.</summary>

@@ -1,5 +1,6 @@
 namespace DataFlow.POC.DependencyInjection;
 
+using DataFlow.Blazor.BlockTypes;
 using DataFlow.POC.Core;
 using DataFlow.POC.Builder;
 using DataFlow.POC.Blocks;
@@ -16,6 +17,7 @@ public class DataFlowBuilder
 {
     private readonly IServiceCollection _services;
     private readonly IBlockTypeRegistry _registry;
+    private readonly DataFlowBlockMetadataStoreBuilder _blockMetadataBuilder = new();
     private const string DefaultNamespacePrefix = "global";
 
     internal DataFlowBuilder(IServiceCollection services, IBlockTypeRegistry registry, string? namespacePrefix = null)
@@ -31,6 +33,54 @@ public class DataFlowBuilder
     /// </summary>
     public string Namespace { get; }
 
+    /// <summary>
+    /// Fluent API for setting visualization metadata on a block at registration time.
+    /// Obtained from the callback parameter of <c>AddBlock</c>, <c>AddActorBlock</c>, etc.
+    /// </summary>
+    public interface IBlockMetadataBuilder
+    {
+        /// <summary>Sets the human-readable display name shown as the block title in the visualization.</summary>
+        IBlockMetadataBuilder DisplayName(string displayName);
+
+        /// <summary>
+        /// Overrides the block type label shown beneath the title in the visualization.
+        /// When not set, <see cref="DataFlowBlockTypeNameFormatter.Format"/> provides the default.
+        /// </summary>
+        IBlockMetadataBuilder TypeLabel(string typeLabel);
+    }
+
+    private sealed class BlockMetadataBuilderAdapter : IBlockMetadataBuilder
+    {
+        private readonly DataFlowBlockMetadataStoreBuilder.IBlockMetadataBuilder _inner;
+
+        internal BlockMetadataBuilderAdapter(DataFlowBlockMetadataStoreBuilder.IBlockMetadataBuilder inner)
+            => _inner = inner;
+
+        public IBlockMetadataBuilder DisplayName(string displayName)
+        {
+            _inner.DisplayName(displayName);
+            return this;
+        }
+
+        public IBlockMetadataBuilder TypeLabel(string typeLabel)
+        {
+            _inner.TypeLabel(typeLabel);
+            return this;
+        }
+    }
+
+    private void ApplyBlockMetadata(string fullKey, Action<IBlockMetadataBuilder>? configure)
+    {
+        if (configure is null) return;
+        var inner = _blockMetadataBuilder.ForBlock(fullKey);
+        configure(new BlockMetadataBuilderAdapter(inner));
+    }
+
+    internal void RegisterCollectedBlockMetadata(IServiceCollection services)
+    {
+        services.TryAddSingleton<IDataFlowBlockMetadataStore>(_blockMetadataBuilder.Build());
+    }
+
     #region Block Registration
 
     /// <summary>
@@ -41,10 +91,11 @@ public class DataFlowBuilder
     /// <param name="name">Unique name/key for this block</param>
     /// <param name="factory">Factory function to create the block</param>
     /// <returns>This builder for chaining</returns>
-    public DataFlowBuilder AddBlock<TBlock>(string name, Func<IServiceProvider, TBlock> factory)
+    public DataFlowBuilder AddBlock<TBlock>(string name, Func<IServiceProvider, TBlock> factory,
+        Action<IBlockMetadataBuilder>? configure = null)
         where TBlock : IBlock
     {
-        return AddScopedBlock(name, factory);
+        return AddScopedBlock(name, factory, configure);
     }
 
     /// <summary>
@@ -55,9 +106,10 @@ public class DataFlowBuilder
     /// <param name="name">Unique name/key for this block</param>
     /// <param name="block">The block instance factory</param>
     /// <returns>This builder for chaining</returns>
-    public DataFlowBuilder AddBlock(string name, IBlock block)
+    public DataFlowBuilder AddBlock(string name, IBlock block,
+        Action<IBlockMetadataBuilder>? configure = null)
     {
-        return AddScopedBlock(name, sp => block);
+        return AddScopedBlock(name, sp => block, configure);
     }
 
     /// <summary>
@@ -70,13 +122,15 @@ public class DataFlowBuilder
     /// If your block type doesn't implement the generic interface directly, use
     /// AddActorBlock or provide metadata explicitly via overload (if available).
     /// </summary>
-    public DataFlowBuilder AddScopedBlock<TBlock>(string name, Func<IServiceProvider, TBlock> factory)
+    public DataFlowBuilder AddScopedBlock<TBlock>(string name, Func<IServiceProvider, TBlock> factory,
+        Action<IBlockMetadataBuilder>? configure = null)
         where TBlock : IBlock
     {
         ValidateBlockName(name);
         ArgumentNullException.ThrowIfNull(factory);
-        
+
         var fullKey = ResolveKey(name);
+        ApplyBlockMetadata(fullKey, configure);
         CheckDuplicateRegistration(fullKey, "Block");
 
         // Try to extract type parameters from IBlock<TIn, TOut> interface for eager metadata registration
@@ -276,13 +330,15 @@ public class DataFlowBuilder
     /// <typeparam name="TActor">Actor type</typeparam>
     /// <param name="name">Unique name for this block</param>
     /// <returns>This builder for chaining</returns>
-    public DataFlowBuilder AddActorBlock<TIn, TOut, TActor>(string name)
+    public DataFlowBuilder AddActorBlock<TIn, TOut, TActor>(string name,
+        Action<IBlockMetadataBuilder>? configure = null)
         where TActor : IStreamActor<TIn, TOut>
     {
         ValidateBlockName(name);
-        
+
         var fullKey = ResolveKey(name);
         CheckDuplicateRegistration(fullKey, "Block");
+        ApplyBlockMetadata(fullKey, configure);
 
         // Register metadata with SEMANTIC types (what the actor actually processes)
         // NOT the infrastructure wrapper types (IEpochStream<>)
@@ -344,7 +400,8 @@ public class DataFlowBuilder
     /// Thrown at registration time when <paramref name="maxBatchSize"/> is &lt;= 0, or when
     /// <paramref name="windowPeriod"/> is provided but is not a positive duration.
     /// </exception>
-    public DataFlowBuilder AddBatch<T>(string name, int maxBatchSize, TimeSpan? windowPeriod = null)
+    public DataFlowBuilder AddBatch<T>(string name, int maxBatchSize, TimeSpan? windowPeriod = null,
+        Action<IBlockMetadataBuilder>? configure = null)
     {
         ValidateBlockName(name);
 
@@ -360,6 +417,7 @@ public class DataFlowBuilder
 
         var fullKey = ResolveKey(name);
         CheckDuplicateRegistration(fullKey, "Block");
+        ApplyBlockMetadata(fullKey, configure);
 
         // Register metadata with SEMANTIC types (input: T, output: T[])
         // NOT the infrastructure wrapper types (IEpochStream<>)
@@ -421,13 +479,15 @@ public class DataFlowBuilder
     /// </param>
     /// <returns>This builder for chaining.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="rateLimiter"/> is <see langword="null"/>.</exception>
-    public DataFlowBuilder AddRateLimit<T>(string name, System.Threading.RateLimiting.RateLimiter rateLimiter)
+    public DataFlowBuilder AddRateLimit<T>(string name, System.Threading.RateLimiting.RateLimiter rateLimiter,
+        Action<IBlockMetadataBuilder>? configure = null)
     {
         ValidateBlockName(name);
         ArgumentNullException.ThrowIfNull(rateLimiter);
 
         var fullKey = ResolveKey(name);
         CheckDuplicateRegistration(fullKey, "Block");
+        ApplyBlockMetadata(fullKey, configure);
 
         // Register metadata with SEMANTIC types (input: T, output: T)
         var metadata = new BlockTypeMetadata(typeof(T), typeof(T));
@@ -487,7 +547,8 @@ public class DataFlowBuilder
         string name,
         int permitLimit,
         TimeSpan window,
-        int queueLimit = int.MaxValue)
+        int queueLimit = int.MaxValue,
+        Action<IBlockMetadataBuilder>? configure = null)
     {
         ValidateBlockName(name);
 
@@ -508,6 +569,7 @@ public class DataFlowBuilder
 
         var fullKey = ResolveKey(name);
         CheckDuplicateRegistration(fullKey, "Block");
+        ApplyBlockMetadata(fullKey, configure);
 
         // Register metadata with SEMANTIC types (input: T, output: T)
         var metadata = new BlockTypeMetadata(typeof(T), typeof(T));
@@ -569,7 +631,8 @@ public class DataFlowBuilder
         int permitLimit,
         TimeSpan window,
         int segmentsPerWindow = 1,
-        int queueLimit = int.MaxValue)
+        int queueLimit = int.MaxValue,
+        Action<IBlockMetadataBuilder>? configure = null)
     {
         ValidateBlockName(name);
 
@@ -595,6 +658,7 @@ public class DataFlowBuilder
 
         var fullKey = ResolveKey(name);
         CheckDuplicateRegistration(fullKey, "Block");
+        ApplyBlockMetadata(fullKey, configure);
 
         // Register metadata with SEMANTIC types (input: T, output: T)
         var metadata = new BlockTypeMetadata(typeof(T), typeof(T));
@@ -636,13 +700,15 @@ public class DataFlowBuilder
     /// <typeparam name="TActor">Source actor type implementing ISourceActor&lt;T&gt;</typeparam>
     /// <param name="name">Unique name for this source block</param>
     /// <returns>This builder for chaining</returns>
-    public DataFlowBuilder AddSourceBlock<T, TActor>(string name)
+    public DataFlowBuilder AddSourceBlock<T, TActor>(string name,
+        Action<IBlockMetadataBuilder>? configure = null)
         where TActor : ISourceActor<T>
     {
         ValidateBlockName(name);
-        
+
         var fullKey = ResolveKey(name);
         CheckDuplicateRegistration(fullKey, "Block");
+        ApplyBlockMetadata(fullKey, configure);
 
         // Register metadata with SEMANTIC types (what the source produces)
         // Input type is 'object' since sources don't take input
@@ -841,6 +907,7 @@ public static class ServiceCollectionExtensions
 
         var builder = new DataFlowBuilder(services, registry, namespacePrefix);
         configure(builder);
+        builder.RegisterCollectedBlockMetadata(services);
 
         return services;
     }

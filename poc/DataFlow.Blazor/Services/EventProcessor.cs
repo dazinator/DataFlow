@@ -40,6 +40,7 @@ public class EventProcessor
             {
                 BlockName = blockSnapshot.BlockName,
                 BlockType = blockSnapshot.BlockType,
+                DisplayName = blockSnapshot.DisplayName,
                 State = blockSnapshot.State,
                 IsSource = blockSnapshot.IsSource,
                 InputItemLabel = blockSnapshot.InputItemLabel,
@@ -165,6 +166,7 @@ public class EventProcessor
                 blockState = new Models.BlockState { BlockName = bd.BlockName, BlockType = bd.BlockType };
                 _state.Blocks[bd.BlockName] = blockState;
             }
+            blockState.DisplayName     = bd.DisplayName;
             blockState.InputItemLabel  = bd.InputItemLabel;
             blockState.OutputItemLabel = bd.OutputItemLabel;
             blockState.IsSource        = bd.IsSource;
