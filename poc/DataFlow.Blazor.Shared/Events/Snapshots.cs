@@ -49,7 +49,12 @@ public record ChannelSnapshot(
     int CurrentCount,
     DateTime LastUpdate,
     int MaxCount = 0,
-    int MinCount = int.MaxValue
+    int MinCount = int.MaxValue,
+    /// <summary>
+    /// True when the edge uses competing-consumer semantics. Defaults to false for
+    /// snapshots taken before this field was introduced.
+    /// </summary>
+    bool IsCompeting = false
 );
 
 public record EdgeSnapshot(

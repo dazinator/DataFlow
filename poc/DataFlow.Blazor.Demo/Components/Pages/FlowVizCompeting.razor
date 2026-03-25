@@ -1,0 +1,63 @@
+@page "/flow-viz-competing"
+@using DataFlow.Blazor.Components
+@using System.Net.Http.Json
+@inject HttpClient Http
+
+<PageTitle>Competing Consumers Demo</PageTitle>
+
+<h1>DataFlow Visualization - Competing Consumers</h1>
+
+<p>This demo shows <strong>three workers competing</strong> for items from a single shared channel.</p>
+<p><strong>Topology:</strong> Producer → [Worker-1, Worker-2, Worker-3] (competing — each item consumed by exactly one worker)</p>
+<p>Competing edges are shown as <strong style="color:#8B5CF6;">dashed purple arrows</strong> with a <em>"competing"</em> badge.</p>
+
+<div style="margin: 1rem 0;">
+    <button class="btn btn-primary" @onclick="StartNewFlow" disabled="@_isRunning">
+        Start New Flow
+    </button>
+    @if (_errorMessage is not null)
+    {
+        <span style="color: red; margin-left: 1rem;">@_errorMessage</span>
+    }
+</div>
+
+@if (_currentInvocationId != null)
+{
+    <FlowVisualization InvocationId="_currentInvocationId.Value" />
+}
+
+@code {
+    private Guid? _currentInvocationId;
+    private bool _isRunning;
+    private string? _errorMessage;
+
+    private async Task StartNewFlow()
+    {
+        _isRunning = true;
+        _errorMessage = null;
+        _currentInvocationId = null;
+        StateHasChanged();
+
+        try
+        {
+            var result = await Http.PostAsJsonAsync("/flows/run/competing", (object?)null);
+            if (result.IsSuccessStatusCode)
+            {
+                var body = await result.Content.ReadFromJsonAsync<RunResult>();
+                _currentInvocationId = body?.InvocationId;
+            }
+            else
+            {
+                _errorMessage = $"Server error: {result.StatusCode}";
+                _isRunning = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+            _isRunning = false;
+        }
+    }
+
+    private record RunResult(Guid InvocationId);
+}

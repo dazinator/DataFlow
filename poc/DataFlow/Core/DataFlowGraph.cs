@@ -289,11 +289,13 @@ public class DataFlowGraph
                             IsSink:          isSink);
                     }).ToList();
 
-                    var edgeDefs = _edges.Select(e => new EdgeDefinition(
-                        SourceBlock:    e.SourceBlock.Name,
-                        TargetBlock:    e.TargetBlock.Name,
-                        BufferCapacity: e.BufferMode == BufferMode.Bounded ? e.BufferCapacity : null
-                    )).ToList();
+                    var edgeDefs = _edges
+                        .SelectMany(e => e.TargetBlocks.Select(t => new EdgeDefinition(
+                            SourceBlock:    e.SourceBlock.Name,
+                            TargetBlock:    t.Name,
+                            BufferCapacity: e.BufferMode == BufferMode.Bounded ? e.BufferCapacity : null,
+                            EdgeType:       e.Strategy.EdgeType.ToString()
+                        ))).ToList();
 
                     await eventSink.AppendAsync(context.InvocationId,
                         new FlowGraphDefinedEvent(blockDefs, edgeDefs, DateTime.UtcNow));

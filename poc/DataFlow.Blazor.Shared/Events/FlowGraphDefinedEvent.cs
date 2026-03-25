@@ -40,5 +40,13 @@ public record EdgeDefinition(
     string SourceBlock,
     string TargetBlock,
     /// <summary>Configured buffer capacity. Null for unbounded (pass-through) edges.</summary>
-    int?   BufferCapacity
+    int?   BufferCapacity,
+    /// <summary>
+    /// Delivery semantics for this edge: "Broadcast" (every target receives every item),
+    /// "Competing" (targets share a single channel — each item consumed by exactly one),
+    /// or "Routed" (items directed to specific targets by a routing key).
+    /// Defaults to "Broadcast" to preserve compatibility with older serialized
+    /// FlowGraphDefinedEvent payloads and clients that predate this field.
+    /// </summary>
+    string EdgeType = "Broadcast"
 );

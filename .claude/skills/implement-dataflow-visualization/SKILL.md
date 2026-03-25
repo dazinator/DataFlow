@@ -642,7 +642,8 @@ Read through each item and verify it is done, or note why it doesn't apply:
 | CS1061 `AddDataFlowVisualizationClient` not found | Missing `using DataFlow.Blazor.Extensions;` in the Blazor client `Program.cs` |
 | CS1061 `AddDataFlowVisualizationEntities` not found | Missing `using DataFlow.Blazor.Server.Persistence;` in the DbContext file |
 | CS0311 `IEndpointRouteBuilder` cannot be used as `TBuilder` for `RequireAuthorization` | `MapDataFlowEndpoints()` returns `IEndpointRouteBuilder`, not `IEndpointConventionBuilder` — you cannot chain `.RequireAuthorization()` on it. Use `MapDataFlowHttpEndpoints` + `app.MapHub<...>(path).RequireAuthorization()` instead |
-| Component renders but has no styling | Missing `<link>` tags in host HTML |
+| Component renders but has no styling | Missing `<link>` tags in host HTML — ensure **both** links are present (`.bundle.scp.css` **and** `dataflow-blazor.css`) |
+| Detail pane appears below the diagram instead of beside it | The `.bundle.scp.css` link is missing or uses the wrong filename (e.g. `.styles.css`). Without this file the `diagram-area` flex row layout is not applied and the pane stacks below the SVG. Verify the link is present and reload. |
 | Colours are default but theming overrides not working | App stylesheet loaded **before** library stylesheet — swap order |
 | SignalR connection refused | Hub path mismatch: the path passed to `MapDataFlowEndpoints` (or `MapHub` if registering manually) must exactly match `hubPath` in `AddDataFlowVisualizationClient` |
 | App uses Azure SignalR Service | No special steps needed. Use `MapDataFlowHttpEndpoints` and map the hub yourself so you can apply your existing Azure SignalR options. `FlowEventsHub` is transport-agnostic — Azure SignalR intercepts the transport layer transparently. The library's internal `AddSignalR()` call is idempotent and will not override your Azure SignalR setup. |
@@ -653,6 +654,7 @@ Read through each item and verify it is done, or note why it doesn't apply:
 | Flow stuck showing RUNNING after completion | `FlowCompletedEvent` not emitted — ensure it is always sent, even on exception paths |
 | Buffer health pills absent | `ChannelStatsEvent` not being emitted — check edge event wiring |
 | Block stat counts not showing | `BlockMetricsEvent` not emitted, or `ItemsConsumed`/`ItemsProduced` both zero |
+| Competing-consumer edges look the same as broadcast | Running an older version of the library that pre-dates `EdgeType` in `FlowGraphDefinedEvent`. Upgrade both `Uniun.DataFlow` and `Uniun.DataFlow.Blazor` packages to the same version. |
 
 ---
 

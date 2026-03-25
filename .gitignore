@@ -342,3 +342,8 @@ site
 
 # verify
 *.received.*graph-visualization.md
+
+# SQLite runtime databases (created by demo server on first run)
+dataflow-viz.db
+dataflow-viz.db-shm
+dataflow-viz.db-wal

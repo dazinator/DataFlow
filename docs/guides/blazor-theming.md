@@ -18,7 +18,8 @@ overrides.
 <!-- index.html (WASM) or App.razor (Server) -->
 
 <!-- 1. Scoped component styles — always required -->
-<link rel="stylesheet" href="_content/Uniun.DataFlow.Blazor/Uniun.DataFlow.Blazor.styles.css" />
+<!-- NOTE: The filename ends in .bundle.scp.css, not .styles.css -->
+<link rel="stylesheet" href="_content/Uniun.DataFlow.Blazor/Uniun.DataFlow.Blazor.bundle.scp.css" />
 
 <!-- 2. Default theme variables — required; override below this line -->
 <link rel="stylesheet" href="_content/Uniun.DataFlow.Blazor/dataflow-blazor.css" />
@@ -168,7 +169,7 @@ borders throughout all components.
 
 Component **layout and structure** (flex direction, padding values, animation
 timing, font sizes) is controlled by scoped CSS that is compiled into
-`Uniun.DataFlow.Blazor.styles.css`. These rules are intentionally isolated and
+`Uniun.DataFlow.Blazor.bundle.scp.css`. These rules are intentionally isolated and
 cannot be overridden by normal selectors from a consuming app. If you need
 structural changes, raise an issue or contribute to the library.
 

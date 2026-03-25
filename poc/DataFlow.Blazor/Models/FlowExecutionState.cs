@@ -123,6 +123,13 @@ public class ChannelState
     public DateTime LastUpdate { get; set; }
 
     /// <summary>
+    /// True when this edge uses competing-consumer semantics: all target blocks
+    /// that share this edge compete for items from a single shared channel, so each
+    /// item is consumed by exactly one target (not broadcast to all).
+    /// </summary>
+    public bool IsCompeting { get; set; }
+
+    /// <summary>
     /// Gets the buffer utilization as a percentage (0–100).
     /// Returns 0 for unbounded channels (Capacity == 0).
     /// </summary>

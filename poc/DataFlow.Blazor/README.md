@@ -61,7 +61,7 @@ WASM, `Components/App.razor` for Blazor Server) inside `<head>`:
 ```html
 <!-- 1. Scoped component styles — always required -->
 <link rel="stylesheet"
-      href="_content/Uniun.DataFlow.Blazor/Uniun.DataFlow.Blazor.styles.css" />
+      href="_content/Uniun.DataFlow.Blazor/Uniun.DataFlow.Blazor.bundle.scp.css" />
 
 <!-- 2. Default theme variables — required for colours, fonts, and radii -->
 <link rel="stylesheet"
@@ -69,6 +69,45 @@ WASM, `Components/App.razor` for Blazor Server) inside `<head>`:
 ```
 
 No external CSS frameworks (Bootstrap, Tailwind, etc.) are needed.
+
+> **Note:** The scoped-CSS bundle filename ends in `.bundle.scp.css` (the
+> Blazor build toolchain name for Razor Class Library scoped styles).  Using
+> `.styles.css` instead will silently load nothing and leave the components
+> completely unstyled.
+
+### Layout requirements
+
+`FlowVisualization` uses `height: 100vh` to fill the viewport and lays out its
+diagram area as a horizontal flex row (`SVG | detail pane`).  For this layout
+to work correctly the component must **not** be placed inside a container that
+restricts its height or applies `overflow: hidden` before the component itself
+can do so.
+
+If you embed the component inside a Bootstrap page layout (sidebar + main
+content area), add the following to your application stylesheet so the hosting
+page does not clip the visualization:
+
+```css
+/* Ensure the page that hosts FlowVisualization fills the viewport height
+   and lets the component control its own overflow. */
+.flow-visualization-page {
+    height: 100vh;
+    overflow: hidden;
+    padding: 0;
+}
+```
+
+Then remove the default Bootstrap padding from the `<article>` / `<main>`
+wrapper that Blazor templates add around `@Body`, or wrap the page in a
+container that applies the class above:
+
+```razor
+@* In your Blazor page *@
+<div class="flow-visualization-page">
+    <FlowVisualization InvocationId="@InvocationId" />
+</div>
+```
+
 
 ### Theming
 
