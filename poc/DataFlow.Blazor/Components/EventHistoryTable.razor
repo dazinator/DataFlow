@@ -89,6 +89,18 @@ else if (ShowEmpty)
     /// </summary>
     [Parameter] public bool ShowEmpty { get; set; }
 
+    /// <summary>
+    /// Optional resolver that maps a technical block name to a friendly display name.
+    /// When provided and <see cref="FlowScope"/> is <c>true</c>, event labels use the
+    /// resolved name instead of the raw block key (e.g. "ERP Poster 1 started" instead
+    /// of "journal-v2:erp-poster-1 started").  The technical name is still available via
+    /// the underlying event for any code that needs it.
+    ///
+    /// Typically supplied from the surrounding <c>DetailPane</c> using
+    /// <c>State.Blocks[name].DisplayName ?? name</c>.
+    /// </summary>
+    [Parameter] public Func<string, string>? BlockNameResolver { get; set; }
+
     private static string GetTime(IDataFlowEvent evt) => evt switch
     {
         FlowStartedEvent e   => e.Timestamp.ToLocalTime().ToString("HH:mm:ss.fff"),
@@ -102,10 +114,13 @@ else if (ShowEmpty)
     {
         FlowStartedEvent   => "Flow started",
         FlowCompletedEvent => "Flow completed",
-        BlockStartedEvent e  => FlowScope ? $"{e.BlockName} started"   : "Started",
-        BlockCompletedEvent e => FlowScope ? $"{e.BlockName} completed" : "Completed",
+        BlockStartedEvent e  => FlowScope ? $"{ResolveBlockName(e.BlockName)} started"   : "Started",
+        BlockCompletedEvent e => FlowScope ? $"{ResolveBlockName(e.BlockName)} completed" : "Completed",
         _ => evt.GetType().Name
     };
+
+    /// <summary>Returns the friendly display name for a block, or the raw name if no resolver is set.</summary>
+    private string ResolveBlockName(string blockName) => BlockNameResolver?.Invoke(blockName) ?? blockName;
 
     private string GetDetail(IDataFlowEvent evt) => evt switch
     {

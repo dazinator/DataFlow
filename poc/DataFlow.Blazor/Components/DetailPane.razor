@@ -32,7 +32,8 @@
                 @* Flow-level event history — all structural events, no title (pane header already says "Event History") *@
                 <EventHistoryTable Events="FlowLevelEvents()"
                                    FlowScope="true"
-                                   ShowEmpty="true" />
+                                   ShowEmpty="true"
+                                   BlockNameResolver="ResolveBlockDisplayName" />
             }
             else if (Selection is ItemsSelected)
             {
@@ -57,9 +58,15 @@
         BuffersSelected      => "Buffers",
         EventHistorySelected => "Event History",
         ItemsSelected        => "Items",
-        BlockSelected bs     => bs.BlockName,
+        BlockSelected bs     => ResolveBlockDisplayName(bs.BlockName),
         _                    => ""
     };
+
+    /// <summary>Returns the friendly display name for a block, falling back to the technical key.</summary>
+    private string ResolveBlockDisplayName(string blockName) =>
+        State?.Blocks.TryGetValue(blockName, out var b) == true && b.DisplayName is not null
+            ? b.DisplayName
+            : blockName;
 
     private Task Close() => OnClose.InvokeAsync();
 
@@ -96,7 +103,11 @@
         builder.AddAttribute(5, "class", "detail-table");
         builder.OpenElement(6, "tbody");
 
-        AddRow(builder, 10, "Name",   block.BlockName,  null);
+        // Show the friendly display name first when configured; always show the
+        // technical block name so it is never hidden from the user.
+        if (block.DisplayName is not null)
+            AddRow(builder, 8, "Display Name", block.DisplayName, null);
+        AddRow(builder, 10, "Name",   block.BlockName,  "dt-mono");
         AddRow(builder, 20, "Type",   block.BlockType,  "dt-mono");
         AddRow(builder, 30, "Status", null, null, inner =>
         {
@@ -161,7 +172,7 @@
                 {
                     builder.OpenElement(ts++, "td");
                     builder.AddAttribute(ts++, "class", "dt-mono dt-value");
-                    builder.AddContent(ts++, $"→{edgeKey.Target}");
+                    builder.AddContent(ts++, $"→{ResolveBlockDisplayName(edgeKey.Target)}");
                     builder.CloseElement();
                 }
                 foreach (var val in new[]
