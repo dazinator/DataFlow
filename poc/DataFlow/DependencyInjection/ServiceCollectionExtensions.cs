@@ -21,6 +21,9 @@ public class DataFlowBuilder
     private readonly DataFlowBlockMetadataStoreBuilder _blockMetadataBuilder = new();
     private const string DefaultNamespacePrefix = "global";
     private string? _flowDisplayName;
+    // Track the fully-qualified DI keys of graphs registered in this builder so that
+    // the flow display name can be contributed per-graph (matching FlowSnapshot.FlowName).
+    private readonly HashSet<string> _registeredGraphFullKeys = new();
 
     internal DataFlowBuilder(IServiceCollection services, IBlockTypeRegistry registry, string? namespacePrefix = null)
     {
@@ -107,7 +110,22 @@ public class DataFlowBuilder
         DataFlowBlockMetadataContribution.Register(services, _blockMetadataBuilder.GetEntries());
 
         if (_flowDisplayName is not null)
-            DataFlowFlowMetadataContribution.Register(services, Namespace, _flowDisplayName);
+        {
+            if (_registeredGraphFullKeys.Count > 0)
+            {
+                // Register the display name under each graph's fully-qualified key so that
+                // IDataFlowFlowMetadataStore lookups by FlowSnapshot.FlowName resolve correctly.
+                // (DataFlowGraph.Name = "{namespace}:{graph}" = the DI key = the FlowName in events.)
+                foreach (var graphKey in _registeredGraphFullKeys)
+                    DataFlowFlowMetadataContribution.Register(services, graphKey, _flowDisplayName);
+            }
+            else
+            {
+                // No graphs registered yet (e.g. metadata-only or unit-test scenario) — fall
+                // back to the namespace prefix so the contribution is not silently dropped.
+                DataFlowFlowMetadataContribution.Register(services, Namespace, _flowDisplayName);
+            }
+        }
     }
 
     #region Block Registration
@@ -287,6 +305,7 @@ public class DataFlowBuilder
         
         var fullKey = ResolveKey(name);
         CheckDuplicateRegistration(fullKey, "Graph");
+        _registeredGraphFullKeys.Add(fullKey);
 
         // Capture the namespace to pass to graph builder
         var currentNamespace = Namespace;
@@ -319,6 +338,7 @@ public class DataFlowBuilder
 
         var fullKey = ResolveKey(name);
         CheckDuplicateRegistration(fullKey, "Graph");
+        _registeredGraphFullKeys.Add(fullKey);
 
         // Capture the namespace to pass to graph builder
         var currentNamespace = Namespace;

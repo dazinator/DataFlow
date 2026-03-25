@@ -1,5 +1,5 @@
-flowchart LR
-    %% DataFlow: BroadcastFlow
+﻿flowchart LR
+    %% DataFlow: global:BroadcastFlow
 
     source(["source<br/><small>→ int</small>"])
     target1["target1<br/><small>int →</small>"]

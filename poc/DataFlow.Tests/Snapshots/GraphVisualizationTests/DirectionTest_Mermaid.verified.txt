@@ -1,7 +1,7 @@
-{
+﻿{
   LR:
 flowchart LR
-    %% DataFlow: SimpleFlow
+    %% DataFlow: global:SimpleFlow
 
     source(["source<br/><small>→ int</small>"])
     transform[/"transform<br/><small>int → string</small>"/]
@@ -12,7 +12,7 @@ flowchart LR
 ,
   TB:
 flowchart TB
-    %% DataFlow: SimpleFlow
+    %% DataFlow: global:SimpleFlow
 
     source(["source<br/><small>→ int</small>"])
     transform[/"transform<br/><small>int → string</small>"/]
@@ -23,7 +23,7 @@ flowchart TB
 ,
   RL:
 flowchart RL
-    %% DataFlow: SimpleFlow
+    %% DataFlow: global:SimpleFlow
 
     source(["source<br/><small>→ int</small>"])
     transform[/"transform<br/><small>int → string</small>"/]
@@ -34,7 +34,7 @@ flowchart RL
 ,
   BT:
 flowchart BT
-    %% DataFlow: SimpleFlow
+    %% DataFlow: global:SimpleFlow
 
     source(["source<br/><small>→ int</small>"])
     transform[/"transform<br/><small>int → string</small>"/]

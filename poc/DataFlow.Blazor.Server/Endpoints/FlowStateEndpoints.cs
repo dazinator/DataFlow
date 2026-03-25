@@ -77,8 +77,8 @@ internal static class FlowStateEndpoints
                 .ToArray();
 
             // Resolve the flow-level display name from the snapshot's flow name.
-            // The snapshot carries the technical flow key (e.g. "journal-v2"); the
-            // metadata store maps it to the friendly name (e.g. "Journal Processing Flow").
+            // After the graph naming fix, FlowSnapshot.FlowName = "{namespace}:{graph}" (e.g.
+            // "journal-v2:main"), which matches the key used in IDataFlowFlowMetadataStore.
             string? flowDisplayName = null;
             if (snapshot is not null && flowMetadata is not null)
             {

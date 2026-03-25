@@ -164,6 +164,7 @@ public class DataFlowMetadataApiTests
     [Fact]
     public void AddDataFlows_WithDisplayName_RegistersFlowDisplayName()
     {
+        // No AddGraph call — fallback to namespace key
         var services = new ServiceCollection();
 
         services.AddDataFlows("journal-v2", df =>
@@ -176,8 +177,50 @@ public class DataFlowMetadataApiTests
     }
 
     [Fact]
+    public void AddDataFlows_WithDisplayNameAndGraph_RegistersUnderGraphQualifiedKey()
+    {
+        // When a graph is registered alongside DisplayName, the metadata key is
+        // "{namespace}:{graph}" — matching FlowSnapshot.FlowName (DataFlowGraph.Name).
+        var services = new ServiceCollection();
+
+        services.AddDataFlows("journal-v2", df =>
+        {
+            df.DisplayName("Journal Processing Flow");
+            df.AddGraph("main", g => { });
+        });
+
+        var store = GetFlowStore(services);
+        // Stored under the graph-qualified key so server-side lookup by FlowSnapshot.FlowName works.
+        Assert.Equal("Journal Processing Flow", store.GetDisplayName("journal-v2:main"));
+        // Not under the bare namespace key when graphs are present.
+        Assert.Null(store.GetDisplayName("journal-v2"));
+    }
+
+    [Fact]
+    public void AddDataFlows_WithDisplayNameAndMultipleGraphs_RegistersUnderEachGraphKey()
+    {
+        // When multiple graphs share a namespace, the display name is registered
+        // under each graph's fully-qualified key.
+        var services = new ServiceCollection();
+
+        services.AddDataFlows("journal-v2", df =>
+        {
+            df.DisplayName("Journal Processing Flow");
+            df.AddGraph("main", g => { });
+            df.AddGraph("retry", g => { });
+        });
+
+        var store = GetFlowStore(services);
+        Assert.Equal("Journal Processing Flow", store.GetDisplayName("journal-v2:main"));
+        Assert.Equal("Journal Processing Flow", store.GetDisplayName("journal-v2:retry"));
+        // Not under the bare namespace key.
+        Assert.Null(store.GetDisplayName("journal-v2"));
+    }
+
+    [Fact]
     public void AddDataFlows_MultipleModulesWithDisplayNames_EachRegistersIndependently()
     {
+        // No AddGraph — namespace fallback
         var services = new ServiceCollection();
 
         services.AddDataFlows("module-a", df =>

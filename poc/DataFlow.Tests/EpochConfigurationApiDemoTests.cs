@@ -46,7 +46,7 @@ public class EpochConfigurationApiDemoTests
         
         // Assert
         graph.ShouldNotBeNull();
-        graph.Name.ShouldBe("demo");
+        graph.Name.ShouldBe("global:demo");
     }
     
     [Fact]
