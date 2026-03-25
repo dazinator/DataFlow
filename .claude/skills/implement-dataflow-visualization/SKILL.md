@@ -502,6 +502,74 @@ shows attempt badges.
 
 ---
 
+## Step 9b — Optional: configure block display names and type labels
+
+By default the diagram shows:
+- **Block title** — the block's registered name (e.g. `journal-v2:erp-poster-1`)
+- **Block type** — a friendly default for native epoch block types (`EpochActorBlock`3`` → "Actor", `EpochBufferBlock`1`` → "Buffer", etc.). Unknown types fall back to `Type.Name` unchanged.
+
+If the registered name is long or technical, or if a non-native block type needs a friendlier label, configure block metadata at registration time using the callback on `AddActorBlock` / `AddBlock` / `AddBatch` / `AddSourceBlock`:
+
+```csharp
+services.AddDataFlows("journal-v2", builder =>
+{
+    // DisplayName overrides the title shown in the diagram for this block instance.
+    // TypeLabel overrides the type label beneath the title (optional — native types
+    // already have sensible defaults).
+    builder.AddActorBlock<Invoice, PostedInvoice, ErpPosterActor>("erp-poster-1", meta =>
+    {
+        meta.DisplayName("ERP Poster");
+    });
+
+    builder.AddActorBlock<Invoice, PostedInvoice, CustomRouter>("custom-router", meta =>
+    {
+        meta.DisplayName("Custom Router")
+            .TypeLabel("Router");   // override for non-native block type
+    });
+});
+```
+
+If the blocks are registered outside `AddDataFlows` (e.g. in a separate module), use the standalone extension instead:
+
+```csharp
+services.AddDataFlowBlockMetadata(blocks =>
+{
+    blocks.ForBlock("journal-v2:erp-poster-1").DisplayName("ERP Poster");
+    blocks.ForBlock("journal-v2:custom-router")
+          .DisplayName("Custom Router")
+          .TypeLabel("Router");
+});
+```
+
+> **Note:** Block names in the standalone API must use the fully-qualified form
+> (`namespace:name`, e.g. `"journal-v2:erp-poster-1"`), matching the key that
+> `AddDataFlows` produces. Within the `AddDataFlows` callback the short name
+> (`"erp-poster-1"`) is sufficient — the namespace prefix is applied automatically.
+
+Both approaches register an `IDataFlowBlockMetadataStore` singleton. If both are called, the one registered first wins (the second is a no-op via `TryAddSingleton`).
+
+### What the diagram does with this information
+
+- **DisplayName** replaces the block title. If not set, the registered name is used,
+  truncated to 18 characters with an ellipsis if needed. The full name is always
+  visible on hover via an SVG tooltip.
+- **TypeLabel** replaces the type label beneath the title. If not set,
+  `DataFlowBlockTypeNameFormatter` provides the default for native types;
+  unrecognised types fall back to `Type.Name`.
+
+### Default type labels for native block types
+
+| Block class | Default label |
+|---|---|
+| `EpochActorBlock<TIn, TOut, TActor>` | Actor |
+| `EpochBufferBlock<T>` | Buffer |
+| `EpochBatchBlock<T>` | Batch |
+| `EpochSourceBlock<T, TActor>` | Source |
+
+Any other type gets `Type.Name` (the raw CLR name) unless a `TypeLabel` override is configured.
+
+---
+
 ## Step 10 — Optional: custom block detail components
 
 The detail pane that appears when a user clicks a block on the diagram can be
@@ -561,6 +629,7 @@ Read through each item and verify it is done, or note why it doesn't apply:
 - [ ] `@using` directives in `_Imports.razor`
 - [ ] `<FlowVisualization InvocationId="…" />` on a routable page
 - [ ] `IFlowEventSink` / `BoundFlowEventEmitter` wired into the pipeline execution code
+- [ ] Block display names / type labels configured where block registered names are long or non-native block types need friendly labels (Step 9b — optional)
 - [ ] Solution builds (`dotnet build`)
 - [ ] Navigate to the monitor page in a browser and verify the visualization loads
 
