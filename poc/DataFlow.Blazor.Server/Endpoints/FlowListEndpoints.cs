@@ -6,6 +6,7 @@ using DataFlow.Blazor.Events;
 using DataFlow.Blazor.Server.Persistence;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 
@@ -26,7 +27,7 @@ internal static class FlowListEndpoints
         /// one event appear (FlowStartedEvent triggers a snapshot immediately).
         /// </summary>
         app.MapGet("/flows", async (
-            TContext db,
+            [FromServices] TContext db,
             int page = 1,
             int pageSize = 50,
             CancellationToken cancellationToken = default) =>
