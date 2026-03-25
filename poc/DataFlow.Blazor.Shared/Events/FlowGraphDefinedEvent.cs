@@ -23,6 +23,8 @@ public record FlowGraphDefinedEvent(
 public record BlockDefinition(
     string  BlockName,
     string  BlockType,
+    /// <summary>Optional friendly display name configured via block metadata. Null when not set.</summary>
+    string? DisplayName,
     /// <summary>Human-readable label for the block's input item type. Null for source blocks.</summary>
     string? InputItemLabel,
     /// <summary>Human-readable label for the block's output item type. Null for sink blocks.</summary>

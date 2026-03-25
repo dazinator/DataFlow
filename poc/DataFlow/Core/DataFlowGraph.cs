@@ -2,6 +2,7 @@ namespace DataFlow.POC.Core;
 
 using System.Diagnostics;
 using System.Threading.Channels;
+using DataFlow.Blazor.BlockTypes;
 using DataFlow.Blazor.Events;
 using DataFlow.Blazor.ItemTypes;
 using DataFlow.POC.Observability;
@@ -269,15 +270,19 @@ public class DataFlowGraph
                 // labels before any block starts. Clients use this to render the Items table.
                 if (eventSink is not null)
                 {
-                    var itemTypeStore = flowScope?.ServiceProvider.GetService<IDataFlowItemTypeStore>();
+                    var itemTypeStore  = flowScope?.ServiceProvider.GetService<IDataFlowItemTypeStore>();
+                    var blockMetaStore = flowScope?.ServiceProvider.GetService<IDataFlowBlockMetadataStore>();
 
                     var blockDefs = _blocks.Select(b =>
                     {
                         var isSource = !_incomingEdges.ContainsKey(b) || _incomingEdges[b].Count == 0;
                         var isSink   = !_outgoingEdges.ContainsKey(b) || _outgoingEdges[b].Count == 0;
+                        var blockType = blockMetaStore?.GetTypeLabel(b.Name)
+                                        ?? DataFlowBlockTypeNameFormatter.Format(b.GetType());
                         return new BlockDefinition(
                             BlockName:       b.Name,
-                            BlockType:       b.GetType().Name,
+                            BlockType:       blockType,
+                            DisplayName:     blockMetaStore?.GetDisplayName(b.Name),
                             InputItemLabel:  isSource ? null : ResolveItemLabel(itemTypeStore, b.InputType),
                             OutputItemLabel: isSink   ? null : ResolveItemLabel(itemTypeStore, b.OutputType),
                             IsSource:        isSource,

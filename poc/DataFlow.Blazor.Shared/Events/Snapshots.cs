@@ -37,7 +37,9 @@ public record BlockSnapshot(
     /// <summary>Human-readable label for the block's input item type. Populated from FlowGraphDefinedEvent.</summary>
     string? InputItemLabel = null,
     /// <summary>Human-readable label for the block's output item type. Populated from FlowGraphDefinedEvent.</summary>
-    string? OutputItemLabel = null
+    string? OutputItemLabel = null,
+    /// <summary>Optional friendly display name configured via block metadata.</summary>
+    string? DisplayName = null
 );
 
 public record ChannelSnapshot(

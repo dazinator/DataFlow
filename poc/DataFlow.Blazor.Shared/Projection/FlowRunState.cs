@@ -51,6 +51,8 @@ public record BlockRunState
     public string? InputItemLabel { get; init; }
     /// <summary>Human-readable label for the block's output item type. Null for sink blocks or when not configured.</summary>
     public string? OutputItemLabel { get; init; }
+    /// <summary>Optional friendly display name configured via block metadata.</summary>
+    public string? DisplayName { get; init; }
 }
 
 /// <summary>
