@@ -12,7 +12,7 @@ public sealed class DataFlowBlockMetadataStoreBuilder
     /// <summary>Begins configuring metadata for the block registered under <paramref name="blockName"/>.</summary>
     public IBlockMetadataBuilder ForBlock(string blockName) => new BlockMetadataBuilder(this, blockName);
 
-    internal IDataFlowBlockMetadataStore Build() =>
+    public IDataFlowBlockMetadataStore Build() =>
         new DataFlowBlockMetadataStore(new Dictionary<string, DataFlowBlockMetadata>(_entries));
 
     internal void Apply(string blockName, DataFlowBlockMetadata metadata) =>
