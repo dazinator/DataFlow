@@ -49,14 +49,6 @@
                               marker-end="@markerRef" />
                     }
 
-                    @* "competing" badge — shown once per competing edge near the midpoint *@
-                    @if (isCompeting)
-                    {
-                        var badgeX = (x1 + x2) / 2;
-                        var badgeY = (y1 + y2) / 2 + (Math.Abs(y1 - y2) > 10 ? 0 : 14);
-                        <svg:text x="@badgeX" y="@badgeY" text-anchor="middle"
-                                  font-size="9" fill="@CompetingEdgeColor" font-style="italic">competing</svg:text>
-                    }
 
                     @* Item type label — shown above the edge midpoint when the source block has a known output type.
                        Offset is increased when a buffer pill is present so the label clears the pill rect (Y-12..Y+6). *@
