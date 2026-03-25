@@ -508,45 +508,83 @@ By default the diagram shows:
 - **Block title** — the block's registered name (e.g. `journal-v2:erp-poster-1`)
 - **Block type** — a friendly default for native epoch block types (`EpochActorBlock`3`` → "Actor", `EpochBufferBlock`1`` → "Buffer", etc.). Unknown types fall back to `Type.Name` unchanged.
 
-If the registered name is long or technical, or if a non-native block type needs a friendlier label, configure block metadata at registration time using the callback on `AddActorBlock` / `AddBlock` / `AddBatch` / `AddSourceBlock`:
+If the registered name is long or technical, or if a non-native block type needs a friendlier label, configure block metadata inline at registration time using the optional callback on `AddActorBlock` / `AddBlock` / `AddBatch` / `AddRateLimit` / `AddSourceBlock` / `AddEpochBuffer`:
 
 ```csharp
-services.AddDataFlows("journal-v2", builder =>
+services.AddDataFlows("journal-v2", df =>
 {
     // DisplayName overrides the title shown in the diagram for this block instance.
     // TypeLabel overrides the type label beneath the title (optional — native types
     // already have sensible defaults).
-    builder.AddActorBlock<Invoice, PostedInvoice, ErpPosterActor>("erp-poster-1", meta =>
+    df.AddActorBlock<Invoice, PostedInvoice, ErpPosterActor>("erp-poster-1", meta =>
     {
         meta.DisplayName("ERP Poster");
     });
 
-    builder.AddActorBlock<Invoice, PostedInvoice, CustomRouter>("custom-router", meta =>
+    df.AddActorBlock<Invoice, PostedInvoice, CustomRouter>("custom-router", meta =>
     {
         meta.DisplayName("Custom Router")
             .TypeLabel("Router");   // override for non-native block type
     });
+
+    df.AddBatch<Invoice>("batcher", maxBatchSize: 100, meta: meta =>
+    {
+        meta.DisplayName("Batch");
+    });
+
+    df.AddRateLimit<Invoice[]>("rate-limiter", permitLimit: 5, window: TimeSpan.FromSeconds(1), meta: meta =>
+    {
+        meta.DisplayName("Rate Limit");
+    });
+
+    df.AddEpochBuffer<Invoice[]>("erp-buffer", capacity: 50, meta =>
+    {
+        meta.DisplayName("ERP Buffer");
+    });
 });
 ```
 
-If the blocks are registered outside `AddDataFlows` (e.g. in a separate module), use the standalone extension instead:
+Each `AddDataFlows()` call contributes its metadata independently — multiple modules can each configure metadata for their own blocks and all entries are merged together:
 
 ```csharp
-services.AddDataFlowBlockMetadata(blocks =>
+// Module A
+services.AddDataFlows("module-a", df =>
 {
-    blocks.ForBlock("journal-v2:erp-poster-1").DisplayName("ERP Poster");
-    blocks.ForBlock("journal-v2:custom-router")
-          .DisplayName("Custom Router")
-          .TypeLabel("Router");
+    df.AddActorBlock<In, Out, ActorA>("producer", meta => meta.DisplayName("A Producer"));
+});
+
+// Module B — does not interfere with Module A's metadata
+services.AddDataFlows("module-b", df =>
+{
+    df.AddActorBlock<In, Out, ActorB>("worker", meta => meta.DisplayName("B Worker"));
+});
+// Both "A Producer" and "B Worker" are present in IDataFlowBlockMetadataStore
+```
+
+> **Note:** Block names in the callback are short names (e.g. `"erp-poster-1"`); the namespace prefix (`"journal-v2:"`) is applied automatically. The fully-qualified key (e.g. `"journal-v2:erp-poster-1"`) is what appears in the diagram and events.
+
+### Flow-level display name
+
+To set a human-readable label for the entire flow (shown as the panel header instead of the raw namespace key), call `DisplayName()` on the builder:
+
+```csharp
+services.AddDataFlows("journal-v2", df =>
+{
+    df.DisplayName("Journal Processing Flow");
+    df.AddActorBlock<Invoice, PostedInvoice, ErpPosterActor>("erp-poster-1", meta =>
+        meta.DisplayName("ERP Poster"));
+    // ...
 });
 ```
 
-> **Note:** Block names in the standalone API must use the fully-qualified form
-> (`namespace:name`, e.g. `"journal-v2:erp-poster-1"`), matching the key that
-> `AddDataFlows` produces. Within the `AddDataFlows` callback the short name
-> (`"erp-poster-1"`) is sufficient — the namespace prefix is applied automatically.
+The method is chainable:
 
-Both approaches register an `IDataFlowBlockMetadataStore` singleton. If both are called, the one registered first wins (the second is a no-op via `TryAddSingleton`).
+```csharp
+services.AddDataFlows("journal-v2", df => df
+    .DisplayName("Journal Processing Flow")
+    .AddActorBlock<Invoice, PostedInvoice, ErpPosterActor>("erp-poster-1",
+        meta => meta.DisplayName("ERP Poster")));
+```
 
 ### What the diagram does with this information
 
