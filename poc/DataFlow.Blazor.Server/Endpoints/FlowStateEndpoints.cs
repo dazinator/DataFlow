@@ -1,6 +1,9 @@
 namespace DataFlow.Blazor.Server.Endpoints;
 
+using System.Text.Json;
 using DataFlow.Blazor.Api;
+using DataFlow.Blazor.Events;
+using DataFlow.Blazor.FlowMetadata;
 using DataFlow.Blazor.Server.Persistence;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -14,6 +17,8 @@ using Microsoft.EntityFrameworkCore;
 /// </summary>
 internal static class FlowStateEndpoints
 {
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+
     // Only these types belong in the audit log — telemetry (Progress/ChannelStats) is excluded.
     private static readonly HashSet<string> StructuralEventTypes =
     [
@@ -33,6 +38,7 @@ internal static class FlowStateEndpoints
         app.MapGet("/flows/{flowRunId:guid}/state", async (
             Guid flowRunId,
             [FromServices] TContext db,
+            [FromServices] IDataFlowFlowMetadataStore? flowMetadata,
             CancellationToken cancellationToken) =>
         {
             var snapshot = await db.Set<FlowSnapshotRecord>()
@@ -70,11 +76,23 @@ internal static class FlowStateEndpoints
                 .Select(r => new FlowEventDto(r.Id, r.EventType, r.Payload, r.OccurredAt))
                 .ToArray();
 
+            // Resolve the flow-level display name from the snapshot's flow name.
+            // The snapshot carries the technical flow key (e.g. "journal-v2"); the
+            // metadata store maps it to the friendly name (e.g. "Journal Processing Flow").
+            string? flowDisplayName = null;
+            if (snapshot is not null && flowMetadata is not null)
+            {
+                var parsedSnapshot = JsonSerializer.Deserialize<FlowSnapshot>(snapshot.SnapshotJson, JsonOptions);
+                if (parsedSnapshot is not null)
+                    flowDisplayName = flowMetadata.GetDisplayName(parsedSnapshot.FlowName);
+            }
+
             return Results.Ok(new FlowStateResponse(
                 SnapshotJson: snapshot?.SnapshotJson,
                 DeltaEvents: deltaEvents,
                 AsOfId: asOfId,
-                AuditEvents: auditEvents));
+                AuditEvents: auditEvents,
+                FlowDisplayName: flowDisplayName));
         })
         .WithName("GetFlowState")
         .WithTags("DataFlow");

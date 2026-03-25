@@ -3,6 +3,7 @@ namespace DataFlow.Blazor.Server.Endpoints;
 using System.Text.Json;
 using DataFlow.Blazor.Api;
 using DataFlow.Blazor.Events;
+using DataFlow.Blazor.FlowMetadata;
 using DataFlow.Blazor.Server.Persistence;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -28,6 +29,7 @@ internal static class FlowListEndpoints
         /// </summary>
         app.MapGet("/flows", async (
             [FromServices] TContext db,
+            [FromServices] IDataFlowFlowMetadataStore? flowMetadata,
             int page = 1,
             int pageSize = 50,
             CancellationToken cancellationToken = default) =>
@@ -57,7 +59,8 @@ internal static class FlowListEndpoints
                         BlockCount: snapshot.Blocks.Count,
                         TriggerParamsJson: snapshot.TriggerParamsJson,
                         CorrelationId: snapshot.CorrelationId,
-                        AttemptNumber: snapshot.AttemptNumber);
+                        AttemptNumber: snapshot.AttemptNumber,
+                        FlowDisplayName: flowMetadata?.GetDisplayName(snapshot.FlowName));
                 })
                 .Where(s => s is not null)
                 .ToArray();

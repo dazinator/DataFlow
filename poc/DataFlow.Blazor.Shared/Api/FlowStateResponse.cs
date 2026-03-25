@@ -32,7 +32,14 @@ public record FlowStateResponse(
     /// Applied to EventLog ONLY (no state updates) so the event history pane
     /// remains populated for completed flows loaded from a fresh page.
     /// </summary>
-    FlowEventDto[] AuditEvents
+    FlowEventDto[] AuditEvents,
+
+    /// <summary>
+    /// Optional friendly display name configured via <c>df.DisplayName("…")</c> on the flow builder.
+    /// Resolved server-side from <c>IDataFlowFlowMetadataStore</c> at request time.
+    /// Null when no display name has been configured.
+    /// </summary>
+    string? FlowDisplayName = null
 );
 
 /// <summary>

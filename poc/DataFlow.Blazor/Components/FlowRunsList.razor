@@ -31,7 +31,7 @@ else
                 // Primary row
                 <tr style="border-bottom: 1px solid #dee2e6; @RowStyle(group.Primary.Status)">
                     <td style="padding: 0.5rem 0.75rem; font-weight: 500;">
-                        @group.Primary.FlowName
+                        <span title="@group.Primary.FlowName">@(group.Primary.FlowDisplayName ?? group.Primary.FlowName)</span>
                         @if (group.Attempts.Count > 1)
                         {
                             <button @onclick="() => ToggleGroup(group.Key)"

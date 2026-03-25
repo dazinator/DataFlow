@@ -35,4 +35,12 @@ public interface IEventSource
     /// </summary>
     Task<IReadOnlyList<IDataFlowEvent>> GetAuditLogAsync(Guid invocationId, CancellationToken cancellationToken = default)
         => Task.FromResult<IReadOnlyList<IDataFlowEvent>>([]);
+
+    /// <summary>
+    /// Optional friendly display name for the flow, resolved server-side from
+    /// <c>IDataFlowFlowMetadataStore</c> and cached after <see cref="GetSnapshotAsync"/> completes.
+    /// Returns <see langword="null"/> when the source has no metadata (e.g. mock sources)
+    /// or when no display name has been configured for this flow.
+    /// </summary>
+    string? FlowDisplayName => null;
 }

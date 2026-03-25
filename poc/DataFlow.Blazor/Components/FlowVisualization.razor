@@ -99,6 +99,9 @@
             {
                 _processor!.ApplySnapshot(snapshot);
 
+                // Apply the flow-level display name resolved server-side from IDataFlowFlowMetadataStore.
+                _state!.FlowDisplayName = eventSource.FlowDisplayName;
+
                 // Populate EventLog with structural events already folded into the snapshot.
                 // These are applied to the log only — not re-processed for state — so that
                 // viewing a completed flow still shows event history without regressing state.
