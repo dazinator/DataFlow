@@ -145,7 +145,7 @@ public class DataFlowMetadataApiTests
     // ── AddEpochBuffer on DataFlowBuilder ────────────────────────────────────
 
     [Fact]
-    public void AddEpochBuffer_RegistresBlock_InServiceCollection()
+    public void AddEpochBuffer_RegistersBlock_InServiceCollection()
     {
         var services = new ServiceCollection();
 
