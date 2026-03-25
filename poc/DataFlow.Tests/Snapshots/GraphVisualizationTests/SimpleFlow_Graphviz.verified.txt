@@ -1,5 +1,5 @@
-digraph "SimpleFlow" {
-    label="DataFlow: SimpleFlow";
+﻿digraph "global:SimpleFlow" {
+    label="DataFlow: global:SimpleFlow";
     rankdir=LR;
     node [fontname="Arial"];
 

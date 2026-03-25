@@ -21,7 +21,10 @@
                 @if (State!.Blocks.TryGetValue(name, out var block))
                 {
                     <tr>
-                        <td class="dt-label">@block.BlockName</td>
+                        @* Show friendly DisplayName when set; fall back to technical BlockName.
+                           The title attribute makes the technical key visible on hover so it is
+                           never hidden from the user. *@
+                        <td class="dt-label" title="@block.BlockName">@(block.DisplayName ?? block.BlockName)</td>
                         <td class="dt-mono dt-value">@(block.InputItemLabel ?? "—")</td>
                         <td class="dt-mono dt-value">@(block.IsSource ? "—" : block.ItemsConsumed.ToString("N0"))</td>
                         <td class="dt-mono dt-value">@(block.OutputItemLabel ?? "—")</td>

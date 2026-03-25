@@ -1,5 +1,5 @@
-flowchart LR
-    %% DataFlow: SimpleFlow
+﻿flowchart LR
+    %% DataFlow: global:SimpleFlow
 
     source(["source"])
     transform[/"transform"/]

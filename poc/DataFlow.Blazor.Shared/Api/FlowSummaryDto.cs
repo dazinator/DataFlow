@@ -16,5 +16,10 @@ public record FlowSummaryDto(
     int BlockCount,
     string? TriggerParamsJson = null,
     Guid? CorrelationId = null,
-    int AttemptNumber = 1
+    int AttemptNumber = 1,
+    /// <summary>
+    /// Optional friendly display name configured via <c>df.DisplayName("…")</c> on the flow builder.
+    /// Null when no display name has been configured.
+    /// </summary>
+    string? FlowDisplayName = null
 );

@@ -1,9 +1,8 @@
 namespace DataFlow.Blazor.BlockTypes;
 
 /// <summary>
-/// Fluent builder for configuring block visualization metadata.
-/// Used inside the <c>services.AddDataFlowBlockMetadata(builder => { ... })</c> callback
-/// and internally by <c>DataFlowBuilder.AddBlock()</c> / <c>AddActorBlock()</c>.
+/// Fluent builder for configuring block visualization metadata within a single
+/// <c>AddDataFlows()</c> call. Used internally by <c>DataFlowBuilder</c>.
 /// </summary>
 public sealed class DataFlowBlockMetadataStoreBuilder
 {
@@ -12,8 +11,9 @@ public sealed class DataFlowBlockMetadataStoreBuilder
     /// <summary>Begins configuring metadata for the block registered under <paramref name="blockName"/>.</summary>
     public IBlockMetadataBuilder ForBlock(string blockName) => new BlockMetadataBuilder(this, blockName);
 
-    public IDataFlowBlockMetadataStore Build() =>
-        new DataFlowBlockMetadataStore(new Dictionary<string, DataFlowBlockMetadata>(_entries));
+    /// <summary>Returns a snapshot of all entries collected so far.</summary>
+    public IReadOnlyDictionary<string, DataFlowBlockMetadata> GetEntries() =>
+        new Dictionary<string, DataFlowBlockMetadata>(_entries);
 
     internal void Apply(string blockName, DataFlowBlockMetadata metadata) =>
         _entries[blockName] = metadata;

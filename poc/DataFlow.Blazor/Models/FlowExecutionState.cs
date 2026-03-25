@@ -9,6 +9,8 @@ public class FlowExecutionState
 {
     public Guid InvocationId { get; set; }
     public string FlowName { get; set; } = string.Empty;
+    /// <summary>Optional friendly display name configured via <c>df.DisplayName("…")</c>. Null when not set.</summary>
+    public string? FlowDisplayName { get; set; }
     public DateTime? StartTime { get; set; }
     public DateTime? EndTime { get; set; }
     public FlowState State { get; set; } = FlowState.NotStarted;

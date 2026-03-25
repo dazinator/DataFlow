@@ -1,5 +1,5 @@
-flowchart LR
-    %% DataFlow: CompetingConsumersFlow
+﻿flowchart LR
+    %% DataFlow: global:CompetingConsumersFlow
 
     source(["source<br/><small>→ int</small>"])
     worker1["worker1<br/><small>int →</small>"]

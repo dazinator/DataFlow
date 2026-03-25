@@ -1,4 +1,4 @@
-DataFlow: SimpleFlow
+﻿DataFlow: global:SimpleFlow
 Blocks: 3
 Edges: 2
 

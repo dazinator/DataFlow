@@ -465,7 +465,7 @@ public class DataFlowGraphBuilder
         ArgumentNullException.ThrowIfNull(serviceProvider);
         ArgumentNullException.ThrowIfNull(registry);
         
-        var graph = new DataFlowGraph(_name, _graphId, _logger);
+        var graph = new DataFlowGraph($"{_namespace}:{_name}", _graphId, _logger);
 
         // Add blocks that were added directly via AddBlock()
         foreach (var block in _blocks)

@@ -2,8 +2,8 @@ namespace DataFlow.Blazor.BlockTypes;
 
 /// <summary>
 /// Provides visualization metadata for block instances, keyed by their registered block name.
-/// Registered as a singleton via <see cref="DataFlowBlockMetadataServiceExtensions.AddDataFlowBlockMetadata"/>
-/// or automatically by <c>AddDataFlows()</c> when metadata is configured inline.
+/// Registered as a singleton automatically by <c>AddDataFlows()</c> when inline metadata is
+/// configured on any block.
 /// </summary>
 public interface IDataFlowBlockMetadataStore
 {

@@ -1,17 +1,22 @@
 namespace DataFlow.Blazor.BlockTypes;
 
 /// <summary>
-/// Default in-memory implementation of <see cref="IDataFlowBlockMetadataStore"/>.
-/// Populated at startup via <see cref="DataFlowBlockMetadataStoreBuilder"/> and registered
-/// as a singleton. Thread-safe for reads after construction.
+/// Aggregating in-memory implementation of <see cref="IDataFlowBlockMetadataStore"/>.
+/// Merges all <see cref="DataFlowBlockMetadataContribution"/> instances registered by each
+/// <c>AddDataFlows()</c> call that supplied inline block metadata. Thread-safe for reads
+/// after construction (constructed once as a singleton by the DI container).
+/// Last-writer wins when the same block name is contributed more than once.
 /// </summary>
 internal sealed class DataFlowBlockMetadataStore : IDataFlowBlockMetadataStore
 {
-    private readonly IReadOnlyDictionary<string, DataFlowBlockMetadata> _metadata;
+    private readonly Dictionary<string, DataFlowBlockMetadata> _metadata;
 
-    internal DataFlowBlockMetadataStore(IReadOnlyDictionary<string, DataFlowBlockMetadata> metadata)
+    internal DataFlowBlockMetadataStore(IEnumerable<DataFlowBlockMetadataContribution> contributions)
     {
-        _metadata = metadata;
+        _metadata = new();
+        foreach (var contribution in contributions)
+            foreach (var (key, value) in contribution.Entries)
+                _metadata[key] = value;
     }
 
     public DataFlowBlockMetadata? GetMetadata(string blockName) =>

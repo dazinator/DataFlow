@@ -39,7 +39,7 @@ public class RevisedDiRegistrationTests
 
         // Assert
         Assert.NotNull(graph);
-        Assert.Equal("test", graph.Name);
+        Assert.Equal("global:test", graph.Name);
     }
 
     [Fact]
@@ -63,7 +63,7 @@ public class RevisedDiRegistrationTests
 
         // Assert
         Assert.NotNull(graph);
-        Assert.Equal("test", graph.Name);
+        Assert.Equal("global:test", graph.Name);
     }
 
     [Fact]
@@ -297,7 +297,7 @@ public class RevisedDiRegistrationTests
 
         // Assert
         Assert.NotNull(graph);
-        Assert.Equal("main", graph.Name);
+        Assert.Equal("global:main", graph.Name);
     }
 
     [Fact]
@@ -346,7 +346,7 @@ public class RevisedDiRegistrationTests
 
         // Assert
         Assert.NotNull(graph);
-        Assert.Equal("main", graph.Name);
+        Assert.Equal("global:main", graph.Name);
     }
 
     [Fact]
@@ -412,7 +412,7 @@ public class RevisedDiRegistrationTests
 
         // Assert
         Assert.NotNull(graph);
-        Assert.Equal("dynamic", graph.Name);
+        Assert.Equal("global:dynamic", graph.Name);
     }
 
     [Fact]

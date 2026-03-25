@@ -58,7 +58,7 @@ public class EpochActorBlockDocumentationTests : IAsyncDisposable
         
         // Assert
         graph.ShouldNotBeNull();
-        graph.Name.ShouldBe("epoch-test");
+        graph.Name.ShouldBe("global:epoch-test");
     }
     
     [Fact]

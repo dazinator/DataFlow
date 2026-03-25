@@ -121,7 +121,7 @@ public class GettingStartedDocumentationTests
         
         // Assert
         graph.ShouldNotBeNull();
-        graph.Name.ShouldBe("test-graph");
+        graph.Name.ShouldBe("global:test-graph");
     }
     
     [Fact]

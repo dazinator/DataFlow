@@ -34,6 +34,7 @@ public class HttpSignalREventSource : IEventSource, IAsyncDisposable
     private FlowEventDto[]? _cachedDeltaEvents;
     private FlowEventDto[]? _cachedAuditEvents;
     private long _asOfId;
+    private string? _cachedFlowDisplayName;
 
     public HttpSignalREventSource(HttpClient http, string hubUrl)
     {
@@ -51,6 +52,7 @@ public class HttpSignalREventSource : IEventSource, IAsyncDisposable
         _cachedDeltaEvents = response.DeltaEvents;
         _cachedAuditEvents = response.AuditEvents;
         _asOfId = response.AsOfId;
+        _cachedFlowDisplayName = response.FlowDisplayName;
 
         if (response.SnapshotJson is not null)
         {
@@ -124,6 +126,9 @@ public class HttpSignalREventSource : IEventSource, IAsyncDisposable
 
         return Task.FromResult<IReadOnlyList<IDataFlowEvent>>(events);
     }
+
+    /// <inheritdoc />
+    public string? FlowDisplayName => _cachedFlowDisplayName;
 
     public async ValueTask DisposeAsync()
     {

@@ -396,7 +396,7 @@ public class BlockTypeRegistryTests
 
         // Assert
         Assert.NotNull(graph);
-        Assert.Equal("test", graph.Name);
+        Assert.Equal("global:test", graph.Name);
     }
 
     #endregion

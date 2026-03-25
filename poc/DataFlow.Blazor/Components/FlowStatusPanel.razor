@@ -2,7 +2,7 @@
 
 <div class="flow-status-panel">
     <div class="status-section">
-        <h2>@State.FlowName</h2>
+        <h2 title="@State.FlowName">@(State.FlowDisplayName ?? State.FlowName)</h2>
         <span class="status-badge @GetStatusClass()">@State.State</span>
     </div>
 

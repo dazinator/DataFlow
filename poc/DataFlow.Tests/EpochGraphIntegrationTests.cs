@@ -57,7 +57,7 @@ public class EpochGraphIntegrationTests : IAsyncDisposable
 
         // Assert
         Assert.NotNull(graph);
-        Assert.Equal("test", graph.Name);
+        Assert.Equal("global:test", graph.Name);
     }
 
     [Fact]
@@ -112,7 +112,7 @@ public class EpochGraphIntegrationTests : IAsyncDisposable
         
         // Assert - graph should build successfully
         Assert.NotNull(graph);
-        Assert.Equal("test", graph.Name);
+        Assert.Equal("global:test", graph.Name);
     }
 
     [Fact]
