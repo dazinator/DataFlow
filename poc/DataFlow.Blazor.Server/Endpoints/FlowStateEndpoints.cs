@@ -4,6 +4,7 @@ using DataFlow.Blazor.Api;
 using DataFlow.Blazor.Server.Persistence;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 
@@ -31,7 +32,7 @@ internal static class FlowStateEndpoints
         /// </summary>
         app.MapGet("/flows/{flowRunId:guid}/state", async (
             Guid flowRunId,
-            TContext db,
+            [FromServices] TContext db,
             CancellationToken cancellationToken) =>
         {
             var snapshot = await db.Set<FlowSnapshotRecord>()
