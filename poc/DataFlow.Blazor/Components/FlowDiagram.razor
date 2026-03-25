@@ -23,18 +23,39 @@
 
                 var (x2, y2) = positions[targetBlock];
 
-                <g class="edge">
+                @* Check if this is a competing edge *@
+                var isCompeting = State.Channels.TryGetValue((sourceBlock, targetBlock), out var edgeChannel)
+                                  && edgeChannel!.IsCompeting;
+                var edgeStroke  = isCompeting ? CompetingEdgeColor : "#666";
+                var strokeDash  = isCompeting ? "6 3" : null;
+                var markerRef   = isCompeting ? "url(#arrowhead-competing)" : "url(#arrowhead)";
+
+                <g class="edge @(isCompeting ? "edge-competing" : "")">
                     @* Arrow line - use curves for better visual clarity *@
                     @if (Math.Abs(y1 - y2) > 10)
                     {
                         @* Curved path for branching *@
-                        <path d="@GenerateCurvedPath(x1, y1, x2, y2)" stroke="#666" stroke-width="2" fill="none" marker-end="url(#arrowhead)" />
+                        <path d="@GenerateCurvedPath(x1, y1, x2, y2)"
+                              stroke="@edgeStroke" stroke-width="2" fill="none"
+                              stroke-dasharray="@strokeDash"
+                              marker-end="@markerRef" />
                     }
                     else
                     {
                         @* Straight line for linear flow *@
                         <line x1="@x1" y1="@y1" x2="@x2" y2="@y2"
-                              stroke="#666" stroke-width="2" marker-end="url(#arrowhead)" />
+                              stroke="@edgeStroke" stroke-width="2"
+                              stroke-dasharray="@strokeDash"
+                              marker-end="@markerRef" />
+                    }
+
+                    @* "competing" badge — shown once per competing edge near the midpoint *@
+                    @if (isCompeting)
+                    {
+                        var badgeX = (x1 + x2) / 2;
+                        var badgeY = (y1 + y2) / 2 + (Math.Abs(y1 - y2) > 10 ? 0 : 14);
+                        <svg:text x="@badgeX" y="@badgeY" text-anchor="middle"
+                                  font-size="9" fill="@CompetingEdgeColor" font-style="italic">competing</svg:text>
                     }
 
                     @* Item type label — shown above the edge midpoint when the source block has a known output type.
@@ -67,6 +88,10 @@
         <defs>
             <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
                 <polygon points="0 0, 10 3, 0 6" fill="#666" />
+            </marker>
+            @* Competing-edge arrowhead — purple, matches the dashed stroke colour *@
+            <marker id="arrowhead-competing" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                <polygon points="0 0, 10 3, 0 6" fill="@CompetingEdgeColor" />
             </marker>
         </defs>
 
@@ -159,6 +184,9 @@
     // to jump mid-stream as new nodes land before their connecting edges arrive.
     private Dictionary<string, (double x, double y)>? _cachedPositions;
     private string _cachedTopologyKey = "";
+
+    // Competing-edge visual style — used for stroke colour, arrowhead fill, and badge text.
+    private const string CompetingEdgeColor = "#8B5CF6";
 
     private Dictionary<string, (double x, double y)> GetOrComputePositions(FlowTopology topology)
     {

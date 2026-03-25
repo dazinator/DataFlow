@@ -95,4 +95,10 @@ public record ChannelRunState
     public int MaxCount { get; init; }
     public int MinCount { get; init; } = int.MaxValue;
     public DateTime LastUpdate { get; init; }
+    /// <summary>
+    /// True when the edge connecting this channel uses competing-consumer semantics
+    /// (all target blocks compete for items from a single shared channel).
+    /// Populated from <see cref="FlowGraphDefinedEvent"/>.
+    /// </summary>
+    public bool IsCompeting { get; init; }
 }

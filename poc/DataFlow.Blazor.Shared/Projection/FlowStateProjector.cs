@@ -1,5 +1,6 @@
 namespace DataFlow.Blazor.Projection;
 
+using System;
 using System.Collections.Immutable;
 using DataFlow.Blazor.Events;
 
@@ -51,7 +52,25 @@ public static class FlowStateProjector
                             InputItemLabel  = bd.InputItemLabel,
                             OutputItemLabel = bd.OutputItemLabel,
                             IsSource        = bd.IsSource
-                        }))
+                        })),
+            // Pre-seed channel stubs from edge topology so downstream components
+            // know the graph shape immediately — before any ChannelStatsEvents arrive.
+            // This also captures IsCompeting for competing-consumer edges so the
+            // visualization can render them with distinct styling.
+            Channels = e.Edges.Aggregate(state.Channels, (channels, ed) =>
+            {
+                var key = $"{ed.SourceBlock}->{ed.TargetBlock}";
+                var isCompeting = string.Equals(ed.EdgeType, "Competing", StringComparison.OrdinalIgnoreCase);
+                if (channels.TryGetValue(key, out var existing))
+                    return channels.SetItem(key, existing with { IsCompeting = isCompeting });
+                return channels.SetItem(key, new ChannelRunState
+                {
+                    SourceBlock   = ed.SourceBlock,
+                    TargetBlock   = ed.TargetBlock,
+                    BufferCapacity = ed.BufferCapacity ?? 0,
+                    IsCompeting   = isCompeting
+                });
+            })
         },
 
         BlockStartedEvent e => state with
@@ -200,7 +219,8 @@ public static class FlowStateProjector
                 kv.Value.CurrentCount,
                 kv.Value.LastUpdate,
                 kv.Value.MaxCount,
-                kv.Value.MinCount)),
+                kv.Value.MinCount,
+                kv.Value.IsCompeting)),
         Edges: state.Edges.ToDictionary(
             kv => kv.Key,
             kv => new EdgeSnapshot(
@@ -259,7 +279,8 @@ public static class FlowStateProjector
                     CurrentCount = kv.Value.CurrentCount,
                     MaxCount = kv.Value.MaxCount,
                     MinCount = kv.Value.MinCount,
-                    LastUpdate = kv.Value.LastUpdate
+                    LastUpdate = kv.Value.LastUpdate,
+                    IsCompeting = kv.Value.IsCompeting
                 }),
         Edges = (snapshot.Edges ?? new Dictionary<string, EdgeSnapshot>())
             .ToImmutableDictionary(

@@ -82,7 +82,8 @@ public class EventProcessor
                 CurrentCount = channelSnapshot.CurrentCount,
                 MaxCount = channelSnapshot.MaxCount,
                 MinCount = channelSnapshot.MinCount,
-                LastUpdate = channelSnapshot.LastUpdate
+                LastUpdate = channelSnapshot.LastUpdate,
+                IsCompeting = channelSnapshot.IsCompeting
             };
             _state.Channels[(channelSnapshot.SourceBlock, channelSnapshot.TargetBlock)] = channelState;
         }
@@ -182,9 +183,10 @@ public class EventProcessor
             {
                 _state.Channels[key] = new ChannelState
                 {
-                    SourceBlock  = ed.SourceBlock,
-                    TargetBlock  = ed.TargetBlock,
-                    BufferCapacity = ed.BufferCapacity ?? 0
+                    SourceBlock    = ed.SourceBlock,
+                    TargetBlock    = ed.TargetBlock,
+                    BufferCapacity = ed.BufferCapacity ?? 0,
+                    IsCompeting    = string.Equals(ed.EdgeType, "Competing", StringComparison.OrdinalIgnoreCase)
                 };
             }
         }

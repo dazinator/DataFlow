@@ -292,7 +292,8 @@ public class DataFlowGraph
                     var edgeDefs = _edges.Select(e => new EdgeDefinition(
                         SourceBlock:    e.SourceBlock.Name,
                         TargetBlock:    e.TargetBlock.Name,
-                        BufferCapacity: e.BufferMode == BufferMode.Bounded ? e.BufferCapacity : null
+                        BufferCapacity: e.BufferMode == BufferMode.Bounded ? e.BufferCapacity : null,
+                        EdgeType:       e.Strategy.EdgeType.ToString()
                     )).ToList();
 
                     await eventSink.AppendAsync(context.InvocationId,

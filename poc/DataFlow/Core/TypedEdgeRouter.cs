@@ -106,6 +106,12 @@ public sealed class TypedEdgeRouter<T> : ITypedEdgeRouter
     /// Creates a typed edge router with strongly-typed channel writers.
     /// Wraps each writer in a CountingChannelWriter so per-target item counts are tracked
     /// automatically without touching the strategy code.
+    ///
+    /// For competing edges all targets share the same underlying ChannelWriter, so a single
+    /// CountingChannelWriter is created and shared across all targets.  This ensures that
+    /// GetItemsWrittenToTarget returns the total number of items written to the shared channel
+    /// for every competing target, giving each target's edge the correct traffic count in the
+    /// visualization (rather than crediting all writes to only the first target).
     /// </summary>
     public TypedEdgeRouter(Edge edge, Dictionary<IBlock, object> writers)
     {
@@ -114,16 +120,40 @@ public sealed class TypedEdgeRouter<T> : ITypedEdgeRouter
         _countingWriters = new Dictionary<IBlock, CountingChannelWriter>(writers.Count);
         _typedWriters    = new Dictionary<IBlock, ChannelWriter<T>>(writers.Count);
 
-        foreach (var (block, writerObj) in writers)
+        if (edge.Strategy.EdgeType == EdgeType.Competing)
         {
-            if (writerObj is not ChannelWriter<T> typedWriter)
-            {
+            // All competing targets share the same underlying ChannelWriter<T>.
+            // Create ONE CountingChannelWriter so every target reports the same
+            // total channel-write count via GetItemsWrittenToTarget.
+            if (writers.Count == 0)
                 throw new InvalidOperationException(
-                    $"Expected ChannelWriter<{typeof(T).Name}> but got {writerObj.GetType().Name}");
+                    $"Competing edge has no writers for ChannelWriter<{typeof(T).Name}>");
+
+            var firstEntry = writers.First();
+            if (firstEntry.Value is not ChannelWriter<T> firstWriter)
+                throw new InvalidOperationException(
+                    $"Expected ChannelWriter<{typeof(T).Name}> but got {firstEntry.Value.GetType().Name}");
+
+            var sharedCounting = new CountingChannelWriter(firstWriter);
+            foreach (var (block, _) in writers)
+            {
+                _countingWriters[block] = sharedCounting;
+                _typedWriters[block]    = sharedCounting;
             }
-            var counting = new CountingChannelWriter(typedWriter);
-            _countingWriters[block] = counting;
-            _typedWriters[block]    = counting; // strategy writes through the counting wrapper
+        }
+        else
+        {
+            foreach (var (block, writerObj) in writers)
+            {
+                if (writerObj is not ChannelWriter<T> typedWriter)
+                {
+                    throw new InvalidOperationException(
+                        $"Expected ChannelWriter<{typeof(T).Name}> but got {writerObj.GetType().Name}");
+                }
+                var counting = new CountingChannelWriter(typedWriter);
+                _countingWriters[block] = counting;
+                _typedWriters[block]    = counting; // strategy writes through the counting wrapper
+            }
         }
     }
     
