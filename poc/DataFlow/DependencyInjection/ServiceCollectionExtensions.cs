@@ -1,6 +1,7 @@
 namespace DataFlow.POC.DependencyInjection;
 
 using DataFlow.Blazor.BlockTypes;
+using DataFlow.Blazor.FlowMetadata;
 using DataFlow.POC.Core;
 using DataFlow.POC.Builder;
 using DataFlow.POC.Blocks;
@@ -19,6 +20,7 @@ public class DataFlowBuilder
     private readonly IBlockTypeRegistry _registry;
     private readonly DataFlowBlockMetadataStoreBuilder _blockMetadataBuilder = new();
     private const string DefaultNamespacePrefix = "global";
+    private string? _flowDisplayName;
 
     internal DataFlowBuilder(IServiceCollection services, IBlockTypeRegistry registry, string? namespacePrefix = null)
     {
@@ -32,6 +34,30 @@ public class DataFlowBuilder
     /// Default is "global" if no namespace was specified.
     /// </summary>
     public string Namespace { get; }
+
+    /// <summary>
+    /// Sets a human-readable display name for the dataflow registered under this builder's
+    /// namespace. The name is stored in <see cref="IDataFlowFlowMetadataStore"/> and can be
+    /// surfaced in the visualization instead of the raw namespace key.
+    ///
+    /// <example>
+    /// <code>
+    /// services.AddDataFlows("journal-v2", df =>
+    /// {
+    ///     df.DisplayName("Journal Processing Flow");
+    ///     df.AddActorBlock&lt;Journal, JournalBatch, BatchActor&gt;("batcher");
+    ///     // …
+    /// });
+    /// </code>
+    /// </example>
+    /// </summary>
+    /// <param name="displayName">Human-readable name for this flow.</param>
+    /// <returns>This builder for chaining.</returns>
+    public DataFlowBuilder DisplayName(string displayName)
+    {
+        _flowDisplayName = displayName;
+        return this;
+    }
 
     /// <summary>
     /// Fluent API for setting visualization metadata on a block at registration time.
@@ -76,9 +102,12 @@ public class DataFlowBuilder
         configure(new BlockMetadataBuilderAdapter(inner));
     }
 
-    internal void RegisterCollectedBlockMetadata(IServiceCollection services)
+    internal void RegisterCollectedMetadata(IServiceCollection services)
     {
-        services.TryAddSingleton<IDataFlowBlockMetadataStore>(_blockMetadataBuilder.Build());
+        services.MergeBlockMetadata(_blockMetadataBuilder.GetEntries());
+
+        if (_flowDisplayName is not null)
+            services.RegisterFlowDisplayName(Namespace, _flowDisplayName);
     }
 
     #region Block Registration
@@ -734,6 +763,72 @@ public class DataFlowBuilder
         return this;
     }
 
+    /// <summary>
+    /// Register an <see cref="EpochBufferBlock{T}"/> with type-safe API.
+    /// Buffers items within each epoch boundary, preserving epoch structure while
+    /// decoupling producer and consumer processing rates.
+    ///
+    /// <para>
+    /// <b>Capacity:</b> The capacity is per-epoch. When an epoch's buffer fills up,
+    /// upstream producers will block until space becomes available, providing natural
+    /// backpressure.
+    /// </para>
+    ///
+    /// Example usage:
+    /// <code>
+    /// df.AddEpochBuffer&lt;Journal[]&gt;("erp-buffer", capacity: 50);
+    ///
+    /// df.AddGraph("flow", g =>
+    /// {
+    ///     g.UseBlock("router")
+    ///      .UseBlock("erp-buffer")
+    ///      .UseBlock("erp-poster");
+    ///     g.Connect("router", "erp-buffer");
+    ///     g.Connect("erp-buffer", "erp-poster");
+    /// });
+    /// </code>
+    ///
+    /// The registry stores the semantic data types (input: <typeparamref name="T"/>, output:
+    /// <typeparamref name="T"/>) so connection type-validation works correctly.
+    /// </summary>
+    /// <typeparam name="T">Item type flowing through the buffer block.</typeparam>
+    /// <param name="name">Unique name for this block.</param>
+    /// <param name="capacity">Maximum number of items to buffer per epoch (must be &gt; 0).</param>
+    /// <param name="configure">
+    /// Optional callback to set visualization metadata (display name, type label) for this block.
+    /// </param>
+    /// <returns>This builder for chaining.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown at registration time when <paramref name="capacity"/> is &lt;= 0.
+    /// </exception>
+    public DataFlowBuilder AddEpochBuffer<T>(string name, int capacity,
+        Action<IBlockMetadataBuilder>? configure = null)
+    {
+        ValidateBlockName(name);
+
+        if (capacity <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(capacity), capacity, "Capacity must be greater than 0");
+        }
+
+        var fullKey = ResolveKey(name);
+        CheckDuplicateRegistration(fullKey, "Block");
+        ApplyBlockMetadata(fullKey, configure);
+
+        // Register metadata with SEMANTIC types (input: T, output: T)
+        var metadata = new BlockTypeMetadata(typeof(T), typeof(T));
+        _registry.RegisterBlock(fullKey, metadata);
+
+        _services.AddKeyedScoped<IBlock>(fullKey, (sp, key) =>
+        {
+            var blockName = key as string ?? throw new InvalidOperationException("Block key must be a string");
+            var context = new BlockContext(blockName);
+            return new EpochBufferBlock<T>(context, new BufferConfiguration(capacity));
+        });
+
+        return this;
+    }
+
     #endregion
 
     #region Validation Helpers
@@ -907,7 +1002,7 @@ public static class ServiceCollectionExtensions
 
         var builder = new DataFlowBuilder(services, registry, namespacePrefix);
         configure(builder);
-        builder.RegisterCollectedBlockMetadata(services);
+        builder.RegisterCollectedMetadata(services);
 
         return services;
     }

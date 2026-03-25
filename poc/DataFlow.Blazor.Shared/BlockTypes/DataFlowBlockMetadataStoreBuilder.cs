@@ -15,6 +15,10 @@ public sealed class DataFlowBlockMetadataStoreBuilder
     public IDataFlowBlockMetadataStore Build() =>
         new DataFlowBlockMetadataStore(new Dictionary<string, DataFlowBlockMetadata>(_entries));
 
+    /// <summary>Returns a snapshot of all entries collected so far.</summary>
+    public IReadOnlyDictionary<string, DataFlowBlockMetadata> GetEntries() =>
+        new Dictionary<string, DataFlowBlockMetadata>(_entries);
+
     internal void Apply(string blockName, DataFlowBlockMetadata metadata) =>
         _entries[blockName] = metadata;
 
