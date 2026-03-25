@@ -81,7 +81,10 @@ app.MapDataFlowEndpoints();
 // POST /flows/run/linear    →  { invocationId }
 // POST /flows/run/branching →  { invocationId }
 // POST /flows/run/fanin     →  { invocationId }
+// POST /flows/run/competing →  { invocationId }
 // -----------------------------------------------------------------------
+var validTopologies = new[] { "linear", "branching", "fanin", "backpressure", "failure", "queue-message", "invoice-processing", "competing" };
+
 app.MapPost("/flows/run/{topology}", (string topology, DemoFlowRunner runner) =>
 {
     var invocationId = topology.ToLowerInvariant() switch
@@ -93,11 +96,12 @@ app.MapPost("/flows/run/{topology}", (string topology, DemoFlowRunner runner) =>
         "failure"       => runner.RunFailure(),
         "queue-message"       => runner.RunQueueMessage(),
         "invoice-processing"  => runner.RunInvoiceProcessing(),
+        "competing"     => runner.RunCompeting(),
         _               => (Guid?)null
     };
 
     return invocationId is null
-        ? Results.BadRequest(new { error = $"Unknown topology '{topology}'. Use: linear, branching, fanin, backpressure, failure." })
+        ? Results.BadRequest(new { error = $"Unknown topology '{topology}'. Use: {string.Join(", ", validTopologies)}." })
         : Results.Ok(new { invocationId });
 });
 

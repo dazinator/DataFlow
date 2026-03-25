@@ -44,6 +44,9 @@
         }
 
         @* Diagram + detail pane side-by-side *@
+        @* Diagram + detail pane — only shown once we have blocks to display *@
+        @if (_state.Blocks.Count > 0)
+        {
         <div class="diagram-area">
             <div class="diagram-svg-wrap">
                 <FlowDiagram State="_state"
@@ -58,6 +61,7 @@
                             OnClose="ClosePane" />
             }
         </div>
+        }
     }
     else
     {

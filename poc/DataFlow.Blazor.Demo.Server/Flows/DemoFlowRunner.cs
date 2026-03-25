@@ -128,6 +128,20 @@ public sealed class DemoFlowRunner
     private static string Serialize(object value) =>
         JsonSerializer.Serialize(value, new JsonSerializerOptions { WriteIndented = false });
 
+    /// <summary>
+    /// Competing consumers: Producer → [Worker-1, Worker-2, Worker-3] via a shared competing channel.
+    /// All three workers compete for items; each item is consumed by exactly one worker.
+    /// </summary>
+    public Guid RunCompeting()
+    {
+        const int itemCount = 60;
+        const int workerCount = 3;
+        var invocationId = Guid.NewGuid();
+        var triggerParams = Serialize(new { topology = "competing", itemCount, workerCount, triggeredBy = "demo-ui" });
+        _ = Task.Run(() => ExecuteCompetingAsync(invocationId, triggerParams, itemCount, workerCount));
+        return invocationId;
+    }
+
     // -----------------------------------------------------------------------
 
     private async Task ExecuteLinearAsync(Guid invocationId, string? triggerParamsJson)
@@ -398,6 +412,36 @@ public sealed class DemoFlowRunner
         catch (Exception ex)
         {
             _logger.LogError(ex, "Fan-in demo flow {InvocationId} failed", invocationId);
+        }
+    }
+
+    private async Task ExecuteCompetingAsync(Guid invocationId, string? triggerParamsJson, int itemCount, int workerCount)
+    {
+        try
+        {
+            // Producer emits items; workers compete for each item via a shared channel.
+            // Each item is consumed by exactly one worker — competing (not broadcast) delivery.
+            var producer = new DemoProducerBlock("producer", itemCount, delayMs: 80);
+
+            var workers = Enumerable.Range(1, workerCount)
+                .Select(i => (IBlock)new DemoSlowConsumerBlock($"worker-{i}", delayMs: 200))
+                .ToArray();
+
+            var graph = new DataFlowGraph("competing-demo", _graphLogger);
+            graph.AddBlock(producer);
+            foreach (var w in workers) graph.AddBlock(w);
+
+            var competingStrategy = new CompetingEdgeStrategy(BufferMode.Bounded, 20);
+            graph.AddEdge(new Edge(producer, workers, competingStrategy));
+
+            using var scope = _services.CreateScope();
+            var ctx = new DataFlow.POC.Core.ExecutionContext(scope.ServiceProvider, CancellationToken.None, invocationId,
+                recoveryCheckpoint: null, metrics: null, triggerContext: null, triggerParamsJson: triggerParamsJson);
+            await graph.ExecuteAsync(ctx);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Competing demo flow {InvocationId} failed", invocationId);
         }
     }
 }
