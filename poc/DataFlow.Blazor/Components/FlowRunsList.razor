@@ -46,7 +46,7 @@ else
                         <span style="@BadgeStyle(group.Primary.Status)">@StatusLabel(group.Primary.Status)</span>
                     </td>
                     <td style="padding: 0.5rem 0.75rem; color: #495057;"
-                        title="@group.Primary.StartedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")">
+                        title="@group.Primary.StartedAt.ToString("yyyy-MM-dd HH:mm:ss") UTC">
                         @FormatStartedAt(group.Primary.StartedAt)
                     </td>
                     <td style="padding: 0.5rem 0.75rem; color: #495057;">
@@ -80,7 +80,7 @@ else
                                 </span>
                             </td>
                             <td style="padding: 0.35rem 0.75rem; color: #6c757d; font-size: 0.85rem;"
-                                title="@attempt.StartedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")">
+                                title="@attempt.StartedAt.ToString("yyyy-MM-dd HH:mm:ss") UTC">
                                 @FormatStartedAt(attempt.StartedAt)
                             </td>
                             <td style="padding: 0.35rem 0.75rem; color: #6c757d; font-size: 0.85rem;">
@@ -126,6 +126,18 @@ else
     /// Example: <c>ViewUrlTemplate="/apps/JNL/DataFlow/Runs/{0}"</c>
     /// </summary>
     [Parameter] public string ViewUrlTemplate { get; set; } = "/flows/{0}";
+
+    /// <summary>
+    /// Optional custom formatter for the "Started" column. Receives the UTC <see cref="DateTime"/>
+    /// stored on the run and returns the string to display.
+    /// When <c>null</c> (the default) the built-in smart local-time formatter is used:
+    /// "Today HH:mm:ss", "Yesterday HH:mm:ss", "d MMM HH:mm:ss", or "d MMM yyyy HH:mm:ss".
+    /// <para>
+    /// Example — display as UTC:
+    /// <code>StartedAtFormatter="dt => dt.ToString(\"yyyy-MM-dd HH:mm:ss\") + \" UTC\""</code>
+    /// </para>
+    /// </summary>
+    [Parameter] public Func<DateTime, string>? StartedAtFormatter { get; set; }
 
     // Total rows to fetch on each poll — grows by PageSize on each "Load more".
     // Always fetches page=1 with this as the window size so status updates on
@@ -249,8 +261,11 @@ else
     private static string RowStyle(FlowState s) =>
         s == FlowState.Running ? "background: #fffdf0;" : "";
 
-    private static string FormatStartedAt(DateTime dt)
+    private string FormatStartedAt(DateTime dt)
     {
+        if (StartedAtFormatter is not null)
+            return StartedAtFormatter(dt);
+
         var local = dt.ToLocalTime();
         var today = DateTime.Today;
         if (local.Date == today)
