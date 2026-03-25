@@ -83,26 +83,23 @@ app.MapDataFlowEndpoints();
 // POST /flows/run/fanin     →  { invocationId }
 // POST /flows/run/competing →  { invocationId }
 // -----------------------------------------------------------------------
-var validTopologies = new[] { "linear", "branching", "fanin", "backpressure", "failure", "queue-message", "invoice-processing", "competing" };
+var topologyRunners = new Dictionary<string, Func<DemoFlowRunner, Guid>>(StringComparer.OrdinalIgnoreCase)
+{
+    ["linear"]             = r => r.RunLinear(),
+    ["branching"]          = r => r.RunBranching(),
+    ["fanin"]              = r => r.RunFanIn(),
+    ["backpressure"]       = r => r.RunBackpressure(),
+    ["failure"]            = r => r.RunFailure(),
+    ["queue-message"]      = r => r.RunQueueMessage(),
+    ["invoice-processing"] = r => r.RunInvoiceProcessing(),
+    ["competing"]          = r => r.RunCompeting(),
+};
 
 app.MapPost("/flows/run/{topology}", (string topology, DemoFlowRunner runner) =>
 {
-    var invocationId = topology.ToLowerInvariant() switch
-    {
-        "linear"        => runner.RunLinear(),
-        "branching"     => runner.RunBranching(),
-        "fanin"         => runner.RunFanIn(),
-        "backpressure"  => runner.RunBackpressure(),
-        "failure"       => runner.RunFailure(),
-        "queue-message"       => runner.RunQueueMessage(),
-        "invoice-processing"  => runner.RunInvoiceProcessing(),
-        "competing"     => runner.RunCompeting(),
-        _               => (Guid?)null
-    };
-
-    return invocationId is null
-        ? Results.BadRequest(new { error = $"Unknown topology '{topology}'. Use: {string.Join(", ", validTopologies)}." })
-        : Results.Ok(new { invocationId });
+    return topologyRunners.TryGetValue(topology, out var run)
+        ? Results.Ok(new { invocationId = run(runner) })
+        : Results.BadRequest(new { error = $"Unknown topology '{topology}'. Use: {string.Join(", ", topologyRunners.Keys)}." });
 });
 
 app.MapRazorPages();
