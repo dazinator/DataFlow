@@ -11,10 +11,10 @@ using Xunit;
 
 /// <summary>
 /// Tests for the block and flow metadata APIs, including:
-/// - Additive (multi-module) metadata registration via <c>AddDataFlowBlockMetadata</c>
 /// - Inline metadata registration via <c>AddDataFlows</c> configure callbacks
 /// - <c>AddEpochBuffer</c> on the DI builder
 /// - Flow-level display name via <c>DataFlowBuilder.DisplayName()</c>
+/// - Multi-module metadata contributions
 /// </summary>
 public class DataFlowMetadataApiTests
 {
@@ -25,67 +25,6 @@ public class DataFlowMetadataApiTests
 
     private static IDataFlowFlowMetadataStore GetFlowStore(IServiceCollection services) =>
         services.BuildServiceProvider().GetRequiredService<IDataFlowFlowMetadataStore>();
-
-    // ── AddDataFlowBlockMetadata – additive registration ─────────────────────
-
-    [Fact]
-    public void AddDataFlowBlockMetadata_SingleCall_RegistersEntries()
-    {
-        var services = new ServiceCollection();
-
-        services.AddDataFlowBlockMetadata(blocks =>
-        {
-            blocks.ForBlock("module-a:producer").DisplayName("A Producer");
-        });
-
-        var store = GetBlockStore(services);
-        Assert.Equal("A Producer", store.GetDisplayName("module-a:producer"));
-    }
-
-    [Fact]
-    public void AddDataFlowBlockMetadata_MultipleCalls_MergesEntries()
-    {
-        // Simulates two independent modules each calling AddDataFlowBlockMetadata.
-        var services = new ServiceCollection();
-
-        // Module A
-        services.AddDataFlowBlockMetadata(blocks =>
-        {
-            blocks.ForBlock("module-a:producer").DisplayName("A Producer");
-        });
-
-        // Module B — should NOT overwrite Module A's entry
-        services.AddDataFlowBlockMetadata(blocks =>
-        {
-            blocks.ForBlock("module-b:processor").DisplayName("B Processor");
-        });
-
-        var store = GetBlockStore(services);
-        Assert.Equal("A Producer", store.GetDisplayName("module-a:producer"));
-        Assert.Equal("B Processor", store.GetDisplayName("module-b:processor"));
-    }
-
-    [Fact]
-    public void AddDataFlowBlockMetadata_CalledAfterAddDataFlows_MergesWithInlineMetadata()
-    {
-        var services = new ServiceCollection();
-
-        services.AddDataFlows("journal", df =>
-        {
-            df.AddActorBlock<int, string, TransformActor<int, string>>("step",
-                meta => meta.DisplayName("Inline Step"));
-        });
-
-        // Standalone call from a separate module
-        services.AddDataFlowBlockMetadata(blocks =>
-        {
-            blocks.ForBlock("external:block").DisplayName("External Block");
-        });
-
-        var store = GetBlockStore(services);
-        Assert.Equal("Inline Step", store.GetDisplayName("journal:step"));
-        Assert.Equal("External Block", store.GetDisplayName("external:block"));
-    }
 
     // ── Inline metadata via AddDataFlows ────────────────────────────────────
 
@@ -310,17 +249,19 @@ public class DataFlowMetadataApiTests
     // ── IDataFlowBlockMetadataStore singleton contract ───────────────────────
 
     [Fact]
-    public void AddDataFlowBlockMetadata_RegistersExactlyOneSingleton()
+    public void AddDataFlows_MultipleModulesWithMetadata_RegistersExactlyOneSingleton()
     {
         var services = new ServiceCollection();
 
-        services.AddDataFlowBlockMetadata(blocks =>
+        services.AddDataFlows("module-a", df =>
         {
-            blocks.ForBlock("a:block").DisplayName("Block A");
+            df.AddActorBlock<int, string, TransformActor<int, string>>("worker",
+                meta => meta.DisplayName("A Worker"));
         });
-        services.AddDataFlowBlockMetadata(blocks =>
+        services.AddDataFlows("module-b", df =>
         {
-            blocks.ForBlock("b:block").DisplayName("Block B");
+            df.AddActorBlock<int, string, TransformActor<int, string>>("worker",
+                meta => meta.DisplayName("B Worker"));
         });
 
         var count = services.Count(d => d.ServiceType == typeof(IDataFlowBlockMetadataStore));

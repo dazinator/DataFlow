@@ -104,10 +104,10 @@ public class DataFlowBuilder
 
     internal void RegisterCollectedMetadata(IServiceCollection services)
     {
-        services.MergeBlockMetadata(_blockMetadataBuilder.GetEntries());
+        DataFlowBlockMetadataContribution.Register(services, _blockMetadataBuilder.GetEntries());
 
         if (_flowDisplayName is not null)
-            services.RegisterFlowDisplayName(Namespace, _flowDisplayName);
+            DataFlowFlowMetadataContribution.Register(services, Namespace, _flowDisplayName);
     }
 
     #region Block Registration
