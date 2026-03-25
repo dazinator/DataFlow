@@ -118,6 +118,13 @@ else
 @code {
     private const int PageSize = 50;
 
+    /// <summary>
+    /// URL template for the "View →" button. Use <c>{0}</c> as the placeholder for the flow run GUID.
+    /// Defaults to <c>/flows/{0}</c>.
+    /// Example: <c>ViewUrlTemplate="/apps/JNL/DataFlow/Runs/{0}"</c>
+    /// </summary>
+    [Parameter] public string ViewUrlTemplate { get; set; } = "/flows/{0}";
+
     // Total rows to fetch on each poll — grows by PageSize on each "Load more".
     // Always fetches page=1 with this as the window size so status updates on
     // in-progress runs continue to arrive without needing multiple requests.
@@ -175,7 +182,7 @@ else
     }
 
     private void NavigateToFlow(Guid flowRunId) =>
-        Nav.NavigateTo($"/flows/{flowRunId}");
+        Nav.NavigateTo(string.Format(ViewUrlTemplate, flowRunId));
 
     // ── Grouping ─────────────────────────────────────────────────────────────
 
