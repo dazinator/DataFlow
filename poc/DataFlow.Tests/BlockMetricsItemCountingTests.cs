@@ -22,9 +22,38 @@ using Xunit;
 ///
 /// The fix makes WrapWithInputCounter detect IEpochStream&lt;T&gt; input types and use a wrapper
 /// that counts inner items so both sides use the same unit of measure.
+///
+/// IMPORTANT: These tests use native epoch-aware blocks (EpochBatchBlock, EpochActorBlock) wired
+/// directly in DataFlowGraph so that adapter.InputItemType == typeof(IEpochStream&lt;T&gt;) when the
+/// graph calls ReflectionHelper.WrapWithInputCounter.  Tests that use the PlainToEpoch*Wrapper
+/// helpers (CreateBatch / CreateActor) would bypass the epoch branch because those wrappers
+/// expose a plain TIn/TOut surface and handle epoch wrapping internally.
 /// </summary>
 public class BlockMetricsItemCountingTests
 {
+    // ── Epoch-emitting source block ───────────────────────────────────────
+
+    /// <summary>
+    /// Minimal source block whose OutputType is IEpochStream&lt;T&gt; so the downstream
+    /// epoch-aware blocks (EpochBatchBlock, EpochActorBlock) receive the correct input
+    /// item type and DataFlowGraph routes through the epoch counting path.
+    /// </summary>
+    private sealed class EpochProducerBlock<T> : BlockBase<object, IEpochStream<T>>
+    {
+        private readonly IAsyncEnumerable<T> _items;
+
+        public EpochProducerBlock(string name, IAsyncEnumerable<T> items)
+            : base(new BlockContext(name))
+        {
+            _items = items;
+        }
+
+        public override IAsyncEnumerable<IEpochStream<T>> ExecuteAsync(
+            IAsyncEnumerable<object> input,
+            IExecutionContext context)
+            => _items.WrapInSingleEpoch(Name, context.CancellationToken);
+    }
+
     // ── Capturing event sink ──────────────────────────────────────────────
 
     private sealed class CapturingEventSink : IFlowEventSink
@@ -67,17 +96,26 @@ public class BlockMetricsItemCountingTests
     /// <summary>
     /// Verifies the fix: a batch block that receives N individual items bundled in one epoch
     /// should report ItemsConsumed = N (individual items), not 1 (epoch container count).
+    ///
+    /// Graph: EpochProducerBlock&lt;int&gt; → EpochBatchBlock&lt;int&gt; → EpochActorBlock (collector)
+    ///
+    /// Because EpochBatchBlock's InputType is IEpochStream&lt;int&gt;, DataFlowGraph calls
+    /// WrapWithInputCounter with inputItemType = typeof(IEpochStream&lt;int&gt;), which now routes
+    /// through CreateCountingEpochAsyncEnumerable and counts inner items.
     /// </summary>
     [Fact]
     public async Task BatchBlock_ItemsConsumed_ReflectsIndividualItemCount_NotEpochContainerCount()
     {
-        // Arrange: source emits 10 items; batch block groups them into batches of 3.
+        // Arrange: source emits 10 items in one epoch; batch block groups them into batches of 3.
         var collected = new List<int[]>();
         const int itemCount = 10;
 
-        var producer = BlockHelpers.CreateProducer("producer", TestStreams.Integers(itemCount));
-        var batcher  = BlockHelpers.CreateBatch<int>("batcher", maxBatchSize: 3);
-        var consumer = BlockHelpers.CreateActor<int[], object, CollectorActor<int[]>>(
+        // EpochProducerBlock: OutputType = IEpochStream<int> — feeds the epoch routing path
+        var producer = new EpochProducerBlock<int>("producer", TestStreams.Integers(itemCount));
+        // EpochBatchBlock: InputType = IEpochStream<int> — adapter.InputItemType hits epoch branch
+        var batcher = BlockHelpers.CreateEpochBatch<int>("batcher", maxBatchSize: 3);
+        // EpochActorBlock: InputType = IEpochStream<int[]>
+        var consumer = BlockHelpers.CreateEpochActor<int[], object, CollectorActor<int[]>>(
             "consumer", new CollectorActor<int[]>(collected));
 
         var (graph, context, sink) = BuildGraphWithSink("metrics-batch-test", b =>
@@ -93,7 +131,7 @@ public class BlockMetricsItemCountingTests
         // Assert: consumer received correct batches
         collected.SelectMany(b => b).Count().ShouldBe(itemCount);
 
-        // Assert: source produced 10 individual items
+        // Assert: source produced 10 individual items (output side already counts inner items)
         var producerMetrics = sink.MetricsFor("producer").LastOrDefault();
         producerMetrics.ShouldNotBeNull("source must emit a final BlockMetricsEvent");
         producerMetrics!.ItemsProduced.ShouldBe(itemCount,
@@ -121,9 +159,9 @@ public class BlockMetricsItemCountingTests
         // Arrange: 7 items, batch size 10 (one partial batch)
         const int itemCount = 7;
 
-        var producer = BlockHelpers.CreateProducer("producer", TestStreams.Integers(itemCount));
-        var batcher  = BlockHelpers.CreateBatch<int>("batcher", maxBatchSize: 10);
-        var consumer = BlockHelpers.CreateActor<int[], object, CollectorActor<int[]>>(
+        var producer = new EpochProducerBlock<int>("producer", TestStreams.Integers(itemCount));
+        var batcher  = BlockHelpers.CreateEpochBatch<int>("batcher", maxBatchSize: 10);
+        var consumer = BlockHelpers.CreateEpochActor<int[], object, CollectorActor<int[]>>(
             "consumer", new CollectorActor<int[]>(new List<int[]>()));
 
         var (graph, context, sink) = BuildGraphWithSink("metrics-match-test", b =>
@@ -152,12 +190,14 @@ public class BlockMetricsItemCountingTests
     [Fact]
     public async Task ActorBlock_ItemsConsumed_ReflectsIndividualItemCount()
     {
-        // Arrange: source emits 5 items; actor block does a 1:1 pass-through.
+        // Arrange: source emits 5 items in one epoch; actor does a 1:1 pass-through (collector).
         var collected = new List<int>();
         const int itemCount = 5;
 
-        var producer = BlockHelpers.CreateProducer("producer", TestStreams.Integers(itemCount));
-        var actor    = BlockHelpers.CreateActor<int, object, CollectorActor<int>>(
+        // EpochProducerBlock: OutputType = IEpochStream<int>
+        var producer = new EpochProducerBlock<int>("producer", TestStreams.Integers(itemCount));
+        // EpochActorBlock: InputType = IEpochStream<int> — hits epoch branch in WrapWithInputCounter
+        var actor = BlockHelpers.CreateEpochActor<int, object, CollectorActor<int>>(
             "actor", new CollectorActor<int>(collected));
 
         var (graph, context, sink) = BuildGraphWithSink("metrics-actor-test", b =>
