@@ -187,6 +187,35 @@ builder.Services.AddDataFlowVisualizationClient(
     hubPath: "/hubs/my-flow-events");   // must match app.MapHub<FlowEventsHub>(...)
 ```
 
+#### Authenticated hubs
+
+If the hub is protected with `.RequireAuthorization()` (e.g. the server uses JWT bearer
+auth and the standard query-string token middleware), pass an `accessTokenProvider`:
+
+```csharp
+builder.Services.AddDataFlowVisualizationClient(
+    baseUrl: builder.HostEnvironment.BaseAddress,
+    accessTokenProvider: async () =>
+    {
+        // Return the raw JWT (without "Bearer " prefix).
+        // Replace this with however your app provides tokens — e.g.:
+        //   Microsoft.AspNetCore.Components.WebAssembly.Authentication
+        //   Blazored.LocalStorage
+        //   a custom ITokenService
+        var tokenResult = await tokenProvider.RequestAccessToken();
+        return tokenResult.TryGetToken(out var token) ? token.Value : null;
+    });
+```
+
+The token is sent by the SignalR client as the `access_token` query parameter on the
+WebSocket/SSE connection — this is the standard mechanism ASP.NET Core uses to pass
+tokens over transports that cannot set HTTP headers.
+
+> **Note**: The HTTP catch-up request (`GET /flows/{id}/state`) uses the normal
+> `HttpClient` that is already registered in your DI container. Ensure that client
+> has the appropriate `Authorization` header set (e.g. via a `DelegatingHandler` or
+> `IHttpClientFactory` named client) if that endpoint is also protected.
+
 ### 2. Add the using to `_Imports.razor`
 
 ```razor
