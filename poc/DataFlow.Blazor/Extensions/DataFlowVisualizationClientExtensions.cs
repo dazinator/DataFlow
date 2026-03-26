@@ -3,6 +3,7 @@ namespace DataFlow.Blazor.Extensions;
 using DataFlow.Blazor.Events;
 using DataFlow.Blazor.Models;
 using DataFlow.Blazor.Services;
+using Microsoft.AspNetCore.Http.Connections.Client;
 using Microsoft.Extensions.DependencyInjection;
 
 /// <summary>
@@ -22,6 +23,19 @@ using Microsoft.Extensions.DependencyInjection;
 ///     {
 ///         var tokenService = sp.GetRequiredService&lt;IMyTokenService&gt;();
 ///         return async () => await tokenService.GetTokenAsync();
+///     });
+///
+/// // With full connection options control (transport, headers, token, etc.):
+/// builder.Services.AddDataFlowVisualizationClient(
+///     baseUrl: builder.HostEnvironment.BaseAddress,
+///     configureConnection: sp =>
+///     {
+///         var tokenService = sp.GetRequiredService&lt;IMyTokenService&gt;();
+///         return options =>
+///         {
+///             options.AccessTokenProvider = async () => await tokenService.GetTokenAsync();
+///             options.Transports = HttpTransportType.WebSockets;
+///         };
 ///     });
 ///
 /// // Or during development, keep the mock event source:
@@ -45,6 +59,9 @@ public static class DataFlowVisualizationClientExtensions
     /// mechanism for authenticating WebSocket/SSE connections.
     /// Receiving the <see cref="IServiceProvider"/> allows token services registered in DI (e.g.
     /// <c>ITokenService</c>, MSAL) to be resolved without needing a captured closure.
+    /// When both <paramref name="accessTokenProvider"/> and <paramref name="configureConnection"/> are
+    /// supplied, the token provider is applied last and overrides any
+    /// <see cref="HttpConnectionOptions.AccessTokenProvider"/> set by <paramref name="configureConnection"/>.
     /// Example:
     /// <code>
     /// accessTokenProvider: sp =>
@@ -54,11 +71,31 @@ public static class DataFlowVisualizationClientExtensions
     /// }
     /// </code>
     /// </param>
+    /// <param name="configureConnection">
+    /// Optional factory that receives the scoped <see cref="IServiceProvider"/> and returns an
+    /// <see cref="Action{HttpConnectionOptions}"/> applied to the SignalR connection before it starts.
+    /// Use this for full control over the connection — transport type, custom request headers,
+    /// access token provider, and any other <see cref="HttpConnectionOptions"/> setting.
+    /// Applied before <paramref name="accessTokenProvider"/>; the token provider wins if both are specified.
+    /// Example:
+    /// <code>
+    /// configureConnection: sp =>
+    /// {
+    ///     var svc = sp.GetRequiredService&lt;IMyTokenService&gt;();
+    ///     return options =>
+    ///     {
+    ///         options.AccessTokenProvider = async () => await svc.GetTokenAsync();
+    ///         options.Transports = HttpTransportType.WebSockets;
+    ///     };
+    /// }
+    /// </code>
+    /// </param>
     public static IServiceCollection AddDataFlowVisualizationClient(
         this IServiceCollection services,
         string baseUrl,
         string hubPath = "/hubs/flow-events",
-        Func<IServiceProvider, Func<Task<string?>>>? accessTokenProvider = null)
+        Func<IServiceProvider, Func<Task<string?>>>? accessTokenProvider = null,
+        Func<IServiceProvider, Action<HttpConnectionOptions>>? configureConnection = null)
     {
         var hubUrl = baseUrl.TrimEnd('/') + hubPath;
 
@@ -66,7 +103,8 @@ public static class DataFlowVisualizationClientExtensions
         {
             var http = sp.GetRequiredService<HttpClient>();
             var tokenDelegate = accessTokenProvider?.Invoke(sp);
-            return new HttpSignalREventSource(http, hubUrl, tokenDelegate);
+            var connectionConfig = configureConnection?.Invoke(sp);
+            return new HttpSignalREventSource(http, hubUrl, tokenDelegate, connectionConfig);
         });
 
         services.AddScoped<IFlowListSource>(sp =>
