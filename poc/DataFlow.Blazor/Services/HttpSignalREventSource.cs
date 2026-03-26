@@ -6,6 +6,7 @@ using System.Text.Json;
 using DataFlow.Blazor.Api;
 using DataFlow.Blazor.Events;
 using DataFlow.Blazor.Projection;
+using Microsoft.AspNetCore.Http.Connections.Client;
 using Microsoft.AspNetCore.SignalR.Client;
 
 /// <summary>
@@ -26,7 +27,22 @@ using Microsoft.AspNetCore.SignalR.Client;
 /// <code>
 /// builder.Services.AddDataFlowVisualizationClient(
 ///     baseUrl: builder.HostEnvironment.BaseAddress,
-///     accessTokenProvider: async () => await tokenService.GetTokenAsync());
+///     accessTokenProvider: sp => async () => await sp.GetRequiredService&lt;ITokenService&gt;().GetTokenAsync());
+/// </code>
+///
+/// Or configure full connection options (transport type, headers, etc.):
+/// <code>
+/// builder.Services.AddDataFlowVisualizationClient(
+///     baseUrl: builder.HostEnvironment.BaseAddress,
+///     configureConnection: sp =>
+///     {
+///         var svc = sp.GetRequiredService&lt;ITokenService&gt;();
+///         return options =>
+///         {
+///             options.AccessTokenProvider = async () => await svc.GetTokenAsync();
+///             options.Transports = HttpTransportType.WebSockets;
+///         };
+///     });
 /// </code>
 /// </summary>
 public class HttpSignalREventSource : IEventSource, IAsyncDisposable
@@ -36,6 +52,7 @@ public class HttpSignalREventSource : IEventSource, IAsyncDisposable
     private readonly HttpClient _http;
     private readonly string _hubUrl;
     private readonly Func<Task<string?>>? _accessTokenProvider;
+    private readonly Action<HttpConnectionOptions>? _configureConnection;
 
     // Cached per-invocation state (populated by GetSnapshotAsync)
     private FlowSnapshot? _cachedSnapshot;
@@ -51,12 +68,25 @@ public class HttpSignalREventSource : IEventSource, IAsyncDisposable
     /// The token is passed as the SignalR <c>access_token</c> query parameter,
     /// which is the standard mechanism used by ASP.NET Core's JWT middleware
     /// (and query-string token middleware) to authenticate WebSocket connections.
+    /// When both <paramref name="accessTokenProvider"/> and <paramref name="configureConnection"/>
+    /// are supplied, the token provider is applied last and will override any
+    /// <see cref="HttpConnectionOptions.AccessTokenProvider"/> set by <paramref name="configureConnection"/>.
     /// </param>
-    public HttpSignalREventSource(HttpClient http, string hubUrl, Func<Task<string?>>? accessTokenProvider = null)
+    /// <param name="configureConnection">
+    /// Optional callback to configure <see cref="HttpConnectionOptions"/> for the SignalR connection.
+    /// Use this for full control over the connection — transport type, custom headers, access token, etc.
+    /// Applied before <paramref name="accessTokenProvider"/>; if both are specified the token provider wins.
+    /// </param>
+    public HttpSignalREventSource(
+        HttpClient http,
+        string hubUrl,
+        Func<Task<string?>>? accessTokenProvider = null,
+        Action<HttpConnectionOptions>? configureConnection = null)
     {
         _http = http;
         _hubUrl = hubUrl;
         _accessTokenProvider = accessTokenProvider;
+        _configureConnection = configureConnection;
     }
 
     public async Task<FlowSnapshot?> GetSnapshotAsync(Guid invocationId, CancellationToken cancellationToken = default)
@@ -97,6 +127,7 @@ public class HttpSignalREventSource : IEventSource, IAsyncDisposable
         var hub = new HubConnectionBuilder()
             .WithUrl(_hubUrl, options =>
             {
+                _configureConnection?.Invoke(options);
                 if (_accessTokenProvider is not null)
                     options.AccessTokenProvider = _accessTokenProvider;
             })
