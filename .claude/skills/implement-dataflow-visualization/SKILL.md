@@ -308,10 +308,10 @@ When the hub requires authorization, also pass `accessTokenProvider`:
 builder.Services.AddDataFlowVisualizationClient(
     baseUrl: builder.HostEnvironment.BaseAddress,
     hubPath: "/my/hub/path",
-    accessTokenProvider: async () =>
+    accessTokenProvider: sp =>
     {
-        var result = await tokenProvider.RequestAccessToken();
-        return result.TryGetToken(out var token) ? token.Value : null;
+        var tokenService = sp.GetRequiredService<ITokenService>();
+        return async () => await tokenService.GetTokenAsync();
     });
 ```
 
@@ -342,24 +342,27 @@ builder.Services.AddScoped(sp =>
 ### Authenticated hubs
 
 If the hub is protected with `.RequireAuthorization()`, supply an `accessTokenProvider` so
-the SignalR client can send the JWT on the WebSocket/SSE connection:
+the SignalR client can send the JWT on the WebSocket/SSE connection. The factory receives
+the scoped `IServiceProvider`, so you can resolve token services directly from DI:
 
 ```csharp
 builder.Services.AddDataFlowVisualizationClient(
     baseUrl: builder.HostEnvironment.BaseAddress,
     hubPath: "/hubs/flow-events",
-    accessTokenProvider: async () =>
+    accessTokenProvider: sp =>
     {
-        // Return the raw JWT — no "Bearer " prefix.
-        // Adapt to your auth library, e.g. Microsoft MSAL, Blazored.LocalStorage, etc.
-        var result = await tokenProvider.RequestAccessToken();
-        return result.TryGetToken(out var token) ? token.Value : null;
+        // Resolve your token service from DI — no captured closure needed.
+        // Examples: ITokenAcquisition (MSAL), IAccessTokenProvider (WASM auth),
+        //           Blazored.LocalStorage, a custom ITokenService, etc.
+        var tokenService = sp.GetRequiredService<ITokenService>();
+        return async () => await tokenService.GetTokenAsync();
     });
 ```
 
-The token is forwarded by the SignalR client as the `access_token` query parameter —
-this is the standard ASP.NET Core mechanism for authenticating WebSocket connections
-(the same token that the server-side JWT bearer middleware reads from the query string).
+The inner `Func<Task<string?>>` is called by the SignalR client before each connection
+attempt; the token is forwarded as the `access_token` query parameter — the standard
+ASP.NET Core mechanism for authenticating WebSocket connections (the same token that the
+server-side JWT bearer middleware reads from the query string).
 
 > **Note**: The HTTP catch-up request (`GET /flows/{id}/state`) uses the standard
 > `HttpClient` registered in DI. If that endpoint is also protected, ensure the client
@@ -724,7 +727,7 @@ Read through each item and verify it is done, or note why it doesn't apply:
 | Detail pane appears below the diagram instead of beside it | The `.bundle.scp.css` link is missing or uses the wrong filename (e.g. `.styles.css`). Without this file the `diagram-area` flex row layout is not applied and the pane stacks below the SVG. Verify the link is present and reload. |
 | Colours are default but theming overrides not working | App stylesheet loaded **before** library stylesheet — swap order |
 | SignalR connection refused | Hub path mismatch: the path passed to `MapDataFlowEndpoints` (or `MapHub` if registering manually) must exactly match `hubPath` in `AddDataFlowVisualizationClient` |
-| SignalR returns 401 / connection immediately closes | Hub is protected with `.RequireAuthorization()` but no `accessTokenProvider` was supplied to `AddDataFlowVisualizationClient`. Add `accessTokenProvider: async () => await tokenService.GetTokenAsync()` — the token is forwarded as the `access_token` query parameter on the WebSocket/SSE connection, which is how ASP.NET Core's JWT middleware authenticates WebSocket requests. |
+| SignalR returns 401 / connection immediately closes | Hub is protected with `.RequireAuthorization()` but no `accessTokenProvider` was supplied to `AddDataFlowVisualizationClient`. Add `accessTokenProvider: sp => { var svc = sp.GetRequiredService<ITokenService>(); return async () => await svc.GetTokenAsync(); }` — the token is forwarded as the `access_token` query parameter on the WebSocket/SSE connection, which is how ASP.NET Core's JWT middleware authenticates WebSocket requests. |
 | App uses Azure SignalR Service | No special steps needed. Use `MapDataFlowHttpEndpoints` and map the hub yourself so you can apply your existing Azure SignalR options. `FlowEventsHub` is transport-agnostic — Azure SignalR intercepts the transport layer transparently. The library's internal `AddSignalR()` call is idempotent and will not override your Azure SignalR setup. |
 | BYO-context: EF can't find the tables | `modelBuilder.AddDataFlowVisualizationEntities()` not called in `OnModelCreating`, or migration not applied |
 | "Loading flow visualization…" never resolves | `IEventSource` not registered, or server endpoints not mapped |
