@@ -281,6 +281,64 @@ internal static class StreamPump
     }
 
     /// <summary>
+    /// Wraps an <c>IAsyncEnumerable&lt;IEpochStream&lt;TItem&gt;&gt;</c> so that the counter is
+    /// incremented once per <em>individual item</em> consumed from within each epoch, rather than
+    /// once per epoch container. This keeps <c>ItemsConsumed</c> consistent with the output-side
+    /// counting performed by <see cref="EnumerateAndRouteEpochStreamAsync{TItem}"/>, which also
+    /// counts inner items. Without this wrapper the diagram would show a block that batches 2 items
+    /// from a single epoch as "in 1" (one epoch container) while the upstream shows "2 out".
+    /// </summary>
+    internal static IAsyncEnumerable<IEpochStream<TItem>> CreateCountingEpochAsyncEnumerable<TItem>(
+        object typedInput, long[] counter)
+    {
+        var stream = (IAsyncEnumerable<IEpochStream<TItem>>)typedInput;
+        return new CountingEpochAsyncEnumerable<TItem>(stream, counter);
+    }
+
+    private sealed class CountingEpochAsyncEnumerable<TItem> : IAsyncEnumerable<IEpochStream<TItem>>
+    {
+        private readonly IAsyncEnumerable<IEpochStream<TItem>> _outer;
+        private readonly long[] _counter;
+
+        internal CountingEpochAsyncEnumerable(IAsyncEnumerable<IEpochStream<TItem>> outer, long[] counter)
+        {
+            _outer = outer;
+            _counter = counter;
+        }
+
+        public async IAsyncEnumerator<IEpochStream<TItem>> GetAsyncEnumerator(CancellationToken ct = default)
+        {
+            await foreach (var epochStream in _outer.WithCancellation(ct).ConfigureAwait(false))
+            {
+                yield return new CountingEpochStream<TItem>(epochStream, _counter);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Wraps an <see cref="IEpochStream{T}"/> and increments <paramref name="counter"/> for every
+    /// item consumed from the inner <see cref="IEpochStream{T}.Items"/> stream.
+    /// The epoch metadata and scope are passed through unchanged so downstream blocks behave normally.
+    /// </summary>
+    private sealed class CountingEpochStream<T> : IEpochStream<T>
+    {
+        private readonly IEpochStream<T> _inner;
+        private readonly long[] _counter;
+
+        public EpochVector Epoch => _inner.Epoch;
+        public IEpoch? EpochScope => _inner.EpochScope;
+        public IAsyncEnumerable<T> Items => new CountingAsyncEnumerable<T>(_inner.Items, _counter);
+
+        internal CountingEpochStream(IEpochStream<T> inner, long[] counter)
+        {
+            _inner = inner;
+            _counter = counter;
+        }
+
+        public ValueTask DisposeAsync() => _inner.DisposeAsync();
+    }
+
+    /// <summary>
     /// Helper method to read from a source and write to a channel.
     /// Each source runs concurrently, enabling parallel reading from multiple upstream blocks.
     /// </summary>

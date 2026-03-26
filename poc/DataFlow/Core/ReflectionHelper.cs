@@ -31,7 +31,14 @@ public static class ReflectionHelper
     /// </summary>
     private static readonly ConcurrentDictionary<Type, Func<object, long[], object>>
         _inputCounterWrapperCache = new();
-    
+
+    /// <summary>
+    /// Cache for epoch-stream input-counter wrapping delegates, keyed by the inner item type
+    /// (i.e. TItem from IEpochStream&lt;TItem&gt;). Built once on first use.
+    /// </summary>
+    private static readonly ConcurrentDictionary<Type, Func<object, long[], object>>
+        _epochInputCounterWrapperCache = new();
+
     /// <summary>
     /// Returns a pre-compiled container routing delegate for the given item type, if available.
     /// Populated at graph build time by CreateContainerRoutingDelegate.
@@ -157,12 +164,40 @@ public static class ReflectionHelper
     /// for every item yielded. Returns <see langword="null"/> when <paramref name="typedInput"/>
     /// is <see langword="null"/> (source blocks have no input).
     ///
+    /// When <paramref name="inputItemType"/> is <c>IEpochStream&lt;TItem&gt;</c> the shim counts
+    /// individual items <em>within</em> each epoch, not epoch containers. This keeps the
+    /// <c>ItemsConsumed</c> value consistent with the output-side counting done by
+    /// <see cref="StreamPump"/> which also counts inner items, so the Blazor diagram shows
+    /// matching "N out" / "N in" totals across connected epoch-stream blocks.
+    ///
     /// The wrapping delegate is compiled once per item type and cached; the hot-path cost per
     /// item is a single <see cref="System.Threading.Interlocked.Increment"/> call.
     /// </summary>
     internal static object? WrapWithInputCounter(object? typedInput, Type inputItemType, long[] inputCounter)
     {
         if (typedInput == null) return null;
+
+        // For epoch-stream inputs count individual items within each epoch rather than epoch
+        // containers. Without this a block that receives 2 items bundled in 1 epoch would report
+        // ItemsConsumed = 1 (epoch containers) while the upstream block reports ItemsProduced = 2
+        // (individual items), producing a misleading mismatch in the Blazor diagram.
+        if (IsEpochStreamType(inputItemType))
+        {
+            var innerItemType = GetEpochStreamItemType(inputItemType);
+            var epochWrapper = _epochInputCounterWrapperCache.GetOrAdd(innerItemType, static type =>
+            {
+                var method = typeof(StreamPump).GetMethod(
+                    nameof(StreamPump.CreateCountingEpochAsyncEnumerable),
+                    BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Public)
+                    ?? throw new InvalidOperationException(
+                        $"Could not find method {nameof(StreamPump.CreateCountingEpochAsyncEnumerable)}");
+
+                var genericMethod = method.MakeGenericMethod(type);
+                return (input, counter) => genericMethod.Invoke(null, new object[] { input, counter })!;
+            });
+
+            return epochWrapper(typedInput, inputCounter);
+        }
 
         var wrapper = _inputCounterWrapperCache.GetOrAdd(inputItemType, static type =>
         {
