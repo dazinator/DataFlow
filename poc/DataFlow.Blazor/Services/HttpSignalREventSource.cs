@@ -21,6 +21,13 @@ using Microsoft.AspNetCore.SignalR.Client;
 /// <code>
 /// builder.Services.AddDataFlowVisualizationClient(baseUrl: builder.HostEnvironment.BaseAddress);
 /// </code>
+///
+/// For authenticated hubs, supply an access token provider:
+/// <code>
+/// builder.Services.AddDataFlowVisualizationClient(
+///     baseUrl: builder.HostEnvironment.BaseAddress,
+///     accessTokenProvider: async () => await tokenService.GetTokenAsync());
+/// </code>
 /// </summary>
 public class HttpSignalREventSource : IEventSource, IAsyncDisposable
 {
@@ -28,6 +35,7 @@ public class HttpSignalREventSource : IEventSource, IAsyncDisposable
 
     private readonly HttpClient _http;
     private readonly string _hubUrl;
+    private readonly Func<Task<string?>>? _accessTokenProvider;
 
     // Cached per-invocation state (populated by GetSnapshotAsync)
     private FlowSnapshot? _cachedSnapshot;
@@ -36,10 +44,19 @@ public class HttpSignalREventSource : IEventSource, IAsyncDisposable
     private long _asOfId;
     private string? _cachedFlowDisplayName;
 
-    public HttpSignalREventSource(HttpClient http, string hubUrl)
+    /// <param name="http">The HTTP client used for catch-up HTTP requests.</param>
+    /// <param name="hubUrl">Full URL of the SignalR hub endpoint.</param>
+    /// <param name="accessTokenProvider">
+    /// Optional factory that returns a bearer token for authenticated hubs.
+    /// The token is passed as the SignalR <c>access_token</c> query parameter,
+    /// which is the standard mechanism used by ASP.NET Core's JWT middleware
+    /// (and query-string token middleware) to authenticate WebSocket connections.
+    /// </param>
+    public HttpSignalREventSource(HttpClient http, string hubUrl, Func<Task<string?>>? accessTokenProvider = null)
     {
         _http = http;
         _hubUrl = hubUrl;
+        _accessTokenProvider = accessTokenProvider;
     }
 
     public async Task<FlowSnapshot?> GetSnapshotAsync(Guid invocationId, CancellationToken cancellationToken = default)
@@ -78,7 +95,11 @@ public class HttpSignalREventSource : IEventSource, IAsyncDisposable
 
         // 2. Subscribe to SignalR for live events
         var hub = new HubConnectionBuilder()
-            .WithUrl(_hubUrl)
+            .WithUrl(_hubUrl, options =>
+            {
+                if (_accessTokenProvider is not null)
+                    options.AccessTokenProvider = _accessTokenProvider;
+            })
             .WithAutomaticReconnect()
             .Build();
 
