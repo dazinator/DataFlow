@@ -124,7 +124,10 @@ public class HttpSignalREventSource : IEventSource, IAsyncDisposable
         }
 
         // 2. Subscribe to SignalR for live events
-        var hub = new HubConnectionBuilder()
+        // 'await using' ensures hub.DisposeAsync() is called on ALL exit paths —
+        // including cancellation that fires during StartAsync or SendAsync, which
+        // would otherwise bypass the try/finally block and leave a zombie connection.
+        await using var hub = new HubConnectionBuilder()
             .WithUrl(_hubUrl, options =>
             {
                 _configureConnection?.Invoke(options);
@@ -194,7 +197,7 @@ public class HttpSignalREventSource : IEventSource, IAsyncDisposable
         finally
         {
             channel.Writer.TryComplete();
-            await hub.DisposeAsync();
+            // hub is disposed by 'await using' above — no explicit call needed here
         }
     }
 
