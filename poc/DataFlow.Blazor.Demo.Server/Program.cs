@@ -7,8 +7,9 @@ var builder = WebApplication.CreateBuilder(args);
 
 // -----------------------------------------------------------------------
 // DataFlow Visualization — server-side services
-// Registers: FlowVisualizationDbContext (SQLite), IFlowEventSink, SignalR
+// SignalR must be registered before AddDataFlowVisualizationServer.
 // -----------------------------------------------------------------------
+builder.Services.AddSignalR();
 builder.Services.AddDataFlowVisualizationServer(options =>
     options.UseSqlite("Data Source=dataflow-viz.db"));
 
