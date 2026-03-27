@@ -140,8 +140,13 @@ public class HttpSignalREventSource : IEventSource, IAsyncDisposable
         // server to replay only the gap — not the entire stream from _asOfId.
         var lastSeenId = _asOfId;
 
+        // Deduplicate by Id: an event may arrive via both the live group stream and
+        // the gap-fill replay when AddToGroupAsync is called before GetMissedEventsAsync.
+        var seenIds = new HashSet<long>();
+
         hub.On<FlowEventDto>("EventAppended", dto =>
         {
+            if (!seenIds.Add(dto.Id)) return;
             if (dto.Id > lastSeenId) lastSeenId = dto.Id;
             var evt = EventDeserializer.Deserialize(dto.EventType, dto.Payload);
             if (evt is not null)
