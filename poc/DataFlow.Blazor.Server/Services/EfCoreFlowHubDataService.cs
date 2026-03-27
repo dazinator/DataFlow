@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore;
 /// Registered automatically by AddDataFlowVisualizationServer{TContext}.
 ///
 /// In environments where <typeparamref name="TContext"/> is not resolvable from the
-/// root DI container (e.g. multi-tenant apps that swap the container per request),
+/// root DI container (e.g. apps that use per-tenant DI containers),
 /// replace this by registering a custom <see cref="IFlowHubDataService"/>:
 /// <code>
 /// builder.Services.AddScoped&lt;IFlowHubDataService, MyTenantAwareFlowHubDataService&gt;();

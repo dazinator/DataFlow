@@ -87,7 +87,7 @@ public static class DataFlowVisualizationServerExtensions
         services.AddScoped<IFlowEventSink, EfCoreFlowEventSink<TContext>>();
         // Register default hub data service. Replace with a custom IFlowHubDataService
         // implementation if TContext is not resolvable from the root container
-        // (e.g. multi-tenant apps that swap the DI container per request).
+        // (e.g. apps that use per-tenant DI containers).
         services.AddScoped<IFlowHubDataService, EfCoreFlowHubDataService<TContext>>();
         return services;
     }
