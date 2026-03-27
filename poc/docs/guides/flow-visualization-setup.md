@@ -32,9 +32,23 @@ In your ASP.NET Core `Program.cs`, call `AddDataFlowVisualizationServer` with yo
 EF Core provider. The library is provider-agnostic — pass whichever EF Core backend
 your application uses.
 
+SignalR must be registered by the application **before** calling `AddDataFlowVisualizationServer`.
+The library does not call `AddSignalR()` internally — this keeps provider choice (local vs
+Azure SignalR Service) under your control and avoids shadowing a root-level singleton in
+multi-tenant setups.
+
+```csharp
+// Local SignalR (development / single-tenant):
+builder.Services.AddSignalR();
+
+// Azure SignalR Service:
+builder.Services.AddAzureSignalR(builder.Configuration.GetConnectionString("AzureSignalR"));
+```
+
 **Azure SQL / SQL Server:**
 
 ```csharp
+builder.Services.AddSignalR(); // or AddAzureSignalR(...)
 builder.Services.AddDataFlowVisualizationServer(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DataFlowViz")));
 ```
@@ -42,6 +56,7 @@ builder.Services.AddDataFlowVisualizationServer(options =>
 **SQLite (development / local):**
 
 ```csharp
+builder.Services.AddSignalR();
 builder.Services.AddDataFlowVisualizationServer(options =>
     options.UseSqlite("Data Source=dataflow-viz.db"));
 ```
@@ -53,6 +68,7 @@ configure how often a snapshot is taken during a long-running flow (default: eve
 100 events). Set to `0` to disable mid-run snapshots entirely.
 
 ```csharp
+builder.Services.AddSignalR();
 builder.Services.AddDataFlowVisualizationServer(
     options => options.UseSqlServer(...),
     periodicSnapshotInterval: 50);   // snapshot every 50 events
@@ -92,6 +108,7 @@ using DataFlow.Blazor.Server;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddSignalR(); // or AddAzureSignalR(...)
 builder.Services.AddDataFlowVisualizationServer(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DataFlowViz")));
 
