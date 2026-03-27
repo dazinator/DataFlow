@@ -1,9 +1,7 @@
 namespace DataFlow.Blazor.Server;
 
-using DataFlow.Blazor.Api;
-using DataFlow.Blazor.Server.Persistence;
+using DataFlow.Blazor.Server.Services;
 using Microsoft.AspNetCore.SignalR;
-using Microsoft.EntityFrameworkCore;
 
 /// <summary>
 /// SignalR hub for real-time DataFlow event streaming.
@@ -17,17 +15,23 @@ using Microsoft.EntityFrameworkCore;
 ///
 /// Mapped automatically by MapDataFlowEndpoints() — no need to call MapHub separately.
 ///
-/// <typeparam name="TContext">
-/// The DbContext type, matching the one registered via AddDataFlowVisualizationServer.
-/// </typeparam>
+/// Data access is delegated to <see cref="IFlowHubDataService"/> so that the hub itself
+/// has no dependency on a specific DbContext type. This allows the hub to be activated
+/// from the root application container even in environments where the DbContext lives in
+/// a per-tenant or per-request child container.
+///
+/// To supply a custom data service (e.g. in a multi-tenant app):
+/// <code>
+/// builder.Services.AddScoped&lt;IFlowHubDataService, MyTenantAwareFlowHubDataService&gt;();
+/// </code>
 /// </summary>
-public class FlowEventsHub<TContext> : Hub where TContext : DbContext
+public class FlowEventsHub : Hub
 {
-    private readonly TContext _db;
+    private readonly IFlowHubDataService _dataService;
 
-    public FlowEventsHub(TContext db)
+    public FlowEventsHub(IFlowHubDataService dataService)
     {
-        _db = db;
+        _dataService = dataService;
     }
 
     /// <summary>
@@ -38,25 +42,19 @@ public class FlowEventsHub<TContext> : Hub where TContext : DbContext
     /// <param name="fromId">The Id of the last event the client has seen (from AsOfId in HTTP response).</param>
     public async Task Subscribe(Guid flowRunId, long fromId)
     {
-        // Replay any events that arrived between HTTP call and WebSocket connection
-        var missed = await _db.Set<FlowEventRecord>()
-            .Where(e => e.FlowRunId == flowRunId && e.Id > fromId)
-            .OrderBy(e => e.Id)
-            .ToListAsync();
+        var missed = await _dataService.GetMissedEventsAsync(flowRunId, fromId, Context.User);
 
-        foreach (var record in missed)
+        foreach (var dto in missed)
         {
-            var dto = new FlowEventDto(record.Id, record.EventType, record.Payload, record.OccurredAt);
             await Clients.Caller.SendAsync("EventAppended", dto);
         }
 
-        // Join the group for future live events
         await Groups.AddToGroupAsync(Context.ConnectionId, flowRunId.ToString());
     }
 
-    public override async Task OnDisconnectedAsync(Exception? exception)
+    public override Task OnDisconnectedAsync(Exception? exception)
     {
         // Groups membership is automatically cleaned up by SignalR on disconnect
-        await base.OnDisconnectedAsync(exception);
+        return base.OnDisconnectedAsync(exception);
     }
 }
