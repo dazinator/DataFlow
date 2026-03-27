@@ -20,6 +20,7 @@ public class DataFlowTracingTests : IDisposable
     private readonly ITestOutputHelper _output;
     private readonly ServiceProvider _serviceProvider;
     private readonly List<LogEvent> _logEvents;
+    private readonly object _logEventsLock = new object();
 
     public DataFlowTracingTests(ITestOutputHelper output)
     {
@@ -41,7 +42,7 @@ public class DataFlowTracingTests : IDisposable
             //.ReadFrom.Configuration(config)
             .Enrich.FromLogContext()
                 // .WriteTo.Seq("", apiKey: apiKey)
-                .WriteTo.Sink(new TestLogEventSink(_logEvents))
+                .WriteTo.Sink(new TestLogEventSink(_logEvents, _logEventsLock))
                .WriteTo.TestOutput(output, Formatters.CreateConsoleTextFormatter());// Capture logs for verification      
 
         var logger = loggerConfiguration.CreateLogger();
@@ -129,7 +130,13 @@ public class DataFlowTracingTests : IDisposable
 
         // Assert
         // Find all trace events (SerilogTracing maps activities to log events with TraceId/SpanId properties)
-        var traceEvents = _logEvents.Where(e =>
+        List<LogEvent> logEventsSnapshot;
+        lock (_logEventsLock)
+        {
+            logEventsSnapshot = _logEvents.ToList();
+        }
+
+        var traceEvents = logEventsSnapshot.Where(e =>
             e.TraceId is not null &&
             e.SpanId is not null).ToList();
 
@@ -147,7 +154,7 @@ public class DataFlowTracingTests : IDisposable
 
         // Output all captured logs for debugging
         _output.WriteLine("--- All Captured Log Events ---");
-        foreach (var logEvent in _logEvents)
+        foreach (var logEvent in logEventsSnapshot)
         {
             _output.WriteLine($"[{logEvent.Level}] {logEvent.RenderMessage()}");
             if (logEvent.Properties.ContainsKey("TraceId"))
@@ -183,15 +190,20 @@ public class DataFlowTracingTests : IDisposable
     private class TestLogEventSink : Serilog.Core.ILogEventSink
     {
         private readonly List<LogEvent> _logEvents;
+        private readonly object _lock;
 
-        public TestLogEventSink(List<LogEvent> logEvents)
+        public TestLogEventSink(List<LogEvent> logEvents, object lockObject)
         {
             _logEvents = logEvents;
+            _lock = lockObject;
         }
 
         public void Emit(LogEvent logEvent)
         {
-            _logEvents.Add(logEvent);
+            lock (_lock)
+            {
+                _logEvents.Add(logEvent);
+            }
         }
     }
 
