@@ -33,7 +33,7 @@ public static class FlowStateProjector
 
         FlowGraphDefinedEvent e => state with
         {
-            BlockOrder = e.Blocks.Select(b => b.BlockName).ToImmutableList(),
+            BlockOrder = TopologicalBlockOrder(e),
             Blocks = e.Blocks.Aggregate(state.Blocks, (blocks, bd) =>
                 blocks.SetItem(bd.BlockName,
                     blocks.TryGetValue(bd.BlockName, out var existing)
@@ -298,4 +298,57 @@ public static class FlowStateProjector
                     // rate sample is skipped, which is acceptable
                 })
     };
+
+    /// <summary>
+    /// Returns block names in topological (source-to-sink) order derived from the event's
+    /// own edge data using Kahn's algorithm. The position of each block in <paramref name="e"/>.Blocks
+    /// is used as a stable tiebreaker within each wave so parallel branches are deterministic.
+    /// </summary>
+    private static ImmutableList<string> TopologicalBlockOrder(FlowGraphDefinedEvent e)
+    {
+        var blocks = e.Blocks;
+        var indexByName = blocks.Select((b, i) => (b.BlockName, i))
+                                .ToDictionary(x => x.BlockName, x => x.i);
+
+        var inDegree = blocks.ToDictionary(b => b.BlockName, _ => 0);
+        foreach (var edge in e.Edges)
+        {
+            if (inDegree.ContainsKey(edge.TargetBlock))
+                inDegree[edge.TargetBlock]++;
+        }
+
+        var ready = inDegree
+            .Where(kv => kv.Value == 0)
+            .Select(kv => kv.Key)
+            .OrderBy(name => indexByName[name])
+            .ToList();
+
+        var result = new List<string>(blocks.Count);
+        int head = 0;
+
+        while (head < ready.Count)
+        {
+            var name = ready[head++];
+            result.Add(name);
+
+            var newlyReady = new List<string>();
+            foreach (var edge in e.Edges)
+            {
+                if (edge.SourceBlock != name) continue;
+                if (!inDegree.ContainsKey(edge.TargetBlock)) continue;
+                if (--inDegree[edge.TargetBlock] == 0)
+                    newlyReady.Add(edge.TargetBlock);
+            }
+
+            newlyReady.Sort((a, b) => indexByName[a].CompareTo(indexByName[b]));
+            ready.AddRange(newlyReady);
+        }
+
+        // Safety net: append any unreachable blocks (cycle or disconnected node)
+        foreach (var b in blocks)
+            if (!result.Contains(b.BlockName))
+                result.Add(b.BlockName);
+
+        return [.. result];
+    }
 }
