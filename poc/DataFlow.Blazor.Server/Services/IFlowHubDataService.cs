@@ -10,7 +10,7 @@ using DataFlow.Blazor.Api;
 /// the DbContext directly from DI and is registered automatically by
 /// <see cref="DataFlowVisualizationServerExtensions.AddDataFlowVisualizationServer{TContext}"/>.
 ///
-/// In multi-tenant or non-standard DI environments where the DbContext is not available
+/// In apps that use per-tenant DI containers where the DbContext is not available
 /// in the root service container, replace the default by registering your own implementation:
 /// <code>
 /// // Register BEFORE or AFTER AddDataFlowVisualizationServer — last registration wins.

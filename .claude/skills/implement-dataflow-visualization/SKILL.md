@@ -320,8 +320,8 @@ builder.Services.AddDataFlowVisualizationClient(
 
 ## Multi-tenant DI
 
-In **multi-tenant applications** where the `DbContext` lives in a per-tenant child
-container (not the root container), `EfCoreFlowEventSink<TContext>` and
+In **apps that use per-tenant DI containers** where the `DbContext` lives in a
+per-tenant child container (not the root container), `EfCoreFlowEventSink<TContext>` and
 `EfCoreFlowHubDataService<TContext>` (the defaults) cannot be activated from the
 root container. This produces a silent runtime error when the SignalR hub tries to
 connect:
@@ -824,7 +824,7 @@ Read through each item and verify it is done, or note why it doesn't apply:
 | SignalR connection refused | Hub path mismatch: the path passed to `MapDataFlowEndpoints` (or `MapHub` if registering manually) must exactly match `hubPath` in `AddDataFlowVisualizationClient` |
 | SignalR returns 401 / connection immediately closes | Hub is protected with `.RequireAuthorization()` but no `accessTokenProvider` was supplied to `AddDataFlowVisualizationClient`. Add `accessTokenProvider: sp => { var svc = sp.GetRequiredService<ITokenService>(); return async () => await svc.GetTokenAsync(); }` — the token is forwarded as the `access_token` query parameter on the WebSocket/SSE connection, which is how ASP.NET Core's JWT middleware authenticates WebSocket requests. |
 | SignalR closes with `InvalidOperationException: Unable to resolve service for type 'MyDbContext'` | The app uses a per-tenant DI container and the DbContext is not in the root container. See [Multi-tenant DI](#multi-tenant-di): register a `TenantAwareFlowHubDataService` as `IFlowHubDataService` in the root container, and register `IFlowEventSink` directly in the tenant container. |
-| Snapshot loads (diagram appears) but no live updates | SignalR connection is failing silently. Check browser DevTools → Network tab for a WebSocket connection to `/hubs/flow-events`. Check Console for any error logged by the component. Most common causes: hub not mapped, hub path mismatch, or the multi-tenant DI issue above. |
+| Snapshot loads (diagram appears) but no live updates | SignalR connection is failing silently. Check browser DevTools → Network tab for a WebSocket connection to `/hubs/flow-events`. Check Console for any error logged by the component. Most common causes: hub not mapped, hub path mismatch, or the per-tenant DI container issue above. |
 | App uses Azure SignalR Service | No special steps needed. Use `MapDataFlowHttpEndpoints` and map the hub yourself so you can apply your existing Azure SignalR options. `FlowEventsHub` is transport-agnostic — Azure SignalR intercepts the transport layer transparently. The library's internal `AddSignalR()` call is idempotent and will not override your Azure SignalR setup. |
 | BYO-context: EF can't find the tables | `modelBuilder.AddDataFlowVisualizationEntities()` not called in `OnModelCreating`, or migration not applied |
 | "Loading flow visualization…" never resolves | `IEventSource` not registered, or server endpoints not mapped |

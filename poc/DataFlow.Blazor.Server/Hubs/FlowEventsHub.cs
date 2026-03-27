@@ -20,7 +20,7 @@ using Microsoft.AspNetCore.SignalR;
 /// from the root application container even in environments where the DbContext lives in
 /// a per-tenant or per-request child container.
 ///
-/// To supply a custom data service (e.g. in a multi-tenant app):
+/// To supply a custom data service (e.g. in an app that uses per-tenant DI containers):
 /// <code>
 /// builder.Services.AddScoped&lt;IFlowHubDataService, MyTenantAwareFlowHubDataService&gt;();
 /// </code>
