@@ -77,12 +77,21 @@ public static class DataFlowVisualizationServerExtensions
     /// <param name="periodicSnapshotInterval">
     /// Materialize a snapshot every N events during long-running flows (default 100, 0 = disabled).
     /// </param>
+    /// <param name="addSignalR">
+    /// Whether to call <c>AddSignalR()</c>. Set to <c>false</c> in multi-tenant deployments
+    /// where SignalR (or Azure SignalR) is already registered in the root application container.
+    /// Calling <c>AddSignalR()</c> in a tenant child container shadows the root singleton
+    /// <c>IHubContext&lt;FlowEventsHub&gt;</c> with an in-process instance that has no
+    /// Azure SignalR connections, causing broadcast failures.
+    /// </param>
     public static IServiceCollection AddDataFlowVisualizationServer<TContext>(
         this IServiceCollection services,
-        int periodicSnapshotInterval = 100)
+        int periodicSnapshotInterval = 100,
+        bool addSignalR = true)
         where TContext : DbContext
     {
-        services.AddSignalR();
+        if (addSignalR)
+            services.AddSignalR();
         services.AddSingleton(new SnapshotPolicy(periodicSnapshotInterval));
         services.AddScoped<IFlowEventSink, EfCoreFlowEventSink<TContext>>();
         // Register default hub data service. Replace with a custom IFlowHubDataService
