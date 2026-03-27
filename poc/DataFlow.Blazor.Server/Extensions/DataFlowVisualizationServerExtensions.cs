@@ -14,7 +14,8 @@ using Microsoft.Extensions.DependencyInjection;
 ///
 /// --- Option A: dedicated DbContext (simplest, no existing EF setup required) ---
 /// <code>
-/// // 1. Register services — choose your EF Core provider
+/// // 1. Register SignalR, then DataFlow services — choose your EF Core provider
+/// builder.Services.AddSignalR(); // or AddAzureSignalR()
 /// builder.Services.AddDataFlowVisualizationServer(options =>
 ///     options.UseSqlite("Data Source=dataflow-viz.db"));
 ///
@@ -36,7 +37,8 @@ using Microsoft.Extensions.DependencyInjection;
 /// // 1b. Call AddDataFlowVisualizationEntities() in your DbContext's OnModelCreating:
 /// //     modelBuilder.AddDataFlowVisualizationEntities();
 ///
-/// // 2. Register DataFlow services, pointing at your context
+/// // 2. Register SignalR, then DataFlow services pointing at your context
+/// builder.Services.AddSignalR(); // or AddAzureSignalR()
 /// builder.Services.AddDataFlowVisualizationServer&lt;MyAppDbContext&gt;();
 ///
 /// // 3. Map endpoints and SignalR hub
@@ -53,6 +55,10 @@ public static class DataFlowVisualizationServerExtensions
     /// <see cref="FlowVisualizationDbContext"/>. Use this when you don't have an
     /// existing DbContext to merge into.
     /// </summary>
+    /// <remarks>
+    /// SignalR must be registered separately by the application before calling this method.
+    /// See <see cref="AddDataFlowVisualizationServer{TContext}(IServiceCollection,int)"/> for details.
+    /// </remarks>
     /// <param name="services">The service collection.</param>
     /// <param name="configureDb">Configure the EF Core provider (e.g. UseSqlite, UseSqlServer).</param>
     /// <param name="periodicSnapshotInterval">
@@ -72,26 +78,23 @@ public static class DataFlowVisualizationServerExtensions
     /// The context must have <see cref="DataFlowModelBuilderExtensions.AddDataFlowVisualizationEntities"/>
     /// called in its OnModelCreating, and must already be registered in the service collection.
     /// </summary>
+    /// <remarks>
+    /// SignalR must be registered separately by the application before calling this method
+    /// (e.g. <c>services.AddSignalR()</c> or <c>services.AddAzureSignalR()</c>). This keeps
+    /// SignalR configuration — provider, options, Azure connection strings — under the
+    /// application's control and avoids shadowing a root-level Azure SignalR singleton with
+    /// an in-process instance in per-tenant child containers.
+    /// </remarks>
     /// <typeparam name="TContext">Your application's DbContext type.</typeparam>
     /// <param name="services">The service collection.</param>
     /// <param name="periodicSnapshotInterval">
     /// Materialize a snapshot every N events during long-running flows (default 100, 0 = disabled).
     /// </param>
-    /// <param name="addSignalR">
-    /// Whether to call <c>AddSignalR()</c>. Set to <c>false</c> in multi-tenant deployments
-    /// where SignalR (or Azure SignalR) is already registered in the root application container.
-    /// Calling <c>AddSignalR()</c> in a tenant child container shadows the root singleton
-    /// <c>IHubContext&lt;FlowEventsHub&gt;</c> with an in-process instance that has no
-    /// Azure SignalR connections, causing broadcast failures.
-    /// </param>
     public static IServiceCollection AddDataFlowVisualizationServer<TContext>(
         this IServiceCollection services,
-        int periodicSnapshotInterval = 100,
-        bool addSignalR = true)
+        int periodicSnapshotInterval = 100)
         where TContext : DbContext
     {
-        if (addSignalR)
-            services.AddSignalR();
         services.AddSingleton(new SnapshotPolicy(periodicSnapshotInterval));
         services.AddScoped<IFlowEventSink, EfCoreFlowEventSink<TContext>>();
         // Register default hub data service. Replace with a custom IFlowHubDataService
