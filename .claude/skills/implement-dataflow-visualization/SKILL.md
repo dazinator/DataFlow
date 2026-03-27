@@ -157,6 +157,10 @@ This provides:
 Add the following **before** `builder.Build()`:
 
 ```csharp
+// SignalR must be registered by the application — the library does not call AddSignalR()
+// internally. Use AddAzureSignalR() here instead if using Azure SignalR Service.
+builder.Services.AddSignalR();
+
 // Choose your EF Core provider.
 // SQLite — good for dev / lightweight deployments:
 builder.Services.AddDataFlowVisualizationServer(options =>
@@ -219,6 +223,10 @@ Then in `Program.cs`, before `builder.Build()`:
 // Your existing DbContext registration — unchanged
 builder.Services.AddDbContext<MyAppDbContext>(options =>
     options.UseSqlServer(connectionString));
+
+// SignalR must be registered by the application before AddDataFlowVisualizationServer.
+// Use AddAzureSignalR() here instead if using Azure SignalR Service.
+builder.Services.AddSignalR();
 
 // Point DataFlow at your context — no second DbContext or connection string needed
 builder.Services.AddDataFlowVisualizationServer<MyAppDbContext>();
@@ -336,7 +344,12 @@ The fix is to split the registrations between the root and tenant containers.
 ### Root container (`Program.cs`)
 
 ```csharp
-// Registers SignalR, SnapshotPolicy, and the default IFlowHubDataService.
+// SignalR must be registered at root — do NOT call AddSignalR() in the tenant container.
+// Calling it in a child container registers a local IHubContext that shadows the root
+// Azure SignalR singleton, causing WriteAsync failures.
+builder.Services.AddSignalR(); // or AddAzureSignalR()
+
+// Registers SnapshotPolicy and the default IFlowHubDataService.
 // Override IFlowHubDataService immediately after with your tenant-aware implementation.
 builder.Services.AddDataFlowVisualizationServer<PlatformDbContext>();
 builder.Services.AddScoped<IFlowHubDataService, TenantAwareFlowHubDataService>();
@@ -794,6 +807,7 @@ Read through each item and verify it is done, or note why it doesn't apply:
 
 - [ ] `Uniun.DataFlow.Blazor.Server` added to server project
 - [ ] `Uniun.DataFlow.Blazor` added to Blazor client project
+- [ ] `AddSignalR()` (or `AddAzureSignalR()`) called in the root container **before** `AddDataFlowVisualizationServer`
 - [ ] `AddDataFlowVisualizationServer(…)` (or `AddDataFlowVisualizationServer<TContext>()`) in server `Program.cs`
 - [ ] Hub mapped in server `Program.cs` — either via `app.MapDataFlowEndpoints()` / `app.MapDataFlowEndpoints<TContext>()` (convenience), or via `app.MapDataFlowHttpEndpoints()` + `app.MapHub<FlowEventsHub>("/path")` (app-controlled)
 - [ ] Multi-tenant apps: `IFlowHubDataService` overridden with a tenant-aware implementation in the root container, and `IFlowEventSink` registered in the tenant container
@@ -825,7 +839,7 @@ Read through each item and verify it is done, or note why it doesn't apply:
 | SignalR returns 401 / connection immediately closes | Hub is protected with `.RequireAuthorization()` but no `accessTokenProvider` was supplied to `AddDataFlowVisualizationClient`. Add `accessTokenProvider: sp => { var svc = sp.GetRequiredService<ITokenService>(); return async () => await svc.GetTokenAsync(); }` — the token is forwarded as the `access_token` query parameter on the WebSocket/SSE connection, which is how ASP.NET Core's JWT middleware authenticates WebSocket requests. |
 | SignalR closes with `InvalidOperationException: Unable to resolve service for type 'MyDbContext'` | The app uses a per-tenant DI container and the DbContext is not in the root container. See [Multi-tenant DI](#multi-tenant-di): register a `TenantAwareFlowHubDataService` as `IFlowHubDataService` in the root container, and register `IFlowEventSink` directly in the tenant container. |
 | Snapshot loads (diagram appears) but no live updates | SignalR connection is failing silently. Check browser DevTools → Network tab for a WebSocket connection to `/hubs/flow-events`. Check Console for any error logged by the component. Most common causes: hub not mapped, hub path mismatch, or the per-tenant DI container issue above. |
-| App uses Azure SignalR Service | No special steps needed. Use `MapDataFlowHttpEndpoints` and map the hub yourself so you can apply your existing Azure SignalR options. `FlowEventsHub` is transport-agnostic — Azure SignalR intercepts the transport layer transparently. The library's internal `AddSignalR()` call is idempotent and will not override your Azure SignalR setup. |
+| App uses Azure SignalR Service | Call `builder.Services.AddAzureSignalR(...)` instead of `AddSignalR()` in the root container — the library does not call either. Use `MapDataFlowHttpEndpoints` and map the hub yourself to apply Azure SignalR options. `FlowEventsHub` is transport-agnostic. Do **not** call `AddSignalR()` or `AddAzureSignalR()` in per-tenant child containers — this shadows the root singleton with an unconnected instance and causes broadcast failures. |
 | BYO-context: EF can't find the tables | `modelBuilder.AddDataFlowVisualizationEntities()` not called in `OnModelCreating`, or migration not applied |
 | "Loading flow visualization…" never resolves | `IEventSource` not registered, or server endpoints not mapped |
 | EF exception on first run | EF provider package not installed, or `EnsureCreated()` not called |
