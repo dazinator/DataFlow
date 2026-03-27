@@ -125,7 +125,7 @@ This pulls in `Uniun.DataFlow.Blazor.Shared` transitively. It provides:
 - `IFlowEventSink` — receives events from the DataFlow engine
 - `EfCoreFlowEventSink<TContext>` — EF Core persistence implementation
 - `FlowEventsHub` — SignalR hub for live streaming to the client (non-generic — see [Hub registration](#hub-registration))
-- `IFlowHubDataService` — abstraction for hub data access; replace in multi-tenant apps (see [Multi-tenant DI](#multi-tenant-di))
+- `IFlowHubDataService` — abstraction for hub data access; replace in apps that use per-tenant DI containers (see [Multi-tenant DI](#multi-tenant-di))
 - `FlowVisualizationDbContext` — minimal schema for apps without an existing DbContext
 - `AddDataFlowVisualizationServer()` / `MapDataFlowEndpoints()` extension methods
 - `DataFlowModelBuilderExtensions.AddDataFlowVisualizationEntities()` — for merging into an existing DbContext
