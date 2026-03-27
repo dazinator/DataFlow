@@ -124,7 +124,8 @@ dotnet add <ServerProject>.csproj package Uniun.DataFlow.Blazor.Server
 This pulls in `Uniun.DataFlow.Blazor.Shared` transitively. It provides:
 - `IFlowEventSink` — receives events from the DataFlow engine
 - `EfCoreFlowEventSink<TContext>` — EF Core persistence implementation
-- `FlowEventsHub<TContext>` — SignalR hub for live streaming to the client
+- `FlowEventsHub` — SignalR hub for live streaming to the client (non-generic — see [Hub registration](#hub-registration))
+- `IFlowHubDataService` — abstraction for hub data access; replace in multi-tenant apps (see [Multi-tenant DI](#multi-tenant-di))
 - `FlowVisualizationDbContext` — minimal schema for apps without an existing DbContext
 - `AddDataFlowVisualizationServer()` / `MapDataFlowEndpoints()` extension methods
 - `DataFlowModelBuilderExtensions.AddDataFlowVisualizationEntities()` — for merging into an existing DbContext
@@ -285,11 +286,11 @@ app.MapDataFlowHttpEndpoints<MyAppDbContext>();   // BYO-context variant
 // (or app.MapDataFlowHttpEndpoints() for the dedicated-context variant)
 
 // App owns the hub mapping — apply whatever options are needed
-app.MapHub<FlowEventsHub<MyAppDbContext>>("/my/hub/path")
+app.MapHub<FlowEventsHub>("/my/hub/path")
    .RequireAuthorization();  // RequireAuthorization is valid here — MapHub returns IHubEndpointConventionBuilder
 ```
 
-`FlowEventsHub<TContext>` is a plain `Hub` subclass and is transport-agnostic.
+`FlowEventsHub` is a plain `Hub` subclass and is transport-agnostic.
 It works identically with local SignalR and Azure SignalR Service — no extra
 configuration is needed; Azure SignalR intercepts the transport layer
 transparently.
@@ -314,6 +315,99 @@ builder.Services.AddDataFlowVisualizationClient(
         return async () => await tokenService.GetTokenAsync();
     });
 ```
+
+---
+
+## Multi-tenant DI
+
+In **multi-tenant applications** where the `DbContext` lives in a per-tenant child
+container (not the root container), `EfCoreFlowEventSink<TContext>` and
+`EfCoreFlowHubDataService<TContext>` (the defaults) cannot be activated from the
+root container. This produces a silent runtime error when the SignalR hub tries to
+connect:
+
+```
+InvalidOperationException: Unable to resolve service for type 'MyApp.PlatformDbContext'
+while attempting to activate 'DataFlow.Blazor.Server.FlowEventsHub'.
+```
+
+The fix is to split the registrations between the root and tenant containers.
+
+### Root container (`Program.cs`)
+
+```csharp
+// Registers SignalR, SnapshotPolicy, and the default IFlowHubDataService.
+// Override IFlowHubDataService immediately after with your tenant-aware implementation.
+builder.Services.AddDataFlowVisualizationServer<PlatformDbContext>();
+builder.Services.AddScoped<IFlowHubDataService, TenantAwareFlowHubDataService>();
+
+app.MapDataFlowEndpoints<PlatformDbContext>();
+// or with auth:
+// app.MapDataFlowHttpEndpoints<PlatformDbContext>();
+// app.MapHub<FlowEventsHub>("/hubs/flow-events").RequireAuthorization();
+```
+
+`AddScoped` registered after `AddDataFlowVisualizationServer` wins because .NET DI
+resolves the last registration.
+
+### Tenant container (per-tenant service registration)
+
+```csharp
+// The sink runs inside the flow engine's tenant execution scope — register it there.
+tenantServices.AddScoped<IFlowEventSink, EfCoreFlowEventSink<PlatformDbContext>>();
+```
+
+`EfCoreFlowEventSink<TContext>` is the only DataFlow component that runs within the
+tenant execution context. Everything else (hub, HTTP endpoints, snapshot policy) lives
+at root level.
+
+### Implementing `TenantAwareFlowHubDataService`
+
+`IFlowHubDataService.GetMissedEventsAsync` receives the caller's `ClaimsPrincipal`
+(from `Context.User` on the SignalR hub), so tenant identity is available directly
+from claims without needing `IHttpContextAccessor`:
+
+```csharp
+using System.Security.Claims;
+using DataFlow.Blazor.Api;
+using DataFlow.Blazor.Server.Persistence;
+using DataFlow.Blazor.Server.Services;
+using Microsoft.EntityFrameworkCore;
+
+public class TenantAwareFlowHubDataService : IFlowHubDataService
+{
+    private readonly ITenantDbContextFactory _factory; // your existing abstraction
+
+    public TenantAwareFlowHubDataService(ITenantDbContextFactory factory)
+    {
+        _factory = factory;
+    }
+
+    public async Task<IReadOnlyList<FlowEventDto>> GetMissedEventsAsync(
+        Guid flowRunId,
+        long fromId,
+        ClaimsPrincipal? user,
+        CancellationToken cancellationToken = default)
+    {
+        var tenantId = user?.GetTenantId()
+            ?? throw new InvalidOperationException("No tenant claim on SignalR connection.");
+
+        await using var db = await _factory.CreateForTenantAsync(tenantId);
+
+        var records = await db.Set<FlowEventRecord>()
+            .Where(e => e.FlowRunId == flowRunId && e.Id > fromId)
+            .OrderBy(e => e.Id)
+            .ToListAsync(cancellationToken);
+
+        return records
+            .Select(r => new FlowEventDto(r.Id, r.EventType, r.Payload, r.OccurredAt))
+            .ToList();
+    }
+}
+```
+
+Replace `ITenantDbContextFactory` with whatever your app uses to resolve a
+`PlatformDbContext` for a given tenant ID.
 
 ---
 
@@ -701,7 +795,8 @@ Read through each item and verify it is done, or note why it doesn't apply:
 - [ ] `Uniun.DataFlow.Blazor.Server` added to server project
 - [ ] `Uniun.DataFlow.Blazor` added to Blazor client project
 - [ ] `AddDataFlowVisualizationServer(…)` (or `AddDataFlowVisualizationServer<TContext>()`) in server `Program.cs`
-- [ ] Hub mapped in server `Program.cs` — either via `app.MapDataFlowEndpoints()` / `app.MapDataFlowEndpoints<TContext>()` (convenience), or via `app.MapDataFlowHttpEndpoints()` + `app.MapHub<FlowEventsHub<TContext>>("/path")` (app-controlled)
+- [ ] Hub mapped in server `Program.cs` — either via `app.MapDataFlowEndpoints()` / `app.MapDataFlowEndpoints<TContext>()` (convenience), or via `app.MapDataFlowHttpEndpoints()` + `app.MapHub<FlowEventsHub>("/path")` (app-controlled)
+- [ ] Multi-tenant apps: `IFlowHubDataService` overridden with a tenant-aware implementation in the root container, and `IFlowEventSink` registered in the tenant container
 - [ ] If using a custom hub path: `hubPath` in `AddDataFlowVisualizationClient` matches the path used in `MapHub`
 - [ ] If BYO-context: `modelBuilder.AddDataFlowVisualizationEntities()` called in `OnModelCreating`
 - [ ] EF schema creation/migration applied
@@ -728,6 +823,8 @@ Read through each item and verify it is done, or note why it doesn't apply:
 | Colours are default but theming overrides not working | App stylesheet loaded **before** library stylesheet — swap order |
 | SignalR connection refused | Hub path mismatch: the path passed to `MapDataFlowEndpoints` (or `MapHub` if registering manually) must exactly match `hubPath` in `AddDataFlowVisualizationClient` |
 | SignalR returns 401 / connection immediately closes | Hub is protected with `.RequireAuthorization()` but no `accessTokenProvider` was supplied to `AddDataFlowVisualizationClient`. Add `accessTokenProvider: sp => { var svc = sp.GetRequiredService<ITokenService>(); return async () => await svc.GetTokenAsync(); }` — the token is forwarded as the `access_token` query parameter on the WebSocket/SSE connection, which is how ASP.NET Core's JWT middleware authenticates WebSocket requests. |
+| SignalR closes with `InvalidOperationException: Unable to resolve service for type 'MyDbContext'` | The app uses a per-tenant DI container and the DbContext is not in the root container. See [Multi-tenant DI](#multi-tenant-di): register a `TenantAwareFlowHubDataService` as `IFlowHubDataService` in the root container, and register `IFlowEventSink` directly in the tenant container. |
+| Snapshot loads (diagram appears) but no live updates | SignalR connection is failing silently. Check browser DevTools → Network tab for a WebSocket connection to `/hubs/flow-events`. Check Console for any error logged by the component. Most common causes: hub not mapped, hub path mismatch, or the multi-tenant DI issue above. |
 | App uses Azure SignalR Service | No special steps needed. Use `MapDataFlowHttpEndpoints` and map the hub yourself so you can apply your existing Azure SignalR options. `FlowEventsHub` is transport-agnostic — Azure SignalR intercepts the transport layer transparently. The library's internal `AddSignalR()` call is idempotent and will not override your Azure SignalR setup. |
 | BYO-context: EF can't find the tables | `modelBuilder.AddDataFlowVisualizationEntities()` not called in `OnModelCreating`, or migration not applied |
 | "Loading flow visualization…" never resolves | `IEventSource` not registered, or server endpoints not mapped |
