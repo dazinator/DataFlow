@@ -52,6 +52,8 @@ public static class DataFlowModelBuilderExtensions
         modelBuilder.Entity<FlowSnapshotRecord>(entity =>
         {
             entity.HasKey(e => e.FlowRunId);
+            // Supports the flow-list query: ORDER BY AsOfEventId DESC (most-recent first)
+            entity.HasIndex(e => e.AsOfEventId).IsDescending();
         });
 
         return modelBuilder;
