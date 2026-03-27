@@ -136,12 +136,25 @@ public class HttpSignalREventSource : IEventSource, IAsyncDisposable
 
         var channel = System.Threading.Channels.Channel.CreateUnbounded<IDataFlowEvent>();
 
+        // Track the highest event Id received so that on reconnect we can ask the
+        // server to replay only the gap — not the entire stream from _asOfId.
+        var lastSeenId = _asOfId;
+
         hub.On<FlowEventDto>("EventAppended", dto =>
         {
+            if (dto.Id > lastSeenId) lastSeenId = dto.Id;
             var evt = EventDeserializer.Deserialize(dto.EventType, dto.Payload);
             if (evt is not null)
                 channel.Writer.TryWrite(evt);
         });
+
+        // WithAutomaticReconnect re-establishes the transport but does not re-join
+        // SignalR groups. Re-call Subscribe after each reconnect so the client is
+        // added back to the flow's group and any gap is replayed.
+        hub.Reconnected += async _ =>
+        {
+            await hub.SendAsync("Subscribe", invocationId, lastSeenId, cancellationToken);
+        };
 
         await hub.StartAsync(cancellationToken);
 
