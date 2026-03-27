@@ -302,7 +302,9 @@ public static class FlowStateProjector
     /// <summary>
     /// Returns block names in topological (source-to-sink) order derived from the event's
     /// own edge data using Kahn's algorithm. The position of each block in <paramref name="e"/>.Blocks
-    /// is used as a stable tiebreaker within each wave so parallel branches are deterministic.
+    /// is used as a deterministic tiebreaker when multiple blocks become ready at the same time
+    /// from the same predecessor and for the initial set of source blocks; overall ordering of
+    /// parallel branches may still depend on predecessor processing order.
     /// </summary>
     private static ImmutableList<string> TopologicalBlockOrder(FlowGraphDefinedEvent e)
     {
@@ -310,11 +312,16 @@ public static class FlowStateProjector
         var indexByName = blocks.Select((b, i) => (b.BlockName, i))
                                 .ToDictionary(x => x.BlockName, x => x.i);
 
+        // Precompute outgoing adjacency list to avoid O(|V|·|E|) scanning in the main loop
+        var adjacency = blocks.ToDictionary(b => b.BlockName, _ => new List<string>());
         var inDegree = blocks.ToDictionary(b => b.BlockName, _ => 0);
         foreach (var edge in e.Edges)
         {
-            if (inDegree.ContainsKey(edge.TargetBlock))
+            if (adjacency.ContainsKey(edge.SourceBlock) && inDegree.ContainsKey(edge.TargetBlock))
+            {
+                adjacency[edge.SourceBlock].Add(edge.TargetBlock);
                 inDegree[edge.TargetBlock]++;
+            }
         }
 
         var ready = inDegree
@@ -324,20 +331,20 @@ public static class FlowStateProjector
             .ToList();
 
         var result = new List<string>(blocks.Count);
+        var visited = new HashSet<string>(blocks.Count);
         int head = 0;
 
         while (head < ready.Count)
         {
             var name = ready[head++];
             result.Add(name);
+            visited.Add(name);
 
             var newlyReady = new List<string>();
-            foreach (var edge in e.Edges)
+            foreach (var target in adjacency[name])
             {
-                if (edge.SourceBlock != name) continue;
-                if (!inDegree.ContainsKey(edge.TargetBlock)) continue;
-                if (--inDegree[edge.TargetBlock] == 0)
-                    newlyReady.Add(edge.TargetBlock);
+                if (--inDegree[target] == 0)
+                    newlyReady.Add(target);
             }
 
             newlyReady.Sort((a, b) => indexByName[a].CompareTo(indexByName[b]));
@@ -346,7 +353,7 @@ public static class FlowStateProjector
 
         // Safety net: append any unreachable blocks (cycle or disconnected node)
         foreach (var b in blocks)
-            if (!result.Contains(b.BlockName))
+            if (!visited.Contains(b.BlockName))
                 result.Add(b.BlockName);
 
         return [.. result];
