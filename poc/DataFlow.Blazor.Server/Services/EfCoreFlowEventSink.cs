@@ -7,6 +7,7 @@ using DataFlow.Blazor.Projection;
 using DataFlow.Blazor.Server.Persistence;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 /// <summary>
 /// EF Core implementation of IFlowEventSink.
@@ -46,15 +47,18 @@ public class EfCoreFlowEventSink<TContext> : IFlowEventSink where TContext : DbC
     private readonly TContext _db;
     private readonly IHubContext<FlowEventsHub> _hub;
     private readonly SnapshotPolicy _snapshotPolicy;
+    private readonly ILogger<EfCoreFlowEventSink<TContext>> _logger;
 
     public EfCoreFlowEventSink(
         TContext db,
         IHubContext<FlowEventsHub> hub,
-        SnapshotPolicy snapshotPolicy)
+        SnapshotPolicy snapshotPolicy,
+        ILogger<EfCoreFlowEventSink<TContext>> logger)
     {
         _db = db;
         _hub = hub;
         _snapshotPolicy = snapshotPolicy;
+        _logger = logger;
     }
 
     public async Task AppendAsync(Guid flowRunId, IDataFlowEvent evt, CancellationToken cancellationToken = default)
@@ -73,11 +77,28 @@ public class EfCoreFlowEventSink<TContext> : IFlowEventSink where TContext : DbC
         _db.Set<FlowEventRecord>().Add(record);
         await _db.SaveChangesAsync(cancellationToken);
 
-        // Push to SignalR group immediately (record.Id is now DB-assigned)
+        // Push to SignalR group immediately (record.Id is now DB-assigned).
+        // This is best-effort: the event is already persisted so clients can always
+        // gap-fill from the DB. We use CancellationToken.None so that consumer
+        // shutdown or token cancellation (e.g. MassTransit graceful stop) doesn't
+        // abort the broadcast after the DB write succeeded — which would otherwise
+        // cause the consumer to retry and insert duplicate events.
         var dto = new FlowEventDto(record.Id, record.EventType, record.Payload, record.OccurredAt);
-        await _hub.Clients
-            .Group(flowRunId.ToString())
-            .SendAsync("EventAppended", dto, cancellationToken);
+        try
+        {
+            await _hub.Clients
+                .Group(flowRunId.ToString())
+                .SendAsync("EventAppended", dto, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            // Log and continue — broadcast failure must not fail the flow or the
+            // enclosing DB transaction. Clients reconnect and gap-fill from DB.
+            _logger.LogWarning(ex,
+                "SignalR broadcast failed for flow {FlowRunId} event {EventType} (Id={EventId}). " +
+                "Clients will recover via gap-fill.",
+                flowRunId, record.EventType, record.Id);
+        }
 
         // Optionally materialize a snapshot
         if (_snapshotPolicy.ShouldSnapshot(evt, record.Id))
