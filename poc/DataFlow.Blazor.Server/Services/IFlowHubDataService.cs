@@ -1,5 +1,6 @@
 namespace DataFlow.Blazor.Server.Services;
 
+using System.Security.Claims;
 using DataFlow.Blazor.Api;
 
 /// <summary>
@@ -26,8 +27,17 @@ public interface IFlowHubDataService
     /// <paramref name="fromId"/>, ordered ascending. Used to replay any events that
     /// arrived between the client's initial HTTP snapshot call and its SignalR subscription.
     /// </summary>
+    /// <param name="flowRunId">The flow run to fetch missed events for.</param>
+    /// <param name="fromId">Replay events with Id greater than this value.</param>
+    /// <param name="user">
+    /// The caller's <see cref="ClaimsPrincipal"/> from the SignalR hub connection
+    /// (<c>Context.User</c>). Implementations can use this to resolve tenant identity
+    /// from claims without requiring <c>IHttpContextAccessor</c>.
+    /// </param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     Task<IReadOnlyList<FlowEventDto>> GetMissedEventsAsync(
         Guid flowRunId,
         long fromId,
+        ClaimsPrincipal? user,
         CancellationToken cancellationToken = default);
 }

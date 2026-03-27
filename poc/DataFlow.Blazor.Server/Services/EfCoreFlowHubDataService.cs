@@ -1,5 +1,6 @@
 namespace DataFlow.Blazor.Server.Services;
 
+using System.Security.Claims;
 using DataFlow.Blazor.Api;
 using DataFlow.Blazor.Server.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -28,6 +29,7 @@ public class EfCoreFlowHubDataService<TContext> : IFlowHubDataService where TCon
     public async Task<IReadOnlyList<FlowEventDto>> GetMissedEventsAsync(
         Guid flowRunId,
         long fromId,
+        ClaimsPrincipal? user,
         CancellationToken cancellationToken = default)
     {
         var records = await _db.Set<FlowEventRecord>()

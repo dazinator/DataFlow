@@ -42,7 +42,7 @@ public class FlowEventsHub : Hub
     /// <param name="fromId">The Id of the last event the client has seen (from AsOfId in HTTP response).</param>
     public async Task Subscribe(Guid flowRunId, long fromId)
     {
-        var missed = await _dataService.GetMissedEventsAsync(flowRunId, fromId);
+        var missed = await _dataService.GetMissedEventsAsync(flowRunId, fromId, Context.User);
 
         foreach (var dto in missed)
         {
