@@ -44,12 +44,12 @@ public class EfCoreFlowEventSink<TContext> : IFlowEventSink where TContext : DbC
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     private readonly TContext _db;
-    private readonly IHubContext<FlowEventsHub<TContext>> _hub;
+    private readonly IHubContext<FlowEventsHub> _hub;
     private readonly SnapshotPolicy _snapshotPolicy;
 
     public EfCoreFlowEventSink(
         TContext db,
-        IHubContext<FlowEventsHub<TContext>> hub,
+        IHubContext<FlowEventsHub> hub,
         SnapshotPolicy snapshotPolicy)
     {
         _db = db;

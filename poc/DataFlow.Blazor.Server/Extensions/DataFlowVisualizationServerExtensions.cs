@@ -85,6 +85,10 @@ public static class DataFlowVisualizationServerExtensions
         services.AddSignalR();
         services.AddSingleton(new SnapshotPolicy(periodicSnapshotInterval));
         services.AddScoped<IFlowEventSink, EfCoreFlowEventSink<TContext>>();
+        // Register default hub data service. Replace with a custom IFlowHubDataService
+        // implementation if TContext is not resolvable from the root container
+        // (e.g. multi-tenant apps that swap the DI container per request).
+        services.AddScoped<IFlowHubDataService, EfCoreFlowHubDataService<TContext>>();
         return services;
     }
 
@@ -94,7 +98,7 @@ public static class DataFlowVisualizationServerExtensions
     /// auth policies, Azure SignalR options, or a custom path:
     /// <code>
     /// app.MapDataFlowHttpEndpoints();
-    /// app.MapHub&lt;FlowEventsHub&lt;MyAppDbContext&gt;&gt;("/my/hub/path");
+    /// app.MapHub&lt;FlowEventsHub&gt;("/my/hub/path");
     /// </code>
     /// The client must be configured with the matching hub path:
     /// <code>
@@ -130,7 +134,11 @@ public static class DataFlowVisualizationServerExtensions
     public static IEndpointRouteBuilder MapDataFlowEndpoints(
         this IEndpointRouteBuilder app,
         string hubPath = "/hubs/flow-events")
-        => app.MapDataFlowEndpoints<FlowVisualizationDbContext>(hubPath);
+    {
+        app.MapDataFlowHttpEndpoints();
+        app.MapHub<FlowEventsHub>(hubPath);
+        return app;
+    }
 
     /// <summary>
     /// Maps DataFlow HTTP endpoints and the SignalR hub using <typeparamref name="TContext"/>.
@@ -146,7 +154,7 @@ public static class DataFlowVisualizationServerExtensions
         where TContext : DbContext
     {
         app.MapDataFlowHttpEndpoints<TContext>();
-        app.MapHub<FlowEventsHub<TContext>>(hubPath);
+        app.MapHub<FlowEventsHub>(hubPath);
         return app;
     }
 }
