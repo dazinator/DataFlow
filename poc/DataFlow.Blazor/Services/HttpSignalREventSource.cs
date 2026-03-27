@@ -139,25 +139,43 @@ public class HttpSignalREventSource : IEventSource, IAsyncDisposable
         // Track the highest event Id received so that on reconnect we can ask the
         // server to replay only the gap — not the entire stream from _asOfId.
         var lastSeenId = _asOfId;
-
-        // Deduplicate by Id: an event may arrive via both the live group stream and
-        // the gap-fill replay when AddToGroupAsync is called before GetMissedEventsAsync.
         var seenIds = new HashSet<long>();
 
-        hub.On<FlowEventDto>("EventAppended", dto =>
+        // The server joins the client to the group BEFORE running the gap-fill query,
+        // so live events can arrive before gap-fill results. Buffer them and drain
+        // in sorted order on "Subscribed" to guarantee the projection sees Id order.
+        var buffer = new List<FlowEventDto>();
+        var subscribed = false;
+
+        void ProcessDto(FlowEventDto dto)
         {
             if (!seenIds.Add(dto.Id)) return;
             if (dto.Id > lastSeenId) lastSeenId = dto.Id;
             var evt = EventDeserializer.Deserialize(dto.EventType, dto.Payload);
-            if (evt is not null)
-                channel.Writer.TryWrite(evt);
+            if (evt is not null) channel.Writer.TryWrite(evt);
+        }
+
+        hub.On<FlowEventDto>("EventAppended", dto =>
+        {
+            if (!subscribed) { buffer.Add(dto); return; }
+            ProcessDto(dto);
+        });
+
+        hub.On("Subscribed", () =>
+        {
+            subscribed = true;
+            foreach (var dto in buffer.OrderBy(d => d.Id))
+                ProcessDto(dto);
+            buffer.Clear();
         });
 
         // WithAutomaticReconnect re-establishes the transport but does not re-join
-        // SignalR groups. Re-call Subscribe after each reconnect so the client is
-        // added back to the flow's group and any gap is replayed.
+        // SignalR groups. Reset state and re-call Subscribe after each reconnect so
+        // the client is added back to the flow's group and any gap is replayed.
         hub.Reconnected += async _ =>
         {
+            subscribed = false;
+            buffer.Clear();
             await hub.SendAsync("Subscribe", invocationId, lastSeenId, cancellationToken);
         };
 
