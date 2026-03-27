@@ -273,7 +273,7 @@ public class DataFlowGraph
                     var itemTypeStore  = flowScope?.ServiceProvider.GetService<IDataFlowItemTypeStore>();
                     var blockMetaStore = flowScope?.ServiceProvider.GetService<IDataFlowBlockMetadataStore>();
 
-                    var blockDefs = _blocks.Select(b =>
+                    var blockDefs = TopologicallySortedBlocks().Select(b =>
                     {
                         var isSource = !_incomingEdges.ContainsKey(b) || _incomingEdges[b].Count == 0;
                         var isSink   = !_outgoingEdges.ContainsKey(b) || _outgoingEdges[b].Count == 0;
@@ -405,6 +405,58 @@ public class DataFlowGraph
     /// falling back to the store's built-in CLR type name formatter.
     /// Returns null when the label is empty (e.g. <c>object</c>).
     /// </summary>
+    /// <summary>
+    /// Returns blocks in topological (source-to-sink) order using Kahn's algorithm.
+    /// Registration order is used as a tiebreaker within each wave so the relative
+    /// ordering of parallel branches is stable across runs.
+    /// Falls back to appending any remaining blocks if a cycle is detected.
+    /// </summary>
+    private IEnumerable<IBlock> TopologicallySortedBlocks()
+    {
+        var registrationIndex = _blocks.Select((b, i) => (b, i)).ToDictionary(x => x.b, x => x.i);
+
+        var inDegree = _blocks.ToDictionary(b => b,
+            b => _incomingEdges.TryGetValue(b, out var inc) ? inc.Count : 0);
+
+        // Seed the first wave with source blocks, preserving registration order
+        var ready = _blocks
+            .Where(b => inDegree[b] == 0)
+            .OrderBy(b => registrationIndex[b])
+            .ToList();
+
+        var result = new List<IBlock>(_blocks.Count);
+        int head = 0;
+
+        while (head < ready.Count)
+        {
+            var block = ready[head++];
+            result.Add(block);
+
+            if (!_outgoingEdges.TryGetValue(block, out var outEdges)) continue;
+
+            var newlyReady = new List<IBlock>();
+            foreach (var edge in outEdges)
+            {
+                foreach (var target in edge.TargetBlocks)
+                {
+                    if (!inDegree.ContainsKey(target)) continue;
+                    if (--inDegree[target] == 0)
+                        newlyReady.Add(target);
+                }
+            }
+
+            // Append this wave in registration order so parallel branches are stable
+            newlyReady.Sort((a, b) => registrationIndex[a].CompareTo(registrationIndex[b]));
+            ready.AddRange(newlyReady);
+        }
+
+        // Safety net: append any unreachable blocks (shouldn't happen in a valid DAG)
+        foreach (var b in _blocks.Except(result))
+            result.Add(b);
+
+        return result;
+    }
+
     private static string? ResolveItemLabel(IDataFlowItemTypeStore? store, Type type)
     {
         var label = store is not null
