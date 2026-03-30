@@ -112,6 +112,12 @@ public interface IConfigurableBlock : IBlock
 `NJsonSchema` or `System.Text.Json.JsonSchemaExporter` (preview) can generate schema from
 a `Type`. Alternatively, blocks can provide the schema as a static resource.
 
+**Config schema distribution**: The JSON Schema for each block type is included in the
+`BlockCatalogueDocument` (see `block-metadata-catalogue.md`) when the catalogue is exported
+with `includeConfigSchemas: true`. This means the designer can obtain all config schemas
+in a single catalogue fetch — no per-block schema endpoint needed for the common case,
+and the schemas are available even when the designer is hosted separately from the backend.
+
 **JSON Forms**: A JavaScript library (jsonforms.io) or a Blazor port. Since the designer will
 be Blazor WASM, the simplest approach is to invoke the JSON Forms JS library via JS interop.
 

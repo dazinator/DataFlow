@@ -44,9 +44,20 @@ This is sufficient to:
 The `DataFlowGraphBuilder` already accepts string-key-based connections via `UseBlock()` +
 `Connect()`, so the dynamic builder is a thin translation layer, not a new execution path.
 
-**Gaps**: No display metadata for the designer palette is currently exposed via API.
-The block registry would need a new HTTP endpoint (`GET /flows/blocks`) that returns
-block keys with display names and type info. This is straightforward to add.
+**Key insight — metadata is static**: Block *types* are registered at startup and never change
+while the application is running. This means the designer doesn't need a live connection to
+the execution backend — the metadata can be exported as a **static `BlockCatalogueDocument`**
+JSON snapshot and served as a static file, cached indefinitely, or bundled into a Blazor WASM
+publish output. This enables the designer to be deployed and scaled independently from the
+execution backend.
+
+**Gaps**: No display metadata (display names, descriptions, categories) is currently stored
+in the registry. The `BlockCatalogueDocument` model (see
+`/research/dynamic-flows/design/block-metadata-catalogue.md`) defines these fields; blocks
+would provide them as attributes or registration metadata.
+
+See also: `GET /flows/blocks` HTTP endpoint (serves the catalogue for co-hosted scenarios)
+and `IBlockCatalogueExporter` / `IBlockCatalogueStore` for generation and caching.
 
 ---
 
@@ -251,6 +262,8 @@ via Data Protection's key history).
 | Error UI | Already handled by `FlowRunsList.razor` (needs build-error events) |
 | Config | Phase 2: `IConfigurableBlock` + JSON Schema + `IBlockConfigBlobRepository`; Phase 1: hardcoded defaults |
 | Config versioning | Blob IDs frozen in immutable definition version |
+| Block metadata | `BlockCatalogueDocument` — static snapshot exported from registry at startup |
+| Designer decoupling | Catalogue served as static JSON; designer needs no live registry connection |
 | Designer UI | Phase 1: minimal list-based; Phase 2: graphical canvas |
 
 ---
@@ -266,7 +279,9 @@ Deliverables:
 - `DynamicFlowBuilder` (validate + build from definition)
 - `IFlowDefinitionRepository` + `InMemoryFlowDefinitionRepository` + EF Core implementation
 - `DynamicFlowRunner` service
-- `GET /flows/blocks` API endpoint (exposes registry to client)
+- `BlockCatalogueDocument` DTO + `IBlockCatalogueExporter` + `IBlockCatalogueStore` (in-memory cache)
+- `GET /flows/blocks` API endpoint (serves catalogue for co-hosted designer)
+- `GET /flows/blocks/export` or startup hook to write catalogue as static JSON file
 - `POST /flows/run/dynamic` endpoint
 - Unit tests for validation and execution
 
@@ -275,9 +290,9 @@ Deliverables:
 **Goal**: Compose and run flows from the UI.
 
 Deliverables:
-- Block palette component (reads from `GET /flows/blocks`)
+- Block palette component (reads catalogue from `GET /flows/blocks` or static JSON)
 - Simple block list + linear connection builder
-- Type compatibility validation display
+- Type compatibility validation display (can run client-side against cached catalogue)
 - Save definition + version management
 - Demo page in `DataFlow.Blazor.Demo`
 
@@ -289,7 +304,8 @@ Deliverables:
 - `IConfigurableBlock` interface + registry schema storage
 - `IBlockConfigBlobRepository` interface + EF Core + in-memory implementations
 - ASP.NET Core Data Protection integration for `x-secret` field encryption
-- `GET /flows/blocks/{key}/schema` endpoint
+- `GET /flows/blocks/{key}/schema` endpoint (on-demand; for dynamic schemas)
+- Catalogue `configSchema` field population (`includeConfigSchemas: true`)
 - JSON Forms integration (or Blazor reflection-based editor for simple types)
 - Config blob IDs stored in `FlowDefinition.blockConfigRefs`
 - Config blob loading + `ApplyConfigJson()` in `DynamicFlowRunner`
@@ -319,6 +335,7 @@ Deliverables:
 - **Prototype**: `/research/dynamic-flows/handover/prototype/`
 - **Flow Definition Schema**: `/research/dynamic-flows/design/flow-definition-schema.md`
 - **Block Configuration Design**: `/research/dynamic-flows/design/block-configuration.md`
+- **Block Metadata Catalogue Design**: `/research/dynamic-flows/design/block-metadata-catalogue.md`
 - **Designer UI Design**: `/research/dynamic-flows/design/designer-ui.md`
 - **Exploration Notes**: `/research/dynamic-flows/notes/exploration-notes.md`
 - **Implementation Handover**: `/research/dynamic-flows/handover/github-issue-implement-dynamic-flows.md`
