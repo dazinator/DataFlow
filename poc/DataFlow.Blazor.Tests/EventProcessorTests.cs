@@ -196,4 +196,56 @@ public class EventProcessorTests
         Assert.True(processor.State.Blocks.ContainsKey("producer"));
         Assert.Equal(500, processor.State.Blocks["producer"].ItemsProduced);
     }
+
+    [Fact]
+    public void EventProcessor_AppliesSnapshot_RestoresCompletedAtToEndTime()
+    {
+        // Arrange
+        var processor = new EventProcessor(Guid.NewGuid());
+        var completedAt = new DateTime(2025, 1, 1, 12, 0, 0, DateTimeKind.Utc);
+        var snapshot = new FlowSnapshot(
+            InvocationId: processor.State.InvocationId,
+            FlowName: "Completed Flow",
+            StartTime: DateTime.UtcNow,
+            State: FlowState.Completed,
+            CompletedAt: completedAt,
+            ErrorMessage: null,
+            Blocks: new Dictionary<string, BlockSnapshot>(),
+            Channels: new Dictionary<string, ChannelSnapshot>()
+        );
+
+        // Act
+        processor.ApplySnapshot(snapshot);
+
+        // Assert
+        Assert.Equal(completedAt, processor.State.EndTime);
+        Assert.Null(processor.State.ErrorMessage);
+    }
+
+    [Fact]
+    public void EventProcessor_AppliesSnapshot_RestoresErrorMessageForFailedFlow()
+    {
+        // Arrange
+        var processor = new EventProcessor(Guid.NewGuid());
+        var completedAt = new DateTime(2025, 1, 1, 12, 0, 0, DateTimeKind.Utc);
+        const string errorMessage = "Pipeline failed: upstream error";
+        var snapshot = new FlowSnapshot(
+            InvocationId: processor.State.InvocationId,
+            FlowName: "Failed Flow",
+            StartTime: DateTime.UtcNow,
+            State: FlowState.Failed,
+            CompletedAt: completedAt,
+            ErrorMessage: errorMessage,
+            Blocks: new Dictionary<string, BlockSnapshot>(),
+            Channels: new Dictionary<string, ChannelSnapshot>()
+        );
+
+        // Act
+        processor.ApplySnapshot(snapshot);
+
+        // Assert
+        Assert.Equal(FlowState.Failed, processor.State.State);
+        Assert.Equal(completedAt, processor.State.EndTime);
+        Assert.Equal(errorMessage, processor.State.ErrorMessage);
+    }
 }

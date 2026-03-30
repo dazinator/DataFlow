@@ -25,7 +25,9 @@ public class EventProcessor
         _state.InvocationId = snapshot.InvocationId;
         _state.FlowName = snapshot.FlowName;
         _state.StartTime = snapshot.StartTime;
+        _state.EndTime = snapshot.CompletedAt;
         _state.State = snapshot.State;
+        _state.ErrorMessage = snapshot.ErrorMessage;
         _state.TriggerParamsJson = snapshot.TriggerParamsJson;
 
         if (snapshot.BlockOrder is { Length: > 0 })
