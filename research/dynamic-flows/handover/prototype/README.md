@@ -16,11 +16,12 @@ modifying any production code.
 
 | File | Purpose |
 |------|---------|
-| `FlowDefinition.cs` | JSON-serializable model — the "source of truth" saved by the designer and executed by the runner |
+| `FlowDefinition.cs` | JSON-serializable model — topology + `blockConfigRefs` (blob IDs, never inline values) |
 | `DynamicFlowBuilder.cs` | Core engine: parses definition, validates types, builds `DataFlowGraph` |
-| `IFlowDefinitionRepository.cs` | Storage abstraction + in-memory reference implementation |
-| `DynamicFlowRunner.cs` | Fire-and-forget executor (mirrors `DemoFlowRunner` pattern) |
-| `ExampleDefinitions.cs` | Annotated JSON examples showing valid definitions |
+| `IFlowDefinitionRepository.cs` | Flow definition storage abstraction + in-memory reference implementation |
+| `IBlockConfigBlobRepository.cs` | Config blob storage + transparent secret encryption/decryption (in-memory impl) |
+| `DynamicFlowRunner.cs` | Fire-and-forget executor; loads + decrypts config blobs before execution |
+| `ExampleDefinitions.cs` | Annotated JSON examples showing definitions with blob config references |
 
 ---
 
@@ -30,7 +31,7 @@ modifying any production code.
 JSON Definition
       │
       ▼
-FlowDefinition (deserialized model)
+FlowDefinition (deserialized model — topology + blockConfigRefs)
       │
       ▼
 DynamicFlowBuilder.Validate()
@@ -45,6 +46,14 @@ DynamicFlowBuilder.Build(definition, serviceProvider)
   • Calls UseBlock(blockKey) for each block
   • Calls Connect(fromKey, toKey, bufferCapacity) for each connection
   • Returns DataFlowGraph (identical to a hardcoded graph)
+      │
+      ▼
+DynamicFlowRunner — load & apply config before execution
+  • For each block with a blockConfigRefs entry:
+      IBlockConfigBlobRepository.LoadAsync(blobId)
+        → transparently decrypts x-secret fields (Data Protection)
+        → returns plain-text JSON
+      IConfigurableBlock.ApplyConfigJson(json)
       │
       ▼
 DataFlowGraph.ExecuteAsync(ctx)

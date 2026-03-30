@@ -1,9 +1,10 @@
 // ---------------------------------------------------------------------------
 // Example: How a dynamic flow definition JSON looks
-// This file shows two example definitions that can be used with the prototype.
+// Config values are NOT stored inline — they are stored in a separate blob
+// repository (IBlockConfigBlobRepository) and referenced by ID.
 // ---------------------------------------------------------------------------
 
-// Example 1: Linear pipeline (mirrors the hardcoded linear demo)
+// Example 1: Linear pipeline without config (topology only)
 // File: linear-pipeline.json
 /*
 {
@@ -24,7 +25,8 @@
 }
 */
 
-// Example 2: Linear pipeline with block configuration snapshot
+// Example 2: Linear pipeline with config blob references (no inline values)
+// The actual config JSON (including encrypted secrets) lives in the blob store.
 // File: linear-pipeline-with-config.json
 /*
 {
@@ -42,16 +44,24 @@
     { "from": "global:transform", "to": "global:batch",      "bufferCapacity": 100 },
     { "from": "global:batch",     "to": "global:processor",  "bufferCapacity": 100 }
   ],
-  "blockConfig": {
-    "global:producer":  { "itemCount": 50, "delayMs": 200 },
-    "global:batch":     { "batchSize": 5 },
-    "global:processor": { "delayMs": 60 }
+  "blockConfigRefs": {
+    "global:producer":  "cfg-blob-a1b2c3d4",
+    "global:batch":     "cfg-blob-e5f6g7h8",
+    "global:processor": "cfg-blob-i9j0k1l2"
   }
 }
 */
 
-// Example 3: Simple two-block flow (Producer → Processor, no transform/batch)
-// Shows that the engine works with any valid subset of registered blocks.
+// The blobs referenced above are stored in IBlockConfigBlobRepository.
+// When the blob for "global:producer" was saved, its plain-text JSON was:
+//   { "itemCount": 50, "delayMs": 200 }
+// For a block with secrets, the plain-text submitted by the designer would be:
+//   { "host": "prod-db", "apiKey": "sk-live-abc123" }
+// The repository encrypts x-secret fields before storage; the stored blob contains:
+//   { "host": "prod-db", "apiKey": "<encrypted-ciphertext>" }
+// On load for execution, the repository decrypts transparently and returns the original.
+
+// Example 3: Simple two-block flow (type-compatible pair)
 // File: minimal-pipeline.json
 /*
 {

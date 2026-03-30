@@ -201,36 +201,40 @@ This provides a compelling, concrete demonstration of the feature.
 
 2. The block registry stores the JSON Schema for the block's `TOptions` type (generated
    automatically from the type via `System.Text.Json.JsonSchemaExporter` in .NET 9, or
-   `NJsonSchema` for .NET 8).
+   `NJsonSchema` for .NET 8). Secret fields are annotated with `"x-secret": true`.
 
 3. The designer UI uses **JSON Forms** (via JS interop) to render a generic config editor
-   from the schema — no per-block UI code required.
+   from the schema — no per-block UI code required. `x-secret` fields render as password inputs.
 
-4. The user-edited config is captured as a `JsonElement` in `blockConfig[instanceId]`
-   within the `FlowDefinition`.
+4. The user-edited config is **not** stored inline in the definition. Instead, it is saved to
+   an `IBlockConfigBlobRepository` which transparently encrypts `x-secret` fields using
+   **ASP.NET Core Data Protection** before persisting. The repository returns a stable blob ID;
+   only this ID is stored in `FlowDefinition.blockConfigRefs`.
 
-5. At execution time, `DynamicFlowRunner` deserializes the config JSON and calls
-   `ApplyConfigJson()` on the block before the graph runs.
+5. At execution time, `DynamicFlowRunner` loads the blob (decrypting secrets on the fly) and
+   calls `ApplyConfigJson()` on the block before the graph runs.
 
 **Phase 1 (v1)**: No config editing. Blocks use hardcoded defaults.  
-**Phase 2**: `IConfigurableBlock` + JSON Schema exposure + generic form in designer.  
-**Phase 3**: Full JSON Forms integration with complex types.
+**Phase 2**: `IConfigurableBlock` + JSON Schema exposure + generic form in designer + `IBlockConfigBlobRepository` with Data Protection.  
+**Phase 3**: Full JSON Forms integration with complex types; external secret stores (Key Vault).
 
 ---
 
 ### Q9: How do we keep a config snapshot per definition version?
 
-**Answer**: Store `blockConfig` as an embedded JSON object within the `FlowDefinition`.
+**Answer**: Via the blob indirection model — the definition stores blob IDs, not inline values.
 
-- `FlowDefinition` is immutable once published
-- `blockConfig` captures the config values at the moment the definition was saved
-- New config → create new version → new `blockConfig` snapshot
+- Config values are stored as versioned blobs in `IBlockConfigBlobRepository`
+- `FlowDefinition.blockConfigRefs` maps each block instance to the blob ID saved at definition-save time
+- `FlowDefinition` is immutable once published — the blob IDs it references are frozen
+- New config → call `SaveAsync()` → new blob ID → new definition version with new blob IDs
+- Historical runs load the blob IDs from their definition version → identical config (and secrets) to what ran originally
 - Historical runs (identified by `invocationId`) reference the definition version via
   `triggerParamsJson` (stored in `FlowStartedEvent`): `{ "flowId": "...", "version": 2 }`
-- Even if config is subsequently changed, old invocations retain their original config
 
-This aligns with the existing visualization's event-sourced architecture where
-`FlowStartedEvent.TriggerParamsJson` already captures execution context.
+This also enables **secret rotation** without losing history: rotate the secret, save a new blob,
+create a new definition version. Old runs still reference the old blob (which remains decryptable
+via Data Protection's key history).
 
 ---
 
@@ -238,13 +242,15 @@ This aligns with the existing visualization's event-sourced architecture where
 
 | Aspect | Recommendation |
 |--------|---------------|
-| Definition format | JSON (`FlowDefinition` model) |
+| Definition format | JSON (`FlowDefinition` model — topology + blob refs only) |
 | Storage | `IFlowDefinitionRepository` + EF Core default |
+| Config storage | `IBlockConfigBlobRepository` — separate table, field-level encryption for secrets |
+| Secrets | ASP.NET Core Data Protection, `x-secret: true` JSON Schema annotation |
 | Execution | `DynamicFlowBuilder` → `DataFlowGraphBuilder` (no new execution path) |
 | Validation | Pre-flight `Validate()` + descriptive errors surfaced in UI |
 | Error UI | Already handled by `FlowRunsList.razor` (needs build-error events) |
-| Config | Phase 2: `IConfigurableBlock` + JSON Schema; Phase 1: hardcoded defaults |
-| Config versioning | Embedded `blockConfig` snapshot in definition version |
+| Config | Phase 2: `IConfigurableBlock` + JSON Schema + `IBlockConfigBlobRepository`; Phase 1: hardcoded defaults |
+| Config versioning | Blob IDs frozen in immutable definition version |
 | Designer UI | Phase 1: minimal list-based; Phase 2: graphical canvas |
 
 ---
@@ -281,10 +287,12 @@ Deliverables:
 
 Deliverables:
 - `IConfigurableBlock` interface + registry schema storage
+- `IBlockConfigBlobRepository` interface + EF Core + in-memory implementations
+- ASP.NET Core Data Protection integration for `x-secret` field encryption
 - `GET /flows/blocks/{key}/schema` endpoint
 - JSON Forms integration (or Blazor reflection-based editor for simple types)
-- Config snapshot in `FlowDefinition.blockConfig`
-- Config binding in `DynamicFlowRunner`
+- Config blob IDs stored in `FlowDefinition.blockConfigRefs`
+- Config blob loading + `ApplyConfigJson()` in `DynamicFlowRunner`
 
 ### Phase 4: Full Visual Designer
 

@@ -1,6 +1,5 @@
 namespace DataFlow.DynamicFlows.Prototype;
 
-using System.Text.Json;
 using System.Text.Json.Serialization;
 
 // ---------------------------------------------------------------------------
@@ -35,12 +34,13 @@ public sealed class FlowDefinition
     public IReadOnlyList<FlowConnection> Connections { get; init; } = Array.Empty<FlowConnection>();
 
     /// <summary>
-    /// Per-block configuration snapshots, keyed by <see cref="FlowBlockReference.InstanceId"/>.
-    /// Stored as raw JSON so each block can deserialize to its own options type.
-    /// Snapshotted at the time of version creation — later config edits do NOT affect this version.
+    /// Per-block configuration blob references, keyed by <see cref="FlowBlockReference.InstanceId"/>.
+    /// Each value is a stable ID returned by <c>IBlockConfigBlobRepository.SaveAsync()</c>.
+    /// The actual config values (including any encrypted secrets) live in the blob store —
+    /// the definition only holds the reference, never the raw config payload.
     /// </summary>
-    [JsonPropertyName("blockConfig")]
-    public IReadOnlyDictionary<string, JsonElement>? BlockConfig { get; init; }
+    [JsonPropertyName("blockConfigRefs")]
+    public IReadOnlyDictionary<string, string>? BlockConfigRefs { get; init; }
 }
 
 /// <summary>
