@@ -15,9 +15,10 @@
 
 | Type | Description |
 |------|-------------|
-| Source | Supplies data (e.g. `ProducerBlock`) |
-| Propagator | Transforms/routes data (e.g. `TransformBlock`, `BatchBlock`) |
-| Target | Terminal consumer (e.g. `ProcessorBlock`) |
+| Source | Supplies data — `BlockBase<object, TOut>`, ignores input |
+| Propagator | Transforms/routes data — `BlockBase<TIn, TOut>` |
+| Target | Terminal consumer — `BlockBase<TIn, object>`, `yield break` |
+| Actor | DI-injected worker — implements `IStreamActor<TIn, TOut>`, registered via `AddActorBlock` |
 
 ### Repository Structure
 
@@ -83,41 +84,145 @@ dotnet format
 
 ---
 
-## Common Patterns
+## Common Patterns (POC — `poc/` directory)
 
-### Defining a Flow
+The POC uses a different API from the legacy `src/` library. The core principles (pull-based, backpressure via channels, DI-first, cancellation) are the same.
+
+### Implementing a Block
+
+All blocks extend `BlockBase<TIn, TOut>` and implement `ExecuteAsync`. Source blocks use `object` as their input type. Terminal sinks use `object` as their output type and `yield break` at the end.
 
 ```csharp
-public class MyFlowConfig : IDataFlowConfiguration
+// Source block — produces items, ignores input
+public sealed class MySourceBlock : BlockBase<object, MyItem>
 {
-    public void Configure(DataFlowBuilder builder)
+    public MySourceBlock(string name) : base(new BlockContext(name)) { }
+
+    public override async IAsyncEnumerable<MyItem> ExecuteAsync(
+        IAsyncEnumerable<object> input,
+        IExecutionContext context)
     {
-        builder
-            .AddProducer<int>("source", sp => sp.GetRequiredService<MyProducer>())
-            .AddBatch<int>("batcher", maxBatchSize: 100, windowPeriod: TimeSpan.FromSeconds(5))
-            .ReceiveFrom("source")
-            .AddProcessor<int[]>("writer", sp => sp.GetRequiredService<MyBatchWriter>())
-            .ReceiveFrom("batcher");
+        for (int i = 0; i < 100; i++)
+        {
+            await Task.Delay(10, context.CancellationToken);
+            yield return new MyItem(i);
+        }
+    }
+}
+
+// Transform / propagator block
+public sealed class MyTransformBlock : BlockBase<MyItem, MyResult>
+{
+    public MyTransformBlock(string name) : base(new BlockContext(name)) { }
+
+    public override async IAsyncEnumerable<MyResult> ExecuteAsync(
+        IAsyncEnumerable<MyItem> input,
+        IExecutionContext context)
+    {
+        await foreach (var item in input.WithCancellation(context.CancellationToken))
+        {
+            yield return Process(item);
+        }
+    }
+}
+
+// Terminal sink — consumes items, yields nothing
+public sealed class MySinkBlock : BlockBase<MyResult, object>
+{
+    public MySinkBlock(string name) : base(new BlockContext(name)) { }
+
+    public override async IAsyncEnumerable<object> ExecuteAsync(
+        IAsyncEnumerable<MyResult> input,
+        IExecutionContext context)
+    {
+        await foreach (var item in input.WithCancellation(context.CancellationToken))
+            await HandleAsync(item, context.CancellationToken);
+        yield break;
     }
 }
 ```
 
-### Implementing a Producer
+### Implementing an Actor (DI-injected worker)
+
+For blocks that need DI dependencies (e.g. `DbContext`), implement `IStreamActor<TIn, TOut>` and register with `AddActorBlock`. Each actor instance runs in its own DI scope.
 
 ```csharp
-public class MyProducer : IProducer<int>
+public sealed class MyActor : IStreamActor<MyItem, MyResult>
 {
-    public async IAsyncEnumerable<int> ProduceAsync(
-        [EnumeratorCancellation] CancellationToken cancellationToken)
+    private readonly IMyService _service;
+
+    public MyActor(IMyService service) => _service = service;
+
+    public async IAsyncEnumerable<MyResult> RunAsync(
+        IAsyncEnumerable<MyItem> input,
+        IActorExecutionContext context)
     {
-        for (int i = 0; i < 100; i++)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            yield return i;
-            await Task.Delay(10, cancellationToken);
-        }
+        await foreach (var item in input.WithCancellation(context.CancellationToken))
+            yield return await _service.ProcessAsync(item, context.CancellationToken);
     }
 }
+```
+
+### Building a Graph Directly
+
+Used in tests, demos, and one-off executions where DI registration isn't needed.
+
+```csharp
+var source    = new MySourceBlock("source");
+var transform = new MyTransformBlock("transform");
+var sink      = new MySinkBlock("sink");
+
+var graph = new DataFlowGraph("my-flow", logger);
+graph.AddBlock(source);
+graph.AddBlock(transform);
+graph.AddBlock(sink);
+graph.AddEdge(new Edge(source, transform));   // bounded buffer, default capacity 100
+graph.AddEdge(new Edge(transform, sink));
+
+await graph.ExecuteAsync(executionContext);
+```
+
+### Registering a Flow with DI
+
+Used in production / hosted services. Blocks resolve from DI; the graph topology is declared once at startup.
+
+```csharp
+services.AddDataFlows("my-namespace", df =>
+{
+    df.DisplayName("My Processing Flow");
+
+    // Register blocks (resolved per execution scope)
+    df.AddActorBlock<MyItem, MyResult, MyActor>("processor");
+    df.AddBlock<MySinkBlock>("sink", sp => new MySinkBlock("sink"));
+
+    // Declare graph topology
+    df.AddGraph("my-graph", g =>
+    {
+        g.Connect("processor", "sink");
+    });
+});
+```
+
+### Edge Topologies
+
+```csharp
+// Fan-out: broadcast same items to all targets
+graph.AddEdge(new Edge(source, new[] { targetA, targetB }, new BroadcastEdgeStrategy(...)));
+
+// Competing consumers: each item goes to exactly one worker
+graph.AddEdge(new Edge(source, new[] { worker1, worker2, worker3 },
+    new CompetingEdgeStrategy(BufferMode.Bounded, 100)));
+
+// Selective routing: route items to targets based on a key
+var strategy = new SelectiveRoutingEdgeStrategy<MyItem>(
+    new Dictionary<string, IBlock> { ["typeA"] = blockA, ["typeB"] = blockB },
+    item => item.Type,
+    BufferMode.Bounded, 100);
+graph.AddEdge(new Edge(router, new[] { blockA, blockB }, strategy));
+
+// Fan-in: multiple sources feeding one target — just add an Edge per source
+graph.AddEdge(new Edge(sourceA, fanInBuffer));
+graph.AddEdge(new Edge(sourceB, fanInBuffer));
 ```
 
 ---
