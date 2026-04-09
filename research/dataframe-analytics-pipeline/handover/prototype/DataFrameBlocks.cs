@@ -475,6 +475,7 @@ public sealed class ParquetWriterActor : IStreamActor<DataFrame, object>
 
     public ParquetWriterActor(string sinkKey, IParquetSinkRepository repository)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sinkKey);
         _sinkKey = sinkKey;
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
     }
