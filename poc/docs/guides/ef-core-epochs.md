@@ -1,465 +1,446 @@
 # Using Entity Framework Core with Epochs
 
+**Audience**: DataFlow users familiar with the [Getting Started guide](./getting-started.md)  
+**Prerequisites**: An existing DataFlow pipeline registered with `AddDataFlows`  
+**Goal**: Add epoch support so that EF Core `DbContext` is isolated per epoch and each epoch runs inside its own database transaction
+
+---
+
 ## Overview
 
-This guide demonstrates how to use **Entity Framework Core DbContext** with the formalized epoch system for transactional data processing. The epoch system provides automatic transaction management and DbContext scoping for safe, concurrent database operations.
+Epochs in DataFlow are logical batch boundaries. Each epoch has its own **DI scope**, which means a `DbContext` registered as `Scoped` is automatically isolated per epoch — different epochs get different `DbContext` instances, and the instance is disposed when the epoch ends.
 
-## Key Concepts
+This gives you:
+- ✅ Fresh `DbContext` (no change-tracker bloat) for each epoch
+- ✅ Per-epoch database transactions aligned with processing boundaries
+- ✅ Automatic rollback when an epoch fails
+- ✅ No MSDTC escalation — serial execution within a single epoch uses one connection
 
-### Epoch-Scoped DbContext
+---
 
-Each epoch has its own DI scope, which means:
-- ✅ All operations in an epoch share the same `DbContext` instance
-- ✅ The `DbContext` is automatically disposed when the epoch completes
-- ✅ Multiple blocks can access the same `DbContext` within an epoch
-- ✅ No MSDTC escalation (operations execute serially)
+## How It Works
 
-### Transaction Lifecycle
-
-The epoch system manages the complete transaction lifecycle:
-
-1. **OnBeginEpoch**: Begin transaction before any operations
-2. **Operation Queue**: All DB operations execute serially
-3. **OnCommitEpoch**: SaveChanges and commit transaction
-4. **OnEpochError**: Rollback on errors
-
-## Basic Setup
-
-### 1. Register DbContext as Scoped Service
-
-```csharp
-var services = new ServiceCollection();
-
-// Register DbContext as scoped (one per epoch)
-services.AddDbContext<MyDbContext>(options =>
-    options.UseSqlServer(connectionString),
-    ServiceLifetime.Scoped);
-
-var serviceProvider = services.BuildServiceProvider();
+```
+Epoch 1  →  [DI scope 1 → DbContext 1 → Transaction 1]  ✓ Committed
+Epoch 2  →  [DI scope 2 → DbContext 2 → Transaction 2]  ✓ Committed
+Epoch 3  →  [DI scope 3 → DbContext 3 → Transaction 3]  ✗ Rolled back (error)
 ```
 
-### 2. Configure Epoch System with Transaction Hooks
+Each epoch creates a new DI scope. When your actor processes items from that epoch, it gets a fresh `DbContext` instance from that scope. When the actor finishes the epoch, the scope is disposed and the `DbContext` is released.
+
+---
+
+## Step 1 — Register DbContext as Scoped
+
+`DbContext` must be **Scoped**, not Singleton. This is the EF Core default when you call `AddDbContext`.
 
 ```csharp
-var scopeFactory = serviceProvider.GetRequiredService<IServiceScopeFactory>();
-var coordinator = new EpochCoordinator(scopeFactory);
-var source = new EpochSourceNode(coordinator);
+// Program.cs / Startup.cs
+services.AddDbContext<OrderDbContext>(options =>
+    options.UseSqlServer(connectionString));
+// ServiceLifetime.Scoped is the default — one instance per DI scope (= one per epoch)
+```
 
-var hooks = new EpochHooks
+---
+
+## Step 2 — Create a Source Actor
+
+The source actor defines epoch boundaries. Extend `SourceActorBase<T>` and call `CreateEpochStreamAsync` once per epoch. Each call to `CreateEpochStreamAsync` creates a new DI scope through the epoch coordinator.
+
+```csharp
+using DataFlow.POC.Core;
+using System.Runtime.CompilerServices;
+
+public class PendingOrderSourceActor : SourceActorBase<Order>
 {
-    OnBeginEpoch = async (epoch, ct) =>
+    private readonly OrderDbContext _dbContext;
+
+    public PendingOrderSourceActor(OrderDbContext dbContext)
+        : base("pending-order-source")
     {
-        // Begin transaction at epoch start
-        await epoch.QueueSerializedOperationAsync<MyDbContext>(async db =>
-        {
-            await db.Database.BeginTransactionAsync(ct);
-        }, ct);
-    },
-    
-    OnCommitEpoch = async (epoch, ct) =>
-    {
-        // Save changes and commit at epoch end
-        await epoch.QueueSerializedOperationAsync<MyDbContext>(async db =>
-        {
-            await db.SaveChangesAsync(ct);
-            await db.Database.CommitTransactionAsync(ct);
-        }, ct);
-    },
-    
-    OnEpochError = async (epoch, error, ct) =>
-    {
-        // Rollback on error
-        await epoch.QueueSerializedOperationAsync<MyDbContext>(async db =>
-        {
-            if (db.Database.CurrentTransaction != null)
-            {
-                await db.Database.RollbackTransactionAsync(ct);
-            }
-        }, ct);
+        _dbContext = dbContext;
     }
-};
 
-var processor = new EpochProcessorNode(source, hooks);
-```
-
-## Usage Patterns
-
-### Pattern 1: Simple Entity Processing
-
-Queue operations to add/update entities:
-
-```csharp
-public class OrderProcessor
-{
-    public async Task ProcessOrderAsync(Order order, IEpoch epoch, CancellationToken ct)
+    public override async IAsyncEnumerable<IEpochStream<Order>> ProduceEpochsAsync(
+        IActorExecutionContext context)
     {
-        // Queue the operation - it executes later in serial order
-        await epoch.QueueSerializedOperationAsync<MyDbContext>(async db =>
-        {
-            db.Orders.Add(order);
-            // Don't call SaveChanges - OnCommitEpoch handles it
-        }, ct);
+        // Read-only query — use AsNoTracking for efficiency
+        var orders = _dbContext.Orders
+            .Where(o => o.Status == "Pending")
+            .OrderBy(o => o.Id)
+            .AsNoTracking()
+            .AsAsyncEnumerable();
+
+        // All pending orders go into a single epoch
+        yield return await CreateEpochStreamAsync(
+            context,
+            sequence: 1,
+            items: orders,
+            context.CancellationToken);
     }
 }
 ```
 
-### Pattern 2: Related Entity Operations
+> **Tip**: For large datasets, split into multiple smaller epochs — see the [Multiple Epochs (Batching)](#multiple-epochs-batching) section below.
 
-All operations within an epoch see the same DbContext:
+---
 
-```csharp
-public async Task ProcessOrderWithItemsAsync(
-    Order order, 
-    IEpoch epoch, 
-    CancellationToken ct)
-{
-    // Single operation: Add order and all related items
-    await epoch.QueueSerializedOperationAsync<MyDbContext>(async db =>
-    {
-        // Add the order
-        db.Orders.Add(order);
-        
-        // Add all order items in the same operation
-        foreach (var item in order.Items)
-        {
-            // Same DbContext sees the order added above
-            db.OrderItems.Add(item);
-        }
-        // SaveChanges happens in OnCommitEpoch
-    }, ct);
-}
-```
+## Step 3 — Create a Processor Actor
 
-### Pattern 3: Query and Update
+The processor actor receives items from the epoch and writes to the database. Because `EpochActorBlock` creates a **new DI scope per epoch**, the `DbContext` injected via the constructor is always fresh for each epoch.
 
-Query data within the epoch scope:
+Begin the transaction when the actor starts, accumulate changes while processing items, and commit when the actor finishes the epoch.
 
 ```csharp
-public async Task UpdateInventoryAsync(
-    string productId, 
-    int quantity,
-    IEpoch epoch, 
-    CancellationToken ct)
+using DataFlow.POC.Core;
+using Microsoft.EntityFrameworkCore;
+
+public class OrderProcessorActor : IStreamActor<Order, Order>
 {
-    await epoch.QueueSerializedOperationAsync<MyDbContext>(async db =>
+    private readonly OrderDbContext _dbContext;
+    private readonly ILogger<OrderProcessorActor> _logger;
+
+    public OrderProcessorActor(
+        OrderDbContext dbContext,
+        ILogger<OrderProcessorActor> logger)
     {
-        var product = await db.Products
-            .FirstOrDefaultAsync(p => p.Id == productId, ct);
-        
-        if (product != null)
-        {
-            product.Quantity -= quantity;
-            product.LastModified = DateTime.UtcNow;
-        }
-        // SaveChanges happens in OnCommitEpoch
-    }, ct);
-}
-```
-
-### Pattern 4: Bulk Operations
-
-Process multiple items in the same epoch:
-
-```csharp
-public async Task ProcessBatchAsync(
-    IEnumerable<Order> orders,
-    IEpoch epoch,
-    CancellationToken ct)
-{
-    // Single operation: Add all orders at once
-    await epoch.QueueSerializedOperationAsync<MyDbContext>(async db =>
-    {
-        foreach (var order in orders)
-        {
-            db.Orders.Add(order);
-        }
-        // All orders committed together in OnCommitEpoch
-    }, ct);
-}
-```
-
-## Complete Example
-
-### Full DataFlow Pipeline with EF Core
-
-This example shows typical usage with the DataFlow builder:
-
-```csharp
-public class OrderProcessingPipeline
-{
-    public async Task RunAsync(CancellationToken ct)
-    {
-        // 1. Setup DI with scoped DbContext
-        var services = new ServiceCollection();
-        services.AddDbContext<MyDbContext>(options =>
-            options.UseSqlServer(connectionString),
-            ServiceLifetime.Scoped);
-        
-        // Register your blocks and actors
-        services.AddScoped<OrderValidationActor>();
-        services.AddScoped<OrderPersistenceActor>();
-        
-        var serviceProvider = services.BuildServiceProvider();
-        
-        // 2. Build the DataFlow pipeline
-        var dataFlow = new DataFlowBuilder()
-            .UseServiceProvider(serviceProvider)
-            
-            // Configure epoch system with transaction hooks
-            .ConfigureEpochs(config =>
-            {
-                config.SetPolicy(EpochPolicy.ByCount(100)); // Batch every 100 items
-                config.AddProcessor("processor1"); // Serial processing
-                
-                config.OnBeginEpoch(async (epoch, ct) =>
-                {
-                    await epoch.QueueSerializedOperationAsync<MyDbContext>(
-                        async db => await db.Database.BeginTransactionAsync(ct), ct);
-                });
-                
-                config.OnCommitEpoch(async (epoch, ct) =>
-                {
-                    await epoch.QueueSerializedOperationAsync<MyDbContext>(async db =>
-                    {
-                        await db.SaveChangesAsync(ct);
-                        await db.Database.CommitTransactionAsync(ct);
-                    }, ct);
-                });
-                
-                config.OnEpochError(async (epoch, error, ct) =>
-                {
-                    await epoch.QueueSerializedOperationAsync<MyDbContext>(async db =>
-                    {
-                        if (db.Database.CurrentTransaction != null)
-                            await db.Database.RollbackTransactionAsync(ct);
-                    }, ct);
-                });
-            })
-            
-            // Define the pipeline
-            .AddProducer<Order>("order-source", sp => sp.GetRequiredService<OrderSourceBlock>())
-            .AddActor<Order, Order>("validator", sp => sp.GetRequiredService<OrderValidationActor>())
-            .ReceiveFrom("order-source")
-            .AddActor<Order, Order>("persister", sp => sp.GetRequiredService<OrderPersistenceActor>())
-            .ReceiveFrom("validator")
-            
-            .Build();
-        
-        // 3. Execute the pipeline
-        await dataFlow.ExecuteAsync(ct);
-        
-        // 4. Cleanup
-        await serviceProvider.DisposeAsync();
+        _dbContext = dbContext;
+        _logger = logger;
     }
-}
 
-// Example actor that persists orders
-public class OrderPersistenceActor : IStreamActor<Order, Order>
-{
-    private readonly IEpochCoordinator _coordinator;
-    
-    public OrderPersistenceActor(IEpochCoordinator coordinator)
-    {
-        _coordinator = coordinator;
-    }
-    
     public async IAsyncEnumerable<Order> RunAsync(
         IAsyncEnumerable<Order> input,
         IActorExecutionContext context)
     {
-        await foreach (var order in input.WithCancellation(context.CancellationToken))
+        // Begin transaction for this epoch
+        await using var transaction = await _dbContext.Database
+            .BeginTransactionAsync(context.CancellationToken);
+
+        var processedCount = 0;
+
+        try
         {
-            // Get or create epoch for this item
-            var epoch = await _coordinator.GetOrCreateEpochAsync(
-                context.BlockName, 
-                order.EpochVector);
-            
-            // Queue database operation
-            await epoch.QueueSerializedOperationAsync<MyDbContext>(async db =>
+            await foreach (var order in input.WithCancellation(context.CancellationToken))
             {
-                db.Orders.Add(order);
-                // SaveChanges happens in OnCommitEpoch
-            }, context.CancellationToken);
-            
-            yield return order;
+                // Apply your business logic
+                order.Status = "Processed";
+                order.ProcessedAt = DateTime.UtcNow;
+
+                _dbContext.Orders.Update(order);
+                processedCount++;
+
+                yield return order; // Pass item downstream
+            }
+
+            // Commit all changes for this epoch in one transaction
+            await _dbContext.SaveChangesAsync(context.CancellationToken);
+            await transaction.CommitAsync(context.CancellationToken);
+
+            _logger.LogInformation(
+                "Epoch committed {Count} orders", processedCount);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Epoch failed after {Count} orders — rolling back", processedCount);
+            await transaction.RollbackAsync(context.CancellationToken);
+            throw; // Re-throw so the epoch is marked as failed
         }
     }
 }
 ```
+
+> **Important**: `yield return` must come before `SaveChangesAsync`. The actor streams items downstream while accumulating changes, then commits after the stream is exhausted.
+
+---
+
+## Step 4 — Register Everything with AddDataFlows
+
+```csharp
+// Register actors as Scoped — one instance per DI scope (= one per epoch)
+services.AddScoped<PendingOrderSourceActor>();
+services.AddScoped<OrderProcessorActor>();
+
+services.AddDataFlows("orders", df =>
+{
+    // Source: produces epoch streams from the database
+    df.AddSourceBlock<Order, PendingOrderSourceActor>("order-source");
+
+    // Processor: transforms and persists items within each epoch
+    df.AddActorBlock<Order, Order, OrderProcessorActor>("order-processor");
+
+    // Graph: connect source → processor
+    df.AddGraph("process-pending", g =>
+    {
+        g.Connect("order-source", "order-processor");
+    });
+});
+```
+
+`AddDataFlows` automatically registers `IEpochCoordinator` as a scoped service — no manual registration needed.
+
+---
+
+## Step 5 — Execute the Graph
+
+```csharp
+var serviceProvider = services.BuildServiceProvider();
+
+// Retrieve the compiled graph
+var graph = serviceProvider.GetKeyedService<DataFlowGraph>("orders:process-pending");
+
+// Create an execution context and run
+var context = new ExecutionContext(serviceProvider, CancellationToken.None);
+await graph!.ExecuteAsync(context);
+```
+
+---
+
+## What Happens Under the Hood
+
+When `ExecuteAsync` runs:
+
+1. `EpochSourceBlock` creates a DI scope and resolves `PendingOrderSourceActor` from it.
+2. `PendingOrderSourceActor.ProduceEpochsAsync` calls `CreateEpochStreamAsync`, which asks the `EpochCoordinator` to create a new epoch — a new DI scope is allocated for that epoch.
+3. The epoch stream flows to `EpochActorBlock`, which creates **its own** DI scope for the actor and resolves `OrderProcessorActor`.
+4. `OrderProcessorActor.RunAsync` receives the item stream, opens a transaction, processes items, and commits.
+5. When `RunAsync` returns, the actor's DI scope is disposed — the `DbContext` is released.
+
+---
+
+## Multiple Epochs (Batching)
+
+For large datasets, split into multiple epochs so each transaction is bounded in size:
+
+```csharp
+public class BatchedOrderSourceActor : SourceActorBase<Order>
+{
+    private readonly OrderDbContext _dbContext;
+    private const int BatchSize = 500;
+
+    public BatchedOrderSourceActor(OrderDbContext dbContext)
+        : base("batched-order-source")
+    {
+        _dbContext = dbContext;
+    }
+
+    public override async IAsyncEnumerable<IEpochStream<Order>> ProduceEpochsAsync(
+        IActorExecutionContext context)
+    {
+        long sequence = 1;
+        int lastProcessedId = 0;
+
+        while (true)
+        {
+            var batch = await _dbContext.Orders
+                .Where(o => o.Status == "Pending" && o.Id > lastProcessedId)
+                .OrderBy(o => o.Id)
+                .Take(BatchSize)
+                .AsNoTracking()
+                .ToListAsync(context.CancellationToken);
+
+            if (batch.Count == 0)
+                break;
+
+            // Signal readiness to advance before yielding the next epoch
+            if (sequence > 1)
+                SignalReadyForNext(context, sequence - 1, sequence);
+
+            lastProcessedId = batch[^1].Id;
+
+            yield return await CreateEpochStreamAsync(
+                context,
+                sequence,
+                batch.ToAsyncEnumerable(),
+                context.CancellationToken);
+
+            sequence++;
+        }
+    }
+}
+```
+
+This results in:
+```
+Epoch 1  →  Orders 1–500    → Transaction 1  ✓ Committed
+Epoch 2  →  Orders 501–1000 → Transaction 2  ✓ Committed
+Epoch 3  →  Orders 1001–1500 → Transaction 3 ✓ Committed
+```
+
+---
+
+## Lifecycle Hooks (Optional)
+
+If you need to begin a transaction before any items are processed (e.g., to wrap the entire epoch in one `BEGIN TRANSACTION` and let the actor omit the explicit begin/commit), configure `EpochHooks` via `ConfigureEpochs` on a `DataFlowGraphBuilder`.
+
+> **Note**: `ConfigureEpochs` applies to the low-level `EpochSourceNode`/`EpochProcessorNode` pipeline and is most useful when multiple blocks share the same epoch scope via `epochStream.EpochScope`. For the typical actor block pattern described in Steps 1–5, managing transactions inside the actor is simpler and recommended.
+
+```csharp
+var builder = new DataFlowGraphBuilder("orders");
+
+builder.ConfigureEpochs(config =>
+{
+    config.SetPolicy(EpochPolicy.ByCount(500));
+    config.AddProcessor("processor1");
+
+    config.OnBeginEpoch(async (epoch, ct) =>
+    {
+        var db = epoch.GetService<OrderDbContext>();
+        await db.Database.BeginTransactionAsync(ct);
+    });
+
+    config.OnCommitEpoch(async (epoch, ct) =>
+    {
+        var db = epoch.GetService<OrderDbContext>();
+        await db.SaveChangesAsync(ct);
+        await db.Database.CommitTransactionAsync(ct);
+    });
+
+    config.OnEpochError(async (epoch, ex, ct) =>
+    {
+        var db = epoch.GetService<OrderDbContext>();
+        if (db.Database.CurrentTransaction != null)
+            await db.Database.RollbackTransactionAsync(ct);
+    });
+});
+```
+
+---
 
 ## Best Practices
 
-### 1. Always Use Scoped Lifetime
+### 1. Register DbContext as Scoped
+
+```csharp
+// ✅ CORRECT — one instance per DI scope (per epoch)
+services.AddDbContext<OrderDbContext>(options => ...);
+
+// ❌ WRONG — shared across all epochs, causes concurrency bugs
+services.AddSingleton<OrderDbContext>(...);
+```
+
+### 2. Manage Transactions Inside the Actor
+
+Open the transaction at the start of `RunAsync`, commit after the stream is exhausted, and roll back in the `catch`. This co-locates the transaction lifecycle with the code that uses it.
+
+### 3. Use AsNoTracking for Read-Only Queries
+
+When the source actor only reads data to produce the stream, disable change tracking:
+
+```csharp
+_dbContext.Orders
+    .Where(o => o.Status == "Pending")
+    .AsNoTracking() // No change tracking for read-only queries
+    .AsAsyncEnumerable();
+```
+
+### 4. Keep Epoch Size Reasonable
+
+Large epochs hold transactions open longer, increasing lock contention and memory usage.
+
+| Epoch Size | Tradeoff |
+|------------|----------|
+| 50–200 | Low lock contention, frequent commits |
+| 500–1000 | Good throughput, moderate transaction size |
+| >5000 | High throughput but risk of timeout or memory pressure |
+
+### 5. Always Propagate CancellationToken
 
 ```csharp
 // ✅ CORRECT
-services.AddDbContext<MyDbContext>(options => ..., ServiceLifetime.Scoped);
+await _dbContext.SaveChangesAsync(context.CancellationToken);
 
-// ❌ WRONG - Singleton causes concurrency issues
-services.AddDbContext<MyDbContext>(options => ..., ServiceLifetime.Singleton);
+// ❌ WRONG — ignores cancellation
+await _dbContext.SaveChangesAsync();
 ```
 
-### 2. Don't Call SaveChanges in Operations (Usually)
-
-Let the `OnCommitEpoch` hook handle SaveChanges:
+### 6. Never Call SaveChanges Synchronously
 
 ```csharp
-// ✅ CORRECT - Let OnCommitEpoch handle it
-await epoch.QueueSerializedOperationAsync<MyDbContext>(async db =>
-{
-    db.Orders.Add(order);
-});
+// ✅ CORRECT
+await _dbContext.SaveChangesAsync(context.CancellationToken);
 
-// ⚠️ EXCEPTION - If you need database-generated IDs for subsequent operations
-await epoch.QueueSerializedOperationAsync<MyDbContext>(async db =>
-{
-    db.Orders.Add(order);
-    await db.SaveChangesAsync(); // Get the ID
-    
-    // Now use the ID for related records
-    var detail = new OrderDetail { OrderId = order.Id };
-    db.OrderDetails.Add(detail);
-});
+// ❌ WRONG — blocks the thread pool
+_dbContext.SaveChanges();
 ```
 
-**Important**: If you call `SaveChanges` within operations, ensure you have transaction management:
-- Call `BeginTransaction` in `OnBeginEpoch`
-- Call `CommitTransaction` in `OnCommitEpoch`
-- This ensures multiple `SaveChanges` calls are rolled into a single transaction
-
-### 3. Handle Connection Pooling
-
-EF Core handles connection pooling automatically. Each epoch:
-- Gets a scoped `DbContext` from the service provider
-- Opens a connection from the pool when needed
-- Returns the connection to the pool when disposed
-- No MSDTC escalation (serial execution ensures one connection at a time)
-
-### 4. Monitor Transaction Size
-
-Large epochs with many operations can:
-- Hold transactions open longer
-- Increase memory usage
-- Risk transaction timeout
-
-**Recommendation**: Keep epochs reasonably sized (100-1000 operations)
-
-```csharp
-// Good: Batch size of 100
-var policy = EpochPolicy.ByCount(100);
-
-// Risk: Very large batches
-var policy = EpochPolicy.ByCount(100000); // May timeout!
-```
-
-### 5. Use Async All the Way
-
-```csharp
-// ✅ CORRECT - Async operations
-await epoch.QueueSerializedOperationAsync<MyDbContext>(async db =>
-{
-    await db.SaveChangesAsync(ct);
-});
-
-// ❌ WRONG - Blocking sync calls
-await epoch.QueueSerializedOperationAsync<MyDbContext>(async db =>
-{
-    db.SaveChanges(); // Blocks thread pool!
-});
-```
+---
 
 ## Error Handling
 
-### Automatic Rollback
-
-The `OnEpochError` hook automatically rolls back on errors:
+The actor is responsible for its own error handling. Throwing an exception from `RunAsync` propagates up through the `EpochActorBlock` and the graph, which cancels the pipeline.
 
 ```csharp
-OnEpochError = async (epoch, error, ct) =>
+public async IAsyncEnumerable<Order> RunAsync(
+    IAsyncEnumerable<Order> input,
+    IActorExecutionContext context)
 {
-    await epoch.QueueSerializedOperationAsync<MyDbContext>(async db =>
+    await using var transaction = await _dbContext.Database
+        .BeginTransactionAsync(context.CancellationToken);
+
+    try
     {
-        if (db.Database.CurrentTransaction != null)
+        await foreach (var order in input.WithCancellation(context.CancellationToken))
         {
-            await db.Database.RollbackTransactionAsync(ct);
+            // ... process ...
+            yield return order;
         }
-    }, ct);
-    
-    // Log the error
-    _logger.LogError(error, "Epoch {Epoch} failed", epoch.Vector);
-}
-```
 
-### Retry Logic
-
-Implement retry at the epoch level:
-
-```csharp
-public async Task ProcessWithRetryAsync(IEpoch epoch, int maxRetries = 3)
-{
-    for (int attempt = 1; attempt <= maxRetries; attempt++)
+        await _dbContext.SaveChangesAsync(context.CancellationToken);
+        await transaction.CommitAsync(context.CancellationToken);
+    }
+    catch (OperationCanceledException)
     {
-        try
-        {
-            await source.PublishEpochAsync(epoch);
-            await processor.CompletionTask;
-            return; // Success
-        }
-        catch (Exception ex) when (attempt < maxRetries)
-        {
-            _logger.LogWarning(ex, "Epoch failed, retry {Attempt}/{Max}", 
-                attempt, maxRetries);
-            await Task.Delay(TimeSpan.FromSeconds(attempt * 2)); // Exponential backoff
-        }
+        // Cancellation — rollback and re-throw
+        await transaction.RollbackAsync(CancellationToken.None);
+        throw;
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Epoch processing failed — rolling back");
+        await transaction.RollbackAsync(CancellationToken.None);
+        throw;
     }
 }
 ```
 
-## Performance Considerations
+> **Note**: Use `CancellationToken.None` for the rollback call so it is not itself cancelled before it completes.
 
-### 1. Processor Count
+---
 
-Configure based on your workload:
+## Shared DbContext Across Multiple Blocks in the Same Epoch
 
-```csharp
-// Serial: Deterministic order, lower throughput
-var processor = new EpochProcessorNode(source, hooks);
+In some advanced scenarios you may want multiple blocks to share the same `DbContext` instance within an epoch (e.g., one block reads and another writes, and you need them to see each other's un-committed changes).
 
-// Parallel: Higher throughput, order non-deterministic
-var processors = Enumerable.Range(0, 4)
-    .Select(_ => new EpochProcessorNode(source, hooks))
-    .ToList();
-
-await Task.WhenAll(processors.Select(p => p.CompletionTask));
-```
-
-### 2. Batch Size
-
-Balance transaction size vs throughput:
+This is possible by accessing the epoch scope directly via `epochStream.EpochScope`:
 
 ```csharp
-// Small batches: Frequent commits, lower transaction risk
-var policy = EpochPolicy.ByCount(50);
-
-// Large batches: Higher throughput, longer transactions
-var policy = EpochPolicy.ByCount(500);
-```
-
-### 3. Change Tracking
-
-Disable change tracking for read-only queries:
-
-```csharp
-await epoch.QueueSerializedOperationAsync<MyDbContext>(async db =>
+// In a custom block (not using EpochActorBlock):
+await foreach (var epochStream in input.WithCancellation(cancellationToken))
 {
-    var products = await db.Products
-        .AsNoTracking() // Better performance for read-only
-        .ToListAsync(ct);
-});
+    var db = epochStream.EpochScope?.GetService<OrderDbContext>()
+        ?? throw new InvalidOperationException("EpochScope required");
+
+    // db is the same instance shared across all blocks in this epoch
+    await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+
+    await foreach (var item in epochStream.Items.WithCancellation(cancellationToken))
+    {
+        // process item using db ...
+    }
+
+    await db.SaveChangesAsync(cancellationToken);
+    await transaction.CommitAsync(cancellationToken);
+}
 ```
+
+> This pattern requires writing a custom block class rather than using the `IStreamActor<TIn, TOut>` interface with `df.AddActorBlock`. For most pipelines the actor-level transaction approach (Steps 1–5) is simpler and sufficient.
+
+---
 
 ## See Also
 
-- [Using Epochs Guide](./using-epochs.md) - General epoch system overview
-- [Epoch Vectors](../design/epoch-vectors.md) - Multi-source coordination
-- [Transaction Boundaries](../design/transaction-boundaries.md) - Transaction semantics
+- [Getting Started](./getting-started.md) — First-time setup with `AddDataFlows`
+- [Using Epochs](./using-epochs.md) — Epoch system overview and `ConfigureEpochs`
+- [Epoch Actor Block](./epoch-actor-block.md) — DI scope rotation and memory management
+- [EpochAnchoringDemo](../../EpochAnchoringDemo/README.md) — Runnable end-to-end EF Core + epoch demo
