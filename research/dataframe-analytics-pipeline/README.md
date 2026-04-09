@@ -216,21 +216,59 @@ Source ──[DataFrame]──► BroadcastEdgeStrategy(cloneFunc)
 
 **Do not fan-in after clone-broadcast unless you explicitly want duplicate rows.**
 
-#### Pattern C: De-duplicate Block (When Fan-In After Broadcast Is Unavoidable)
+#### Pattern D: Broadcast + Clone + Merge After Mutation (New Columns Per Branch)
 
-If the topology requires broadcast-then-merge and duplicate rows must be removed,
-insert a `DataFrameDeduplicateBlock` before the terminal block. This requires a
-row-identity column (e.g., a `row_id` or composite key).
+When each cloned branch **enriches the same rows with different columns** (e.g., RouteA adds
+a `Status` column, RouteB adds a `Score` column), the results can be merged back using
+`DataFrame.Merge()` — a SQL-style JOIN on a shared row-identity key.
 
 ```
 Source ──[DataFrame]──► BroadcastEdgeStrategy(cloneFunc)
-                              ├──► ProcessA
-                              └──► ProcessB
-                         ──────────────────► EpochBufferBlock ──► DataFrameDeduplicateBlock ──► Terminal
+                              ├──► RouteA (adds "Status" column)
+                              └──► RouteB (adds "Score" column)
+                        ──────────────────► DataFrameColumnMergeBlock("RowId") ──► Terminal
 ```
 
-**Caveat**: Deduplication adds complexity and requires stable row identifiers. Prefer
-Pattern A wherever possible.
+`DataFrame.Merge()` returns a **new** DataFrame without mutating either input:
+
+```csharp
+// RouteA output: RowId + original cols + Status
+// RouteB output: RowId + original cols + Score
+var merged = routeAResult.Merge(
+    routeBResult,
+    leftJoinColumn: "RowId",
+    rightJoinColumn: "RowId",
+    joinAlgorithm: JoinAlgorithm.Inner);
+// merged: RowId + original cols + Status + Score (duplicate originals need SelectBlock)
+```
+
+**Caveat**: `Merge()` requires a shared key column and the data to be sorted by that key
+for large frames. Overlapping columns (original columns present in both inputs) get suffixes
+(`_left`, `_right`) — a downstream `DataFrameSelectBlock` can remove the duplicates.
+A `DataFrameColumnMergeBlock` encapsulates this pattern in the proposed block catalogue.
+
+#### Pattern E: Broadcast + Clone + Row Concatenation After Mutation (Row-Producing Branches)
+
+When each cloned branch produces **additional rows** (e.g., an expansion or explode step),
+those new rows can be combined vertically using `DataFrame.Append()`:
+
+```csharp
+// Collect results from all branches
+DataFrame combined = branches[0].Clone();
+foreach (var branch in branches.Skip(1))
+    combined.Append(branch.Rows, inPlace: true);
+```
+
+A `DataFrameRowConcatBlock` (fan-in terminal of an `EpochBufferBlock<DataFrame>`) encapsulates
+this pattern: it accumulates all arriving DataFrames and yields their row-level union.
+
+**Summary of re-combination options:**
+
+| Scenario | API | Notes |
+|---|---|---|
+| Branches added different columns to same rows | `df1.Merge(df2, "RowId", "RowId", Inner)` | Requires shared key; returns new DataFrame |
+| Branches produced disjoint additional rows | `target.Append(other.Rows, inPlace: true)` | Mutates target; clone first if needed |
+| Branches produced same rows (de-dup needed) | `DataFrameDeduplicateBlock` | Escape valve — prefer Pattern A |
 
 ---
 
@@ -296,6 +334,8 @@ The following blocks form a composable ETL toolkit operating on `DataFrame`:
 | `DataFrameJoinBlock` | `DataFrame` | `DataFrame` | Joins with a second DataFrame (injected via DI repository) |
 | `DataFrameAccumulatorBlock` | `DataFrame` | `DataFrame` | Accumulates incoming chunks until a target row count, then yields |
 | `DataFrameDeduplicateBlock` | `DataFrame` | `DataFrame` | Removes duplicate rows by identity column |
+| `DataFrameColumnMergeBlock` | `DataFrame` | `DataFrame` | Fan-in block: merges two branch DataFrames via `df.Merge()` on a shared key column (recombines branches that added different columns to the same rows) |
+| `DataFrameRowConcatBlock` | `DataFrame` | `DataFrame` | Fan-in block: vertically concatenates all incoming DataFrames using `Append()` (recombines branches that produced disjoint row sets) |
 
 ### Sink Blocks
 

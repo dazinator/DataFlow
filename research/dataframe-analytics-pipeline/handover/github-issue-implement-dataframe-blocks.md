@@ -51,7 +51,9 @@ What this implementation should achieve:
 - [ ] Implement source blocks: `ParquetSourceBlock`, `CsvSourceBlock`
 - [ ] Implement transform blocks: `DataFrameFilterBlock`, `DataFrameSelectBlock`,
       `DataFrameTransformBlock`, `DataFramePartitionBlock`, `DataFrameGroupByBlock`,
-      `DataFrameJoinBlock`, `DataFrameAccumulatorBlock`, `DataFrameDeduplicateBlock`
+      `DataFrameJoinBlock`, `DataFrameAccumulatorBlock`, `DataFrameDeduplicateBlock`,
+      `DataFrameColumnMergeBlock` (fan-in: SQL-join of two branch outputs on a key column),
+      `DataFrameRowConcatBlock` (fan-in: vertical row concatenation of branch outputs)
 - [ ] Implement sink: `ParquetWriterActor`, `DataFrameLogBlock`
 - [ ] Implement `DataFrameEdgeStrategyExtensions.DataFrameBroadcast()` convenience method
 - [ ] Provide DI registration extensions

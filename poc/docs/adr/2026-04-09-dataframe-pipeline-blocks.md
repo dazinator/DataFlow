@@ -132,6 +132,50 @@ Three patterns are sanctioned:
    `EpochBufferBlock<DataFrame>`. Use only when topological constraints prevent option 1.
    Requires stable row-identity columns.
 
+### Merging Mutated Branches Back Together
+
+When cloned DataFrames are mutated differently in each branch and must be recombined,
+`Microsoft.Data.Analysis` provides two re-combination operations:
+
+**Pattern A — Column-level merge (different columns added per branch)**
+
+Each branch adds different columns to the same row set (same row count, same row-id column).
+Use `DataFrame.Merge()` with the shared row-id key:
+
+```csharp
+// RouteA added a "Status" column; RouteB added a "Score" column.
+// Both started from clones of the same frame and kept the "RowId" key.
+var merged = routeAResult.Merge(
+    routeBResult,
+    leftJoinColumn: "RowId",
+    rightJoinColumn: "RowId",
+    joinAlgorithm: JoinAlgorithm.Inner);
+// Result contains all original columns + Status + Score
+```
+
+`Merge` produces a **new** DataFrame (does not mutate either input). It works like an SQL JOIN
+and requires the data to be sorted by the join key for large frames.
+
+**Pattern B — Row-level concat (disjoint row sets from each branch)**
+
+Each branch produced a subset of rows (e.g., after parallel processing of row partitions). Use
+`Append` to vertically concatenate:
+
+```csharp
+// Collect all branch DataFrames and concatenate their rows
+DataFrame combined = branches[0].Clone();
+foreach (var branch in branches.Skip(1))
+    combined.Append(branch.Rows, inPlace: true);
+```
+
+`Append` mutates in place (hence the `Clone()` on the first frame to avoid mutating a received
+input). The `DataFrameAccumulatorBlock` prototype already demonstrates this pattern.
+
+A dedicated `DataFrameRowConcatBlock` (fan-in block) should be added to the block catalogue
+to encapsulate Pattern B cleanly. It accepts multiple incoming `DataFrame` streams (connected
+as a fan-in via multiple edges to an `EpochBufferBlock<DataFrame>`) and yields the row-level
+concatenated result.
+
 ### Envelope Tests Ruling
 
 The `EnvelopeEdgeStrategyTests` tests (marked `Skip = "Envelope control plane superseded by
