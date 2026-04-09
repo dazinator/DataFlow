@@ -83,7 +83,7 @@ var hooks = new EpochHooks
 };
 ```
 
-> **Why `CancellationToken.None` in the rollback?** Rollback must complete even after the original `CancellationToken` has been cancelled. Passing `CancellationToken.None` ensures the rollback is never itself interrupted.
+> **Why `CancellationToken.None` in `RollbackTransactionAsync`?** The outer `QueueSerializedOperationAsync` call still receives the hook's `ct` so the *queuing* can be cancelled. Once the operation starts executing, the rollback itself must succeed even if `ct` has already been cancelled, so `CancellationToken.None` is passed specifically to `RollbackTransactionAsync`.
 
 ---
 
@@ -134,12 +134,11 @@ while (true)
     // Queue one write operation per order
     foreach (var order in batch)
     {
-        var captured = order; // capture for closure
         await epoch.QueueSerializedOperationAsync<OrderDbContext>(async db =>
         {
-            captured.Status      = "Processed";
-            captured.ProcessedAt = DateTime.UtcNow;
-            db.Orders.Update(captured);
+            order.Status      = "Processed";
+            order.ProcessedAt = DateTime.UtcNow;
+            db.Orders.Update(order);
             // Do NOT call SaveChanges here — OnCommitEpoch handles it
         }, cancellationToken);
     }
@@ -221,12 +220,11 @@ public class OrderProcessingService : BackgroundService
 
             foreach (var order in batch)
             {
-                var captured = order;
                 await epoch.QueueSerializedOperationAsync<OrderDbContext>(async db =>
                 {
-                    captured.Status      = "Processed";
-                    captured.ProcessedAt = DateTime.UtcNow;
-                    db.Orders.Update(captured);
+                    order.Status      = "Processed";
+                    order.ProcessedAt = DateTime.UtcNow;
+                    db.Orders.Update(order);
                 }, stoppingToken);
             }
 
@@ -254,7 +252,7 @@ public class OrderProcessingService : BackgroundService
                 await db.Database.CommitTransactionAsync(ct);
             }, ct),
 
-        OnEpochError = async (epoch, _, ct) =>
+        OnEpochError = async (epoch, ex, ct) =>
             await epoch.QueueSerializedOperationAsync<OrderDbContext>(async db =>
             {
                 if (db.Database.CurrentTransaction != null)
