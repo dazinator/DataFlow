@@ -278,7 +278,11 @@ For each epoch:
    d. Drains the commit operation
 5. The epoch's DI scope is disposed — `OrderDbContext` is released.
 
-Because the channel is single-reader and FIFO, **only one operation touches the database at a time**, preventing MSDTC escalation.
+Within a single epoch, the operation queue is FIFO and single-reader, so **only one operation touches that epoch's database connection at a time**, preventing MSDTC escalation.
+
+> **Multiple `EpochProcessorNode`s = concurrent epoch transactions**
+>
+> `EpochSourceNode` exposes a channel with `SingleReader = false` — it is a **competing-consumer** queue. Each epoch is claimed by exactly one `EpochProcessorNode`, but two different processors can be processing two different epochs at the same time. This means the number of concurrent open transactions equals the number of active `EpochProcessorNode`s. Keep this in mind for databases with low transaction concurrency limits or when using serialisable isolation.
 
 ---
 
