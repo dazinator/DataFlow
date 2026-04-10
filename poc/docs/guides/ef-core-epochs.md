@@ -415,6 +415,146 @@ await epoch.QueueSerializedOperationAsync<OrderDbContext>(async db =>
 
 ---
 
+## Checkpointing
+
+Checkpointing lets you persist the epoch position (and any block-specific resume state) at regular intervals. On restart the pipeline can load the last checkpoint and resume from where it left off instead of replaying from the beginning.
+
+Checkpointing is optional and entirely additive — it does not change how transactions work.
+
+### How it fits together
+
+```
+Every epoch  →  DB transaction committed (EpochHooks)
+Every N epochs  →  Checkpoint written atomically in the same transaction
+                   (EpochVector + block states saved to the checkpoint store)
+```
+
+### Step C1 — Choose a Checkpoint Strategy
+
+Pass a strategy to `EpochCoordinator`. Two built-in strategies are available:
+
+```csharp
+using DataFlow.POC.Checkpointing.Strategies;
+
+// Checkpoint every 10 epochs
+var strategy = new EveryNEpochsStrategy(10);
+
+// — or — checkpoint at most every 5 minutes
+var strategy = new TimeBasedStrategy(TimeSpan.FromMinutes(5));
+
+// Pass to the coordinator
+var coordinator = new EpochCoordinator(
+    serviceProvider.GetRequiredService<IServiceScopeFactory>(),
+    checkpointStrategy: strategy);
+```
+
+When `strategy.ShouldCreateCheckpoint(vector)` returns `true`, the coordinator creates an `ICheckpoint` and attaches it to that epoch. `epoch.IsCheckpointing` will be `true` for that epoch.
+
+You can also implement `ICheckpointStrategy` for custom policies (e.g., checkpoint after every 1 000 items regardless of epoch count).
+
+### Step C2 — Blocks Contribute Their Resume State
+
+Any block that needs to resume from a specific position (e.g., a database cursor, message queue offset) should save that position to the checkpoint. Use the two-argument overload of `QueueSerializedOperationAsync` to access `ctx.Checkpoint`:
+
+```csharp
+// Only contribute state when this epoch is being checkpointed
+if (epoch.IsCheckpointing)
+{
+    await epoch.QueueSerializedOperationAsync<OrderDbContext>(async (db, ctx) =>
+    {
+        // SetState serialises the object to JSON and writes it to the checkpoint.
+        // Each block must use a unique blockId.
+        ctx.Checkpoint?.SetState("orders-source", new
+        {
+            lastOrderId = lastId,
+            processedCount = totalProcessed
+        });
+        await Task.CompletedTask;
+    }, cancellationToken);
+}
+```
+
+The `ctx.Checkpoint` is `null` when the epoch is not checkpointing, so the `?.` null-conditional operator is intentional.
+
+Because the checkpoint is only accessible inside serialised operations, access is automatically thread-safe.
+
+### Step C3 — Persist the Checkpoint in OnCommitEpoch
+
+Write the checkpoint to your store inside `OnCommitEpoch`, after (or in the same serialised operation as) `SaveChanges` and `CommitTransactionAsync`. This makes the checkpoint and the DB writes atomic:
+
+```csharp
+OnCommitEpoch = async (epoch, ct) =>
+    await epoch.QueueSerializedOperationAsync<OrderDbContext>(async (db, ctx) =>
+    {
+        await db.SaveChangesAsync(ct);
+        await db.Database.CommitTransactionAsync(ct);
+
+        // Persist checkpoint in the same serialised call (after the transaction)
+        if (ctx.Checkpoint != null)
+        {
+            var json = System.Text.Json.JsonSerializer.Serialize(ctx.Checkpoint.BlockStates);
+            // e.g. write to a file, Redis, or a separate DB table
+            await File.WriteAllTextAsync($"checkpoint-{ctx.Checkpoint.CheckpointId}.json", json, ct);
+        }
+    }, ct)
+```
+
+> **Tip**: If you save the checkpoint to the same SQL database as your data, you can write it inside the same transaction before calling `CommitTransactionAsync`. This gives you an atomic guarantee: either the data and the checkpoint are both saved or neither is.
+
+### Step C4 — Restore on Startup
+
+Load the last checkpoint before creating the `EpochCoordinator` and pass the resume state to each block:
+
+```csharp
+// 1. Load the last checkpoint (application-specific store)
+var checkpoint = await checkpointStore.GetLatestAsync();
+
+// 2. Restore each block's state before the pipeline starts
+long lastOrderId = 0;
+if (checkpoint != null && checkpoint.TryGetBlockState("orders-source", out var state))
+{
+    lastOrderId = state.GetProperty("lastOrderId").GetInt64();
+}
+
+// 3. Create coordinator with checkpoint strategy
+var strategy   = new EveryNEpochsStrategy(10);
+var coordinator = new EpochCoordinator(scopeFactory, checkpointStrategy: strategy);
+
+// 4. Start the pipeline from the restored position
+var epochSourceNode = new EpochSourceNode();
+var epochProcessor  = new EpochProcessorNode(epochSourceNode, hooks);
+
+// The source query starts from lastOrderId instead of 0
+while (true)
+{
+    var batch = await sourceDb.Orders
+        .Where(o => o.Id > lastOrderId)
+        .OrderBy(o => o.Id)
+        .Take(500)
+        .AsNoTracking()
+        .ToListAsync(stoppingToken);
+
+    if (batch.Count == 0)
+        break;
+
+    // ... create epoch, queue writes, publish as before ...
+    lastOrderId = batch[^1].Id;
+}
+```
+
+### Checkpoint State API
+
+| Member | Description |
+|--------|-------------|
+| `epoch.IsCheckpointing` | `true` when this epoch will write a checkpoint |
+| `ctx.Checkpoint` | The `ICheckpoint` for this epoch, or `null` if not checkpointing |
+| `ctx.Checkpoint.SetState(blockId, state)` | Serialise and store block state (write-once per block per checkpoint) |
+| `ctx.Checkpoint.TryGetBlockState(blockId, out JsonElement)` | Read back block state (for restore logic) |
+| `ctx.Checkpoint.EpochVector` | The epoch vector at the checkpoint |
+| `ctx.Checkpoint.Timestamp` | When the checkpoint was created |
+
+---
+
 ## See Also
 
 - [Getting Started](./getting-started.md) — First-time setup with `AddDataFlows`
