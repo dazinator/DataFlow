@@ -131,14 +131,20 @@ while (true)
     var vector = EpochVector.FromSingleSource("orders", sequence);
     var epoch  = await coordinator.GetOrCreateEpochAsync("orders", vector, cancellationToken);
 
-    // Queue one write operation per order
+    // Queue one write operation per order.
+    // 'db' below is the epoch-scoped OrderDbContext — a fresh instance
+    // resolved from the epoch's own DI scope. It is completely separate from
+    // the outer 'dbContext' used to load the batch above.
+    // Because the batch was loaded with AsNoTracking(), each 'order' is a
+    // detached entity. Calling db.Orders.Update(order) re-attaches it to
+    // the epoch DbContext and marks every property as modified.
     foreach (var order in batch)
     {
         await epoch.QueueSerializedOperationAsync<OrderDbContext>(async db =>
         {
             order.Status      = "Processed";
             order.ProcessedAt = DateTime.UtcNow;
-            db.Orders.Update(order);
+            db.Orders.Update(order); // attach detached entity to epoch DbContext
             // Do NOT call SaveChanges here — OnCommitEpoch handles it
         }, cancellationToken);
     }
@@ -220,6 +226,8 @@ public class OrderProcessingService : BackgroundService
 
             foreach (var order in batch)
             {
+                // db = epoch-scoped DbContext (not sourceDb).
+                // Update() re-attaches the AsNoTracking entity and marks it modified.
                 await epoch.QueueSerializedOperationAsync<OrderDbContext>(async db =>
                 {
                     order.Status      = "Processed";
