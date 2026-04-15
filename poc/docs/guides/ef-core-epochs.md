@@ -105,9 +105,9 @@ var epochProcessor  = new EpochProcessorNode(epochSourceNode, hooks);
 
 ---
 
-## Step 4 — Queue Data Operations and Publish Epochs
+## Step 4 — Publish Epochs; Processing Blocks Queue Their Own Writes
 
-For each epoch, read the data, queue every write as a serialised operation, and then publish the epoch. **Do not call `SaveChanges` inside the operation** — `OnCommitEpoch` does that after all writes have been queued.
+The **source** creates an epoch for each batch and publishes it. The source does not queue any write operations — deciding what to write is the responsibility of each processing block. A block that only validates data queues nothing; a block that updates orders queues its own update; a block that writes audit records queues its own insert. This is compositional: the source makes no assumptions about downstream changes.
 
 ```csharp
 long sequence   = 1;
@@ -116,8 +116,8 @@ const int BatchSize = 500;
 
 while (true)
 {
-    // Load the next batch (read-only, no tracking needed)
-    var batch = await dbContext.Orders
+    // Load the next batch — read-only, no tracking needed
+    var batch = await sourceDb.Orders
         .Where(o => o.Status == "Pending" && o.Id > lastId)
         .OrderBy(o => o.Id)
         .Take(BatchSize)
@@ -127,29 +127,20 @@ while (true)
     if (batch.Count == 0)
         break;
 
-    // Create an epoch — this allocates a new DI scope with a fresh OrderDbContext
+    // Create an epoch — allocates a new DI scope with a fresh OrderDbContext
     var vector = EpochVector.FromSingleSource("orders", sequence);
     var epoch  = await coordinator.GetOrCreateEpochAsync("orders", vector, cancellationToken);
 
-    // Queue one write operation per order.
-    // 'db' below is the epoch-scoped OrderDbContext — a fresh instance
-    // resolved from the epoch's own DI scope. It is completely separate from
-    // the outer 'dbContext' used to load the batch above.
-    // Because the batch was loaded with AsNoTracking(), each 'order' is a
-    // detached entity. Calling db.Orders.Update(order) re-attaches it to
-    // the epoch DbContext and marks every property as modified.
+    // Each processing block independently queues its own DB operations on the epoch.
+    // The inline call below represents what a "MarkOrderProcessed" block would do.
+    // In a full block pipeline, each block receives the epoch via
+    // IEpochStream<Order>.EpochScope and calls QueueSerializedOperationAsync independently.
     foreach (var order in batch)
     {
-        await epoch.QueueSerializedOperationAsync<OrderDbContext>(async db =>
-        {
-            order.Status      = "Processed";
-            order.ProcessedAt = DateTime.UtcNow;
-            db.Orders.Update(order); // attach detached entity to epoch DbContext
-            // Do NOT call SaveChanges here — OnCommitEpoch handles it
-        }, cancellationToken);
+        await QueueMarkOrderProcessedAsync(order, epoch, cancellationToken);
     }
 
-    // Publish the epoch: EpochProcessorNode will drain the queue and run hooks
+    // Publish: EpochProcessorNode will drain the queued operations and run hooks
     await epochSourceNode.PublishEpochAsync(epoch);
 
     lastId = batch[^1].Id;
@@ -165,6 +156,30 @@ await epochProcessor.CompletionTask;
 await epochProcessor.DisposeAsync();
 await coordinator.DisposeAsync();
 ```
+
+`QueueMarkOrderProcessedAsync` represents the processing block's responsibility. The source has no knowledge of it:
+
+```csharp
+// Represents what a downstream processing block does.
+// In a full block pipeline this logic lives inside a BlockBase<IEpochStream<Order>, ...>
+// and is called per item received; the epoch is accessed via epochStream.EpochScope!.
+static async Task QueueMarkOrderProcessedAsync(Order order, IEpoch epoch, CancellationToken ct)
+{
+    // 'db' is the epoch-scoped OrderDbContext — the same instance shared by every
+    // operation queued within this epoch (same DI scope).
+    // Because the order was loaded AsNoTracking(), Update() re-attaches the detached
+    // entity to the epoch DbContext and marks every property as modified.
+    await epoch.QueueSerializedOperationAsync<OrderDbContext>(async db =>
+    {
+        order.Status      = "Processed";
+        order.ProcessedAt = DateTime.UtcNow;
+        db.Orders.Update(order);
+        // Do NOT call SaveChanges — OnCommitEpoch handles it
+    }, ct);
+}
+```
+
+Multiple blocks can each independently call `QueueSerializedOperationAsync` on the same epoch — one might update the order status, another might insert an audit record — and all operations are serialised through the same queue into the same transaction.
 
 This produces:
 
@@ -224,16 +239,10 @@ public class OrderProcessingService : BackgroundService
             var vector = EpochVector.FromSingleSource("orders", sequence);
             var epoch  = await coordinator.GetOrCreateEpochAsync("orders", vector, stoppingToken);
 
+            // Each processing block independently queues its own DB writes on the epoch
             foreach (var order in batch)
             {
-                // db = epoch-scoped DbContext (not sourceDb).
-                // Update() re-attaches the AsNoTracking entity and marks it modified.
-                await epoch.QueueSerializedOperationAsync<OrderDbContext>(async db =>
-                {
-                    order.Status      = "Processed";
-                    order.ProcessedAt = DateTime.UtcNow;
-                    db.Orders.Update(order);
-                }, stoppingToken);
+                await QueueMarkOrderProcessedAsync(order, epoch, stoppingToken);
             }
 
             await epochSourceNode.PublishEpochAsync(epoch);
@@ -267,6 +276,16 @@ public class OrderProcessingService : BackgroundService
                     await db.Database.RollbackTransactionAsync(CancellationToken.None);
             }, ct)
     };
+
+    private static async Task QueueMarkOrderProcessedAsync(Order order, IEpoch epoch, CancellationToken ct)
+    {
+        await epoch.QueueSerializedOperationAsync<OrderDbContext>(async db =>
+        {
+            order.Status      = "Processed";
+            order.ProcessedAt = DateTime.UtcNow;
+            db.Orders.Update(order);
+        }, ct);
+    }
 }
 ```
 
@@ -281,7 +300,7 @@ For each epoch:
 3. `epochSourceNode.PublishEpochAsync` signals to `EpochProcessorNode` that this epoch is ready.
 4. `EpochProcessorNode` picks up the epoch and:
    a. Runs `OnBeginEpoch` (queues `BeginTransactionAsync`)
-   b. Drains the user-queued operations in FIFO order (the `db.Orders.Update(...)` calls)
+   b. Drains the operations queued by processing blocks in FIFO order
    c. Runs `OnCommitEpoch` (queues `SaveChangesAsync` + `CommitTransactionAsync`)
    d. Drains the commit operation
 5. The epoch's DI scope is disposed — `OrderDbContext` is released.
