@@ -432,6 +432,124 @@ ParquetSourceBlock ──► BroadcastEdgeStrategy(df.Clone())
 - Analytics route filters + logs statistics
 - Routes are independent (no fan-in) — no duplication issue
 
+### Scenario 6: Hierarchical Domain Entity Processing (JSON OData → Denormalised Parquet → DataFrame ETL → Domain Converter)
+
+This scenario addresses how to use DataFrame-based ETL blocks to process data that arrives
+as a **hierarchical structure** (e.g., a Journal Batch containing Journals, each containing
+Journal Entries) — a common shape for OData or JSON payloads from ERP systems.
+
+#### The Core Pattern
+
+Hierarchical data is first **denormalised** into a flat table (one row per leaf-level entity)
+before it enters the DataFrame pipeline. The DataFrame ETL zone then operates on flat rows.
+A final **domain converter block** reassembles the flat rows back into the typed object graph.
+
+```
+[Ingestion]                   [ETL Zone]                              [Domain Zone]
+                                                                         ↓
+JSON/OData ──► JsonToParquetBlock ──► [flat Parquet file]
+                                             ↓
+                                      ParquetSourceBlock               (one row group = one batch)
+                                             ↓
+                                      DataFrameFilterBlock             (remove invalid rows)
+                                             ↓
+                                      DataFrameTransformBlock          (e.g. normalise amounts)
+                                             ↓
+                                      DataFrameSelectBlock             (keep required columns)
+                                             ↓
+                                      DataFrameToPocoBlock<JournalBatch>   ← boundary block
+                                             ↓
+                                      PostJournalToErpBlock            (domain block)
+```
+
+#### Denormalised Schema
+
+A Journal Batch with two Journals, each with two Entries, is stored as four flat rows:
+
+| BatchRef | BatchDate  | JournalRef | JournalType | EntrySeq | AccountCode | Amount |
+|----------|------------|------------|-------------|----------|-------------|--------|
+| B001     | 2026-01-01 | J001       | AP          | 1        | 10100       | 1000   |
+| B001     | 2026-01-01 | J001       | AP          | 2        | 20100       | -1000  |
+| B001     | 2026-01-01 | J002       | GL          | 1        | 30100       | 500    |
+| B001     | 2026-01-01 | J002       | GL          | 2        | 40100       | -500   |
+
+Batch-level and Journal-level columns are **repeated on every Entry row**. This is the
+standard denormalisation trade-off: redundant storage in exchange for a uniform flat schema.
+
+#### Row Group Alignment — Batches as Natural Streaming Units
+
+Parquet row groups can be aligned to **batch boundaries** during the ingestion/conversion
+step: each row group contains all Entry rows for exactly one batch. This means:
+
+- `ParquetSourceBlock` emits **one `DataFrame` per batch** — a natural unit of work
+- A downstream `DataFrameAccumulatorBlock` can collect multiple batches before processing
+- There is no need for a batch-boundary signal — the row group boundary *is* the batch boundary
+
+#### DataFrameToPocoBlock — The Domain Converter
+
+The boundary block converts a flat denormalised `DataFrame` into the typed object graph.
+It is the only place in the pipeline where the schema is hard-coded:
+
+```csharp
+public sealed class JournalBatchConverterBlock
+    : BlockBase<DataFrame, JournalBatch>
+{
+    public override async IAsyncEnumerable<JournalBatch> ExecuteAsync(
+        IAsyncEnumerable<DataFrame> input,
+        IExecutionContext context)
+    {
+        await foreach (var frame in input.WithCancellation(context.CancellationToken))
+        {
+            // Batch-level info comes from the first row only
+            var batchRef  = (string)frame["BatchRef"][0]!;
+            var batchDate = (DateTimeOffset)frame["BatchDate"][0]!;
+
+            var journals = new Dictionary<string, Journal>();
+
+            for (long r = 0; r < frame.Rows.Count; r++)
+            {
+                var journalRef = (string)frame["JournalRef"][r]!;
+                if (!journals.TryGetValue(journalRef, out var journal))
+                {
+                    journal = new Journal(journalRef, (string)frame["JournalType"][r]!);
+                    journals[journalRef] = journal;
+                }
+
+                journal.Entries.Add(new JournalEntry(
+                    seq:         (int)frame["EntrySeq"][r]!,
+                    accountCode: (string)frame["AccountCode"][r]!,
+                    amount:      (decimal)frame["Amount"][r]!));
+            }
+
+            yield return new JournalBatch(batchRef, batchDate, journals.Values.ToList());
+        }
+    }
+}
+```
+
+**This is a generic pattern**. The same `DataFrameToPocoBlock<TOut>` base class can be
+reused for any domain entity — Invoices, Shipments, Purchase Orders — by providing a
+different mapping function.
+
+#### Trade-offs
+
+| Trade-off | Detail |
+|---|---|
+| **Memory overhead** | Batch-level and Journal-level columns are duplicated on every Entry row. For a batch with 1 Journal and 1000 Entries, `BatchRef` is stored 1000 times. Cost is `O(rows × hierarchy_depth)`. For typical ERP batch sizes (hundreds to low thousands of entries) this is acceptable; for very large batches it may warrant consideration. |
+| **Per-item converter cost** | `DataFrameToPocoBlock` iterates every row once — `O(rows)`. This is a hot-path operation. Using a `Dictionary<string, Journal>` for journal-level lookup within the block keeps it at `O(rows)` rather than `O(rows²)`. |
+| **Schema coupling** | The denormalised column names must match between the ingestion step and the converter block. A schema mismatch fails at runtime. A `DataFrameSelectBlock` preceding the converter can normalise column names and act as an explicit contract boundary. |
+| **Sort order dependency** | If the converter iterates rows expecting all entries for one journal to be contiguous, the Parquet file must be written sorted by `(BatchRef, JournalRef, EntrySeq)`. If sort order cannot be guaranteed, the converter must use a group-by approach internally. |
+
+#### Benefits
+
+| Benefit | Detail |
+|---|---|
+| **Source-agnostic ETL** | Any source that can produce a `DataFrame` with the expected column names can feed the same converter block — not just Parquet. A `CsvSourceBlock`, a `DataWarehouseSourceBlock`, or a synthesised `DataFrame` from another pipeline stage all work. |
+| **Data cleansing before conversion** | The full DataFrame ETL toolkit applies before the converter: `DataFrameFilterBlock` removes invalid rows, `DataFrameTransformBlock` normalises amounts or codes, `DataFrameSelectBlock` renames columns to match the converter's expected schema. These corrections are composable and auditable. |
+| **Multi-source enrichment** | A `DataFrameJoinBlock` can enrich the flat rows with data from a separate lookup (e.g., account master data from a DW source block) before conversion — without changing the converter block. |
+| **Reusable ETL blocks** | All blocks before the converter are generic — they have no knowledge of Journal semantics. The same filter/transform/select chain can be reused for Invoice pipelines, Shipment pipelines, etc. |
+| **MCP-composable** | Because each block in the ETL zone is configured by a strongly-typed configuration object (column name, operator, value), an MCP agent can compose the filter/transform/select chain dynamically — exactly the adhoc analytics use case discussed in PR comments. |
+
 ---
 
 ## 7. Validation: Prototype Code

@@ -322,6 +322,145 @@ public async Task ParquetRoundTrip_ReadsAndWritesCorrectly()
 
 ---
 
+## 6. Domain Converter Pattern: DataFrameToPocoBlock
+
+### Motivation
+
+DataFrame blocks operate on a flat tabular schema. Many real-world domain entities are
+hierarchical (e.g., a Journal Batch → Journals → Journal Entries). The
+`DataFrameToPocoBlock<TOut>` pattern provides a clean boundary between the generic ETL zone
+(flat `DataFrame`) and the typed domain zone (POCOs).
+
+### Design
+
+```csharp
+/// <summary>
+/// Base class for blocks that convert a denormalised flat DataFrame into a
+/// strongly-typed domain entity.
+/// </summary>
+/// <typeparam name="TOut">The domain entity type to produce.</typeparam>
+public abstract class DataFrameToPocoBlock<TOut> : BlockBase<DataFrame, TOut>
+{
+    protected DataFrameToPocoBlock(IBlockContext context) : base(context) { }
+
+    /// <summary>
+    /// Converts a single denormalised DataFrame into one or more domain entities.
+    /// Each DataFrame typically represents one batch of related entities.
+    /// </summary>
+    protected abstract IEnumerable<TOut> Convert(DataFrame frame);
+
+    public override async IAsyncEnumerable<TOut> ExecuteAsync(
+        IAsyncEnumerable<DataFrame> input,
+        IExecutionContext context)
+    {
+        await foreach (var frame in input.WithCancellation(context.CancellationToken))
+        {
+            foreach (var item in Convert(frame))
+                yield return item;
+        }
+    }
+}
+```
+
+### Usage Pattern
+
+```csharp
+public sealed class JournalBatchConverterBlock : DataFrameToPocoBlock<JournalBatch>
+{
+    public JournalBatchConverterBlock(IBlockContext context) : base(context) { }
+
+    protected override IEnumerable<JournalBatch> Convert(DataFrame frame)
+    {
+        // Batch header from first row
+        var batchRef  = (string)frame["BatchRef"][0]!;
+        var batchDate = (DateTimeOffset)frame["BatchDate"][0]!;
+
+        // Group rows by JournalRef to reconstruct the hierarchy
+        var journals = new Dictionary<string, Journal>();
+        for (long r = 0; r < frame.Rows.Count; r++)
+        {
+            var journalRef = (string)frame["JournalRef"][r]!;
+            if (!journals.TryGetValue(journalRef, out var journal))
+            {
+                journal = new Journal(journalRef, (string)frame["JournalType"][r]!);
+                journals[journalRef] = journal;
+            }
+            journal.Entries.Add(new JournalEntry(
+                seq:         (int)frame["EntrySeq"][r]!,
+                accountCode: (string)frame["AccountCode"][r]!,
+                amount:      (decimal)frame["Amount"][r]!));
+        }
+
+        yield return new JournalBatch(batchRef, batchDate, journals.Values.ToList());
+    }
+}
+```
+
+### Pipeline Topology
+
+```
+ParquetSourceBlock          (1 row group = 1 batch = 1 DataFrame)
+    ↓
+DataFrameFilterBlock        (remove invalid entries, e.g. zero-amount rows)
+    ↓
+DataFrameTransformBlock     (normalise amounts, standardise account codes)
+    ↓
+DataFrameSelectBlock        (rename columns to match converter's expected schema)
+    ↓
+JournalBatchConverterBlock  ← ETL/domain boundary
+    ↓
+PostJournalToErpBlock       (domain-aware, typed on JournalBatch)
+```
+
+### Row Group Alignment Strategy
+
+To make one `ParquetSourceBlock` emission equal to one domain entity batch:
+
+- During ingestion/conversion to Parquet, write each batch as its own **row group**:
+
+```csharp
+// Writing: one row group per batch
+await using var writer = await ParquetWriter.CreateAsync(schema, outputStream);
+foreach (var batch in batches)
+{
+    var frame = DenormaliseJournalBatch(batch);
+    using var groupWriter = writer.CreateRowGroup();
+    await frame.WriteToRowGroupAsync(groupWriter);  // one row group per batch
+}
+```
+
+- `ParquetSourceBlock` then yields **one `DataFrame` per row group**, which is exactly
+  one batch — no accumulation or splitting is needed downstream.
+
+### Pre-Converter Column Normalisation
+
+A `DataFrameSelectBlock` preceding the converter acts as an **explicit schema contract**
+between the ETL zone and the domain zone:
+
+```csharp
+// Rename source columns to match the converter's expected schema
+var normalise = new DataFrameSelectBlock(context, new SelectConfiguration
+{
+    Columns = new[]
+    {
+        new ColumnMapping("batch_ref",    "BatchRef"),
+        new ColumnMapping("batch_date",   "BatchDate"),
+        new ColumnMapping("journal_ref",  "JournalRef"),
+        new ColumnMapping("journal_type", "JournalType"),
+        new ColumnMapping("entry_seq",    "EntrySeq"),
+        new ColumnMapping("acct_code",    "AccountCode"),
+        new ColumnMapping("amount",       "Amount"),
+    }
+});
+```
+
+This means:
+- The upstream data source can use any column naming convention
+- The `DataFrameSelectBlock` translates to the canonical names the converter expects
+- The converter block itself never needs to change for different source systems
+
+---
+
 ## Known Limitations and Trade-offs
 
 | Area | Limitation | Mitigation |
@@ -331,3 +470,5 @@ public async Task ParquetRoundTrip_ReadsAndWritesCorrectly()
 | Clone cost on broadcast | `df.Clone()` is O(rows * columns) | Partitioned fan-out avoids cloning entirely |
 | Join scalability | `df.Join()` loads both sides in memory | Right-hand side should be a lookup table (small), not a second large stream |
 | Column naming collisions | `df.Join()` produces duplicate column names with a suffix | `DataFrameSelectBlock` can rename/deselect after join |
+| Denormalisation memory overhead | Hierarchy columns (batch ref, journal ref) duplicated on every entry row — O(rows × hierarchy_depth) | Acceptable for typical ERP batch sizes; Parquet Snappy compression reduces storage cost; row-group-per-batch keeps only one batch in memory at a time |
+| Converter sort dependency | `DataFrameToPocoBlock` may assume rows are sorted by entity key (e.g. `JournalRef`) | Write Parquet sorted by `(BatchRef, JournalRef, EntrySeq)` during ingestion, or use a `Dictionary`-based grouping inside the converter |
