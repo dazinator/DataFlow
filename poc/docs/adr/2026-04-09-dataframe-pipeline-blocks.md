@@ -3,7 +3,8 @@
 **Date**: 2026-04-09  
 **Status**: Proposed  
 **Authors**: Research Duty  
-**Related Research**: `/research/dataframe-analytics-pipeline/README.md`
+**Related Research**: `/research/dataframe-analytics-pipeline/README.md`  
+**Follow-up Evaluation**: `/poc/docs/adr/2026-04-15-apache-arrow-evaluation.md`
 
 ---
 
