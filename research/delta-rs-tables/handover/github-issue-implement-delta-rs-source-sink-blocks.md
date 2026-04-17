@@ -124,6 +124,12 @@ Apply these labels to the **new implementation work item created from this hando
 
 Create the following issues in order, with the listed duty label per issue.
 
+Created from this handover:
+- #218 `[Spike] Delta source/sink feasibility in POC`
+- #219 `[Spike] SQL-backed lease ownership for tenant/table shards`
+- #220 `[ADR] Lease + checkpoint transaction boundary decision`
+- #221 `[Implementation] DeltaTableSourceActor/DeltaTableSinkActor with checkpoint + lease integration`
+
 ### Issue 1 — `[Spike] Delta source/sink feasibility in POC`
 
 **Duty label**
