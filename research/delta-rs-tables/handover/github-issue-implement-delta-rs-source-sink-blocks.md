@@ -24,6 +24,8 @@ Key findings:
 1. `DeltaLake.Net` is the most direct .NET path aligned to delta-rs.
 2. POC architecture supports continuous source polling and scoped actor execution patterns needed for this integration.
 3. ADLS Gen2/ABFSS is suitable for Azure production; local filesystem tables are suitable for local dev tests.
+   - Expected runtime model is plain containerized .NET (no Hadoop cluster dependency).
+   - Explicitly validate this assumption in Spike 1.
 4. Table-per-tenant is the recommended baseline for noisy-neighbor isolation.
 5. CDF should be used when available, but implementation requires a version-diff fallback mode.
 
@@ -133,11 +135,13 @@ Create the following issues in order, with the listed duty label per issue.
 **Scope**
 - Implement minimal `IDeltaTableClient` adapter with local filesystem table.
 - Validate CDF-first read and version-diff fallback path.
+- Validate ABFSS access/auth from a containerized .NET runtime and confirm no Hadoop runtime dependency is required.
 - Capture measured behavior and known API gaps.
 
 **Definition of done**
 - Runnable spike committed under `poc/`.
 - Test/demo output showing append + incremental read across restarts.
+- ABFSS connectivity/auth result documented, including whether any extra runtime dependencies are required.
 - Short findings summary added to `research/delta-rs-tables/notes/`.
 
 ### Issue 2 — `[Spike] SQL-backed lease ownership for tenant/table shards`
