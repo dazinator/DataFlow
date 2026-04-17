@@ -23,4 +23,4 @@ First implementation phase should include a runnable spike project in `poc/` to 
 3. ADLS Gen2/ABFSS connection and auth path from a containerized .NET runtime (including verification of no Hadoop runtime dependency)
 4. Lease ownership behavior for scale-out workers (acquire/renew/expire/reacquire)
 5. Checkpoint + epoch transaction boundary behavior (cursor saved only after successful epoch completion)
-6. Candidate locking technology fit using existing stack (Azure SQL + `Medallion.Threading.Sql`, no Redis dependency)
+6. Candidate locking technology fit using existing stack (Azure SQL + `DistributedLock` SQL Server provider package, no Redis dependency)

@@ -155,7 +155,7 @@ Create the following issues in order, with the listed duty label per issue.
 **Scope**
 - Implement `IDeltaLeaseStore` prototype backed by Azure SQL lease table.
 - Use optimistic lease renewal with expiration and takeover on timeout.
-- Validate `Medallion.Threading.Sql` role (coarse coordination only; lease table remains source of truth).
+- Validate `DistributedLock` SQL Server provider role (coarse coordination only; lease table remains source of truth).
 
 **Definition of done**
 - Two-worker simulation showing single active owner per shard.

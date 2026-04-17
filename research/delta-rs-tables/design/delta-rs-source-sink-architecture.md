@@ -123,7 +123,7 @@ Cons:
 
 - **Lease state store:** Azure SQL table (for example: `TenantLease(LeaseKey, OwnerId, ExpiresUtc, Epoch, RowVersion)`).
 - **Acquire/renew pattern:** optimistic update (compare `RowVersion` and `ExpiresUtc`) plus periodic renewal heartbeat.
-- **Distributed coordination:** prefer existing SQL-based tooling first (`Medallion.Threading.Sql`) for coarse coordination, with lease table as source of truth.
+- **Distributed coordination:** prefer existing SQL-based tooling first (`DistributedLock` with SQL Server provider package) for coarse coordination, with lease table as source of truth.
 - **Checkpoint integration:** persist cursor/version in existing DataFlow checkpoint payload at epoch boundaries, using existing EF Core-backed checkpoint persistence.
 - **No Redis requirement:** this model stays within currently available platform primitives (Azure SQL + existing lock package + checkpoint infrastructure).
 
