@@ -117,3 +117,68 @@ Apply these labels to the **new implementation work item created from this hando
 
 - Duty: `workflow:implementation`
 - Type: Feature
+
+## Recommended Next-Phase GitHub Issues
+
+Create the following implementation-duty issues in order.
+
+### Issue 1 — `[Spike] Delta source/sink feasibility in POC`
+
+**Goal**
+- Build a runnable `poc/` spike that proves local Delta read/write and incremental read behavior.
+
+**Scope**
+- Implement minimal `IDeltaTableClient` adapter with local filesystem table.
+- Validate CDF-first read and version-diff fallback path.
+- Capture measured behavior and known API gaps.
+
+**Definition of done**
+- Runnable spike committed under `poc/`.
+- Test/demo output showing append + incremental read across restarts.
+- Short findings summary added to `research/delta-rs-tables/notes/`.
+
+### Issue 2 — `[Spike] SQL-backed lease ownership for tenant/table shards`
+
+**Goal**
+- Prove scale-out ownership with existing platform stack (Azure SQL + SQL lock tooling).
+
+**Scope**
+- Implement `IDeltaLeaseStore` prototype backed by Azure SQL lease table.
+- Use optimistic lease renewal with expiration and takeover on timeout.
+- Validate `Medallion.Threading.Sql` role (coarse coordination only; lease table remains source of truth).
+
+**Definition of done**
+- Two-worker simulation showing single active owner per shard.
+- Demonstrated lease expiry and safe ownership takeover.
+- Documented failure modes and retry/backoff policy.
+
+### Issue 3 — `[ADR] Lease + checkpoint transaction boundary decision`
+
+**Goal**
+- Record architecture decision for locking/leasing and checkpoint consistency model.
+
+**Scope**
+- Compare candidate options:
+  - SQL lease table + optimistic row-version updates
+  - SQL distributed lock only
+  - Hybrid (SQL lock for acquisition + lease table for liveness/ownership)
+- Define epoch boundary and checkpoint write rule for cursor durability.
+- Include architecture diagram and operational sequence.
+
+**Definition of done**
+- ADR merged under docs/research location agreed by maintainers.
+- Explicit selected approach, rejected alternatives, and rationale.
+
+### Issue 4 — `[Implementation] DeltaTableSourceActor/DeltaTableSinkActor with checkpoint + lease integration`
+
+**Goal**
+- Deliver production-ready POC implementation using outcomes of spikes + ADR.
+
+**Scope**
+- Implement source/sink actors, tenant routing, cursor store adapter to existing checkpoint infrastructure, and lease-based shard scheduling.
+- Add unit/integration coverage listed in this handover.
+
+**Definition of done**
+- All scoped tests passing.
+- Local and Azure-targeted configuration paths documented.
+- Observability hooks added for lag, lease churn, and commit throughput.
