@@ -120,9 +120,12 @@ Apply these labels to the **new implementation work item created from this hando
 
 ## Recommended Next-Phase GitHub Issues
 
-Create the following implementation-duty issues in order.
+Create the following issues in order, with the listed duty label per issue.
 
 ### Issue 1 — `[Spike] Delta source/sink feasibility in POC`
+
+**Duty label**
+- `workflow:research`
 
 **Goal**
 - Build a runnable `poc/` spike that proves local Delta read/write and incremental read behavior.
@@ -139,6 +142,9 @@ Create the following implementation-duty issues in order.
 
 ### Issue 2 — `[Spike] SQL-backed lease ownership for tenant/table shards`
 
+**Duty label**
+- `workflow:research`
+
 **Goal**
 - Prove scale-out ownership with existing platform stack (Azure SQL + SQL lock tooling).
 
@@ -154,6 +160,9 @@ Create the following implementation-duty issues in order.
 
 ### Issue 3 — `[ADR] Lease + checkpoint transaction boundary decision`
 
+**Duty label**
+- `workflow:research`
+
 **Goal**
 - Record architecture decision for locking/leasing and checkpoint consistency model.
 
@@ -166,10 +175,13 @@ Create the following implementation-duty issues in order.
 - Include architecture diagram and operational sequence.
 
 **Definition of done**
-- ADR merged under docs/research location agreed by maintainers.
+- ADR merged under `/research/delta-rs-tables/` location agreed by maintainers.
 - Explicit selected approach, rejected alternatives, and rationale.
 
 ### Issue 4 — `[Implementation] DeltaTableSourceActor/DeltaTableSinkActor with checkpoint + lease integration`
+
+**Duty label**
+- `workflow:implementation`
 
 **Goal**
 - Deliver production-ready POC implementation using outcomes of spikes + ADR.
