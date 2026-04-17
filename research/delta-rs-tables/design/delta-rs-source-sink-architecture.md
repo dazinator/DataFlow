@@ -47,6 +47,15 @@ Responsibilities:
 - `IDeltaCursorStore` (checkpoint/cursor persistence)
 - `IDeltaLeaseStore` (worker ownership for tenant/table partitions)
 
+### Relationship to Existing DataFlow Checkpointing
+
+This intentionally overlaps with existing DataFlow checkpoint/recovery concepts and should **reuse** them rather than introduce a parallel state model.
+
+- `IDeltaCursorStore` is intended to persist Delta source position (version/watermark) as block state at epoch checkpoint boundaries.
+- The existing `ICheckpoint`/`ICheckpointStrategy` mechanism remains the source of truth for when checkpoints are taken.
+- Existing EF Core checkpoint persistence patterns can back `IDeltaCursorStore` (directly or via an adapter), so Delta cursor state and other block checkpoint state commit together.
+- Recommended implementation direction: treat Delta cursor state as a checkpoint payload concern, not a separate independent persistence pipeline.
+
 ## 4. Multi-Tenant Topologies
 
 ### Topology 1: Table-per-tenant (Recommended)
