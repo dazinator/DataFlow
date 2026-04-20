@@ -2,11 +2,11 @@
 
 ## What was implemented
 
-- Added runnable spike project: `/home/runner/work/dataflow/dataflow/poc/DataFlow.DeltaSpike/`
+- Added runnable spike project: `poc/DataFlow.DeltaSpike/`
 - Added minimal adapter:
   - `IDeltaTableClient`
   - `DeltaLakeNetTableClient` (local filesystem + optional storage options)
-- Added test coverage in `/home/runner/work/dataflow/dataflow/poc/DataFlow.Tests/DeltaSpikeTableClientTests.cs`
+- Added test coverage in `poc/DataFlow.Tests/DeltaSpikeTableClientTests.cs`
 
 ## Measured behavior
 
@@ -15,7 +15,7 @@
 Command:
 
 ```bash
-cd /home/runner/work/dataflow/dataflow/poc
+cd poc
 dotnet run --project DataFlow.DeltaSpike/DataFlow.DeltaSpike.csproj -- --table-path /tmp/dataflow-delta-spike/manual-table
 ```
 
@@ -37,7 +37,7 @@ Observed:
 Command:
 
 ```bash
-cd /home/runner/work/dataflow/dataflow/poc
+cd poc
 dotnet run --project DataFlow.DeltaSpike/DataFlow.DeltaSpike.csproj -- \
   --table-path /tmp/dataflow-delta-spike/manual-table-abfss \
   --abfss-uri abfss://container@storageaccount.dfs.core.windows.net/a/b/demo-table

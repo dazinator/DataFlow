@@ -10,14 +10,14 @@ This spike provides a runnable local Delta table adapter and demo flow for:
 ## Run
 
 ```bash
-cd /home/runner/work/dataflow/dataflow/poc
+cd poc
 dotnet run --project DataFlow.DeltaSpike/DataFlow.DeltaSpike.csproj -- --table-path /tmp/dataflow-delta-spike/manual-table
 ```
 
 Optional ABFSS probe:
 
 ```bash
-cd /home/runner/work/dataflow/dataflow/poc
+cd poc
 dotnet run --project DataFlow.DeltaSpike/DataFlow.DeltaSpike.csproj -- \
   --table-path /tmp/dataflow-delta-spike/manual-table-abfss \
   --abfss-uri abfss://container@storageaccount.dfs.core.windows.net/a/b/demo-table
