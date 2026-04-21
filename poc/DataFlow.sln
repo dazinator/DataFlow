@@ -37,6 +37,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataFlow.Blazor.Demo.Server
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataFlow.Blazor.Tests", "DataFlow.Blazor.Tests\DataFlow.Blazor.Tests.csproj", "{938A92B2-108C-48C3-9B09-D8281AEC237E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataFlow.DeltaSpike", "DataFlow.DeltaSpike\DataFlow.DeltaSpike.csproj", "{7087DF2B-D61E-4AB1-B81D-3D06A22AA515}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -239,6 +241,18 @@ Global
 		{938A92B2-108C-48C3-9B09-D8281AEC237E}.Release|x64.Build.0 = Release|Any CPU
 		{938A92B2-108C-48C3-9B09-D8281AEC237E}.Release|x86.ActiveCfg = Release|Any CPU
 		{938A92B2-108C-48C3-9B09-D8281AEC237E}.Release|x86.Build.0 = Release|Any CPU
+		{7087DF2B-D61E-4AB1-B81D-3D06A22AA515}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7087DF2B-D61E-4AB1-B81D-3D06A22AA515}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7087DF2B-D61E-4AB1-B81D-3D06A22AA515}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{7087DF2B-D61E-4AB1-B81D-3D06A22AA515}.Debug|x64.Build.0 = Debug|Any CPU
+		{7087DF2B-D61E-4AB1-B81D-3D06A22AA515}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{7087DF2B-D61E-4AB1-B81D-3D06A22AA515}.Debug|x86.Build.0 = Debug|Any CPU
+		{7087DF2B-D61E-4AB1-B81D-3D06A22AA515}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7087DF2B-D61E-4AB1-B81D-3D06A22AA515}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7087DF2B-D61E-4AB1-B81D-3D06A22AA515}.Release|x64.ActiveCfg = Release|Any CPU
+		{7087DF2B-D61E-4AB1-B81D-3D06A22AA515}.Release|x64.Build.0 = Release|Any CPU
+		{7087DF2B-D61E-4AB1-B81D-3D06A22AA515}.Release|x86.ActiveCfg = Release|Any CPU
+		{7087DF2B-D61E-4AB1-B81D-3D06A22AA515}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

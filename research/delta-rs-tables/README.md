@@ -99,6 +99,8 @@ Recommended implementation behavior:
 
 Detailed design: `/research/delta-rs-tables/design/delta-rs-source-sink-architecture.md`
 
+Decision record: `/research/delta-rs-tables/adr/2026-04-20-cdf-strategy-for-dotnet.md`
+
 High-level components:
 - `DeltaTableSourceActor<T>`
 - `DeltaTableSinkActor<T>`

@@ -29,6 +29,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DataFlow\DataFlow.csproj" />
+    <ProjectReference Include="..\DataFlow.DeltaSpike\DataFlow.DeltaSpike.csproj" />
   </ItemGroup>
 
 </Project>
